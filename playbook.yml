@@ -10,5 +10,5 @@
     - users
     - microk8s
     - tailscale
-    - syncthing
+    # - syncthing
     - samba

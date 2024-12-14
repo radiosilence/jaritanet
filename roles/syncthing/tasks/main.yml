@@ -24,13 +24,17 @@
     group: "{{ username }}"
     mode: "0755"
 
-- name: Configure SyncThing to listen on all interfaces
+- name: Configure SyncThing
+  vars:
+    api_key: "{{ lookup('community.general.onepassword', 'syncthing_api_key') }}"
+    password_hash: "{{ lookup('community.general.onepassword', 'syncthing_password_hash') }}"
   ansible.builtin.copy:
     dest: "{{ syncthing.config_dir }}/config.xml"
     content: |
       <configuration version="37">
         <gui enabled="true" tls="false">
           <address>0.0.0.0:8384</address>
+          <theme>default</theme>
         </gui>
         {% for folder in syncthing_folders %}
         <folder
