@@ -8,7 +8,7 @@
   roles:
     - common
     - users
+    - microk8s
     - tailscale
     - syncthing
-    - microk8s
     - samba
