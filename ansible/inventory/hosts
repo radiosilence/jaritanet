@@ -1,6 +1,6 @@
 # inventory/hosts
 [homeservers]
-oldboy ansible_host=oldboy.local ansible_user=admin
+oldboy ansible_host=oldboy.local
 
 [all:vars]
 # Global SSH settings
