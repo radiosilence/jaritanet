@@ -30,8 +30,14 @@
       - microk8s
     append: true
 
-- name: Start microk8s
+- name: Check if MicroK8s is running
+  ansible.builtin.command: microk8s status --wait-ready
+  register: microk8s_status
+  failed_when: microk8s_status.rc not in [0, 1]
+
+- name: Start MicroK8s if not running
   ansible.builtin.command: microk8s start
+  when: microk8s_status.rc != 0
 
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"
@@ -59,11 +65,10 @@
   with_items: "{{ k8s_configs }}"
 
 - name: Apply the Kubernetes YAML files
-  ansible.builtin.command: kubectl apply -f "{{ item }}"
-  with_fileglob: /tmp/k8s-files/*.yml
+  ansible.builtin.command: microk8s kubectl apply -f /tmp/k8s-files/*.yml
 
 - name: Verify Kubernetes resources are created
-  ansible.builtin.command: kubectl get all
+  ansible.builtin.command: microk8s kubectl get all --all-namespaces
   register: result
 
 - name: Show result

@@ -15,7 +15,7 @@ metadata:
     storageName: music
 spec:
   capacity:
-    storage: 800Gi
+    storage: 1Ti
   volumeMode: Filesystem
   accessModes:
     - ReadOnlyMany
@@ -41,7 +41,7 @@ metadata:
     storageName: navidrome
 spec:
   capacity:
-    storage: 800Gi
+    storage: 1Gi
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
@@ -110,7 +110,7 @@ spec:
             storageName: navidrome
         resources:
           requests:
-            storage: 40Gi
+            storage: 1Gi
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
