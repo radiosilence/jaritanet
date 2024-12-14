@@ -32,11 +32,11 @@
         --authkey="{{  lookup('community.general.onepassword', 'tailscale_authkey') }}"
         --accept-routes
         --accept-dns
-        --accept-dns --accept-routes
         --advertise-exit-node
          {% if tailscale_routes is defined %}
         --advertise-routes="{{ tailscale_routes | join(',') }}"
         {% endif %}
+        --reset
       register: tailscale_auth
       changed_when: tailscale_auth.rc == 0
       failed_when: tailscale_auth.rc != 0
