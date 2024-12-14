@@ -18,3 +18,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Ansible
+*.retry
+.vault_pass
+secrets/*.yml
+!secrets/README.md
