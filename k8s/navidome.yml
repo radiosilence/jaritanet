@@ -1,0 +1,112 @@
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: navidrome
+  labels:
+    name: navidrome
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: music-vol
+  namespace: navidrome
+  labels:
+    storageName: music
+spec:
+  capacity:
+    storage: 800Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /mnt/kontent/music
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - soul
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: navidrome-vol
+  namespace: navidrome
+  labels:
+    storageName: navidrome
+spec:
+  capacity:
+    storage: 800Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /home/navidrome/data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - soul
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: navidrome
+  namespace: navidrome
+spec:
+  serviceName: "navidrome"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: navidrome
+  template:
+    metadata:
+      namespace: navidrome
+      labels:
+        app: navidrome
+    spec:
+      containers:
+        - name: navidrome
+          image: deluan/navidrome
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: "4"
+          volumeMounts:
+            - name: music-vol
+              mountPath: /music
+            - name: navidrome-vol
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: music-vol
+      spec:
+        accessModes: ["ReadOnlyMany"]
+        storageClassName: local-storage
+        selector:
+          matchLabels:
+            storageName: music
+        resources:
+          requests:
+            storage: 1Ti
+    - metadata:
+        name: navidrome-vol
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-storage
+        selector:
+          matchLabels:
+            storageName: navidrome
+        resources:
+          requests:
+            storage: 40Gi

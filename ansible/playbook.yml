@@ -1,0 +1,14 @@
+---
+- name: Ensure all configurations are applied
+  hosts: all
+  become: true
+  vars_files:
+    - group_vars/all.yml
+
+  roles:
+    - common
+    - users
+    - microk8s
+    - samba
+    - syncthing
+    - tailscale

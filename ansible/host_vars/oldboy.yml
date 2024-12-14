@@ -1,0 +1,16 @@
+username: jc
+
+samba_shares:
+  - name: music
+    path: "/mnt/kontent/music"
+    write_list: jc
+  - name: movies
+    path: "/mnt/kontent/movies"
+    write_list: jc
+  - name: tv
+    path: "/mnt/kontent/tv"
+    write_list: jc
+
+syncthing:
+  sync_paths:
+    - /mnt/kontent/music

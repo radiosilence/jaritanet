@@ -1,0 +1,31 @@
+---
+- name: Configure Samba shares
+  ansible.builtin.blockinfile:
+    path: /etc/samba/smb.conf
+    block: |
+      {% for share in samba_shares %}
+      [{{ share.name }}]
+          path = {{ share.path }}
+          browseable = yes
+          read only = yes
+          guest ok = yes
+          write list = {{ share.write_list }}
+          create mask = 0664
+          directory mask = 0775
+      {% endfor %}
+      {% endfor %}
+    marker: "# {mark} ANSIBLE MANAGED SAMBA SHARES"
+
+- name: Update Samba password for user
+  ansible.builtin.shell: "printf '{{ samba.passwords[username] }}\n' | smbpasswd -a {{ username }}"
+  register: samba_password
+  failed_when: samba_password.rc != 0
+
+- name: Restart Samba services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  loop:
+    - smbd
+    - nmbd

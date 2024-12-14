@@ -1,0 +1,71 @@
+---
+- name: Add SyncThing repository key
+  ansible.builtin.apt_key:
+    url: https://syncthing.net/release-key.txt
+    state: present
+
+- name: Add SyncThing repository
+  ansible.builtin.apt_repository:
+    repo: deb https://apt.syncthing.net/ syncthing stable
+    filename: syncthing
+    state: present
+
+- name: Install SyncThing
+  ansible.builtin.apt:
+    name: syncthing
+    update_cache: true
+    state: present
+
+- name: Create SyncThing configuration directory
+  ansible.builtin.file:
+    path: "{{ syncthing_config_dir }}"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: "0755"
+
+- name: Configure SyncThing to listen on all interfaces
+  ansible.builtin.copy:
+    dest: "{{ syncthing_config_dir }}/config.xml"
+    content: |
+      <configuration version="37">
+        <gui enabled="true" tls="false">
+          <address>0.0.0.0:8384</address>
+        </gui>
+      </configuration>
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: "0644"
+
+- name: Create SyncThing systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/syncthing@.service
+    content: |
+      [Unit]
+      Description=Syncthing - Open Source Continuous File Synchronization for %I
+      Documentation=man:syncthing(1)
+      After=network.target
+
+      [Service]
+      User=%i
+      ExecStart=/usr/bin/syncthing -no-browser -logflags=0
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+
+- name: Enable and start SyncThing service for user
+  ansible.builtin.systemd:
+    name: "syncthing@{{ username }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Configure UFW to allow SyncThing ports
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ syncthing_ports }}"

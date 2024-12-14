@@ -1,0 +1,15 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - snapd
+      - samba
+      - samba-common
+      - python3-pip
+      - acl
+      - ufw
+    state: present
