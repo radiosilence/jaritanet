@@ -10,6 +10,10 @@ microk8s:
 syncthing:
   enabled: true
   config_dir: "/home/{{ username }}/.config/syncthing"
+  ports:
+    - 22000
+    - 21027
+    - 8384
 
 samba:
   enabled: true

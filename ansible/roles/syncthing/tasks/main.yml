@@ -32,7 +32,7 @@
         <gui enabled="true" tls="false">
           <address>0.0.0.0:8384</address>
         </gui>
-        {% for folder in syncthing.folders %}
+        {% for folder in syncthing_folders %}
         <folder
           id="{{folder.id}}"
           label="{{folder.id}}"
@@ -76,11 +76,11 @@
     daemon_reload: true
 
 - name: Configure UFW to allow SyncThing ports
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ item }}"
-    proto: tcp
-  loop: "{{ syncthing_ports }}"
+    proto: any
+  loop: "{{ syncthing.ports }}"
 
 - name: Configure SyncThing dirs
   ansible.builtin.copy:
