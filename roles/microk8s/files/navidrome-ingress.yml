@@ -17,4 +17,4 @@ spec:
               service:
                 name: navidrome-service
                 port:
-                  number: 4533
+                  number: 80

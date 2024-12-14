@@ -22,5 +22,5 @@ tailscale_routes:
 k8s_configs:
   - navidrome-namespace.yml
   - navidrome-volumes.yml
-  - navidrome-statefulset.yml
+  - navidrome-service.yml
   - navidrome-ingress.yml

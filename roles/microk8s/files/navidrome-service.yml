@@ -6,6 +6,7 @@ metadata:
   namespace: navidrome
 spec:
   accessModes: ["ReadOnlyMany"]
+  storageClassName: local-storage
   selector:
     matchLabels:
       storageName: music
@@ -20,6 +21,7 @@ metadata:
   namespace: navidrome
 spec:
   accessModes: ["ReadWriteOnce"]
+  storageClassName: local-storage
   selector:
     matchLabels:
       storageName: navidrome
@@ -51,8 +53,6 @@ spec:
           value: 24h
         - name: ND_ENABLESHARING
           value: "true"
-        - name: ND_BASEURL
-          value: ""
       resources:
         limits:
           memory: 4Gi
@@ -81,5 +81,5 @@ spec:
   ports:
     - name: web
       protocol: TCP
-      port: 4533
-      targetPort: 4333
+      port: 80
+      targetPort: 4533
