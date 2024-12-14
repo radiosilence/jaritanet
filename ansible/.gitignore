@@ -1,5 +1,0 @@
-# Ansible
-*.retry
-.vault_pass
-secrets/*.yml
-!secrets/README.md

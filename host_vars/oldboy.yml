@@ -18,3 +18,6 @@ syncthing_folders:
 
 tailscale_routes:
   - 192.168.50.0/24
+
+kubernetes_configs:
+  - ./k8s/navidrome.yml

@@ -44,6 +44,30 @@
     - helm
   register: microk8s_addons
   changed_when: microk8s_addons.rc == 0
-# - name: Restart microk8s
-#   ansible.builtin.command: microk8s stop && microk8s start
-#   when: microk8s_addons.changed
+
+- name: Apply Kubernetes YAML files per host
+  hosts: all
+  become: true
+  tasks:
+    - name: Ensure temporary directory exists
+      ansible.builtin.file:
+        path: /tmp/k8s-files
+        state: directory
+
+    - name: Copy Kubernetes YAML files to the host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: /tmp/k8s-files/
+      with_items: "{{ k8s_files }}"
+
+    - name: Apply the Kubernetes YAML files
+      ansible.builtin.command: kubectl apply -f "{{ item }}"
+      with_fileglob: /tmp/k8s-files/*.yml
+
+    - name: Verify Kubernetes resources are created
+      ansible.builtin.command: kubectl get all
+      register: result
+
+    - name: Show result
+      ansible.builtin.debug:
+        var: result.stdout
