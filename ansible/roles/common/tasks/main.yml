@@ -7,9 +7,6 @@
   ansible.builtin.apt:
     name:
       - snapd
-      - samba
-      - samba-common
       - python3-pip
       - acl
-      - ufw
     state: present

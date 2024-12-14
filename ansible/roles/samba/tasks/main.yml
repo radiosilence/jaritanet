@@ -1,4 +1,11 @@
 ---
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - samba
+      - samba-common
+    state: present
+
 - name: Configure Samba shares
   ansible.builtin.blockinfile:
     path: /etc/samba/smb.conf
@@ -25,15 +32,6 @@
       {{ password }}
   register: samba_password
   failed_when: samba_password.rc != 0
-
-- name: Configure UFW to allow samba ports
-  community.general.ufw:
-    rule: allow
-    port: "{{ item }}"
-  loop:
-    - "Samba"
-    - "Samba Browsing"
-  state: enabled
 
 - name: Restart Samba services
   ansible.builtin.systemd:

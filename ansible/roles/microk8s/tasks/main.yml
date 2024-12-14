@@ -1,4 +1,10 @@
 ---
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - snapd
+    state: present
+
 - name: Install microk8s via snap
   community.general.snap:
     name: microk8s
@@ -25,7 +31,7 @@
     append: true
 
 - name: Start microk8s
-  ansible.builtin.command: microk8s start
+  ansible.builtin.command: microk8s start --wait-ready
 
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"
@@ -41,22 +47,3 @@
 # - name: Restart microk8s
 #   ansible.builtin.command: microk8s stop && microk8s start
 #   when: microk8s_addons.changed
-
-- name: Configure UFW to allow microk8s ports
-  community.general.ufw:
-    rule: allow
-    port: "{{ item }}"
-  loop:
-    - "kube-apiserver"
-    - "kube-controller-manager"
-    - "kube-scheduler"
-    - "kubelet"
-    - "kube-proxy"
-    - "flannel"
-    - "coredns"
-    - "ingress"
-    - "dashboard"
-    - "storage"
-    - "cert-manager"
-    - "helm"
-  state: enabled

@@ -74,23 +74,3 @@
     enabled: true
     state: started
     daemon_reload: true
-
-- name: Configure UFW to allow SyncThing ports
-  community.general.ufw:
-    rule: allow
-    port: "{{ item }}"
-    proto: any
-  loop: "{{ syncthing.ports }}"
-
-- name: Configure SyncThing dirs
-  ansible.builtin.copy:
-    dest: "{{ syncthing.config_dir }}/config.xml"
-    content: |
-      <configuration version="37">
-        <folder id="default" label="Default" path="{{ syncthing.default_dir }}">
-          <device id="default" introducedBy="" name="default" compression="metadata" type="sendreceive" />
-        </folder>
-      </configuration>
-    owner: "{{ username }}"
-    group: "{{ username }}"
-    mode: "0644"
