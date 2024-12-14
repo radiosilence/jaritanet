@@ -29,7 +29,7 @@
     - name: Authenticate with Tailscale
       ansible.builtin.command: >
         tailscale up
-        --authkey="{{ tailscale.auth_key }}"
+        --authkey="{{  lookup('community.general.onepassword', 'tailscale_authkey') }}"
         {% if tailscale.tags is defined %}
         --advertise-tags="{{ tailscale.tags | join(',') }}"
         {% endif %}

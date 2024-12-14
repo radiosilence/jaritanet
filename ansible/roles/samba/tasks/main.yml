@@ -13,11 +13,16 @@
           create mask = 0664
           directory mask = 0775
       {% endfor %}
-      {% endfor %}
     marker: "# {mark} ANSIBLE MANAGED SAMBA SHARES"
 
 - name: Update Samba password for user
-  ansible.builtin.shell: "printf '{{ samba.passwords[username] }}\n' | smbpasswd -a {{ username }}"
+  vars:
+    password: "{{ lookup('community.general.onepassword', 'samba_password') }}"
+  ansible.builtin.command:
+    cmd: /usr/bin/smbpasswd -s -a {{ username }}
+    stdin: |
+      {{ password }}
+      {{ password }}
   register: samba_password
   failed_when: samba_password.rc != 0
 

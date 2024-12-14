@@ -17,12 +17,25 @@
       - microk8s
     append: true
 
+- name: Add user to microk8s group
+  ansible.builtin.user:
+    name: "{{ username }}"
+    groups:
+      - microk8s
+    append: true
+
+- name: Start microk8s
+  ansible.builtin.command: microk8s start
+
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"
   loop:
+    - community
+    - ingress
     - dns
     - storage
-    - traefik
+    - cert-manager
+    - helm
   register: microk8s_addons
   changed_when: microk8s_addons.rc == 0
 # - name: Restart microk8s

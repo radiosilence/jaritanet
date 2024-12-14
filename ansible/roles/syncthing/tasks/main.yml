@@ -18,7 +18,7 @@
 
 - name: Create SyncThing configuration directory
   ansible.builtin.file:
-    path: "{{ syncthing_config_dir }}"
+    path: "{{ syncthing.config_dir }}"
     state: directory
     owner: "{{ username }}"
     group: "{{ username }}"
@@ -26,12 +26,24 @@
 
 - name: Configure SyncThing to listen on all interfaces
   ansible.builtin.copy:
-    dest: "{{ syncthing_config_dir }}/config.xml"
+    dest: "{{ syncthing.config_dir }}/config.xml"
     content: |
       <configuration version="37">
         <gui enabled="true" tls="false">
           <address>0.0.0.0:8384</address>
         </gui>
+        {% for folder in syncthing.folders %}
+        <folder
+          id="{{folder.id}}"
+          label="{{folder.id}}"
+          path="{{ folder.path }}"
+          type="{{ folder.type }}"
+          rescanIntervalS="3600"
+          fsWatcherEnabled="true"
+          ignorePerms="true">
+          <filesystemType>basic</filesystemType>
+        </folder>
+        {% endfor %}
       </configuration>
     owner: "{{ username }}"
     group: "{{ username }}"
@@ -69,3 +81,16 @@
     port: "{{ item }}"
     proto: tcp
   loop: "{{ syncthing_ports }}"
+
+- name: Configure SyncThing dirs
+  ansible.builtin.copy:
+    dest: "{{ syncthing.config_dir }}/config.xml"
+    content: |
+      <configuration version="37">
+        <folder id="default" label="Default" path="{{ syncthing.default_dir }}">
+          <device id="default" introducedBy="" name="default" compression="metadata" type="sendreceive" />
+        </folder>
+      </configuration>
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: "0644"

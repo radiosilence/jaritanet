@@ -12,5 +12,7 @@ samba_shares:
     write_list: jc
 
 syncthing:
-  sync_paths:
-    - /mnt/kontent/music
+  folders:
+    - id: music
+      path: /mnt/kontent/music
+      type: receiveonly
