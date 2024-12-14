@@ -15,3 +15,6 @@ syncthing_folders:
   - id: music
     path: /mnt/kontent/music
     type: receiveonly
+
+tailscale_routes:
+  - 192.168.50.0/24

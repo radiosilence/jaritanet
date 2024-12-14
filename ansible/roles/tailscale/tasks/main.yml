@@ -30,15 +30,16 @@
       ansible.builtin.command: >
         tailscale up
         --authkey="{{  lookup('community.general.onepassword', 'tailscale_authkey') }}"
-        {% if tailscale.tags is defined %}
-        --advertise-tags="{{ tailscale.tags | join(',') }}"
-        {% endif %}
         --accept-routes
         --accept-dns
+        --accept-dns --accept-routes
+        --advertise-exit-node
+         {% if tailscale_routes is defined %}
+        --advertise-routes="{{ tailscale_routes | join(',') }}"
+        {% endif %}
       register: tailscale_auth
       changed_when: tailscale_auth.rc == 0
       failed_when: tailscale_auth.rc != 0
-      no_log: true # Prevent token from being logged
 
 - name: Ensure Tailscale starts on boot
   ansible.builtin.systemd:

@@ -31,7 +31,7 @@
     append: true
 
 - name: Start microk8s
-  ansible.builtin.command: microk8s start --wait-ready
+  ansible.builtin.command: microk8s start
 
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"

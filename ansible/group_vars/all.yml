@@ -1,7 +1,3 @@
 # group_vars/all.yml
 tailscale:
   enabled: true
-  # This will be replaced with a vault-encrypted value
-  auth_key: "" # Will be injected securely
-  tags:
-    - "tag:ansible"
