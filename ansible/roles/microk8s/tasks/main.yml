@@ -5,6 +5,11 @@
     classic: true
     channel: stable
 
+- name: Create microk8s group
+  ansible.builtin.group:
+    name: microk8s
+    state: present
+
 - name: Add current user to microk8s group
   ansible.builtin.user:
     name: "{{ ansible_user }}"
