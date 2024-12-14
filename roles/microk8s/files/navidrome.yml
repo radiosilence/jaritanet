@@ -65,7 +65,7 @@ metadata:
   namespace: navidrome
 spec:
   serviceName: navidrome-service
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: navidrome
@@ -96,9 +96,9 @@ spec:
               memory: 4Gi
               cpu: "4"
           volumeMounts:
-            - name: music-vol
+            - name: music-vol-claim
               mountPath: /music
-            - name: navidrome-vol
+            - name: navidrome-vol-claim
               mountPath: /data
   volumeClaimTemplates:
     - metadata:
@@ -125,6 +125,18 @@ spec:
         resources:
           requests:
             storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: navidrome-service
+  namespace: navidrome
+spec:
+  ports:
+    - port: 80
+      targetPort: 4533
+  selector:
+    app: navidrome
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
