@@ -9,17 +9,13 @@ on:
     branches:
       - main
 
-env:
-  oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-  oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-  TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
-  SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
-
 jobs:
   playbook:
     name: Run Playbook
     runs-on: ubuntu-latest
     steps:
+      - name: echo test secret
+        run: echo ${{ secrets.TS_OAUTH_CLIENT_ID }}
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Tailscale
