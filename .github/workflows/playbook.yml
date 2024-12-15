@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: echo test secret
-        run: echo ${{ secrets.TS_OAUTH_CLIENT_ID }} | md5
+        run: echo ${{ secrets.TS_OAUTH_CLIENT_ID }} | sha256sum
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Tailscale
