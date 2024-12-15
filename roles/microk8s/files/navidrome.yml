@@ -126,6 +126,18 @@ spec:
           requests:
             storage: 1Gi
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: navidrome-service
+  namespace: navidrome
+spec:
+  ports:
+    - port: 80
+      targetPort: 4533
+  selector:
+    app: navidrome
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
