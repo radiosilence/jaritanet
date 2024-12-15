@@ -15,9 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: echo test secret
-        run: echo ${{ secrets.TS_OAUTH_CLIENT_ID }} > /tmp/secret
-      - name: echo tmp secret
-        run: cat /tmp/secret
+        run: echo ${{ secrets.TS_OAUTH_CLIENT_ID }} | md5
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Tailscale
