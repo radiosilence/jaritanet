@@ -6,9 +6,14 @@ permissions:
 
 on:
   workflow_call:
-    inputs:
     secrets:
       TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
+        required: true
+      TS_AUTHKEY:
+        required: true
+      SAMBA_PASSWORD:
         required: true
 
 jobs:
@@ -21,7 +26,7 @@ jobs:
       - name: Tailscale
         uses: tailscale/github-action@v2
         with:
-          oauth-client-id: ${{ vars.TS_OAUTH_CLIENT_ID }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
       - name: Install Ansible
@@ -31,3 +36,6 @@ jobs:
       - name: Run Ansible playbook
         run: |
           ansible-playbook playbook.yml
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
