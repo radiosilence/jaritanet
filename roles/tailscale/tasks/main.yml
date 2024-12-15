@@ -36,6 +36,7 @@
          {% if tailscale_routes is defined %}
         --advertise-routes="{{ tailscale_routes | join(',') }}"
         {% endif %}
+        --advertise-tags=tag:server
         --reset
       register: tailscale_auth
       changed_when: tailscale_auth.rc == 0
