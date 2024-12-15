@@ -5,21 +5,14 @@ permissions:
   packages: write
 
 on:
-  workflow_call:
-    secrets:
-      TS_OAUTH_CLIENT_ID:
-        required: true
-      TS_OAUTH_SECRET:
-        required: true
-      TS_AUTHKEY:
-        required: true
-      SAMBA_PASSWORD:
-        required: true
+  push:
+    branches:
+      - main
 
 jobs:
   playbook:
     name: Run Playbook
-    runs-on: ${{ github.event.inputs.platforms }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
