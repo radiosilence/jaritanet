@@ -24,7 +24,7 @@
 
 - name: Update Samba password for user
   vars:
-    password: "{{ lookup('community.general.onepassword', 'samba_password') }}"
+    password: "{{ lookup('env','SAMBA_PASSWORD') }}"
   ansible.builtin.command:
     cmd: /usr/bin/smbpasswd -s -a {{ username }}
     stdin: |

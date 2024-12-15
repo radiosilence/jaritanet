@@ -1,0 +1,33 @@
+name: Run Playbook
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  workflow_call:
+    inputs:
+    secrets:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+
+jobs:
+  playbook:
+    name: Run Playbook
+    runs-on: ${{ github.event.inputs.platforms }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ vars.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+      - name: Run Ansible playbook
+        run: |
+          ansible-playbook playbook.yml

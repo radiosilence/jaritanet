@@ -91,6 +91,8 @@ spec:
               value: 24h
             - name: ND_ENABLESHARING
               value: "true"
+            - name: ND_ENABLETRANSCODINGCONFIG
+              value: "true"
           resources:
             limits:
               memory: 4Gi
