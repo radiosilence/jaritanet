@@ -10,6 +10,9 @@ samba_shares:
   - name: tv
     path: "/mnt/kontent/tv"
     write_list: jc
+  - name: files
+    path: "/srv/files"
+    write_list: jc
 
 tailscale_routes:
   - 192.168.50.0/24
