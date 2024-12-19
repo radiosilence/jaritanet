@@ -51,7 +51,7 @@ spec:
     spec:
       containers:
         - name: files
-          image: ghcr.io/radiosilence/files:latest
+          image: ghcr.io/radiosilence/jaritanet-files:latest
           imagePullPolicy: Always
           ports:
             - name: web
