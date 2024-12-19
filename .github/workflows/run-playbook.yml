@@ -10,6 +10,7 @@ on:
       - main
     paths:
       - "ansible/**"
+      - "charts/**"
       - ".github/workflows/run-playbook.yml"
 
 concurrency:
