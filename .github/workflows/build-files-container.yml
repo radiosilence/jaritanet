@@ -19,5 +19,6 @@ jobs:
     uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@main
     with:
       working_directory: "./containers/files"
+      image: "files"
     secrets:
       PASSWORD: ${{ secrets.GITHUB_TOKEN }}
