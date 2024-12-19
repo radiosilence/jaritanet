@@ -1,4 +1,3 @@
----
 - name: Ensure common configurations are applied
   hosts: all
   become: true

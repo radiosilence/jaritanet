@@ -1,4 +1,3 @@
----
 # Specific configuration for homeservers
 microk8s:
   enabled: true
