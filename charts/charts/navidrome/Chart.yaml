@@ -1,0 +1,8 @@
+apiVersion: v2
+name: navidrome
+description: Navidrome music server
+version: 0.1.0
+dependencies:
+  - name: common-stack
+    version: 0.1.0
+    repository: "file://../common-stack"

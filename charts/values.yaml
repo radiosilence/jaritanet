@@ -1,0 +1,10 @@
+# values.yaml in the root chart
+nameOverride: ""
+global:
+  namespace: default
+
+# Enable/disable specific applications
+navidrome:
+  enabled: true
+files:
+  enabled: true
