@@ -51,26 +51,10 @@
   register: microk8s_addons
   changed_when: microk8s_addons.rc == 0
 
-- name: Ensure temporary directory exists
-  ansible.builtin.file:
-    path: /tmp/k8s-files
-    state: directory
-    mode: "0755"
-
-- name: Copy Kubernetes YAML files to the host
-  ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: /tmp/k8s-files/
-    mode: "0644"
+- name: Deploy latest version of Prometheus chart inside monitoring namespace (and create it)
+  kubernetes.core.helm:
+    name: { { item } }
+    path: ../charts
+    values_files:
+      - ../charts/values/{{ item }}.yaml
   with_items: "{{ k8s_configs }}"
-
-- name: Apply the Kubernetes YAML files
-  ansible.builtin.command: microk8s kubectl apply -f /tmp/k8s-files/*.yml
-
-- name: Verify Kubernetes resources are created
-  ansible.builtin.command: microk8s kubectl get all --all-namespaces
-  register: result
-
-- name: Show result
-  ansible.builtin.debug:
-    var: result.stdout

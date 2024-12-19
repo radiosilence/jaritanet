@@ -1,0 +1,4 @@
+apiVersion: v2
+name: jaritanet
+description: A Helm chart for managing multiple projects
+version: 0.1.0
