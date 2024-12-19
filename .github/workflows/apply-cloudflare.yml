@@ -35,6 +35,11 @@ jobs:
         with:
           workspace: ${{ env.TF_WORKSPACE }}
           directory: ${{ env.CONFIG_DIRECTORY }}
+      - name: echo some vars
+        run: |
+          echo $TF_CLOUD_ORGANIZATION
+          echo $TF_WORKSPACE
+          echo $CONFIG_DIRECTORY
       - name: Create Apply Run
         uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
         id: create-run
