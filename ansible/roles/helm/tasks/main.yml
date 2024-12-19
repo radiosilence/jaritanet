@@ -3,6 +3,8 @@
     src: "{{ helm.local_chart_dir }}"
     dest: "{{ helm.charts_dir }}"
     force: true
+    delete: true
+    recursive: true
     mode: "0644"
 
 - name: "Ensure Helm charts are deployed"
