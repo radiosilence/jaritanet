@@ -31,13 +31,19 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-      - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
-      - name: Run Ansible playbook
-        run: |
-          ansible-playbook playbook.yml --limit homeservers --private-key ~/.ssh/id_ed25519
+
+      - name: Run playbook
+        uses: dawidd6/action-ansible-playbook@v2
+        with:
+          # Required, playbook filepath
+          playbook: playbook.yml
+          # Optional, directory where playbooks live
+          directory: ./playbook
+          # Optional, SSH private key
+          key: ${{secrets.SSH_PRIVATE_KEY}}
+          # Optional, additional flags to pass to ansible-playbook
+          options: |
+            --limit homeservers
+            --verbose
         env:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
-        working-directory: ./playbook
