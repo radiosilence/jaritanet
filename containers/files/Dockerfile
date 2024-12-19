@@ -8,5 +8,5 @@ COPY Caddyfile /etc/caddy/Caddyfile
 RUN mkdir -p /srv/files && \
   chown -R 1000:1000 /srv/files
 
-# Only expose HTTP port
+# Only expose HTTP port!
 EXPOSE 80
