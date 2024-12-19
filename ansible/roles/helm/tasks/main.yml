@@ -17,7 +17,7 @@
     binary_path: /snap/bin/microk8s.helm
     chart_ref: "{{ helm.charts_dir }}"
     values_files:
-      - "{{ helm.charts_dir }}values/{{ item }}.yaml"
+      - "{{ helm.charts_dir }}/values/{{ item }}.yaml"
     create_namespace: true
     release_namespace: "{{ item }}"
     release_state: present
