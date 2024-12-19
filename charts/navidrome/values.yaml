@@ -14,11 +14,14 @@ persistence:
     accessMode: ReadWriteOnce
 
 statefulset:
+  name: navidrome
   replicas: 1
   image:
     repository: deluan/navidrome
     tag: latest
     pullPolicy: Always
+  ports:
+    web: 4533
   resources:
     limits:
       memory: 4Gi
@@ -38,6 +41,7 @@ statefulset:
 service:
   name: navidrome-service
   port: 80
+  targetPort: 4533
 
 ingress:
   name: navidrome-ingress

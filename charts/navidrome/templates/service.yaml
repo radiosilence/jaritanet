@@ -6,6 +6,6 @@ metadata:
 spec:
   ports:
     - port: {{.Values.service.port}}
-      targetPort: 4533
+      targetPort: {{.Values.service.targetPort}}
   selector:
     app: navidrome
