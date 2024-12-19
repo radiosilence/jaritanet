@@ -37,13 +37,13 @@ spec:
               cpu: {{ .Values.statefulset.resources.limits.cpu }}
           volumeMounts:
 {{- range $key, $volume := .Values.persistence }}
-            - name: {{ $key }}-vol-claim
+            - name: {{ $key }}-claim
               mountPath: {{ $volume.mountPath }}
 {{- end }}
   volumeClaimTemplates:
 {{- range $key, $volume := .Values.persistence }}
     - metadata:
-        name: {{ $key }}-vol-claim
+        name: {{ $key }}-claim
         namespace: {{ $.Values.global.namespace }}
       spec:
         accessModes: ["{{ $volume.accessMode }}"]
