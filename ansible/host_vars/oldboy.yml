@@ -1,5 +1,3 @@
-username: jc
-
 samba_shares:
   - name: music
     path: "/mnt/kontent/music"
