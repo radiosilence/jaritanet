@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: files
+  namespace: {{ .Values.global.namespace }}
+spec:
+  serviceName: {{ .Values.service.name }}
+  replicas: {{ .Values.statefulset.replicas }}
+  selector:
+    matchLabels:
+      app: files
+  template:
+    metadata:
+      namespace: {{ .Values.global.namespace }}
+      labels:
+        app: files
+    spec:
+      containers:
+        - name: files
+          image: {{ .Values.statefulset.image.repository }}:{{ .Values.statefulset.image.tag }}
+          imagePullPolicy: {{ .Values.statefulset.image.pullPolicy }}
+          ports:
+            - name: web
+              containerPort: {{ .Values.service.port }}
+          resources:
+            limits:
+              memory: {{ .Values.statefulset.resources.limits.memory }}
+              cpu: {{ .Values.statefulset.resources.limits.cpu }}
+          volumeMounts:
+            - name: files-vol-claim
+              mountPath: /srv/files
+  volumeClaimTemplates:
+    - metadata:
+        name: files-vol-claim
+        namespace: {{ .Values.global.namespace }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.persistence.storageClass }}
+        selector:
+          matchLabels:
+            storageName: files
+        resources:
+          requests:
+            storage: {{ .Values.persistence.claimStorageSize }}

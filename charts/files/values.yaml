@@ -1,0 +1,33 @@
+global:
+  namespace: files
+
+persistence:
+  storageClass: local-storage
+  storageSize: 10Gi
+  claimStorageSize: 5Gi
+
+statefulset:
+  replicas: 1
+  image:
+    repository: ghcr.io/radiosilence/jaritanet-files
+    tag: latest
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: "2"
+  nodeSelector:
+    key: kubernetes.io/hostname
+    operator: In
+    values:
+      - oldboy
+
+service:
+  name: files-service
+  port: 80
+
+ingress:
+  enabled: true
+  host: files.radiosilence.dev
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
