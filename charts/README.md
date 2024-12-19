@@ -1,8 +1,6 @@
-# README.md
-
 # App Stack Helm Charts
 
-This repository contains Helm charts for deploying various stateful applications.
+This repository contains Helm charts for deploying various stateful applications with a shared common template library.
 
 ## Prerequisites
 
@@ -10,6 +8,17 @@ This repository contains Helm charts for deploying various stateful applications
 - Helm 3.0+
 - PV provisioner support in the underlying infrastructure
 - LoadBalancer support (for ingress)
+
+## Repository Structure
+
+```
+app-stack/
+├── charts/
+│   ├── common-stack/     # Shared template library
+│   ├── files/           # Files service chart
+│   └── navidrome/       # Navidrome chart
+└── values/              # Default values for each application
+```
 
 ## Installation
 
@@ -28,15 +37,52 @@ cd app-stack
 helm dependency update
 ```
 
-### Deploying Navidrome
+### Automated Deployment (Recommended)
 
-1. Create namespace:
+Using the provided Ansible playbook:
+
+1. Install required Ansible collection:
 
 ```bash
-kubectl create namespace navidrome
+ansible-galaxy collection install kubernetes.core
 ```
 
-2. Deploy using included values:
+2. Deploy all enabled applications:
+
+```bash
+ansible-playbook deploy.yml
+```
+
+### Manual Deployment
+
+#### Using the helper function
+
+Add this to your `.bashrc` or `.zshrc`:
+
+```bash
+helm-deploy() {
+    local chart_name=$1
+    local chart_path="./charts/${chart_name}"
+    local values_path=$(yq e '.annotations.["default-values"]' "${chart_path}/Chart.yaml")
+
+    helm install ${chart_name} . \
+        --namespace ${chart_name} \
+        --set "${chart_name}.enabled=true" \
+        -f "${values_path}"
+}
+```
+
+Then deploy individual applications:
+
+```bash
+helm-deploy navidrome
+# or
+helm-deploy files
+```
+
+#### Standard Helm commands
+
+Deploy Navidrome:
 
 ```bash
 helm install navidrome . \
@@ -45,15 +91,7 @@ helm install navidrome . \
   -f values/navidrome.yaml
 ```
 
-### Deploying Files Service
-
-1. Create namespace:
-
-```bash
-kubectl create namespace files
-```
-
-2. Deploy using included values:
+Deploy Files Service:
 
 ```bash
 helm install files . \
@@ -64,7 +102,22 @@ helm install files . \
 
 ### Upgrading Deployments
 
-To upgrade an existing deployment:
+To upgrade an existing deployment using the helper:
+
+```bash
+helm-upgrade() {
+    local chart_name=$1
+    local chart_path="./charts/${chart_name}"
+    local values_path=$(yq e '.annotations.["default-values"]' "${chart_path}/Chart.yaml")
+
+    helm upgrade ${chart_name} . \
+        --namespace ${chart_name} \
+        --set "${chart_name}.enabled=true" \
+        -f "${values_path}"
+}
+```
+
+Using standard Helm:
 
 ```bash
 helm upgrade navidrome . \
@@ -85,7 +138,20 @@ helm uninstall files -n files
 
 ## Configuration
 
-See the values.yaml files in each chart's directory for the full list of configurable parameters.
+Each application has its own values file in the `values/` directory:
+
+- `values/navidrome.yaml` - Configuration for Navidrome
+- `values/files.yaml` - Configuration for Files service
+
+Common configuration options are available in `charts/common-stack/values.yaml`.
+
+## Adding New Applications
+
+1. Create a new directory in `charts/` for your application
+2. Copy the Chart.yaml template from an existing application
+3. Create a values file in `values/`
+4. Update the application's Chart.yaml to point to the values file
+5. Add the application to the root Chart.yaml dependencies
 
 ## Contributing
 
@@ -94,3 +160,7 @@ See the values.yaml files in each chart's directory for the full list of configu
 3. Commit your changes
 4. Push to the branch
 5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details

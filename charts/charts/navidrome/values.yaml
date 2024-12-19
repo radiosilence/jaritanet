@@ -1,0 +1,3 @@
+nameOverride: "navidrome"
+global:
+  namespace: navidrome
