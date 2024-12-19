@@ -18,10 +18,10 @@ env:
   CONFIG_DIRECTORY: "./terraform"
 
 concurrency:
-  group: "deploy-cloudflare"
+  group: "apply-cloudflare"
 
 jobs:
-  deploy-dns:
+  apply-dns:
     concurrency: 1
     runs-on: ubuntu-latest
     permissions:
@@ -30,23 +30,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: echo some vars
+        run: |
+          echo $TF_CLOUD_ORGANIZATION
+          echo $TF_WORKSPACE
+          echo $CONFIG_DIRECTORY
+
       - name: Upload Configuration
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
         id: apply-upload
         with:
           workspace: ${{ env.TF_WORKSPACE }}
           directory: ${{ env.CONFIG_DIRECTORY }}
-      - name: echo some vars
-        run: |
-          echo $TF_CLOUD_ORGANIZATION
-          echo $TF_WORKSPACE
-          echo $CONFIG_DIRECTORY
+
       - name: Create Apply Run
         uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
         id: create-run
         with:
           workspace: ${{ env.TF_WORKSPACE }}
           configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
+
       - name: Apply
         uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
         if: fromJSON(steps.create-run.outputs.payload).data.attributes.actions.IsConfirmable
