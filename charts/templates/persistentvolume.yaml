@@ -15,9 +15,6 @@ spec:
     - {{ $volume.accessMode }}
   persistentVolumeReclaimPolicy: Recycle
   storageClassName: {{ $volume.storageClass }}
-  claimRef:
-    name: {{ $key }}-claim
-    namespace: {{ $.Values.global.namespace }}
   local:
     path: {{ $volume.path }}
   nodeAffinity:
