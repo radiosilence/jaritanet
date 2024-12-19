@@ -5,6 +5,8 @@ persistence:
   storageClass: local-storage
   storageSize: 10Gi
   claimStorageSize: 5Gi
+  local:
+    path: /srv/files
 
 statefulset:
   replicas: 1
