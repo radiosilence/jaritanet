@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: files-ingress
+  name: {{.Values.ingress.name}}
   namespace: {{ .Values.global.namespace }}
   annotations:
 {{ toYaml .Values.ingress.annotations | nindent 4 }}

@@ -6,6 +6,6 @@ metadata:
 spec:
   ports:
     - port: {{.Values.service.port}}
-      targetPort: {{.Values.service.port}}
+      targetPort: {{.Values.statefulset.ports.web}}
   selector:
-    app: files
+    app: {{.Values.statefulset.name}}

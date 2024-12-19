@@ -43,7 +43,6 @@ statefulset:
 service:
   name: navidrome-service
   port: 80
-  targetPort: 4533
 
 ingress:
   name: navidrome-ingress

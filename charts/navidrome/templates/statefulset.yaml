@@ -24,11 +24,13 @@ spec:
             - name: {{ $key }}
               containerPort: {{ $port }}
             {{- end }}
+          {{- if .Values.statefulset.environment }}
           env:
-            {{- range $key, $value := .Values.statefulset.environment }}
+            {{- range $key, $value := (.Values.statefulset.environment | default "{}") }}
             - name: {{ $key }}
               value: "{{ $value }}"
             {{- end }}
+          {{- end }}
           resources:
             limits:
               memory: {{ .Values.statefulset.resources.limits.memory }}
