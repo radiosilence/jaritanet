@@ -8,9 +8,8 @@
 
 - name: "Copy helm charts to host"
   ansible.builtin.copy:
-    src: "./charts"
+    src: "../charts"
     dest: "/var/lib/helm"
-    remote_src: true
     force: true
     mode: "0644"
 
@@ -19,7 +18,8 @@
     name: "{{ item }}"
     chart_ref: "/var/lib/helm/charts"
     values_files:
-      - "./var/lib/helm/charts/values/{{ item }}.yaml"
+      - "/var/lib/helm/charts/values/{{ item }}.yaml"
+    create_namespace: true
     release_namespace: "{{ item }}"
     release_state: present
   with_items: "{{ helm_configs }}"
