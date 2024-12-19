@@ -13,7 +13,7 @@ spec:
   volumeMode: Filesystem
   accessModes:
     - {{ $volume.accessMode }}
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Recycle
   storageClassName: {{ $volume.storageClass }}
   claimRef:
     name: {{ $key }}-claim
