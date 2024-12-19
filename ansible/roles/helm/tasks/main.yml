@@ -1,11 +1,15 @@
-- name: "Copy helm charts to host"
-  ansible.builtin.copy:
+- name: "Create remote charts directory"
+  file:
+    path: "{{ helm.charts_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "Synchronize charts to remote server"
+  synchronize:
     src: "{{ helm.local_chart_dir }}"
     dest: "{{ helm.charts_dir }}"
-    force: true
     delete: true
     recursive: true
-    mode: "0644"
 
 - name: "Ensure Helm charts are deployed"
   kubernetes.core.helm:
@@ -13,7 +17,7 @@
     binary_path: /snap/bin/microk8s.helm
     chart_ref: "{{ helm.charts_dir }}"
     values_files:
-      - "{{ helm.charts_dir }}/{{ item }}.yaml"
+      - "{{ helm.charts_dir }}values/{{ item }}.yaml"
     create_namespace: true
     release_namespace: "{{ item }}"
     release_state: present
