@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - "terraform/**"
+      - ".github/workflows/apply-cloudflare.yml"
 
 env:
   TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
