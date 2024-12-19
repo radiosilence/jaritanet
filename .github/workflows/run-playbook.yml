@@ -12,6 +12,9 @@ on:
       - "playbook/**"
       - ".github/workflows/run-playbook.yml"
 
+concurrency:
+  group: "ansible"
+
 jobs:
   playbook:
     name: Run Playbook
