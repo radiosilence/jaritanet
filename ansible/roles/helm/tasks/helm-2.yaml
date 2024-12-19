@@ -1,0 +1,85 @@
+# ./ansible/deploy.yml
+---
+- name: Deploy Helm Charts
+  hosts: all # This can target specific host groups
+  gather_facts: false
+  vars:
+    projects:
+      - name: navidrome
+        enabled: true
+      - name: files
+        enabled: true
+    charts_path: "../charts" # Relative path to charts from ansible directory
+    remote_charts_path: "/opt/helm-charts" # Where charts will be copied on remote
+    copy_charts: true # Set to false to use local charts directory
+
+  tasks:
+    - name: Create remote charts directory
+      file:
+        path: "{{ remote_charts_path }}"
+        state: directory
+        mode: "0755"
+      when: copy_charts | bool
+
+    - name: Synchronize charts to remote server
+      synchronize:
+        src: "{{ charts_path }}/"
+        dest: "{{ remote_charts_path }}/"
+        delete: yes # Ensures clean state
+        recursive: yes
+      when: copy_charts | bool
+
+    - name: Set charts path
+      set_fact:
+        working_charts_path: "{{ copy_charts | bool | ternary(remote_charts_path, charts_path) }}"
+
+    - name: Ensure Helm dependencies are up to date
+      command:
+        cmd: helm dependency update
+        chdir: "{{ working_charts_path }}"
+
+    - name: Deploy applications
+      loop: "{{ projects }}"
+      when: item.enabled | bool
+      block:
+        - name: Ensure namespace exists
+          kubernetes.core.k8s:
+            api_version: v1
+            kind: Namespace
+            name: "{{ item.name }}"
+            state: present
+
+        - name: Get values file path from Chart.yaml
+          command:
+            cmd: 'yq e ''.annotations.["default-values"]'' {{ item.name }}/Chart.yaml'
+            chdir: "{{ working_charts_path }}"
+          register: values_path
+          changed_when: false
+
+        - name: Deploy {{ item.name }}
+          kubernetes.core.helm:
+            name: "{{ item.name }}"
+            chart_ref: "{{ working_charts_path }}/{{ item.name }}"
+            release_namespace: "{{ item.name }}"
+            values_files:
+              - "{{ working_charts_path }}/{{ values_path.stdout }}"
+            wait: true
+# ./ansible/inventory.yml
+# ---
+# all:
+#   hosts:
+#     localhost:
+#       ansible_connection: local
+#     kubernetes:
+#       ansible_host: your.kubernetes.host
+#       ansible_user: your_user
+#       # ansible_ssh_private_key_file: ~/.ssh/your_key
+
+# # ./ansible/ansible.cfg
+# [defaults]
+# inventory = inventory.yml
+# host_key_checking = False
+# remote_user = your_user
+
+# [ssh_connection]
+# pipelining = True
