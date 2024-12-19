@@ -33,6 +33,5 @@ jobs:
         run: |
           ansible-playbook playbook.yml --limit homeservers
         env:
-          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
         working-directory: ./playbook
