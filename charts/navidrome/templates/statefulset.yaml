@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: navidrome
+  namespace: {{ .Values.global.namespace }}
+spec:
+  serviceName: {{ .Values.service.name }}
+  replicas: {{ .Values.statefulset.replicas }}
+  selector:
+    matchLabels:
+      app: navidrome
+  template:
+    metadata:
+      namespace: {{ .Values.global.namespace }}
+      labels:
+        app: navidrome
+    spec:
+      containers:
+        - name: navidrome
+          image: {{ .Values.statefulset.image.repository }}:{{ .Values.statefulset.image.tag }}
+          imagePullPolicy: {{ .Values.statefulset.image.pullPolicy }}
+          ports:
+            - name: web
+              containerPort: 4533
+          env:
+{{ toYaml .Values.statefulset.environment | nindent 12 }}
+          resources:
+            limits:
+              memory: {{ .Values.statefulset.resources.limits.memory }}
+              cpu: {{ .Values.statefulset.resources.limits.cpu }}
+          volumeMounts:
+{{- range $key, $volume := .Values.persistence }}
+            - name: {{ $key }}-vol-claim
+              mountPath: {{ if eq $key "music" }}/music{{ else }}/data{{ end }}
+{{- end }}
+  volumeClaimTemplates:
+{{- range $key, $volume := .Values.persistence }}
+    - metadata:
+        name: {{ $key }}-vol-claim
+        namespace: {{ $.Values.global.namespace }}
+      spec:
+        accessModes: ["{{ $volume.accessMode }}"]
+        storageClassName: {{ $volume.storageClass }}
+        selector:
+          matchLabels:
+            storageName: {{ $key }}
+        resources:
+          requests:
+            storage: {{ $volume.storageSize }}
+{{- end }}

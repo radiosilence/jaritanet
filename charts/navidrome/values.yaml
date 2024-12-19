@@ -1,65 +1,47 @@
-# Default values for navidrome.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+global:
+  namespace: navidrome
 
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
+persistence:
+  music:
+    storageClass: local-storage
+    storageSize: 1Ti
+    path: /mnt/kontent/music
+    accessMode: ReadOnlyMany
+  data:
+    storageClass: local-storage
+    storageSize: 1Gi
+    path: /home/navidrome/data
+    accessMode: ReadWriteOnce
 
-# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+statefulset:
+  replicas: 1
+  image:
+    repository: deluan/navidrome
+    tag: latest
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: "4"
+  nodeSelector:
+    key: kubernetes.io/hostname
+    operator: In
+    values:
+      - oldboy
+  environment:
+    ND_SCANSCHEDULE: 1h
+    ND_LOGLEVEL: info
+    ND_SESSIONTIMEOUT: 24h
+    ND_ENABLESHARING: "true"
+    ND_ENABLETRANSCODINGCONFIG: "true"
+
 service:
+  name: navidrome-service
   port: 80
-  targetPort: 4533
 
-# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
-  enabled: false
-  className: ""
+  name: navidrome-ingress
+  enabled: true
+  host: music.blit.cc
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-  hosts:
-    - host: music.blit.cc
-      paths:
-        - path: /
-          pathType: Prefix
-
-resources:
-  {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-livenessProbe:
-  httpGet:
-    path: /
-    port: http
-readinessProbe:
-  httpGet:
-    path: /
-    port: http
-
-# Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
