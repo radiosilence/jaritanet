@@ -13,7 +13,6 @@ on:
     paths:
       - "containers/files/**"
       - ".github/workflows/build-files-container.yml"
-  pull_request:
 
 jobs:
   publish:
