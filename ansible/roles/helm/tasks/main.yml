@@ -1,0 +1,25 @@
+- name: "Create microk8s helm wrapper script"
+  ansible.builtin.copy:
+    dest: /usr/local/bin/helm
+    content: |
+      #!/bin/bash
+      microk8s helm "$@"
+    mode: "0755"
+
+- name: "Copy helm charts to host"
+  ansible.builtin.copy:
+    src: "./charts"
+    dest: "/var/lib/helm"
+    remote_src: true
+    force: true
+    mode: "0644"
+
+- name: "Ensure Helm charts are deployed"
+  kubernetes.core.helm:
+    name: "{{ item }}"
+    chart_ref: "/var/lib/helm/charts"
+    values_files:
+      - "./var/lib/helm/charts/values/{{ item }}.yaml"
+    release_namespace: "{{ item }}"
+    release_state: present
+  with_items: "{{ helm_configs }}"
