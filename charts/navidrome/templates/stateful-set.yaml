@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: { { include "navidrome.fullname" . } }
+  labels: { { - include "navidrome.labels" . | nindent 4 } }
+spec:
+  serviceName: { { include "navidrome.fullname" . } }
+  replicas: { { .Values.replicaCount } }
+  selector:
+    matchLabels:
+      app: { { include "navidrome.fullname" . } }
+  template:
+    metadata:
+      labels: { { - include "navidrome.labels" . | nindent 8 } }
+    spec:
+      containers:
+        - name: { { include "navidrome.fullname" . } }
+          image: deluan/navidrome
+          imagePullPolicy: Always
+          ports:
+            - name: web
+              containerPort: 4533
+          env:
+            - name: ND_SCANSCHEDULE
+              value: 1h
+            - name: ND_LOGLEVEL
+              value: info
+            - name: ND_SESSIONTIMEOUT
+              value: 24h
+            - name: ND_ENABLESHARING
+              value: "true"
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: "4"
+          volumeMounts:
+            - name: music-vol-claim
+              mountPath: /music
+            - name: navidrome-vol-claim
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: music-vol-claim
+        namespace: navidrome
+      spec:
+        accessModes: ["ReadOnlyMany"]
+        storageClassName: local-storage
+        selector:
+          matchLabels:
+            storageName: music
+        resources:
+          requests:
+            storage: 1Ti
+    - metadata:
+        name: navidrome-vol-claim
+        namespace: navidrome
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-storage
+        selector:
+          matchLabels:
+            storageName: navidrome
+        resources:
+          requests:
+            storage: 1Gi

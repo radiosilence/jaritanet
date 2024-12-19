@@ -1,0 +1,51 @@
+{
+    # Disable admin interface
+    admin off
+    # Disable automatic HTTPS
+    auto_https off
+}
+
+:80 {
+    # Bind to all interfaces on port 80
+    bind 0.0.0.0
+
+    # Enable file browser
+    file_server {
+        root /srv/files
+        browse
+    }
+
+    # Permissive CORS configuration
+    header {
+        # Allow requests from any origin
+        Access-Control-Allow-Origin "*"
+        # Allow all common HTTP methods
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        # Allow all headers
+        Access-Control-Allow-Headers "*"
+        # Allow credentials
+        Access-Control-Allow-Credentials "true"
+        # Cache CORS preflight requests for 1 hour
+        Access-Control-Max-Age "3600"
+        # Expose all response headers to the client
+        Access-Control-Expose-Headers "*"
+
+        # Basic security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+
+    # Handle CORS preflight requests
+    @options {
+        method OPTIONS
+    }
+    respond @options 204
+
+    # Basic compression for faster transfers
+    encode gzip zstd
+
+    # Log all accesses
+    log {
+        output stdout
+    }
+}
