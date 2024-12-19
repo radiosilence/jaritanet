@@ -17,3 +17,6 @@ syncthing:
 
 samba:
   enabled: true
+
+tailscale:
+  enabled: false

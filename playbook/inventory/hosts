@@ -2,6 +2,9 @@
 [homeservers]
 oldboy ansible_host=oldboy
 
+[tailnet]
+oldboy-local ansible_host=oldboy.local
+
 [all:vars]
 # Global SSH settings
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'

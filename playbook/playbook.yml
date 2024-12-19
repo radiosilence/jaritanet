@@ -1,5 +1,5 @@
 ---
-- name: Ensure all configurations are applied
+- name: Ensure common configurations are applied
   hosts: all
   become: true
   vars_files:
@@ -7,8 +7,25 @@
 
   roles:
     - common
+
+- name: Ensure homeserver configurations are applied
+  hosts: homeservers
+  become: true
+  vars_files:
+    - group_vars/homeservers.yml
+
+  roles:
+    - common
     - users
-    - tailscale
     - microk8s
     - syncthing
     - samba
+
+- name: Ensure tailnet is joined
+  hosts: tailnet
+  become: true
+  vars_files:
+    - group_vars/tailnet.yml
+
+  roles:
+    - tailscale
