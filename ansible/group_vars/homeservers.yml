@@ -19,3 +19,8 @@ samba:
 
 tailscale:
   enabled: false
+
+helm:
+  enabled: true
+  local_chart_dir: "../charts"
+  charts_dir: "/opt/helm-charts"

@@ -1,7 +1,7 @@
 - name: "Copy helm charts to host"
   ansible.builtin.copy:
-    src: "../charts"
-    dest: "/var/lib/helm"
+    src: "{{ helm.local_chart_dir }}"
+    dest: "{{ helm.charts_dir }}"
     force: true
     mode: "0644"
 
@@ -9,9 +9,9 @@
   kubernetes.core.helm:
     name: "{{ item }}"
     binary_path: /snap/bin/microk8s.helm
-    chart_ref: "/var/lib/helm/charts"
+    chart_ref: "{{ helm.charts_dir }}"
     values_files:
-      - "/var/lib/helm/charts/values/{{ item }}.yaml"
+      - "{{ helm.charts_dir }}/{{ item }}.yaml"
     create_namespace: true
     release_namespace: "{{ item }}"
     release_state: present
