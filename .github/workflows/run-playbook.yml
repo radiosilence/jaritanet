@@ -9,7 +9,7 @@ on:
     branches:
       - main
     paths:
-      - "playbook/**"
+      - "ansible/**"
       - ".github/workflows/run-playbook.yml"
 
 concurrency:
@@ -41,7 +41,7 @@ jobs:
           # Required, playbook filepath
           playbook: playbook.yml
           # Optional, directory where playbooks live
-          directory: ./playbook
+          directory: ./ansible
           # Optional, SSH private key
           key: ${{secrets.SSH_PRIVATE_KEY}}
           # Optional, additional flags to pass to ansible-playbook
