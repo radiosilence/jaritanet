@@ -10,6 +10,7 @@ on:
       - main
     paths:
       - "playbook/**"
+      - ".github/workflows/run-playbook.yml"
 
 jobs:
   playbook:
