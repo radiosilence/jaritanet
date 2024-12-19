@@ -31,7 +31,8 @@ jobs:
           sudo apt install -y ansible
       - name: Run Ansible playbook
         run: |
-          ansible-playbook  playbook/playbook.yml
+          ansible-playbook  playbook.yml
         env:
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
+        working-directory: ./playbook
