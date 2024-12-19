@@ -25,7 +25,10 @@ spec:
               containerPort: {{ $port }}
             {{- end }}
           env:
-{{ toYaml .Values.statefulset.environment | nindent 12 }}
+            {{- range $key, $value := .Values.statefulset.environment }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
           resources:
             limits:
               memory: {{ .Values.statefulset.resources.limits.memory }}

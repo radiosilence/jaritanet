@@ -6,11 +6,13 @@ persistence:
     storageClass: local-storage
     storageSize: 1Ti
     path: /mnt/kontent/music
+    mountPath: /music
     accessMode: ReadOnlyMany
   data:
     storageClass: local-storage
     storageSize: 1Gi
     path: /home/navidrome/data
+    mountPath: /data
     accessMode: ReadWriteOnce
 
 statefulset:
