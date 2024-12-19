@@ -16,3 +16,4 @@ tailscale_routes:
 
 k8s_configs:
   - navidrome.yml
+  - files.yml
