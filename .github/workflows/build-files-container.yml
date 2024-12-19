@@ -11,13 +11,13 @@ on:
     tags:
       - v*
     paths:
-      - "files/**"
+      - "containers/files/**"
   pull_request:
 
 jobs:
   publish-web:
     uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@main
     with:
-      working_directory: "./files"
+      working_directory: "./containers/files"
     secrets:
       PASSWORD: ${{ secrets.GITHUB_TOKEN }}
