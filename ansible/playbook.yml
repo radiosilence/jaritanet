@@ -15,10 +15,10 @@
     - group_vars/homeservers.yml
 
   roles:
+    - samba
     - microk8s
     - helm
     - syncthing
-    - samba
 
 - name: Ensure tailnet is joined
   hosts: tailnet

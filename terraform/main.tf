@@ -24,8 +24,8 @@ module "blit" {
   ]
   subdomains = {
     "music" = {
-      type    = "CNAME"
-      content = var.jaritanet_cname
+      type    = "A"
+      content = var.jaritanet_ip
       proxied = true
     }
   }
@@ -51,13 +51,13 @@ module "radiosilence" {
   ]
   subdomains = {
     "bambi" = {
-      type    = "CNAME"
-      content = var.jaritanet_cname
+      type    = "A"
+      content = var.jaritanet_ip
       proxied = true
     }
     "files" = {
-      type    = "CNAME"
-      content = var.jaritanet_cname
+      type    = "A"
+      content = var.jaritanet_ip
       proxied = true
     }
   }

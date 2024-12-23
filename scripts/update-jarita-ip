@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+# Configure git
+git config --global user.email "automation@radiosilence.dev"
+git config --global user.name "IP Update Automation"
+
+# Working directory
+cd /workspace # Adjust this path based on your k8s pod working directory
+
+# Fetch the latest code
+git pull origin main # Adjust branch name as needed
+
+# Get the current IP address from the vars.tf file
+CURRENT_IP=$(grep -oP '(?<=default\s+=\s+")\d+\.\d+\.\d+\.\d+' ./terraform/vars.tf)
+
+# Get the latest IP address (you'll need to implement your specific logic here)
+# This is a placeholder - replace with your actual IP retrieval logic
+NEW_IP=$(curl jsonip.com | jq -r .ip) # Replace with actual endpoint
+
+# Check if the IP has changed
+if [ "$CURRENT_IP" != "$NEW_IP" ]; then
+  echo "IP has changed from $CURRENT_IP to $NEW_IP"
+
+  # Update the vars.tf file
+  # Using sed with different delimiters since IP contains dots
+  sed -i "s|default     = \"$CURRENT_IP\"|default     = \"$NEW_IP\"|" ./terraform/vars.tf
+
+  # Stage the changed file
+  git add ./terraform/vars.tf
+
+  # Create a commit with the update
+  git commit -m "chore: Update JARITANET IP to $NEW_IP"
+
+  # Push the changes
+  git push origin main # Adjust branch name as needed
+
+  echo "Successfully updated IP and pushed changes"
+else
+  echo "IP hasn't changed, no update needed"
+fi
