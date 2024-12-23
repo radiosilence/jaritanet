@@ -1,0 +1,7 @@
+{
+  "variable": {
+    "jaritanet_ip": {
+      "default": "118.199.79.106"
+    }
+  }
+}

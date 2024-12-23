@@ -41,7 +41,8 @@ data:
         echo "IP has changed from $CURRENT_IP to $NEW_IP"
         
         # Update the vars.tf file
-        jq --arg new_ip "$NEW_IP" '.variable.jaritanet_ip.default = $new_ip' "$VARS_FILE" > "$VARS_FILE"
+        jq --arg new_ip "$NEW_IP" '.variable.jaritanet_ip.default = $new_ip' "$VARS_FILE" > /tmp/vars
+        mv /tmp/vars "$VARS_FILE"
 
         # Stage and commit the changes
         git add "$VARS_FILE"
