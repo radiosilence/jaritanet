@@ -5,7 +5,7 @@ metadata:
 data:
   update-ip.sh: |
     #!/bin/bash
-
+    
     set -e
 
     # Configure git
@@ -15,10 +15,11 @@ data:
     echo "Configuring git..."
 
     # Clone the repository
+    echo "Cloning repository..."
     git clone {{ .Values.gitRepo.url }} /workspace
     cd /workspace
 
-    ls -l /worksplace
+    ls -l .
 
     # Checkout the specified branch
     echo "Checking out branch {{ .Values.gitRepo.branch }}..."

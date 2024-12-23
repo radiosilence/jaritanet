@@ -19,15 +19,31 @@ spec:
             imagePullPolicy: {{ .Values.image.pullPolicy }}
             volumeMounts:
             - name: ssh
-              mountPath: /root/.ssh
+              mountPath: /tmp/ssh
               readOnly: true
             - name: scripts
               mountPath: /scripts
+            env:
+            - name: GIT_SSH_COMMAND
+              value: ssh -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519
             command:
             - /bin/sh
             - -c
             - |
+              echo "Starting IP update automation..."
+              echo "Current time: $(date)"
+              echo "Running on node $(hostname)"
+              echo "Installing required packages..."
               apk add bash curl jq 
+
+              echo "Creating SSH directory..."  
+              mkdir ~/.ssh
+              chmod 700 ~/.ssh
+              cp /tmp/ssh/* ~/.ssh/
+              chmod 600 ~/.ssh/*
+              echo "Adding newline to files..."
+              sed -i -e '$a\' ~/.ssh/*
+
               /scripts/update-ip.sh
 
           volumes:
