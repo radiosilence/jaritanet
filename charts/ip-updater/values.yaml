@@ -3,7 +3,7 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
-schedule: "* * * * *" # Run minutely by default
+schedule: "*/5 * * * *" # Run minutely by default
 
 gitConfig:
   email: "automation@radiosilence.dev"
