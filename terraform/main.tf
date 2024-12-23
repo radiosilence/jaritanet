@@ -2,7 +2,10 @@ terraform {
   required_providers {
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
+      version = ">= 4.40.0"
+    }
+    random = {
+      source = "hashicorp/random"
     }
   }
   required_version = ">= 1.8.2"
@@ -22,13 +25,17 @@ module "blit" {
     "github",
     "bluesky",
   ]
-  subdomains = {
-    "music" = {
-      type    = "A"
-      content = var.jaritanet_ip
-      proxied = true
-    }
+}
+
+module "music_tunnel" {
+  source = "./modules/cf-tunnel"
+  zone = {
+    name = "music.${var.blit_zone.name}"
+    id   = var.blit_zone.id
   }
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  cloudflare_email      = var.cloudflare_email
 }
 
 # buttholes.live

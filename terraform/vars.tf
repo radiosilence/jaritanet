@@ -9,6 +9,12 @@ variable "cloudflare_account_id" {
   type        = string
 }
 
+variable "cloudflare_email" {
+  description = "The email address of the Cloudflare account to use"
+  type        = string
+}
+
+
 variable "blit_zone" {
   description = "The Cloudflare zone to use for blit"
   type = object({
