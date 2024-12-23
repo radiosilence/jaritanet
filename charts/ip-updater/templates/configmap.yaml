@@ -44,7 +44,7 @@ data:
         jq --arg new_ip "$NEW_IP" '.variable.jaritanet_ip.default = $new_ip' "$VARS_FILE" > "$VARS_FILE"
 
         # Stage and commit the changes
-        git add ./terraform/vars.tf
+        git add "$VARS_FILE"
         git commit -m "chore: Update JARITANET IP to $NEW_IP"
         
         # Push the changes
