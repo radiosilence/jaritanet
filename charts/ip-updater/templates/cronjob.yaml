@@ -23,25 +23,11 @@ spec:
               readOnly: true
             - name: scripts
               mountPath: /scripts
-            env:
-            - name: GIT_SSH_COMMAND
-              value: "ssh -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=no"
             command:
             - /bin/sh
             - -c
             - |
-              apk add bash curl jq git grep openssh
-
-              chmod 0700 /root/.ssh
-              chmod -R 0600 /root/.ssh/*
-              ls -l /root/.ssh
-
-              echo "Known hosts:"
-              cat /root/.ssh/known_hosts
-              echo "SSH keyy:"
-              cat /root/.ssh/id_ed25519
-              echo "Scripts:"
-              ls -l /scripts
+              apk add bash curl jq 
               /scripts/update-ip.sh
 
           volumes:

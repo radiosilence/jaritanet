@@ -5,6 +5,7 @@ metadata:
 data:
   update-ip.sh: |
     #!/bin/bash
+
     set -e
 
     # Configure git

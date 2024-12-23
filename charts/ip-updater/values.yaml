@@ -1,5 +1,5 @@
 image:
-  repository: ubuntu
+  repository: alpine/git
   tag: latest
   pullPolicy: IfNotPresent
 
