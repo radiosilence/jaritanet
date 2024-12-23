@@ -21,7 +21,7 @@ resource "random_password" "tunnel_secret" {
 # Creates a new locally-managed tunnel for the GCP VM.
 resource "cloudflare_zero_trust_tunnel_cloudflared" "auto_tunnel" {
   account_id = var.cloudflare_account_id
-  name       = "Terraform GCP tunnel"
+  name       = "Terraform tunnel"
   secret     = base64sha256(random_password.tunnel_secret.result)
 }
 
@@ -34,7 +34,6 @@ resource "cloudflare_record" "http_app" {
   proxied = true
 }
 
-# TODO: Sture this so the zone etc is injected somehow?! or config for the zone.
 
 # TODO Creates the configuration for the tunnel.
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
