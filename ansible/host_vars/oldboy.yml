@@ -16,5 +16,12 @@ tailscale_routes:
   - 192.168.50.0/24
 
 helm_configs:
-  - navidrome
-  - files
+  - name: navidrome
+    type: local-server
+    values: local-server/values/navidrome.yaml
+  - name: files
+    type: local-server
+    values: local-server/values/files.yaml
+  - name: ip-updater
+    type: ip-updater
+    values: ip-updater/values.yaml

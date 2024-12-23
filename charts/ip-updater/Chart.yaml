@@ -1,0 +1,5 @@
+apiVersion: v2
+name: ip-updater
+description: A Helm chart for IP update automation
+version: 0.1.0
+type: application

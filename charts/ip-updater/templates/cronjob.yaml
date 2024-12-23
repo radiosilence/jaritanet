@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-ip-updater
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          containers:
+          - name: ip-updater
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+            - /bin/sh
+            - -c
+            volumeMounts:
+            - name: ssh-key
+              mountPath: /root/.ssh
+              readOnly: true
+            - name: scripts
+              mountPath: /scripts
+            - name: known-hosts
+              mountPath: /root/.ssh/known_hosts
+              subPath: known_hosts
+            env:
+            - name: GIT_SSH_COMMAND
+              value: "ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no"
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Setup SSH key with proper permissions
+              cp /root/.ssh/ssh-key /root/.ssh/id_rsa
+              chmod 600 /root/.ssh/id_rsa
+              
+              # Run the update script
+              /scripts/update-ip.sh
+          volumes:
+          - name: ssh-key
+            secret:
+              secretName: {{ .Release.Name }}-ssh-key
+              defaultMode: 0400
+          - name: scripts
+            configMap:
+              name: {{ .Release.Name }}-scripts
+              defaultMode: 0755
+          - name: known-hosts
+            configMap:
+              name: {{ .Release.Name }}-known-hosts
+          restartPolicy: OnFailure
