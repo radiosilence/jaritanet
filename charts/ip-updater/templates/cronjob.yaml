@@ -44,7 +44,7 @@ spec:
           volumes:
           - name: ssh-key
             secret:
-              secretName: {{ .Release.Name }}-ssh-key
+              secretName: git-ssh-key
               defaultMode: 0400
           - name: scripts
             configMap:

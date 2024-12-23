@@ -9,11 +9,6 @@ gitConfig:
   email: "automation@radiosilence.dev"
   name: "IP Update Automation"
 
-sshKey: |
-  -----BEGIN OPENSSH PRIVATE KEY-----
-  YOUR_PRIVATE_KEY_HERE
-  -----END OPENSSH PRIVATE KEY-----
-
 # Configure your git repository
 gitRepo:
   url: "git@github.com:radiosilence/jaritanet.git"

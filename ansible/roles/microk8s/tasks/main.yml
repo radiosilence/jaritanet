@@ -49,3 +49,16 @@
     - helm
   register: microk8s_addons
   changed_when: microk8s_addons.rc == 0
+
+# playbook.yml
+- name: Create Kubernetes SSH key secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: git-ssh-key
+      type: Opaque
+      stringData:
+        ssh-key: "{{ lookup('env','GIT_SSH_KEY') }}"
