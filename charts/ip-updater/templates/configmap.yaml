@@ -11,18 +11,29 @@ data:
     git config --global user.email "{{ .Values.gitConfig.email }}"
     git config --global user.name "{{ .Values.gitConfig.name }}"
 
+    echo "Configuring git..."
+    ls -l /root/.ssh
+    ls -l /scripts
+
     # Clone the repository
     git clone {{ .Values.gitRepo.url }} /workspace
     cd /workspace
 
+    ls -l /worksplace
+
     # Checkout the specified branch
+    echo "Checking out branch {{ .Values.gitRepo.branch }}..."
     git checkout {{ .Values.gitRepo.branch }}
 
     # Get the current IP address from the vars.tf file
+    echo "Getting current IP address..."
     CURRENT_IP=$(grep 'default.*=' ./terraform/vars.tf | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+')
+    echo "Current IP address is $CURRENT_IP"
 
     # Get the latest IP address (replace with your actual IP retrieval logic)
+    echo "Getting new IP address..."
     NEW_IP=$(curl jsonip.com | jq -r .ip)
+    echo "New IP address is $NEW_IP"
 
     # Check if the IP has changed
     if [ "$CURRENT_IP" != "$NEW_IP" ]; then
