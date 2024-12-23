@@ -6,13 +6,15 @@ git config --global user.email "automation@radiosilence.dev"
 git config --global user.name "IP Update Automation"
 
 # Working directory
-cd /workspace # Adjust this path based on your k8s pod working directory
+# cd /workspace # Adjust this path based on your k8s pod working directory
 
 # Fetch the latest code
-git pull origin main # Adjust branch name as needed
+# git pull origin main # Adjust branch name as needed
 
 # Get the current IP address from the vars.tf file
-CURRENT_IP=$(grep -oP '(?<=default\s+=\s+")\d+\.\d+\.\d+\.\d+' ./terraform/vars.tf)
+CURRENT_IP=$(grep 'default.*=' ./terraform/vars.tf | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+')
+
+echo "Current IP: $CURRENT_IP"
 
 # Get the latest IP address (you'll need to implement your specific logic here)
 # This is a placeholder - replace with your actual IP retrieval logic
@@ -24,7 +26,7 @@ if [ "$CURRENT_IP" != "$NEW_IP" ]; then
 
   # Update the vars.tf file
   # Using sed with different delimiters since IP contains dots
-  sed -i "s|default     = \"$CURRENT_IP\"|default     = \"$NEW_IP\"|" ./terraform/vars.tf
+  sed -i "s|$CURRENT_IP|$NEW_IP|" ./terraform/vars.tf
 
   # Stage the changed file
   git add ./terraform/vars.tf
