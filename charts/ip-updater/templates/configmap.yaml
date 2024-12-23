@@ -12,8 +12,6 @@ data:
     git config --global user.name "{{ .Values.gitConfig.name }}"
 
     echo "Configuring git..."
-    ls -l /root/.ssh
-    ls -l /scripts
 
     # Clone the repository
     git clone {{ .Values.gitRepo.url }} /workspace

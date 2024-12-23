@@ -1,56 +1,56 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ .Release.Name }}-ip-updater
+  name: {{ .Release.Name }}-cronjob
 spec:
   schedule: {{ .Values.schedule | quote }}
-  successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 5
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
-      backoffLimit: 3
+      # backoffLimit: 3
+      ttlSecondsAfterFinished: 86400 
       template:
         spec:
           containers:
           - name: ip-updater
             image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
             imagePullPolicy: {{ .Values.image.pullPolicy }}
-            command:
-            - /bin/sh
-            - -c
             volumeMounts:
-            - name: ssh-key
+            - name: ssh
               mountPath: /root/.ssh
               readOnly: true
             - name: scripts
               mountPath: /scripts
-            - name: known-hosts
-              mountPath: /root/.ssh/known_hosts
-              subPath: known_hosts
             env:
             - name: GIT_SSH_COMMAND
-              value: "ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no"
+              value: "ssh -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=no"
             command:
             - /bin/sh
             - -c
             - |
-              # Setup SSH key with proper permissions
-              cp /root/.ssh/ssh-key /root/.ssh/id_rsa
-              chmod 600 /root/.ssh/id_rsa
-              
-              # Run the update script
+              apk add bash curl jq git grep openssh
+
+              chmod 0700 /root/.ssh
+              chmod -R 0600 /root/.ssh/*
+              ls -l /root/.ssh
+
+              echo "Known hosts:"
+              cat /root/.ssh/known_hosts
+              echo "SSH keyy:"
+              cat /root/.ssh/id_ed25519
+              echo "Scripts:"
+              ls -l /scripts
               /scripts/update-ip.sh
+
           volumes:
-          - name: ssh-key
-            secret:
-              secretName: {{ .Release.Name }}-ssh-key
-              defaultMode: 0400
           - name: scripts
             configMap:
               name: {{ .Release.Name }}-scripts
               defaultMode: 0755
-          - name: known-hosts
-            configMap:
-              name: {{ .Release.Name }}-known-hosts
+          - name: ssh
+            secret:
+              secretName: {{ .Release.Name }}-ssh
+              defaultMode: 0400
           restartPolicy: OnFailure
