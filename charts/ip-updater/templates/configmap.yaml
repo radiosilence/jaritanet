@@ -36,6 +36,11 @@ data:
     NEW_IP=$(curl jsonip.com | jq -r .ip)
     echo "New IP address is $NEW_IP"
 
+    if [ -z "$NEW_IP" ]; then
+        echo "Failed to get new IP address"
+        exit 1
+    fi
+    
     # Check if the IP has changed
     if [ "$CURRENT_IP" != "$NEW_IP" ]; then
         echo "IP has changed from $CURRENT_IP to $NEW_IP"
