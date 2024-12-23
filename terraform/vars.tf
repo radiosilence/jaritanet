@@ -55,5 +55,5 @@ variable "jaritanet_cname" {
 variable "jaritanet_ip" {
   description = "The IP address to use for JARITANET"
   type        = string
-  default     = "127.0.0.1"
+  default     = "168.199.79.106"
 }
