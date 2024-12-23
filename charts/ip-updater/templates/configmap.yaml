@@ -19,15 +19,16 @@ data:
     git clone {{ .Values.gitRepo.url }} /workspace
     cd /workspace
 
-    ls -l .
-
     # Checkout the specified branch
     echo "Checking out branch {{ .Values.gitRepo.branch }}..."
     git checkout {{ .Values.gitRepo.branch }}
+    
+    VARS_FILE=./terraform/vars-ip.tf.json
 
     # Get the current IP address from the vars.tf file
     echo "Getting current IP address..."
-    CURRENT_IP=$(grep 'default.*=' ./terraform/vars.tf | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+')
+    CURRENT_IP=$(jq -r '.variable.jaritanet_ip.default' $VARS_FILE)
+
     echo "Current IP address is $CURRENT_IP"
 
     # Get the latest IP address (replace with your actual IP retrieval logic)
@@ -40,8 +41,8 @@ data:
         echo "IP has changed from $CURRENT_IP to $NEW_IP"
         
         # Update the vars.tf file
-        sed -i "s|default     = \"$CURRENT_IP\"|default     = \"$NEW_IP\"|" ./terraform/vars.tf
-        
+        jq --arg new_ip "$NEW_IP" '.variable.jaritanet_ip.default = $new_ip' "$VARS_FILE" > "$VARS_FILE"
+
         # Stage and commit the changes
         git add ./terraform/vars.tf
         git commit -m "chore: Update JARITANET IP to $NEW_IP"

@@ -45,15 +45,3 @@ variable "radiosilence_zone" {
     name = "radiosilence.dev"
   }
 }
-
-variable "jaritanet_cname" {
-  description = "The CNAME to use for JARITANET"
-  type        = string
-}
-
-
-variable "jaritanet_ip" {
-  description = "The IP address to use for JARITANET"
-  type        = string
-  default     = "168.199.79.106"
-}

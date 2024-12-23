@@ -30,11 +30,12 @@ spec:
             - /bin/sh
             - -c
             - |
+              set -e
               echo "Starting IP update automation..."
               echo "Current time: $(date)"
               echo "Running on node $(hostname)"
               echo "Installing required packages..."
-              apk add bash curl jq 
+              apk add bash curl jq
 
               echo "Creating SSH directory..."  
               mkdir ~/.ssh
