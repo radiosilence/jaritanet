@@ -25,8 +25,14 @@ if [ "$CURRENT_IP" != "$NEW_IP" ]; then
   echo "IP has changed from $CURRENT_IP to $NEW_IP"
 
   # Update the vars.tf file
-  # Using sed with different delimiters since IP contains dots
-  sed -i "s|$CURRENT_IP|$NEW_IP|" ./terraform/vars.tf
+  # Handle sed differences between macOS and Linux
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    sed -i '' "s|default     = \"$CURRENT_IP\"|default     = \"$NEW_IP\"|" ./terraform/vars.tf
+  else
+    # Linux
+    sed -i "s|default     = \"$CURRENT_IP\"|default     = \"$NEW_IP\"|" ./terraform/vars.tf
+  fi
 
   # Stage the changed file
   git add ./terraform/vars.tf
