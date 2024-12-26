@@ -26,7 +26,8 @@ variable "name" {
 variable "zones" {
   description = "The zones to use"
   type = map(object({
-    name = string
-    id   = string
+    name    = string
+    id      = string
+    service = string
   }))
 }

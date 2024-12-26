@@ -30,8 +30,9 @@ module "jaritanet_tunnel" {
   name   = "jaritanet"
   zones = {
     music = {
-      name = "musi-tun.${var.blit_zone.name}"
-      id   = var.blit_zone.id
+      name    = "musi-tun.${var.blit_zone.name}"
+      id      = var.blit_zone.id
+      service = "http://navidrome-service.navidrome.svc.cluster.local"
     }
   }
   cloudflare_account_id = var.cloudflare_account_id
