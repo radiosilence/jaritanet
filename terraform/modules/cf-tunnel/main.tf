@@ -21,7 +21,7 @@ resource "random_password" "tunnel_secret" {
 # Creates a new locally-managed tunnel for the k8s.
 resource "cloudflare_zero_trust_tunnel_cloudflared" "auto_tunnel" {
   account_id = var.cloudflare_account_id
-  name       = "Terraform tunnel"
+  name       = var.name
   secret     = base64sha256(random_password.tunnel_secret.result)
 }
 

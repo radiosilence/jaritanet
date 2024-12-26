@@ -13,6 +13,11 @@ variable "cloudflare_email" {
   type        = string
 }
 
+variable "name" {
+  description = "The name of the tunnel"
+  type        = string
+}
+
 variable "zones" {
   description = "The zones to use"
   type = map(object({

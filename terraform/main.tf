@@ -27,6 +27,7 @@ provider "cloudflare" {
 # jaritanet tunnel
 module "jaritanet_tunnel" {
   source = "./modules/cf-tunnel"
+  name   = "jaritanet"
   zones = {
     music = {
       name = "musi-tun.${var.blit_zone.name}"
