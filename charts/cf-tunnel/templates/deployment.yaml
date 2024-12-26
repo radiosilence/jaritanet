@@ -6,7 +6,7 @@ metadata:
   name: cloudflared-deployment
   namespace: default
 spec:
-  replicas: 1
+  replicas: {{.Value.replicas}}
   selector:
     matchLabels:
       pod: cloudflared
@@ -29,7 +29,8 @@ spec:
           args:
             - --token
             - {{.Value.token}}
-          image: cloudflare/cloudflared:latest
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{.Values.image.pullPolicy}}
           name: cloudflared
           livenessProbe:
             httpGet:

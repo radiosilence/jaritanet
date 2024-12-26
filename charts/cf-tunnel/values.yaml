@@ -1,2 +1,6 @@
 token: ""
 replicas: 2
+image:
+  repository: cloudflare/cloudflared
+  tag: latest
+  pullPolicy: Always
