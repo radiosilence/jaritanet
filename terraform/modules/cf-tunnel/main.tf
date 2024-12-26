@@ -33,7 +33,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
       for_each = var.zones
       content {
         hostname = ingress_rule.value["name"]
-        service  = "http://localhost:80"
+        service  = "http://navidrome-service:80"
         origin_request {
           connect_timeout = "2m0s"
         }
