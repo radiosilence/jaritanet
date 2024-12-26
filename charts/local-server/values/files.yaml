@@ -36,6 +36,7 @@ service:
 ingress:
   name: files-ingress
   enabled: true
-  host: files.radiosilence.dev
+  hosts:
+    - files.radiosilence.dev
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"

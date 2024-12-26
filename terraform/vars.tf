@@ -14,6 +14,12 @@ variable "cloudflare_email" {
   type        = string
 }
 
+variable "cloudflare_team_name" {
+  description = "The name of the Cloudflare team to use"
+  type        = string
+  default     = "radiosilence"
+}
+
 
 variable "blit_zone" {
   description = "The Cloudflare zone to use for blit"

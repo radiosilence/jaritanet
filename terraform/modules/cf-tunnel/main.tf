@@ -38,7 +38,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
           connect_timeout = "2m0s"
           access {
             required  = true
-            team_name = "myteam"
+            team_name = var.cloudflare_team_name
             aud_tag   = [cloudflare_zero_trust_access_application.http_app[ingress_rule.key].aud]
           }
         }

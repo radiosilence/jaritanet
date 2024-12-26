@@ -47,6 +47,8 @@ service:
 ingress:
   name: navidrome-ingress
   enabled: true
-  host: music.blit.cc
+  hosts:
+    - music.blit.cc
+    - musi-tun.blit.cc
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"

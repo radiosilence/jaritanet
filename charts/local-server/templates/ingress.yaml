@@ -8,14 +8,16 @@ metadata:
 {{ toYaml .Values.ingress.annotations | nindent 4 }}
 spec:
   rules:
-    - host: {{ .Values.ingress.host }}
+    {{- range .Values.ingress.hosts }}
+    - host: {{ . }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ .Values.service.name }}
+                name: {{ $.Values.service.name }}
                 port:
-                  number: {{ .Values.service.port }}
+                  number: {{ $.Values.service.port }}
+    {{- end }}
 {{- end }}
