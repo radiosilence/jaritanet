@@ -15,6 +15,18 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
+# jaritanet tunnel
+module "jaritanet_tunnel" {
+  source = "./modules/cf-tunnel"
+  zones = [{
+    name = "musi-tun.${var.blit_zone.name}"
+    id   = var.blit_zone.id
+  }]
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  cloudflare_email      = var.cloudflare_email
+}
+
 # blit.cc
 module "blit" {
   source = "./modules/zone"
@@ -31,19 +43,14 @@ module "blit" {
       content = var.jaritanet_ip
       proxied = true
     }
+    "musi-tun" = {
+      type    = "A"
+      content = jaritanet_tunnel.cname
+      proxied = true
+    }
   }
 }
 
-module "music_tunnel" {
-  source = "./modules/cf-tunnel"
-  zone = {
-    name = "musi-tun.${var.blit_zone.name}"
-    id   = var.blit_zone.id
-  }
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_api_token  = var.cloudflare_api_token
-  cloudflare_email      = var.cloudflare_email
-}
 
 # buttholes.live
 module "buttholes" {

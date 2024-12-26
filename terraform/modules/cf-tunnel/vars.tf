@@ -13,10 +13,10 @@ variable "cloudflare_email" {
   type        = string
 }
 
-variable "zone" {
-  description = "The Cloudflare zone to use"
-  type = object({
+variable "zones" {
+  description = "The zones to use"
+  type = list(object({
     name = string
     id   = string
-  })
+  }))
 }

@@ -25,30 +25,22 @@ resource "cloudflare_zero_trust_tunnel_cloudflared" "auto_tunnel" {
   secret     = base64sha256(random_password.tunnel_secret.result)
 }
 
-# Creates the CNAME record that routes http_app.${var.cloudflare_zone} to the tunnel.
-resource "cloudflare_record" "http_app" {
-  zone_id = var.zone.id
-  name    = var.zone.name
-  content = cloudflare_zero_trust_tunnel_cloudflared.auto_tunnel.cname
-  type    = "CNAME"
-  proxied = true
-}
-
-
-# TODO Creates the configuration for the tunnel.
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.auto_tunnel.id
   account_id = var.cloudflare_account_id
   config {
-    ingress_rule {
-      hostname = cloudflare_record.http_app.hostname
-      service  = "http://localhost:80"
-      origin_request {
-        connect_timeout = "2m0s"
-        access {
-          required  = true
-          team_name = "myteam"
-          aud_tag   = [cloudflare_zero_trust_access_application.http_app.aud]
+    dynamic "ingress" {
+      for_each = var.zones
+      content {
+        hostname = ingress.value["name"]
+        service  = "http://localhost:80"
+        origin_request {
+          connect_timeout = "2m0s"
+          access {
+            required  = true
+            team_name = "myteam"
+            aud_tag   = [cloudflare_zero_trust_access_application.http_app.aud]
+          }
         }
       }
     }
@@ -59,19 +51,21 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
 }
 
 resource "cloudflare_zero_trust_access_application" "http_app" {
-  zone_id          = var.zone.id
-  name             = "Access application for ${var.zone.name}"
-  domain           = var.zone.name
+  zone_id          = each.value.id
+  name             = "Access application for ${each.value.name}"
+  domain           = each.value.name
   session_duration = "1h"
+  for_each         = var.zones
 }
 
 resource "cloudflare_zero_trust_access_policy" "http_policy" {
   application_id = cloudflare_zero_trust_access_application.http_app.id
-  zone_id        = var.zone.id
-  name           = "Allow policy for ${var.zone.name}"
+  zone_id        = each.value.id
+  name           = "Allow policy for ${each.value.name}"
   precedence     = "1"
   decision       = "allow"
   include {
     email = [var.cloudflare_email]
   }
+  for_each = var.zones
 }
