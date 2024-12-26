@@ -8,6 +8,10 @@ variable "cloudflare_account_id" {
   description = "The account ID of the Cloudflare account to use"
   type        = string
 }
+variable "cloudflare_email" {
+  description = "The email address of the Cloudflare account to use"
+  type        = string
+}
 
 variable "zone" {
   description = "The Cloudflare zone to use"

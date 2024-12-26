@@ -31,16 +31,6 @@ module "bluesky" {
   count  = contains(var.modules, "bluesky") ? 1 : 0
 }
 
-module "cf-tunnel" {
-  source                = "../cf-tunnel"
-  zone                  = var.zone
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_api_token  = var.cloudflare_api_token
-  cloudflare_email      = var.cloudflare_email
-
-  count = contains(var.modules, "cf-tunnel") ? 1 : 0
-}
-
 resource "cloudflare_record" "cnames" {
   for_each = var.subdomains
   name     = each.key
