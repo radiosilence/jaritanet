@@ -56,7 +56,7 @@ module "blit" {
       proxied = true
     }
     "musi-tun" = {
-      type    = "A"
+      type    = "CNAME"
       content = module.jaritanet_tunnel.cname
       proxied = true
     }
