@@ -2,7 +2,7 @@ terraform {
   required_providers {
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = ">= 4.40.0"
+      version = ">= 4.49.1"
     }
     random = {
       source = "hashicorp/random"
@@ -25,6 +25,13 @@ module "blit" {
     "github",
     "bluesky",
   ]
+  subdomains = {
+    "music" = {
+      type    = "A"
+      content = var.jaritanet_ip
+      proxied = true
+    }
+  }
 }
 
 module "music_tunnel" {
