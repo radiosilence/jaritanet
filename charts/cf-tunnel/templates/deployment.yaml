@@ -6,7 +6,7 @@ metadata:
   name: cloudflared-deployment
   namespace: default
 spec:
-  replicas: {{.Value.replicas}}
+  replicas: {{.Values.replicas}}
   selector:
     matchLabels:
       pod: cloudflared
@@ -28,7 +28,7 @@ spec:
             - run
           args:
             - --token
-            - {{.Value.token}}
+            - {{.Values.token}}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{.Values.image.pullPolicy}}
           name: cloudflared
