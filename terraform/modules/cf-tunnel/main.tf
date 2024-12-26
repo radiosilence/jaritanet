@@ -29,10 +29,10 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.auto_tunnel.id
   account_id = var.cloudflare_account_id
   config {
-    dynamic "ingress" {
+    dynamic "ingress_rule" {
       for_each = var.zones
       content {
-        hostname = ingress.value["name"]
+        hostname = ingress_rule.value["name"]
         service  = "http://localhost:80"
         origin_request {
           connect_timeout = "2m0s"
