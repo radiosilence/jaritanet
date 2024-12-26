@@ -9,6 +9,15 @@ terraform {
     }
   }
   required_version = ">= 1.8.2"
+
+  cloud {
+    organization = "radiosilence"
+
+    workspaces {
+      name = "blit-cloudflare"
+    }
+  }
+
 }
 
 provider "cloudflare" {
@@ -18,10 +27,12 @@ provider "cloudflare" {
 # jaritanet tunnel
 module "jaritanet_tunnel" {
   source = "./modules/cf-tunnel"
-  zones = [{
-    name = "musi-tun.${var.blit_zone.name}"
-    id   = var.blit_zone.id
-  }]
+  zones = {
+    music = {
+      name = "musi-tun.${var.blit_zone.name}"
+      id   = var.blit_zone.id
+    }
+  }
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
   cloudflare_email      = var.cloudflare_email

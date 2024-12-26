@@ -15,7 +15,7 @@ variable "cloudflare_email" {
 
 variable "zones" {
   description = "The zones to use"
-  type = list(object({
+  type = map(object({
     name = string
     id   = string
   }))
