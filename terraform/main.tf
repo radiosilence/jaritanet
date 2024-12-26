@@ -30,9 +30,19 @@ module "jaritanet_tunnel" {
   name   = "jaritanet"
   zones = {
     music = {
-      name    = "musi-tun.${var.blit_zone.name}"
+      name    = "music.${var.blit_zone.name}"
       id      = var.blit_zone.id
       service = "http://navidrome-service.navidrome.svc.cluster.local"
+    }
+    files = {
+      name    = "files.${var.radiosilence_zone.name}"
+      id      = var.radiosilence_zone.id
+      service = "http://files-service.files.svc.cluster.local"
+    }
+    bambi = {
+      name    = "bambi.${var.radiosilence_zone.name}"
+      id      = var.radiosilence_zone.id
+      service = "http://bambi-art.bambi.svc.cluster.local"
     }
   }
   cloudflare_account_id = var.cloudflare_account_id
@@ -53,11 +63,6 @@ module "blit" {
   ]
   subdomains = {
     "music" = {
-      type    = "A"
-      content = var.jaritanet_ip
-      proxied = true
-    }
-    "musi-tun" = {
       type    = "CNAME"
       content = module.jaritanet_tunnel.cname
       proxied = true
@@ -86,13 +91,13 @@ module "radiosilence" {
   ]
   subdomains = {
     "bambi" = {
-      type    = "A"
-      content = var.jaritanet_ip
+      type    = "CNAME"
+      content = module.jaritanet_tunnel.cname
       proxied = true
     }
     "files" = {
-      type    = "A"
-      content = var.jaritanet_ip
+      type    = "CNAME"
+      content = module.jaritanet_tunnel.cname
       proxied = true
     }
   }
