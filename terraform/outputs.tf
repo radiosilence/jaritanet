@@ -6,4 +6,5 @@ output "jaritanet_tunnel_cname" {
 output "jaritanet_tunnel_token" {
   value       = module.jaritanet_tunnel.token
   description = "The token to use for the JARITANET tunnel."
+  sensitive   = true
 }

@@ -39,7 +39,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
           access {
             required  = true
             team_name = "myteam"
-            aud_tag   = [cloudflare_zero_trust_access_application.http_app[each.key].aud]
+            aud_tag   = [cloudflare_zero_trust_access_application.http_app[ingress_rule.key].aud]
           }
         }
       }
