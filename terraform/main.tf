@@ -30,7 +30,7 @@ module "blit" {
 module "music_tunnel" {
   source = "./modules/cf-tunnel"
   zone = {
-    name = "music.${var.blit_zone.name}"
+    name = "musi-tun.${var.blit_zone.name}"
     id   = var.blit_zone.id
   }
   cloudflare_account_id = var.cloudflare_account_id
