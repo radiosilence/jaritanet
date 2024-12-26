@@ -39,7 +39,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
           access {
             required  = true
             team_name = "myteam"
-            aud_tag   = [cloudflare_zero_trust_access_application.http_app.aud]
+            aud_tag   = [cloudflare_zero_trust_access_application.http_app[each.key].aud]
           }
         }
       }
@@ -59,7 +59,7 @@ resource "cloudflare_zero_trust_access_application" "http_app" {
 }
 
 resource "cloudflare_zero_trust_access_policy" "http_policy" {
-  application_id = cloudflare_zero_trust_access_application.http_app.id
+  application_id = cloudflare_zero_trust_access_application.http_app[each.key].id
   zone_id        = each.value.id
   name           = "Allow policy for ${each.value.name}"
   precedence     = "1"
