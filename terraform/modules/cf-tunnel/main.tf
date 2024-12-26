@@ -58,22 +58,20 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
   }
 }
 
-# # TODO Creates an Access application to control who can connect.
-# resource "cloudflare_zero_trust_access_application" "http_app" {
-#   zone_id          = var.zone.id
-#   name             = "Access application for ${var.zone.name}"
-#   domain           = var.zone.name
-#   session_duration = "1h"
-# }
+resource "cloudflare_zero_trust_access_application" "http_app" {
+  zone_id          = var.zone.id
+  name             = "Access application for ${var.zone.name}"
+  domain           = var.zone.name
+  session_duration = "1h"
+}
 
-# # TODO Creates an Access policy for the application.
-# resource "cloudflare_zero_trust_access_policy" "http_policy" {
-#   application_id = cloudflare_zero_trust_access_application.http_app.id
-#   zone_id        = var.zone.id
-#   name           = "Allow policy for ${var.zone.name}"
-#   precedence     = "1"
-#   decision       = "allow"
-#   include {
-#     email = [var.cloudflare_email]
-#   }
-# }
+resource "cloudflare_zero_trust_access_policy" "http_policy" {
+  application_id = cloudflare_zero_trust_access_application.http_app.id
+  zone_id        = var.zone.id
+  name           = "Allow policy for ${var.zone.name}"
+  precedence     = "1"
+  decision       = "allow"
+  include {
+    email = [var.cloudflare_email]
+  }
+}
