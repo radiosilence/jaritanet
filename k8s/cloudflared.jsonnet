@@ -47,6 +47,12 @@ function(token, replicas=2) [
                 initialDelaySeconds: 10,
                 periodSeconds: 10,
               },
+              resources: {
+                limits: {
+                  memory: '128Mi',
+                  cpu: '250m',
+                },
+              },
             },
           ],
         },
