@@ -1,4 +1,4 @@
-local k = import './k.libsonnet';
+local k = import '../k.libsonnet';
 
 function(values) [
   k.v1.Service(values.service.name) {
