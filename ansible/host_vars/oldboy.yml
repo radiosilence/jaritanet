@@ -17,8 +17,13 @@ tailscale_routes:
 
 helm_configs:
   - name: navidrome
-    type: local-server
+    kind: local-server
     values: local-server/values/navidrome.yaml
   - name: files
-    type: local-server
+    kind: local-server
     values: local-server/values/files.yaml
+  # - name: cf-tunnel
+  #   type: cf-tunnel
+  #   values: cf-tunnel/values.yaml
+  #   set_values:
+  #     - value: token="{{ lookup('env', 'TUNNEL_TOKEN') }}"

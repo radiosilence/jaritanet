@@ -17,8 +17,8 @@
   roles:
     - samba
     - microk8s
-    - helm
     - syncthing
+    # - helm
 
 - name: Ensure tailnet is joined
   hosts: tailnet

@@ -15,7 +15,7 @@
   kubernetes.core.helm:
     name: "{{ item.name }}"
     binary_path: /snap/bin/microk8s.helm
-    chart_ref: "{{ helm.charts_dir }}/{{ item.type }}"
+    chart_ref: "{{ helm.charts_dir }}/{{ item.kind }}"
     values_files:
       - "{{ helm.charts_dir }}/{{ item.values }}"
     create_namespace: true
