@@ -1,7 +1,6 @@
 local localServer = import './lib/local-server.libsonnet';
 
-localServer({
-  name: 'files',
+function(name='files') localServer({
   persistence: {
     files: {
       storageClass: 'local-storage',
@@ -13,7 +12,7 @@ localServer({
     },
   },
   statefulset: {
-    name: $.name,
+    name: name,
     replicas: 1,
     image: {
       repository: 'ghcr.io/radiosilence/jaritanet-files',
@@ -38,7 +37,7 @@ localServer({
     },
   },
   service: {
-    name: $.name + '-service',
+    name: name + '-service',
     port: 80,
   },
 })

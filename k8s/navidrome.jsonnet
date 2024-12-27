@@ -1,7 +1,6 @@
 local localServer = import './lib/local-server.libsonnet';
 
-localServer({
-  name: 'navidrome',
+function(name='navidrome') localServer({
   persistence: {
     music: {
       storageClass: 'local-storage',
@@ -19,7 +18,7 @@ localServer({
     },
   },
   statefulset: {
-    name: $.name,
+    name: name,
     replicas: 1,
     image: {
       repository: 'deluan/navidrome',
@@ -51,7 +50,7 @@ localServer({
     },
   },
   service: {
-    name: $.name + '-service',
+    name: name + '-service',
     port: 80,
   },
 })

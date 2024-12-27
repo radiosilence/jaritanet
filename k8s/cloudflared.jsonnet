@@ -1,7 +1,6 @@
 local k = import 'lib/k.libsonnet';
-local outputs = import 'outputs.json';
 
-[
+function(token) [
   k.apps.v1.Deployment('cloudflared-deployment') {
     metadata+: {
       labels: {
@@ -34,7 +33,7 @@ local outputs = import 'outputs.json';
               ],
               args: [
                 '--token',
-                outputs.jaritanet_tunnel_token.value,
+                token,
               ],
               image: 'cloudflare/cloudflared:latest',
               imagePullPolicy: 'Always',
