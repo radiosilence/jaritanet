@@ -1,6 +1,6 @@
 local k = import 'lib/k.libsonnet';
 
-function(token) [
+function(token, replicas=2) [
   k.apps.v1.Deployment('cloudflared-deployment') {
     metadata+: {
       labels: {
@@ -8,7 +8,7 @@ function(token) [
       },
     },
     spec: {
-      replicas: 2,
+      replicas: replicas,
       selector: {
         matchLabels: {
           pod: 'cloudflared',
