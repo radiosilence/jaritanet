@@ -15,7 +15,7 @@ local Kube = import 'kube.libsonnet';
       ],
     },
   },
-  statefulset(values):: Kube.v1.StatefulSet(values.statefulset.name) {
+  statefulset(values):: Kube.apps.v1.StatefulSet(values.statefulset.name) {
     spec: {
       serviceName: values.service.name,
       replicas: values.statefulset.replicas,
@@ -26,7 +26,6 @@ local Kube = import 'kube.libsonnet';
       },
       template: {
         metadata: {
-          namespace: values.global.namespace,
           labels: {
             app: values.statefulset.name,
           },
@@ -70,7 +69,6 @@ local Kube = import 'kube.libsonnet';
         {
           metadata: {
             name: key + '-claim',
-            namespace: values.global.namespace,
           },
           spec: {
             accessModes: [values.persistence[key].accessMode],
@@ -104,6 +102,21 @@ local Kube = import 'kube.libsonnet';
       storageClassName: values.persistence[key].storageClass,
       'local': {
         path: values.persistence[key].path,
+      },
+      nodeAffinity: {
+        required: {
+          nodeSelectorTerms: [
+            {
+              matchExpressions: [
+                {
+                  key: values.statefulset.nodeSelector.key,
+                  operator: values.statefulset.nodeSelector.operator,
+                  values: values.statefulset.nodeSelector.values,
+                },
+              ],
+            },
+          ],
+        },
       },
     },
   },

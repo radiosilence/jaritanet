@@ -1,11 +1,8 @@
-local constructs = import './constructs.libsonnet';
+local localServer = import './local-server.libsonnet';
 
-local values = {
-  global: {
-    namespace: 'files',
-  },
+localServer.localServer({
   persistence: {
-    files: {
+    files2: {
       storageClass: 'local-storage',
       storageSize: '10Gi',
       claimStorageSize: '5Gi',
@@ -53,10 +50,4 @@ local values = {
       'nginx.ingress.kubernetes.io/ssl-redirect': 'false',
     },
   },
-};
-
-{
-  'service.yml': constructs.service(values),
-  'statefulset.yml': constructs.statefulset(values),
-  'persistentvolume.files.yml': constructs.persistent_volume(values, 'files'),
-}
+})

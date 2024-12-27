@@ -1,17 +1,15 @@
+local Metadata(name) = {
+  metadata: {
+    name: name,
+    labels: {
+      name: name,
+    },
+  },
+};
+
 {
   v1:: {
-
     local ApiVersion = { apiVersion: 'v1' },
-
-    local Metadata(name) = {
-      metadata: {
-        name: name,
-        labels: {
-          name: name,
-        },
-      },
-    },
-
     ReplicationController(name): ApiVersion + Metadata(name) {
       kind: 'ReplicationController',
     },
@@ -20,16 +18,29 @@
       kind: 'Service',
     },
 
-    StatefulSet(name): ApiVersion + Metadata(name) {
-      kind: 'StatefulSet',
-    },
-
-    PersistentVolume(name): ApiVersion + Metadata(name) {
+    PersistentVolume(name): ApiVersion + {
+      metadata: {
+        name: name,
+        labels: {
+          storageName: name,
+        },
+      },
+    } {
       kind: 'PersistentVolume',
     },
 
     Deployment(name): ApiVersion + Metadata(name) {
       kind: 'Deployment',
+
+    },
+  },
+
+  apps:: {
+    local ApiVersion = { apiVersion: 'apps/v1' },
+    v1:: {
+      StatefulSet(name): ApiVersion + Metadata(name) {
+        kind: 'StatefulSet',
+      },
     },
   },
 
