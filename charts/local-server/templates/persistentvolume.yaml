@@ -1,0 +1,28 @@
+{{- range $key, $volume := .Values.persistence }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $key }}-vol
+  namespace: {{ $.Values.global.namespace }}
+  labels:
+    storageName: {{ $key }}
+spec:
+  capacity:
+    storage: {{ $volume.storageSize }}
+  volumeMode: Filesystem
+  accessModes:
+    - {{ $volume.accessMode }}
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: {{ $volume.storageClass }}
+  local:
+    path: {{ $volume.path }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: {{ $.Values.statefulset.nodeSelector.key }}
+              operator: {{ $.Values.statefulset.nodeSelector.operator }}
+              values:
+                {{ toYaml $.Values.statefulset.nodeSelector.values | nindent 16 }}
+{{- end }}
