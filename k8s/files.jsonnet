@@ -1,7 +1,7 @@
 local localServer = import './lib/local-server.libsonnet';
 
 localServer({
-  name: 'files2',
+  name: 'files',
   persistence: {
     files: {
       storageClass: 'local-storage',
@@ -25,8 +25,8 @@ localServer({
     },
     resources: {
       limits: {
-        memory: '4Gi',
-        cpu: '2',
+        memory: '128Mi',
+        cpu: '50m',
       },
     },
     nodeSelector: {
