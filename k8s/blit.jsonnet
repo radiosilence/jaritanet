@@ -38,6 +38,12 @@ function(name='blit', tag='latest') [
                   containerPort: 80,
                 },
               ],
+              resources: {
+                limits: {
+                  memory: '64Mi',
+                  cpu: '50m',
+                },
+              },
             },
           ],
         },

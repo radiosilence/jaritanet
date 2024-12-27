@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+kubectl create namespace "$1" || true
+
+jsonnet -y "k8s/$1.jsonnet" | yq -P >"k8s/dist/$1.yaml" && kubectl apply -n "$1" -f "k8s/dist/$1.yaml"

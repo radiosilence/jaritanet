@@ -1,0 +1,3 @@
+#!/bin/bash
+
+jsonnet -y "k8s/$1.jsonnet" | yq -P >"k8s/dist/$1.yaml"
