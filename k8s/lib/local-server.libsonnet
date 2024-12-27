@@ -10,7 +10,7 @@ function(values) [
         {
           protocol: 'TCP',
           port: values.service.port,
-          targetPort: values.service.port,
+          targetPort: values.statefulset.ports.web,
         },
       ],
     },
