@@ -59,8 +59,3 @@ jobs:
         with:
           organization: ${{ vars.TF_CLOUD_ORGANIZATION }}
           workspace: ${{ vars.TF_WORKSPACE }}
-
-      - name: Echo outputs
-        run: |
-          echo "Output: ${{ steps.workspace-output.outputs.outputs }}"
-          echo ${{ steps.workspace-output.outputs.outputs }} | jq
