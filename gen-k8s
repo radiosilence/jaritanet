@@ -1,3 +1,4 @@
 #!/bin/bash
-
-jsonnet -y "k8s/$1.jsonnet" | yq -P >"k8s/dist/$1.yaml"
+extra_args="${*:2}"
+# shellcheck disable=SC2086
+jsonnet -y $extra_args "k8s/$1.jsonnet" | yq -P >"k8s/dist/$1.yaml"
