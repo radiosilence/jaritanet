@@ -55,8 +55,8 @@ local values = {
   },
 };
 
-[constructs.persistent_volume(values, key) for key in std.objectFields(values.persistence)] +
-[
-  constructs.statefulset(values),
-  constructs.service(values),
-]
+{
+  'service.yml': constructs.service(values),
+  'statefulset.yml': constructs.statefulset(values),
+  'persistentvolume.files.yml': constructs.persistent_volume(values, 'files'),
+}
