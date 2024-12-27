@@ -1,6 +1,6 @@
 local localServer = import './local-server.libsonnet';
 
-localServer.localServer({
+localServer({
   persistence: {
     files2: {
       storageClass: 'local-storage',

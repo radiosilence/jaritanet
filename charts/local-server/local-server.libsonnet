@@ -1,128 +1,125 @@
 local k = import './k.libsonnet';
 
-{
-  localServer(values)::
-    [
-      k.v1.Service(values.service.name) {
-        spec: {
-          selector: {
+function(values) [
+  k.v1.Service(values.service.name) {
+    spec: {
+      selector: {
+        app: values.statefulset.name,
+      },
+      ports: [
+        {
+          protocol: 'TCP',
+          port: values.service.port,
+          targetPort: values.service.port,
+        },
+      ],
+    },
+  },
+  k.apps.v1.StatefulSet(values.statefulset.name) {
+    spec: {
+      serviceName: values.service.name,
+      replicas: values.statefulset.replicas,
+      selector: {
+        matchLabels: {
+          app: values.statefulset.name,
+        },
+      },
+      template: {
+        metadata: {
+          labels: {
             app: values.statefulset.name,
           },
-          ports: [
-            {
-              protocol: 'TCP',
-              port: values.service.port,
-              targetPort: values.service.port,
-            },
-          ],
         },
-      },
-      k.apps.v1.StatefulSet(values.statefulset.name) {
         spec: {
-          serviceName: values.service.name,
-          replicas: values.statefulset.replicas,
-          selector: {
-            matchLabels: {
-              app: values.statefulset.name,
-            },
-          },
-          template: {
-            metadata: {
-              labels: {
-                app: values.statefulset.name,
+          containers: [{
+            name: values.statefulset.name,
+            image: values.statefulset.image.repository + ':' + values.statefulset.image.tag,
+            imagePullPolicy: values.statefulset.image.pullPolicy,
+            ports: [
+              {
+                name: key,
+                containerPort: values.statefulset.ports[key],
+              }
+              for key in std.objectFields(values.statefulset.ports)
+            ],
+            [if std.objectHas(values.statefulset, 'environment') then 'env']: [
+              {
+                name: key,
+                value: std.toString(values.statefulset.environment[key]),
+              }
+              for key in std.objectFields(values.statefulset.environment)
+            ],
+            resources: {
+              limits: {
+                memory: values.statefulset.resources.limits.memory,
+                cpu: values.statefulset.resources.limits.cpu,
               },
             },
-            spec: {
-              containers: [{
-                name: values.statefulset.name,
-                image: values.statefulset.image.repository + ':' + values.statefulset.image.tag,
-                imagePullPolicy: values.statefulset.image.pullPolicy,
-                ports: [
-                  {
-                    name: key,
-                    containerPort: values.statefulset.ports[key],
-                  }
-                  for key in std.objectFields(values.statefulset.ports)
-                ],
-                [if std.objectHas(values.statefulset, 'environment') then 'env']: [
-                  {
-                    name: key,
-                    value: std.toString(values.statefulset.environment[key]),
-                  }
-                  for key in std.objectFields(values.statefulset.environment)
-                ],
-                resources: {
-                  limits: {
-                    memory: values.statefulset.resources.limits.memory,
-                    cpu: values.statefulset.resources.limits.cpu,
-                  },
-                },
-                volumeMounts: [
-                  {
-                    name: key + '-claim',
-                    mountPath: values.persistence[key].mountPath,
-                  }
-                  for key in std.objectFields(values.persistence)
-                ],
-              }],
-            },
-          },
-          volumeClaimTemplates: [
-            {
-              metadata: {
+            volumeMounts: [
+              {
                 name: key + '-claim',
-              },
-              spec: {
-                accessModes: [values.persistence[key].accessMode],
-                storageClassName: values.persistence[key].storageClass,
-                selector: {
-                  matchLabels: {
-                    storageName: key,
-                  },
-                },
-                resources: {
-                  requests: {
-                    storage: values.persistence[key].storageSize,
-                  },
-                },
-              },
-            }
-            for key in std.objectFields(values.persistence)
-          ],
+                mountPath: values.persistence[key].mountPath,
+              }
+              for key in std.objectFields(values.persistence)
+            ],
+          }],
         },
       },
-    ] + [
-      k.v1.PersistentVolume(key + '-vol') {
-        spec: {
-          capacity: {
-            storage: values.persistence[key].storageSize,
+      volumeClaimTemplates: [
+        {
+          metadata: {
+            name: key + '-claim',
           },
-          volumeMode: 'Filesystem',
-          accessModes: [
-            values.persistence[key].accessMode,
-          ],
-          persistentVolumeReclaimPolicy: 'Delete',
-          storageClassName: values.persistence[key].storageClass,
-          'local': {
-            path: values.persistence[key].path,
+          spec: {
+            accessModes: [values.persistence[key].accessMode],
+            storageClassName: values.persistence[key].storageClass,
+            selector: {
+              matchLabels: {
+                storageName: key,
+              },
+            },
+            resources: {
+              requests: {
+                storage: values.persistence[key].storageSize,
+              },
+            },
           },
-          nodeAffinity: {
-            required: {
-              nodeSelectorTerms: [
+        }
+        for key in std.objectFields(values.persistence)
+      ],
+    },
+  },
+] + [
+  k.v1.PersistentVolume(key + '-vol') {
+    spec: {
+      capacity: {
+        storage: values.persistence[key].storageSize,
+      },
+      volumeMode: 'Filesystem',
+      accessModes: [
+        values.persistence[key].accessMode,
+      ],
+      persistentVolumeReclaimPolicy: 'Delete',
+      storageClassName: values.persistence[key].storageClass,
+      'local': {
+        path: values.persistence[key].path,
+      },
+      nodeAffinity: {
+        required: {
+          nodeSelectorTerms: [
+            {
+              matchExpressions: [
                 {
-                  matchExpressions: [
-                    {
-                      key: values.statefulset.nodeSelector.key,
-                      operator: values.statefulset.nodeSelector.operator,
-                      values: values.statefulset.nodeSelector.values,
-                    },
-                  ],
+                  key: values.statefulset.nodeSelector.key,
+                  operator: values.statefulset.nodeSelector.operator,
+                  values: values.statefulset.nodeSelector.values,
                 },
               ],
             },
-          },
+          ],
         },
-      }
-      for key in std.objectFields(values.persistence)
-    ],
-}
+      },
+    },
+  }
+  for key in std.objectFields(values.persistence)
+]
