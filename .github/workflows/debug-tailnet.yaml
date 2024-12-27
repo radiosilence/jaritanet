@@ -1,4 +1,4 @@
-name: Run Playbook
+name: Debug tailnet
 
 permissions:
   contents: read
