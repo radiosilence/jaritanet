@@ -42,7 +42,7 @@ module "jaritanet_tunnel" {
     bambi = {
       name    = "bambi.${var.radiosilence_zone.name}"
       id      = var.radiosilence_zone.id
-      service = "http://bambi-art.bambi.svc.cluster.local"
+      service = "http://bambi-art-service.bambi-art.svc.cluster.local"
     }
   }
   cloudflare_account_id = var.cloudflare_account_id
