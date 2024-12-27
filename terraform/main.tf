@@ -44,8 +44,8 @@ module "jaritanet_tunnel" {
       id      = var.radiosilence_zone.id
       service = "http://bambi-art-service.bambi-art.svc.cluster.local"
     }
-    blit = {
-      name    = "blit.${var.blit_zone.name}"
+    blit_test = {
+      name    = "test.${var.blit_zone.name}"
       id      = var.blit_zone.id
       service = "http://blit-service.blit.svc.cluster.local"
     }
@@ -68,6 +68,11 @@ module "blit" {
   ]
   subdomains = {
     "music" = {
+      type    = "CNAME"
+      content = module.jaritanet_tunnel.cname
+      proxied = true
+    }
+    "test" = {
       type    = "CNAME"
       content = module.jaritanet_tunnel.cname
       proxied = true
