@@ -1,7 +1,7 @@
 local k = import 'lib/k.libsonnet';
 
 function(name='bambi-art', tag='latest') [
-  k.v1.Service(name) {
+  k.v1.Service(name + '-service') {
     spec: {
       ports: [
         {

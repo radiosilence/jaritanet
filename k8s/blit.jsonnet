@@ -1,7 +1,7 @@
 local k = import 'lib/k.libsonnet';
 
 function(name='blit', tag='latest') [
-  k.v1.Service(name) {
+  k.v1.Service(name + '-service') {
     spec: {
       ports: [
         {
