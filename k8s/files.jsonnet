@@ -1,8 +1,9 @@
 local localServer = import './lib/local-server.libsonnet';
 
 localServer({
+  name: 'files2',
   persistence: {
-    files2: {
+    files: {
       storageClass: 'local-storage',
       storageSize: '10Gi',
       claimStorageSize: '5Gi',
@@ -12,7 +13,7 @@ localServer({
     },
   },
   statefulset: {
-    name: 'files',
+    name: $.name,
     replicas: 1,
     image: {
       repository: 'ghcr.io/radiosilence/jaritanet-files',
@@ -37,17 +38,7 @@ localServer({
     },
   },
   service: {
-    name: 'files-service',
+    name: $.name + '-service',
     port: 80,
-  },
-  ingress: {
-    name: 'files-ingress',
-    enabled: true,
-    hosts: [
-      'files.radiosilence.dev',
-    ],
-    annotations: {
-      'nginx.ingress.kubernetes.io/ssl-redirect': 'false',
-    },
   },
 })

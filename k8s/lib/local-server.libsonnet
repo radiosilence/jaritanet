@@ -75,7 +75,7 @@ function(values) [
             storageClassName: values.persistence[key].storageClass,
             selector: {
               matchLabels: {
-                storageName: key,
+                storageName: values.name + '-' + key + '-vol',
               },
             },
             resources: {
@@ -90,7 +90,7 @@ function(values) [
     },
   },
 ] + [
-  k.v1.PersistentVolume(key + '-vol') {
+  k.v1.PersistentVolume(values.name + '-' + key + '-vol') {
     spec: {
       capacity: {
         storage: values.persistence[key].storageSize,
