@@ -22,6 +22,3 @@ helm_configs:
   - name: files
     type: local-server
     values: local-server/values/files.yaml
-  - name: ip-updater
-    type: ip-updater
-    values: ip-updater/values.yaml
