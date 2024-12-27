@@ -1,7 +1,7 @@
-local Kube = import 'kube.libsonnet';
+local k = import 'k.libsonnet';
 
 {
-  service(values):: Kube.v1.Service(values.service.name) {
+  service(values):: k.v1.Service(values.service.name) {
     spec: {
       selector: {
         app: values.statefulset.name,
@@ -15,7 +15,7 @@ local Kube = import 'kube.libsonnet';
       ],
     },
   },
-  statefulset(values):: Kube.apps.v1.StatefulSet(values.statefulset.name) {
+  statefulset(values):: k.apps.v1.StatefulSet(values.statefulset.name) {
     spec: {
       serviceName: values.service.name,
       replicas: values.statefulset.replicas,
@@ -89,7 +89,7 @@ local Kube = import 'kube.libsonnet';
       ],
     },
   },
-  persistent_volume(values, key):: Kube.v1.PersistentVolume(key + '-vol') {
+  persistent_volume(values, key):: k.v1.PersistentVolume(key + '-vol') {
     spec: {
       capacity: {
         storage: values.persistence[key].storageSize,
