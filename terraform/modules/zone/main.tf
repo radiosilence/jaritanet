@@ -2,7 +2,7 @@ terraform {
   required_providers {
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = ">= 4.49.1"
+      version = "~> 4.0"
     }
   }
 }
@@ -34,7 +34,7 @@ module "bluesky" {
 resource "cloudflare_record" "cnames" {
   for_each = var.subdomains
   name     = each.key
-  ttl      = 1
+  ttl      = each.value.proxied ? 1 : 120
   type     = each.value.type
   content  = each.value.content
   proxied  = each.value.proxied
