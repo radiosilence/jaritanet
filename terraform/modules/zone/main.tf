@@ -34,7 +34,7 @@ module "bluesky" {
 resource "cloudflare_record" "cnames" {
   for_each = var.subdomains
   name     = each.key
-  ttl      = each.value.proxied ? 120 : 5
+  ttl      = 1
   type     = each.value.type
   content  = each.value.content
   proxied  = each.value.proxied
