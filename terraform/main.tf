@@ -63,10 +63,14 @@ module "blit" {
   modules = [
     "letsencrypt",
     "fastmail",
-    "github",
     "bluesky",
   ]
   subdomains = {
+    "@" = {
+      type    = "CNAME"
+      content = module.jaritanet_tunnel.cname
+      proxied = true
+    }
     "music" = {
       type    = "CNAME"
       content = module.jaritanet_tunnel.cname
