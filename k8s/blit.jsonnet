@@ -5,24 +5,11 @@ function(name='blit', tag='latest', replicas=2) [
   k.apps.v1.deployment.new(name, replicas, containers=[{
     name: name,
     image: 'ghcr.io/radiosilence/blit:' + tag,
-    ports: [
-      {
-        containerPort: 80,
-      },
-    ],
-    resources: {
-      limits: {
-        memory: '64Mi',
-        cpu: '50m',
-      },
-    },
+    ports: [{ containerPort: 80 }],
+    resources: { limits: { memory: '64Mi', cpu: '50m' } },
   }]) {
     spec+: {
-      selector: {
-        matchLabels: {
-          app: name,
-        },
-      },
+      selector: { matchLabels: { app: name } },
     },
   },
 ]
