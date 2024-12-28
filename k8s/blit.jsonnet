@@ -1,8 +1,8 @@
 local k = import 'github.com/jsonnet-libs/k8s-libsonnet/1.30/main.libsonnet';
 
 function(name='blit', tag='latest', replicas=2) [
-  k.core.v1.service.new(name=name + '-service', selector={ app: name }, ports=[{ port: 80, targetPort: 80 }]),
-  k.apps.v1.deployment.new(name=name, replicas=replicas, containers=[
+  k.core.v1.service.new(name + '-service', { app: name }, [{ port: 80, targetPort: 80 }]),
+  k.apps.v1.deployment.new(name, replicas, containers=[
     {
       name: name,
       image: 'ghcr.io/radiosilence/blit:' + tag,
@@ -25,7 +25,6 @@ function(name='blit', tag='latest', replicas=2) [
           app: name,
         },
       },
-
     },
   },
 ]
