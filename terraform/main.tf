@@ -72,11 +72,6 @@ module "blit" {
       content = module.jaritanet_tunnel.cname
       proxied = true
     }
-    "test" = {
-      type    = "CNAME"
-      content = module.jaritanet_tunnel.cname
-      proxied = true
-    }
   }
 }
 
@@ -106,6 +101,11 @@ module "radiosilence" {
       proxied = true
     }
     "files" = {
+      type    = "CNAME"
+      content = module.jaritanet_tunnel.cname
+      proxied = true
+    }
+    "blit" = {
       type    = "CNAME"
       content = module.jaritanet_tunnel.cname
       proxied = true
