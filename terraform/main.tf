@@ -49,6 +49,11 @@ module "jaritanet_tunnel" {
       id      = var.blit_zone.id
       service = "http://blit-service.blit.svc.cluster.local"
     }
+    blitwww = {
+      name    = "www.${var.radiosilence_zone.name}"
+      id      = var.blit_zone.id
+      service = "http://blit-service.blit.svc.cluster.local"
+    }
   }
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
