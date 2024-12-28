@@ -44,8 +44,8 @@ module "jaritanet_tunnel" {
       id      = var.radiosilence_zone.id
       service = "http://bambi-art-service.bambi-art.svc.cluster.local"
     }
-    blit_test = {
-      name    = "blit.${var.radiosilence_zone.name}"
+    blit = {
+      name    = "${var.radiosilence_zone.name}"
       id      = var.blit_zone.id
       service = "http://blit-service.blit.svc.cluster.local"
     }
@@ -105,11 +105,6 @@ module "radiosilence" {
       proxied = true
     }
     "files" = {
-      type    = "CNAME"
-      content = module.jaritanet_tunnel.cname
-      proxied = true
-    }
-    "blit" = {
       type    = "CNAME"
       content = module.jaritanet_tunnel.cname
       proxied = true
