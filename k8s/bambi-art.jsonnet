@@ -3,15 +3,8 @@ local k = import 'lib/k.libsonnet';
 function(name='bambi-art', tag='latest') [
   k.v1.Service(name + '-service') {
     spec: {
-      ports: [
-        {
-          port: 80,
-          targetPort: 3000,
-        },
-      ],
-      selector: {
-        app: name,
-      },
+      ports: [{ port: 80, targetPort: 3000 }],
+      selector: { app: name },
     },
   },
   k.apps.v1.Deployment(name) {
