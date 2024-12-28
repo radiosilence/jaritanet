@@ -1,53 +1,31 @@
-local k = import 'lib/k.libsonnet';
+local k = import 'github.com/jsonnet-libs/k8s-libsonnet/1.30/main.libsonnet';
 
-function(name='blit', tag='latest') [
-  k.v1.Service(name + '-service') {
-    spec: {
+function(name='blit', tag='latest', replicas=2) [
+  k.core.v1.service.new(name=name + '-service', selector={ app: name }, ports=[{ port: 80, targetPort: 80 }]),
+  k.apps.v1.deployment.new(name=name, replicas=replicas, containers=[
+    {
+      name: name,
+      image: 'ghcr.io/radiosilence/blit:' + tag,
       ports: [
         {
-          port: 80,
-          targetPort: 80,
+          containerPort: 80,
         },
       ],
-      selector: {
-        app: name,
+      resources: {
+        limits: {
+          memory: '64Mi',
+          cpu: '50m',
+        },
       },
     },
-  },
-  k.apps.v1.Deployment(name) {
-    spec: {
-      replicas: 2,
+  ]) {
+    spec+: {
       selector: {
         matchLabels: {
           app: name,
         },
       },
-      template: {
-        metadata: {
-          labels: {
-            app: name,
-          },
-        },
-        spec: {
-          containers: [
-            {
-              name: name,
-              image: 'ghcr.io/radiosilence/blit:' + tag,
-              ports: [
-                {
-                  containerPort: 80,
-                },
-              ],
-              resources: {
-                limits: {
-                  memory: '64Mi',
-                  cpu: '50m',
-                },
-              },
-            },
-          ],
-        },
-      },
+
     },
   },
 ]
