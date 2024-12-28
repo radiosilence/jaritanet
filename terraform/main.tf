@@ -45,7 +45,7 @@ module "jaritanet_tunnel" {
       service = "http://bambi-art-service.bambi-art.svc.cluster.local"
     }
     blit_test = {
-      name    = "test.${var.blit_zone.name}"
+      name    = "blit.${var.radiosilence_zone.name}"
       id      = var.blit_zone.id
       service = "http://blit-service.blit.svc.cluster.local"
     }
