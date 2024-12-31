@@ -15,7 +15,7 @@ on:
       - ".github/workflows/debug-tailnet.yml"
 
 concurrency:
-  group: "ansible"
+  group: "debug"
 
 jobs:
   playbook:
