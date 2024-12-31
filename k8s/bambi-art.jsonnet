@@ -1,6 +1,6 @@
 local k = import 'lib/k.libsonnet';
 
-function(name='bambi-art', tag='latest') [
+function(name='bambi-art', tag='latest', replicas=1) [
   k.v1.Service(name + '-service') {
     spec: {
       ports: [{ port: 80, targetPort: 3000 }],
@@ -9,7 +9,7 @@ function(name='bambi-art', tag='latest') [
   },
   k.apps.v1.Deployment(name) {
     spec: {
-      replicas: 2,
+      replicas: replicas,
       selector: {
         matchLabels: {
           app: name,
