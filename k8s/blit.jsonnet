@@ -16,7 +16,7 @@ function(name='blit', tag='latest') [
   },
   k.apps.v1.Deployment(name) {
     spec: {
-      replicas: 2,
+      replicas: 1,
       selector: {
         matchLabels: {
           app: name,
