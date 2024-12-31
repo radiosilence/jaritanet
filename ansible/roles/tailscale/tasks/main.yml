@@ -5,16 +5,16 @@
       - gpg
     state: present
 
-- name: Import Tailscale GPG key
-  ansible.builtin.apt_key:
-    url: https://pkgs.tailscale.com/stable/ubuntu/focal.gpg
+- name: Add Tailscale repo using key from URL.
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: [deb]
+    uris: https://pkgs.tailscale.com/stable/ubuntu
+    suites: [focal]
+    components: [main]
     state: present
-
-- name: Add Tailscale repository
-  ansible.builtin.apt_repository:
-    repo: "deb https://pkgs.tailscale.com/stable/ubuntu focal main"
-    filename: tailscale
-    state: present
+    enabled: true
+    signed_by: https://pkgs.tailscale.com/stable/ubuntu/focal.gpg
 
 - name: Install Tailscale
   ansible.builtin.apt:
