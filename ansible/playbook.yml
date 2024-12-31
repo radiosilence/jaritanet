@@ -7,6 +7,7 @@
   roles:
     - common
     - users
+    - mise
 
 - name: Ensure homeserver configurations are applied
   hosts: homeservers
@@ -15,7 +16,6 @@
     - group_vars/homeservers.yml
 
   roles:
-    - mise
     - samba
     - microk8s
     - syncthing
