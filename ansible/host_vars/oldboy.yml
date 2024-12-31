@@ -14,16 +14,3 @@ samba_shares:
 
 tailscale_routes:
   - 192.168.50.0/24
-
-helm_configs:
-  - name: navidrome
-    kind: local-server
-    values: local-server/values/navidrome.yaml
-  - name: files
-    kind: local-server
-    values: local-server/values/files.yaml
-  # - name: cf-tunnel
-  #   type: cf-tunnel
-  #   values: cf-tunnel/values.yaml
-  #   set_values:
-  #     - value: token="{{ lookup('env', 'TUNNEL_TOKEN') }}"
