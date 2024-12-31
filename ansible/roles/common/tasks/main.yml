@@ -8,4 +8,5 @@
       - snapd
       - python3-pip
       - acl
+      - fish
     state: present

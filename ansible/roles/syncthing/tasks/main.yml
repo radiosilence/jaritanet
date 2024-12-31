@@ -1,13 +1,13 @@
-- name: Add SyncThing repository key
-  ansible.builtin.apt_key:
-    url: https://syncthing.net/release-key.txt
+- name: Add SyncThing repo using key from URL.
+  ansible.builtin.deb822_repository:
+    name: mise
+    types: [deb]
+    uris: https://apt.syncthing.net/
+    components: [stable]
+    suites: [syncthing]
+    signed_by: https://syncthing.net/release-key.txt
     state: present
-
-- name: Add SyncThing repository
-  ansible.builtin.apt_repository:
-    repo: deb https://apt.syncthing.net/ syncthing stable
-    filename: syncthing
-    state: present
+    enabled: true
 
 - name: Install SyncThing
   ansible.builtin.apt:
