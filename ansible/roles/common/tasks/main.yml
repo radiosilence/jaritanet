@@ -9,4 +9,5 @@
       - python3-pip
       - acl
       - fish
+      - btop
     state: present
