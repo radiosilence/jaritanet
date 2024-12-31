@@ -42,10 +42,8 @@
   ansible.builtin.command: "microk8s enable {{ item }}"
   loop:
     - community
-    - ingress
     - dns
     - storage
-    - cert-manager
     - helm
   register: microk8s_addons
   changed_when: microk8s_addons.rc == 0
