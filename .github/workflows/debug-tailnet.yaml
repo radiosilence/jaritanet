@@ -20,7 +20,7 @@ concurrency:
 jobs:
   playbook:
     name: Debug tailnet
-    runs-on: ubuntu-latest
+    runs-on: ubuntu:24
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
