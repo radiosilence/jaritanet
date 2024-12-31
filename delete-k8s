@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-kubectl delete -J ./k8s/vendor -n "$1" -f "k8s/dist/$1.yaml"
+kubectl delete -n "$1" -f "k8s/dist/$1.yaml"
