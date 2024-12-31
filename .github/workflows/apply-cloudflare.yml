@@ -21,7 +21,7 @@ concurrency:
 jobs:
   apply-dns:
     concurrency: 1
-    runs-on: ubuntu:24
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
       contents: read
