@@ -12,10 +12,8 @@ const jaritanetTunnel = tunnel.cloudflareTunnel({
 });
 
 for (const zone of zones) {
-  for (const module of ["bluesky", "fastmail"] as const) {
-    if (zone.modules.includes(module)) {
-      dns[module](zone);
-    }
+  for (const module of zone.modules) {
+    dns[module](zone);
   }
 }
 
