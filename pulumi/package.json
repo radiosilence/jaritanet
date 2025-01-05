@@ -1,13 +1,17 @@
 {
   "name": "jaritanet",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "devDependencies": {
-    "@types/node": "^18",
-    "typescript": "^5.0.0"
+    "@evilmartians/lefthook": "^1.10.1",
+    "@types/node": "^22.10.5",
+    "eslint-config-sheriff": "^25.5.0",
+    "eslint-define-config": "^2.1.0",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2"
   },
   "dependencies": {
     "@pulumi/cloudflare": "^5.46.0",
-    "@pulumi/pulumi": "^3.113.0"
+    "@pulumi/pulumi": "^3.144.1"
   },
   "trustedDependencies": [
     "protobufjs"

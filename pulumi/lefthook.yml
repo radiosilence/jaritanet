@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: true
+  commands:
+    pretty-quick:
+      run: bunx pretty-quick {staged_files} && git add {staged_files}
+    eslint-web:
+      glob: "./web/*.{tsx,ts,astro,mjs,js}}"
+      run: bunx eslint -c ./web/eslint.config.mjs {staged_files}
+pre-push:
+  commands:
+    version-check:
+      run: curl -sSL https://raw.githubusercontent.com/radiosilence/blit-workflows/refs/heads/main/scripts/tag-latest.sh | bash
