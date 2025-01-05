@@ -10,7 +10,6 @@ variable "cloudflare_team_name" {
   default     = "radiosilence"
 }
 
-
 variable "blit_zone" {
   description = "The Cloudflare zone to use for blit"
   type = object({
