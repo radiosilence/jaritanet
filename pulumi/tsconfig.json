@@ -12,10 +12,7 @@
     "noEmit": true,
     "noFallthroughCasesInSwitch": false,
     "noImplicitReturns": false,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "forceConsistentCasingInFileNames": true
   },
 
   "files": ["src/index.ts"],

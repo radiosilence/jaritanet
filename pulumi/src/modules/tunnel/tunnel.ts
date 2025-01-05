@@ -1,8 +1,9 @@
-import { type ZoneConf } from "@/types";
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import { dns } from "@/modules";
+
+import * as dns from "../dns";
+import { type ZoneConf } from "../../types";
 
 interface ServiceConf {
   /**

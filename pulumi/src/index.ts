@@ -1,9 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
-import { type ZoneConf } from "@/types";
-import { dns, tunnel } from "@/modules";
+import { type ZoneConf } from "./types";
+import { dns, tunnel } from "./modules";
 
 const config = new pulumi.Config();
-console.log(config.get("cloudflare:email"));
 
 const zones: Record<string, ZoneConf> = {
   blit: {
@@ -19,31 +18,7 @@ const zones: Record<string, ZoneConf> = {
     name: "radiosilence.dev",
   },
 };
-/*
-TF zones
-  zones = {
-    music = {
-      name    = "music.${var.blit_zone.name}"
-      id      = var.blit_zone.id
-      service = "http://navidrome-service.navidrome.svc.cluster.local"
-    }
-    files = {
-      name    = "files.${var.radiosilence_zone.name}"
-      id      = var.radiosilence_zone.id
-      service = "http://files-service.files.svc.cluster.local"
-    }
-    bambi = {
-      name    = "bambi.${var.radiosilence_zone.name}"
-      id      = var.radiosilence_zone.id
-      service = "http://bambi-art-service.bambi-art.svc.cluster.local"
-    }
-    blit = {
-      name    = "${var.blit_zone.name}"
-      id      = var.blit_zone.id
-      service = "http://blit-service.blit.svc.cluster.local"
-    }
-  }
-  */
+
 tunnel.cloudflareTunnel({
   name: "jaritanet",
   services: [

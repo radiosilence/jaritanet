@@ -1,6 +1,6 @@
 import * as cloudflare from "@pulumi/cloudflare";
 
-import { type ZoneConf } from "@/types";
+import { type ZoneConf } from "../../types";
 
 interface BlueskyArgs {
   did?: string;

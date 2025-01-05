@@ -1,5 +1,6 @@
-import { type ZoneConf } from "@/types";
 import * as cloudflare from "@pulumi/cloudflare";
+
+import { type ZoneConf } from "../../types";
 
 type RecordArgs = Omit<cloudflare.RecordArgs, "zoneId">;
 

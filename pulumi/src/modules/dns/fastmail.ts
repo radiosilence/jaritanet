@@ -1,6 +1,6 @@
-import { ZoneConf } from "@/types";
-
 import * as cloudflare from "@pulumi/cloudflare";
+
+import { type ZoneConf } from "../../types";
 
 interface FastmailArgs {
   mxDomain?: string;
