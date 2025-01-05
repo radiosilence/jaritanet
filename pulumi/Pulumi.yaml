@@ -3,7 +3,7 @@ description: Personal infra
 runtime:
   name: nodejs
   options:
-    packagemanager: bun
+    packagemanager: pnpm
 config:
   pulumi:tags:
     value:
