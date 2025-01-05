@@ -52,7 +52,6 @@ module "jaritanet_tunnel" {
   }
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
-  cloudflare_team_name  = var.cloudflare_team_name
 }
 
 # blit.cc

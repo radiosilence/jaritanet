@@ -1,0 +1,28 @@
+name: Pulumi Up
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "pulumi/**"
+      - ".github/workflows/pulumi-up.yml"
+
+concurrency:
+  group: "pulumi"
+
+jobs:
+  up:
+    name: Preview
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: jaritanet
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
