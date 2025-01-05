@@ -2,8 +2,6 @@ import * as pulumi from "@pulumi/pulumi";
 import { type ZoneConf } from "./types";
 import { dns, tunnel } from "./modules";
 
-const config = new pulumi.Config();
-
 const zones: Record<string, ZoneConf> = {
   blit: {
     zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451",
