@@ -10,8 +10,6 @@ config:
       pulumi:template: typescript
   cloudflare:apiToken:
     value: ""
-  cloudflare:email:
-    value: ""
   cloudflareAccountId:
     value: ""
   cloudflareTeamName:

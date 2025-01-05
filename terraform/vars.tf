@@ -9,11 +9,6 @@ variable "cloudflare_account_id" {
   type        = string
 }
 
-variable "cloudflare_email" {
-  description = "The email address of the Cloudflare account to use"
-  type        = string
-}
-
 variable "cloudflare_team_name" {
   description = "The name of the Cloudflare team to use"
   type        = string
