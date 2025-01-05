@@ -8,3 +8,11 @@ config:
   pulumi:tags:
     value:
       pulumi:template: typescript
+  cloudflare:apiToken:
+    value: ""
+  cloudflare:email:
+    value: ""
+  cloudflare:accountId:
+    value: ""
+  cloudflare:teamName:
+    value: ""
