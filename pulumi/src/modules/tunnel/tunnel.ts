@@ -27,7 +27,7 @@ export function tunnel({ zones, name }: TunnelArgs) {
     secret: secret.hex,
   });
 
-  const services = zones.flatMap((zone) => {
+  const ingressRules = zones.flatMap((zone) => {
     if (!zone.services) return [];
     return zone.services.map(({ name, service }) => ({
       hostname: name === "@" ? zone.name : `${name}.${zone.name}`,
@@ -43,7 +43,7 @@ export function tunnel({ zones, name }: TunnelArgs) {
     tunnelId: tunnel.id,
     config: {
       ingressRules: [
-        ...services,
+        ...ingressRules,
         {
           service: "http_status:404",
         },
