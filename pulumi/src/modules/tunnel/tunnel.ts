@@ -39,19 +39,20 @@ export function cloudflareTunnel({ services, name }: TunnelArgs) {
 
   if (!accountId) throw new Error("Missing Cloudflare account ID");
 
-  const tunnel = new cloudflare.Tunnel(`${name}-tunnel`, {
+  const tunnel = new cloudflare.ZeroTrustTunnelCloudflared(`${name}-tunnel`, {
     accountId,
     name,
     secret: secret.result,
   });
 
-  new cloudflare.TunnelConfig(`${name}-tunnel-config`, {
+  new cloudflare.ZeroTrustTunnelCloudflaredConfig(`${name}-tunnel-config`, {
     accountId,
     tunnelId: tunnel.id,
     config: {
       ingressRules: [
-        ...services.map((service) => ({
-          ...service,
+        ...services.map(({ hostname, service }) => ({
+          hostname,
+          service,
           originRequest: {
             connectTimeout: "2m0s",
           },
