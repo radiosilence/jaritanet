@@ -4,15 +4,17 @@ import * as random from "@pulumi/random";
 import type { CloudflareConf, ZoneConf } from "../../types";
 import * as dns from "../dns";
 
-interface TunnelArgs {
-  name: string;
-  zones: ZoneConf[];
-}
-
 const config = new pulumi.Config();
 const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
 
-export function tunnel({ zones, name }: TunnelArgs) {
+/**
+ * Creates a new Cloudflare tunnel.
+ *
+ * @param name - The name of the tunnel.
+ * @param zones - The zones to create the tunnel for.
+ * @returns The created tunnel.
+ */
+export function tunnel(name: string, zones: ZoneConf[]) {
   const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });

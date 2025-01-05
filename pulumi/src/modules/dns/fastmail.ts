@@ -14,6 +14,11 @@ const {
   spfDomain,
 } = config.requireObject<FastmailConf>("fastmail");
 
+/**
+ * Fastmail DNS records, configured globally.
+ *
+ * @param zone - The zone to create the record in.
+ */
 export function fastmail(zone: ZoneConf) {
   for (const [key, value] of Object.entries({ in1: 10, in2: 20 })) {
     new cloudflare.Record(`${zone.name}-fm-mx-${key}`, {

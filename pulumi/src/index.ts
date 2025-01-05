@@ -6,10 +6,10 @@ const config = new pulumi.Config();
 
 const zones = config.requireObject<ZoneConf[]>("zones");
 
-const jaritanetTunnel = tunnel({
-  ...config.requireObject<TunnelConf>("tunnel"),
-  zones,
-});
+const jaritanetTunnel = tunnel(
+  config.requireObject<TunnelConf>("tunnel").name,
+  zones
+);
 
 for (const zone of zones) {
   for (const module of zone.modules) {
