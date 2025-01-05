@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - run: pnpm i
+        working-directory: pulumi
       - uses: pulumi/actions@v6
         with:
           command: up
