@@ -2,15 +2,14 @@ import * as cloudflare from "@pulumi/cloudflare";
 
 import { type ZoneConf } from "@/types";
 
-interface BlueskyProps {
-  zone: ZoneConf;
+interface BlueskyArgs {
   did?: string;
 }
 
-export function bluesky({
-  zone,
-  did = "did:plc:d32vuqlfqjttwbckkxgxgbgl",
-}: BlueskyProps) {
+export function bluesky(
+  zone: ZoneConf,
+  { did = "did:plc:d32vuqlfqjttwbckkxgxgbgl" }: BlueskyArgs = {}
+) {
   new cloudflare.Record(`${zone.name}-bs-did`, {
     ...zone,
     ttl: 1,

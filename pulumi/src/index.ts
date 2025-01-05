@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import { type ZoneConf } from "@/types";
-import { fastmail } from "@/modules";
+import { dns, tunnel } from "@/modules";
 
 const config = new pulumi.Config();
 console.log(config.get("cloudflare:email"));
@@ -19,9 +19,66 @@ const zones: Record<string, ZoneConf> = {
     name: "radiosilence.dev",
   },
 };
+/*
+TF zones
+  zones = {
+    music = {
+      name    = "music.${var.blit_zone.name}"
+      id      = var.blit_zone.id
+      service = "http://navidrome-service.navidrome.svc.cluster.local"
+    }
+    files = {
+      name    = "files.${var.radiosilence_zone.name}"
+      id      = var.radiosilence_zone.id
+      service = "http://files-service.files.svc.cluster.local"
+    }
+    bambi = {
+      name    = "bambi.${var.radiosilence_zone.name}"
+      id      = var.radiosilence_zone.id
+      service = "http://bambi-art-service.bambi-art.svc.cluster.local"
+    }
+    blit = {
+      name    = "${var.blit_zone.name}"
+      id      = var.blit_zone.id
+      service = "http://blit-service.blit.svc.cluster.local"
+    }
+  }
+  */
+tunnel.cloudflareTunnel({
+  name: "jaritanet",
+  services: [
+    {
+      zone: zones.blit,
+      name: "@",
+      hostname: zones.blit.name,
+      service: "http://blit-service.blit.svc.cluster.local",
+    },
+    {
+      zone: zones.blit,
+      name: "music",
+      hostname: `music.${zones.blit.name}`,
+      service: "http://navidrome-service.navidrome.svc.cluster.local",
+    },
+    {
+      zone: zones.radiosilence,
+      name: "files",
+      hostname: `files.${zones.radiosilence.name}`,
+      service: "http://files-service.files.svc.cluster.local",
+    },
+    {
+      zone: zones.radiosilence,
+      name: "bambi",
+      hostname: `bambi.${zones.radiosilence.name}`,
+      service: "http://bambi-art-service.bambi-art.svc.cluster.local",
+    },
+  ],
+});
 
-fastmail({ zone: zones.blit });
+dns.fastmail(zones.blit);
+dns.bluesky(zones.blit);
 
-fastmail({ zone: zones.buttholes });
+dns.fastmail(zones.buttholes);
+dns.bluesky(zones.buttholes);
 
-fastmail({ zone: zones.radiosilence });
+dns.fastmail(zones.radiosilence);
+dns.bluesky(zones.radiosilence);

@@ -14,6 +14,9 @@ importers:
       '@pulumi/pulumi':
         specifier: ^3.144.1
         version: 3.144.1(typescript@5.7.2)
+      '@pulumi/random':
+        specifier: ^4.16.8
+        version: 4.16.8(typescript@5.7.2)
     devDependencies:
       '@evilmartians/lefthook':
         specifier: ^1.10.1
@@ -397,6 +400,9 @@ packages:
 
   '@pulumi/query@0.3.0':
     resolution: {integrity: sha512-xfo+yLRM2zVjVEA4p23IjQWzyWl1ZhWOGobsBqRpIarzLvwNH/RAGaoehdxlhx4X92302DrpdIFgTICMN4P38w==}
+
+  '@pulumi/random@4.16.8':
+    resolution: {integrity: sha512-hJtaBARb2mIllAe+8X3nWdXcEaBhAwOobv6lkkdYGw+1hQg1HuGwKQYCIVegHfmdeHH9Sr55/BFqTm8yEMT9AA==}
 
   '@regru/eslint-plugin-prefer-early-return@1.0.0':
     resolution: {integrity: sha512-rOIjKi/npfNcunmrakkKQAolX/qakY8DUkp/P0PeSmQ0xnTNT6CCTHcMHxhFEvLRlrIBY3gJkUwh5rt9Z+GTyg==}
@@ -3311,6 +3317,15 @@ snapshots:
       - supports-color
 
   '@pulumi/query@0.3.0': {}
+
+  '@pulumi/random@4.16.8(typescript@5.7.2)':
+    dependencies:
+      '@pulumi/pulumi': 3.144.1(typescript@5.7.2)
+    transitivePeerDependencies:
+      - bluebird
+      - supports-color
+      - ts-node
+      - typescript
 
   '@regru/eslint-plugin-prefer-early-return@1.0.0': {}
 

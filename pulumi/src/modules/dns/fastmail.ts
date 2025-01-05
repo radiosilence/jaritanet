@@ -2,8 +2,7 @@ import { ZoneConf } from "@/types";
 
 import * as cloudflare from "@pulumi/cloudflare";
 
-interface FastmailProps {
-  zone: ZoneConf;
+interface FastmailArgs {
   mxDomain?: string;
   dkimDomain?: string;
   dkimSubdomain?: string;
@@ -13,16 +12,18 @@ interface FastmailProps {
   spfDomain?: string;
 }
 
-export function fastmail({
-  zone,
-  mxDomain = "smtp.messagingengine.com",
-  dkimDomain = "dkim.fmhosted.com",
-  dkimSubdomain = "_domainkey",
-  dmarcSubdomain = "_dmarc",
-  dmarcAggEmail = "dmarc-agg@blit.cc",
-  dmarcPolicy = "reject",
-  spfDomain = "spf.messagingengine.com",
-}: FastmailProps) {
+export function fastmail(
+  zone: ZoneConf,
+  {
+    mxDomain = "smtp.messagingengine.com",
+    dkimDomain = "dkim.fmhosted.com",
+    dkimSubdomain = "_domainkey",
+    dmarcSubdomain = "_dmarc",
+    dmarcAggEmail = "dmarc-agg@blit.cc",
+    dmarcPolicy = "reject",
+    spfDomain = "spf.messagingengine.com",
+  }: FastmailArgs = {}
+) {
   for (const [key, value] of Object.entries({ in1: 10, in2: 20 })) {
     new cloudflare.Record(`${zone.name}-fm-mx-${key}`, {
       ...zone,
