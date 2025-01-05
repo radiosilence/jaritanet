@@ -27,15 +27,16 @@ export function tunnel({ zones, name }: TunnelArgs) {
     secret: secret.hex,
   });
 
-  const services = zones.flatMap((zone) =>
-    (zone.services || []).map(({ name, service }) => ({
+  const services = zones.flatMap((zone) => {
+    if (!zone.services) return [];
+    return zone.services.map(({ name, service }) => ({
       hostname: name === "@" ? zone.name : `${name}.${zone.name}`,
       service,
       originRequest: {
         connectTimeout: "2m0s",
       },
-    }))
-  );
+    }));
+  });
 
   new cloudflare.ZeroTrustTunnelCloudflaredConfig(`${name}-tunnel-config`, {
     accountId,
