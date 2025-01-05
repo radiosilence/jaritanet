@@ -33,7 +33,7 @@ const config = new pulumi.Config();
 const accountId = config.get("cloudflareAccountId");
 
 export function cloudflareTunnel({ services, name }: TunnelArgs) {
-  const secret = new random.RandomString(`${name}-secret`, {
+  const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });
 
@@ -42,7 +42,7 @@ export function cloudflareTunnel({ services, name }: TunnelArgs) {
   const tunnel = new cloudflare.ZeroTrustTunnelCloudflared(`${name}-tunnel`, {
     accountId,
     name,
-    secret: secret.result,
+    secret: secret.hex,
   });
 
   new cloudflare.ZeroTrustTunnelCloudflaredConfig(`${name}-tunnel-config`, {
