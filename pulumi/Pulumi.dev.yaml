@@ -1,0 +1,4 @@
+config:
+  cloudflare:apiToken:
+    secure: AAABACC9ME5uIdTkHilCbU+HDDihHaBY8jFoxAWky5F6VLQ6effL4hg4ldJySUL/YmDsp+62yIoJAC2eB4SnYPBOrEsA55IL
+  jaritanet:cloudflareAccountId: 365e5168438376dc99d7ee2aedef4624
