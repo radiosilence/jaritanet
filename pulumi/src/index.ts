@@ -47,12 +47,10 @@ const jaritanetTunnel = tunnel.cloudflareTunnel({
 });
 
 dns.fastmail(zones.blit);
-dns.bluesky(zones.blit);
 
 dns.fastmail(zones.buttholes);
 dns.bluesky(zones.buttholes);
 
 dns.fastmail(zones.radiosilence);
-dns.bluesky(zones.radiosilence);
 
 export const tunnelToken = jaritanetTunnel.tunnelToken;
