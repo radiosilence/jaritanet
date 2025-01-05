@@ -5,6 +5,9 @@ config:
   jaritanet:cloudflare:
     accountId: 365e5168438376dc99d7ee2aedef4624
 
+  jaritanet:tunnel:
+    name: "jaritanet"
+
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"

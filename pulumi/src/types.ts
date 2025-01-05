@@ -23,6 +23,10 @@ export interface ServiceConf {
 
 type DnsModule = "bluesky" | "fastmail";
 
+export interface TunnelConf {
+  name: string;
+}
+
 export interface ZoneConf {
   zoneId: string;
   name: string;

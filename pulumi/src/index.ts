@@ -1,13 +1,14 @@
 import { dns, tunnel } from "./modules";
-import { BlueskyConf, type ZoneConf } from "./types";
+import type { TunnelConf, ZoneConf } from "./types";
 import * as pulumi from "@pulumi/pulumi";
 
 const config = new pulumi.Config();
 
 const zones = config.requireObject<ZoneConf[]>("zones");
+const tunnelConfig = config.requireObject<TunnelConf>("tunnel");
 
 const jaritanetTunnel = tunnel.cloudflareTunnel({
-  name: "jaritanet",
+  ...tunnelConfig,
   zones: Object.values(zones),
 });
 
