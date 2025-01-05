@@ -14,7 +14,7 @@ interface TunnelArgs {
 const config = new pulumi.Config();
 const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
 
-export function cloudflareTunnel({ zones, name }: TunnelArgs) {
+export function tunnel({ zones, name }: TunnelArgs) {
   const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });
