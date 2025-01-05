@@ -18,16 +18,18 @@ resource "random_password" "tunnel_secret" {
   length = 64
 }
 
+data "cloudflare_accounts" "default" {
+}
 # Creates a new locally-managed tunnel for the k8s.
 resource "cloudflare_zero_trust_tunnel_cloudflared" "auto_tunnel" {
-  account_id = var.cloudflare_account_id
+  account_id = data.cloudflare_accounts.default.id
   name       = var.name
   secret     = base64sha256(random_password.tunnel_secret.result)
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "auto_tunnel" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.auto_tunnel.id
-  account_id = var.cloudflare_account_id
+  account_id = data.cloudflare_accounts.default.id
   config {
     dynamic "ingress_rule" {
       for_each = var.zones
