@@ -17,7 +17,6 @@ export function tunnel({ zones, name }: TunnelArgs) {
     length: 256,
   });
 
-  if (!accountId) throw new Error("Missing Cloudflare account ID");
   const tunnel = new cloudflare.ZeroTrustTunnelCloudflared(`${name}-tunnel`, {
     accountId,
     name,
