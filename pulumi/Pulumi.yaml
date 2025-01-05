@@ -12,5 +12,3 @@ config:
     value: ""
   cloudflareAccountId:
     value: ""
-  cloudflareTeamName:
-    value: ""
