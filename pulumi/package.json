@@ -1,6 +1,7 @@
 {
   "name": "jaritanet",
   "main": "./src/index.ts",
+  "type": "module",
   "devDependencies": {
     "@evilmartians/lefthook": "^1.10.1",
     "@types/node": "^22.10.5",

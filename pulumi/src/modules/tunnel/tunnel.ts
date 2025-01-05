@@ -1,10 +1,8 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-
-import * as dns from "../dns";
-
 import type { CloudflareConf, ZoneConf } from "../../types";
+import * as dns from "../dns";
 
 interface TunnelArgs {
   name: string;
@@ -29,6 +27,7 @@ export function tunnel({ zones, name }: TunnelArgs) {
 
   const ingressRules = zones.flatMap((zone) => {
     if (!zone.services) return [];
+
     return zone.services.map(({ name, service }) => ({
       hostname: name === "@" ? zone.name : `${name}.${zone.name}`,
       service,

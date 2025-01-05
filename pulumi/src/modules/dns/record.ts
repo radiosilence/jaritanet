@@ -1,8 +1,7 @@
 import * as cloudflare from "@pulumi/cloudflare";
+import type { ZoneConf } from "../../types";
 
-import { type ZoneConf } from "../../types";
-
-type RecordArgs = Omit<cloudflare.RecordArgs, "zoneId">;
+type RecordArgs = Omit<cloudflare.RecordArgs, "zoneId"> & { name: string };
 
 export function record(
   { zoneId, ...zone }: ZoneConf,

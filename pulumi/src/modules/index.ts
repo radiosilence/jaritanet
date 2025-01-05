@@ -1,4 +1,2 @@
-import * as dns from "./dns";
-import * as tunnel from "./tunnel";
-
-export { dns, tunnel };
+export * as dns from "./dns";
+export { tunnel } from "./tunnel";

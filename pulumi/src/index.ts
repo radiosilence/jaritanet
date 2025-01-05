@@ -1,5 +1,4 @@
 import * as pulumi from "@pulumi/pulumi";
-
 import { dns, tunnel } from "./modules";
 import type { TunnelConf, ZoneConf } from "./types";
 
@@ -18,4 +17,4 @@ for (const zone of zones) {
   }
 }
 
-export const tunnelToken = jaritanetTunnel.tunnelToken;
+export const { tunnelToken } = jaritanetTunnel;
