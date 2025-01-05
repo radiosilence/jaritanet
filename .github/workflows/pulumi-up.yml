@@ -8,18 +8,18 @@ on:
     branches:
       - main
     paths:
-      - "pulumi/**"
+      - "infra/**"
       - ".github/workflows/pulumi-up.yml"
 
 concurrency:
-  group: "pulumi"
+  group: "infra"
 
 jobs:
   up:
     name: Up
     runs-on: ubuntu-24.04
     env:
-      working-directory: ./pulumi
+      working-directory: ./infra
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
