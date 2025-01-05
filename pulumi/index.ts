@@ -1,13 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as cloudflare from "@pulumi/cloudflare";
 const config = new pulumi.Config();
-
-const cfConfig = {
-  accountId: config.require("cloudflareAccountId"),
-  teamName: config.require("cloudflareTeamName"),
-  tunnelToken: config.requireSecret("cloudflareTunnelToken"),
-};
-
+console.log(config.get("cloudflare:email"));
 interface ZoneConf {
   id: string;
   name: string;

@@ -12,7 +12,7 @@ config:
     value: ""
   cloudflare:email:
     value: ""
-  cloudflare:accountId:
+  cloudflareAccountId:
     value: ""
-  cloudflare:teamName:
+  cloudflareTeamName:
     value: ""
