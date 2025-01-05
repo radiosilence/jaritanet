@@ -1,6 +1,5 @@
-import * as pulumi from "@pulumi/pulumi";
-import { type ZoneConf } from "./types";
 import { dns, tunnel } from "./modules";
+import { type ZoneConf } from "./types";
 
 const zones: Record<string, ZoneConf> = {
   blit: {
@@ -17,7 +16,7 @@ const zones: Record<string, ZoneConf> = {
   },
 };
 
-tunnel.cloudflareTunnel({
+const jaritanetTunnel = tunnel.cloudflareTunnel({
   name: "jaritanet",
   services: [
     {
@@ -55,3 +54,5 @@ dns.bluesky(zones.buttholes);
 
 dns.fastmail(zones.radiosilence);
 dns.bluesky(zones.radiosilence);
+
+export const tunnelToken = jaritanetTunnel.tunnelToken;
