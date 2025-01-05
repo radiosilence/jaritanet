@@ -21,11 +21,3 @@ const zones: Record<string, ZoneConf> = {
     name: "radiosilence.dev",
   },
 };
-
-export const pulumiRecord = new cloudflare.Record("radiosilence-pulumi", {
-  zoneId: zones.radiosilence.id,
-  name: "pulumi",
-  content: "127.0.0.1",
-  type: "A",
-  proxied: false,
-});
