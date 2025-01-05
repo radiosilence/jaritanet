@@ -4,7 +4,7 @@
     "outDir": "bin",
     "baseUrl": ".",
     "target": "es2020",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "sourceMap": true,
     "experimentalDecorators": true,
