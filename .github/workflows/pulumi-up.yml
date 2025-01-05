@@ -18,19 +18,19 @@ jobs:
   up:
     name: Preview
     runs-on: ubuntu-24.04
+    env:
+      working-directory: ./pulumi
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
           version: latest
-          package_json_file: pulumi/package.json
+          package_json_file: ${{env.working-directory}}/package.json
           run_install: true
-      - run: pnpm i
-        working-directory: pulumi
       - uses: pulumi/actions@v6
         with:
           command: up
           stack-name: radiosilence/jaritanet/dev
-          work-dir: ./pulumi
+          work-dir: ${{env.working-directory}}/
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
