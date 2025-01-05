@@ -3,36 +3,18 @@ import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 
 import * as dns from "../dns";
-import { type ZoneConf } from "../../types";
 
-interface ServiceConf {
-  /**
-   * The zone to create the record in
-   */
-  zone: ZoneConf;
-  /**
-   * The name of the record to create
-   */
-  name: string;
-  /**
-   * The hostname to route with
-   */
-  hostname: string;
-  /**
-   * The internal service to route to
-   */
-  service: string;
-}
+import type { CloudflareConf, ZoneConf } from "../../types";
 
 interface TunnelArgs {
-  services: ServiceConf[];
   name: string;
+  zones: ZoneConf[];
 }
 
 const config = new pulumi.Config();
-const accountId = config.get("cloudflareAccountId");
+const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
 
-export function cloudflareTunnel({ services, name }: TunnelArgs) {
+export function cloudflareTunnel({ zones, name }: TunnelArgs) {
   const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });
@@ -45,18 +27,22 @@ export function cloudflareTunnel({ services, name }: TunnelArgs) {
     secret: secret.hex,
   });
 
+  const services = zones.flatMap((zone) =>
+    (zone.services || []).map(({ name, service }) => ({
+      hostname: name === "@" ? zone.name : `${name}.${zone.name}`,
+      service,
+      originRequest: {
+        connectTimeout: "2m0s",
+      },
+    }))
+  );
+
   new cloudflare.ZeroTrustTunnelCloudflaredConfig(`${name}-tunnel-config`, {
     accountId,
     tunnelId: tunnel.id,
     config: {
       ingressRules: [
-        ...services.map(({ hostname, service }) => ({
-          hostname,
-          service,
-          originRequest: {
-            connectTimeout: "2m0s",
-          },
-        })),
+        ...services,
         {
           service: "http_status:404",
         },
@@ -64,13 +50,16 @@ export function cloudflareTunnel({ services, name }: TunnelArgs) {
     },
   });
 
-  for (const { zone, name } of services) {
-    dns.record(zone, {
-      name,
-      type: "CNAME",
-      content: tunnel.cname,
-      proxied: true,
-    });
+  for (const zone of zones) {
+    if (!zone.services) continue;
+    for (const { name } of zone.services) {
+      dns.record(zone, {
+        name,
+        type: "CNAME",
+        content: tunnel.cname,
+        proxied: true,
+      });
+    }
   }
 
   return tunnel;

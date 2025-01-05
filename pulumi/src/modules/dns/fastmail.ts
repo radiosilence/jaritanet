@@ -1,29 +1,21 @@
 import * as cloudflare from "@pulumi/cloudflare";
+import * as pulumi from "@pulumi/pulumi";
 
-import { type ZoneConf } from "../../types";
+import type { ZoneConf, FastmailConf } from "../../types";
 
-interface FastmailArgs {
-  mxDomain?: string;
-  dkimDomain?: string;
-  dkimSubdomain?: string;
-  dmarcSubdomain?: string;
-  dmarcAggEmail?: string;
-  dmarcPolicy?: string;
-  spfDomain?: string;
-}
+const config = new pulumi.Config();
 
-export function fastmail(
-  zone: ZoneConf,
-  {
-    mxDomain = "smtp.messagingengine.com",
-    dkimDomain = "dkim.fmhosted.com",
-    dkimSubdomain = "_domainkey",
-    dmarcSubdomain = "_dmarc",
-    dmarcAggEmail = "dmarc-agg@blit.cc",
-    dmarcPolicy = "reject",
-    spfDomain = "spf.messagingengine.com",
-  }: FastmailArgs = {}
-) {
+const {
+  mxDomain,
+  dkimDomain,
+  dkimSubdomain,
+  dmarcSubdomain,
+  dmarcAggEmail,
+  dmarcPolicy,
+  spfDomain,
+} = config.requireObject<FastmailConf>("fastmail");
+
+export function fastmail(zone: ZoneConf) {
   for (const [key, value] of Object.entries({ in1: 10, in2: 20 })) {
     new cloudflare.Record(`${zone.name}-fm-mx-${key}`, {
       ...zone,
