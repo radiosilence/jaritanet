@@ -10,9 +10,8 @@ const { did } = config.requireObject<BlueskyConf>("bluesky");
 export function bluesky(zone: ZoneConf) {
   new cloudflare.Record(`${zone.name}-bs-did`, {
     ...zone,
-    ttl: 1,
     type: "TXT",
-    name: "_did",
+    name: "_atproto",
     content: `"${did}"`,
   });
 }

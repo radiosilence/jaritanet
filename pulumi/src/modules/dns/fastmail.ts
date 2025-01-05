@@ -20,7 +20,6 @@ export function fastmail(zone: ZoneConf) {
     new cloudflare.Record(`${zone.name}-fm-mx-${key}`, {
       ...zone,
       priority: value,
-      ttl: 1,
       type: "MX",
       content: `${key}.${mxDomain}`,
     });
@@ -31,7 +30,6 @@ export function fastmail(zone: ZoneConf) {
       ...zone,
       name: `${key}.${dkimSubdomain}`,
       proxied: false,
-      ttl: 1,
       type: "CNAME",
       content: `${key}.${zone.name}.${dkimDomain}`,
     });
@@ -39,7 +37,6 @@ export function fastmail(zone: ZoneConf) {
 
   new cloudflare.Record(`${zone.name}-fm-spf`, {
     ...zone,
-    ttl: 1,
     type: "TXT",
     content: `"v=spf1 include:${spfDomain} ?all"`,
   });
@@ -47,7 +44,6 @@ export function fastmail(zone: ZoneConf) {
   new cloudflare.Record(`${zone.name}-fm-dmarc`, {
     ...zone,
     name: dmarcSubdomain,
-    ttl: 1,
     type: "TXT",
     content: `"v=DMARC1; p=${dmarcPolicy}; rua=mailto:${dmarcAggEmail}"`,
   });
