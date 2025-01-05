@@ -50,10 +50,8 @@ module "jaritanet_tunnel" {
       service = "http://blit-service.blit.svc.cluster.local"
     }
   }
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_api_token  = var.cloudflare_api_token
-  cloudflare_email      = var.cloudflare_email
-  cloudflare_team_name  = var.cloudflare_team_name
+  cloudflare_api_token = var.cloudflare_api_token
+  cloudflare_team_name = var.cloudflare_team_name
 }
 
 # blit.cc
