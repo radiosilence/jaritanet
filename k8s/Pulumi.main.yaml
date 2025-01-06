@@ -35,6 +35,7 @@ config:
             storageSize: 1Gi
             claimStorageSize: 1Gi
             path: /home/navidrome/data
+            mountPath: /data
             accessModes: [ReadWriteOnce]
 
     - name: files
