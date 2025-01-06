@@ -47,6 +47,33 @@ export function createLocalServer(
   }: LocalServerArgs
 ) {
   const serviceName = `${name}-service`;
+  const volumes: Record<string, k8s.core.v1.PersistentVolume> = {};
+
+  for (const [key, volume] of Object.entries(persistence)) {
+    volumes[key] = new k8s.core.v1.PersistentVolume(
+      `${name}-${key}-vol`,
+      {
+        spec: {
+          capacity: {
+            storage: volume.storageSize,
+          },
+          volumeMode: volume.volumeMode,
+          accessModes: [volume.accessMode],
+          storageClassName: volume.storageClass,
+          local: {
+            path: volume.path,
+          },
+          nodeAffinity: {
+            required: {
+              nodeSelectorTerms: [{ matchExpressions: [nodeSelector] }],
+            },
+          },
+        },
+      },
+      { provider }
+    );
+  }
+
   const statefulSet = new k8s.apps.v1.StatefulSet(
     `${name}-statefulset`,
     {
@@ -100,7 +127,7 @@ export function createLocalServer(
               storageClassName: volume.storageClass,
               selector: {
                 matchLabels: {
-                  storageName: `${name}-${key}-vol`,
+                  storageName: volumes[key].metadata.name,
                 },
               },
               resources: {
@@ -118,38 +145,16 @@ export function createLocalServer(
   const service = new k8s.core.v1.Service(
     serviceName,
     {
+      metadata: {
+        name: serviceName,
+      },
       spec: {
-        selector: { name },
+        selector: { name: statefulSet.metadata.name },
         ports: [{ protocol: "TCP", port: 80, targetPort: ports.web }],
       },
     },
-    { provider }
+    { provider, deleteBeforeReplace: true }
   );
-
-  for (const [key, volume] of Object.entries(persistence)) {
-    new k8s.core.v1.PersistentVolume(
-      `${name}-${key}-vol`,
-      {
-        spec: {
-          capacity: {
-            storage: volume.storageSize,
-          },
-          volumeMode: volume.volumeMode,
-          accessModes: [volume.accessMode],
-          storageClassName: volume.storageClass,
-          local: {
-            path: volume.path,
-          },
-          nodeAffinity: {
-            required: {
-              nodeSelectorTerms: [{ matchExpressions: [nodeSelector] }],
-            },
-          },
-        },
-      },
-      { provider }
-    );
-  }
 
   return {
     statefulSet,
