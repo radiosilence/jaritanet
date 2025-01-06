@@ -48,6 +48,10 @@
     - rbac
   notify: restart microk8s
 
+- name: Generate kubeconf with microk8s config
+  ansible.builtin.command: microk8s kubectl config view --raw > /root/.kube/config
+  register: kubeconfig
+
 - name: Create service account for GitHub deployments
   kubernetes.core.k8s:
     state: present
