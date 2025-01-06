@@ -1,5 +1,42 @@
 config:
   jaritanet-k8s:servers:
+    - name: navidrome
+      template: local-server
+      args:
+        ports:
+          web: 4533
+        image:
+          repository: "deluan/navidrome"
+          tag: latest
+          pullPolicy: "Always"
+        env:
+          ND_SCANSCHEDULE: "1h"
+          ND_LOGLEVEL: "info"
+          ND_SESSIONTIMEOUT: "24h"
+          ND_ENABLESHARING: "true"
+          ND_ENABLETRANSCODINGCONFIG: "true"
+        resources:
+          limits:
+            cpu: 4
+            memory: 4Gi
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          music:
+            storageSize: 1Ti
+            claimStorageSize: 1Ti
+            path: /mnt/kontent/music
+            mountPath: /music
+            accessModes: [ReadOnlyMany]
+          data:
+            storageSize: 1Gi
+            claimStorageSize: 1Gi
+            path: /home/navidrome/data
+            accessModes: [ReadWriteOnce]
+
     - name: files
       template: local-server
       args:
@@ -7,7 +44,7 @@ config:
           web: 80
         image:
           repository: "ghcr.io/radiosilence/jaritanet-files"
-          tag: tag
+          tag: latest
           pullPolicy: "Always"
         resources:
           limits:
@@ -20,11 +57,8 @@ config:
             - oldboy
         persistence:
           files:
-            storageClass: local-storage
             storageSize: 10Gi
             claimStorageSize: 5Gi
             path: /srv/files
             mountPath: /srv/files
             accessModes: [ReadOnlyMany]
-            volumeMode: Filesystem
-            persistentVolumeReclaimPolicy: Delete

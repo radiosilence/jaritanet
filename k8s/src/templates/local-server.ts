@@ -10,12 +10,10 @@ interface Volume {
   path: string;
   mountPath: string;
   accessModes: string[];
-  volumeMode: string;
-  persistentVolumeReclaimPolicy: string;
 }
 
 export interface LocalServerArgs {
-  environment?: Record<string, string>;
+  env?: Record<string, string>;
   ports: Record<string, number> & { web: number };
   persistence: Record<string, Volume>;
   image: {
@@ -43,7 +41,7 @@ export function createLocalServer(
     ports,
     persistence,
     resources,
-    environment = {},
+    env = {},
     image,
     nodeSelector,
   }: LocalServerArgs
@@ -63,10 +61,10 @@ export function createLocalServer(
           capacity: {
             storage: volume.storageSize,
           },
-          volumeMode: volume.volumeMode,
+          volumeMode: "Filesystem",
           accessModes: volume.accessModes,
-          storageClassName: volume.storageClass,
-          persistentVolumeReclaimPolicy: volume.persistentVolumeReclaimPolicy,
+          storageClassName: "local-storage",
+          persistentVolumeReclaimPolicy: "Delete",
           local: {
             path: volume.path,
           },
@@ -118,7 +116,7 @@ export function createLocalServer(
                   name,
                   containerPort: port,
                 })),
-                env: Object.entries(environment).map(([key, value]) => ({
+                env: Object.entries(env).map(([key, value]) => ({
                   name: key,
                   value,
                 })),
@@ -145,7 +143,7 @@ export function createLocalServer(
             },
             spec: {
               accessModes: volume.accessModes,
-              storageClassName: volume.storageClass,
+              storageClassName: "local-storage",
               selector: {
                 matchLabels: {
                   storageName: `${name}-${key}-vol`,
