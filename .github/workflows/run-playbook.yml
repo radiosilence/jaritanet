@@ -58,8 +58,8 @@ jobs:
             
             # Also set secrets for other repositories that need deployment access
             REPOS=(
-              "org-name/repo1"
-              "org-name/repo2"
+              "radiosilence/jaritanet"
+              "radiosilence/blit"
               # Add more repos as needed
             )
             
