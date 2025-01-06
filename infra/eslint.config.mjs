@@ -24,7 +24,8 @@ export default defineFlatConfig([
       "no-promise-executor-return": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
       "@typescript-eslint/no-shadow": "off",
-      "unicorn/consistent-destructuring": "error",
+      "unicorn/consistent-destructuring": "warn",
+      "unicorn/no-unused-properties": "warn",
       curly: "off",
 
       "func-style": "off",
