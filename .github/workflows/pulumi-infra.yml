@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   up:
-    name: Up
+    name: Update
     runs-on: ubuntu-24.04
     env:
       working-directory: ./infra

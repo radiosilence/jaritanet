@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pulumi.com/autonamed: "true"
+  name: files-files-vol-3118c072
+spec:
+  accessModes:
+  - ReadOnlyMany
+  capacity:
+    storage: 10Gi
+  local:
+    path: /srv/files
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - oldboy
+  storageClassName: local-storage

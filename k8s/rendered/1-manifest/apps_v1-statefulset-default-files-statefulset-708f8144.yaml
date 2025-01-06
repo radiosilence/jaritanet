@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    pulumi.com/autonamed: "true"
+  name: files-statefulset-708f8144
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: files
+  serviceName: files-service
+  template:
+    metadata:
+      labels:
+        name: files
+    spec:
+      containers:
+      - image: ghcr.io/radiosilence/jaritanet-files:tag
+        imagePullPolicy: Always
+        name: files
+        ports:
+        - containerPort: 80
+          name: web
+        resources:
+          limits:
+            cpu: 50m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /srv/files
+          name: files-claim
+  volumeClaimTemplates:
+  - metadata:
+      name: files-claim
+    spec:
+      accessModes:
+      - ReadOnlyMany
+      resources:
+        requests:
+          storage: 10Gi
+      selector:
+        matchLabels:
+          storageName: files-files-vol
+      storageClassName: local-storage
