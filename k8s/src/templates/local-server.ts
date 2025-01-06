@@ -36,6 +36,7 @@ export interface LocalServerArgs {
 
 export function createLocalServer(
   provider: k8s.Provider,
+  namespace: k8s.core.v1.Namespace,
   name: string,
   {
     ports,
@@ -53,6 +54,9 @@ export function createLocalServer(
     volumes[key] = new k8s.core.v1.PersistentVolume(
       `${name}-${key}-vol`,
       {
+        metadata: {
+          namespace: namespace.metadata.name,
+        },
         spec: {
           capacity: {
             storage: volume.storageSize,
@@ -77,6 +81,9 @@ export function createLocalServer(
   const statefulSet = new k8s.apps.v1.StatefulSet(
     `${name}-statefulset`,
     {
+      metadata: {
+        namespace: namespace.metadata.name,
+      },
       spec: {
         serviceName,
         replicas: 1,
@@ -146,6 +153,7 @@ export function createLocalServer(
     serviceName,
     {
       metadata: {
+        namespace: namespace.metadata.name,
         name: serviceName,
       },
       spec: {

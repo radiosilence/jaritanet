@@ -5,11 +5,9 @@ import type { ServersConf } from "./types";
 
 const config = new pulumi.Config();
 
-const provider = new k8s.Provider("render-yaml", {
-  renderYamlToDirectory: "rendered",
-});
+const provider = new k8s.Provider("render-yaml", {});
 
-export const namespace = new k8s.core.v1.Namespace(
+const namespace = new k8s.core.v1.Namespace(
   "jaritanet",
   {
     metadata: {
@@ -22,7 +20,7 @@ export const namespace = new k8s.core.v1.Namespace(
 for (const server of config.requireObject<ServersConf>("servers")) {
   switch (server.template) {
     case "local-server": {
-      createLocalServer(provider, server.name, server.args);
+      createLocalServer(provider, namespace, server.name, server.args);
       break;
     }
     case "web-server": {
