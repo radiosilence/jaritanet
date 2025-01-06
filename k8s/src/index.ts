@@ -5,7 +5,9 @@ import type { ServersConf } from "./types";
 
 const config = new pulumi.Config();
 
-const provider = new k8s.Provider("render-yaml", {});
+const provider = new k8s.Provider("provider", {
+  renderYamlToDirectory: "rendered/",
+});
 
 const namespace = new k8s.core.v1.Namespace(
   "jaritanet",
@@ -17,10 +19,19 @@ const namespace = new k8s.core.v1.Namespace(
   { provider }
 );
 
-for (const server of config.requireObject<ServersConf>("servers")) {
-  switch (server.template) {
+// TODO: Make this generate the infra config
+interface ServerOutput extends Record<string, string> {
+  service: string;
+}
+
+export const servers: Record<string, ServerOutput> = {};
+
+for (const { name, args, template } of config.requireObject<ServersConf>(
+  "servers"
+)) {
+  switch (template) {
     case "local-server": {
-      createLocalServer(provider, namespace, server.name, server.args);
+      servers[name] = createLocalServer(provider, namespace, name, args);
       break;
     }
     case "web-server": {

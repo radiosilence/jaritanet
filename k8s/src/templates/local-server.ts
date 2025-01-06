@@ -1,4 +1,5 @@
 import * as k8s from "@pulumi/kubernetes";
+import * as pulumi from "@pulumi/pulumi";
 
 export const service = [];
 
@@ -47,7 +48,6 @@ export function createLocalServer(
     nodeSelector,
   }: LocalServerArgs
 ) {
-  const serviceName = `${name}-service`;
   const volumes: Record<string, k8s.core.v1.PersistentVolume> = {};
 
   for (const [key, volume] of Object.entries(persistence)) {
@@ -77,22 +77,35 @@ export function createLocalServer(
       { provider }
     );
   }
+  const service = new k8s.core.v1.Service(
+    `${name}-service`,
+    {
+      metadata: {
+        namespace: namespace.metadata.name,
+      },
+      spec: {
+        selector: { app: name },
+        ports: [{ protocol: "TCP", port: 80, targetPort: ports.web }],
+      },
+    },
+    { provider }
+  );
 
-  const statefulSet = new k8s.apps.v1.StatefulSet(
+  new k8s.apps.v1.StatefulSet(
     `${name}-statefulset`,
     {
       metadata: {
         namespace: namespace.metadata.name,
       },
       spec: {
-        serviceName,
+        serviceName: service.metadata.name,
         replicas: 1,
         selector: {
-          matchLabels: { name },
+          matchLabels: { app: name },
         },
         template: {
           metadata: {
-            labels: { name },
+            labels: { app: name },
           },
           spec: {
             containers: [
@@ -149,23 +162,8 @@ export function createLocalServer(
     },
     { provider }
   );
-  const service = new k8s.core.v1.Service(
-    serviceName,
-    {
-      metadata: {
-        namespace: namespace.metadata.name,
-        name: serviceName,
-      },
-      spec: {
-        selector: { name: statefulSet.metadata.name },
-        ports: [{ protocol: "TCP", port: 80, targetPort: ports.web }],
-      },
-    },
-    { provider, deleteBeforeReplace: true }
-  );
 
   return {
-    statefulSet,
-    service,
+    service: pulumi.interpolate`http://${service.metadata.name}.${namespace.metadata.name}.svc.cluster.local`,
   };
 }

@@ -9,6 +9,7 @@ interface LocalServerConf {
 interface WebServerConf {
   name: string;
   template: "web-server";
+  args: unknown;
 }
 
 export type ServersConf = (LocalServerConf | WebServerConf)[];

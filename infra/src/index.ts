@@ -6,6 +6,7 @@ const config = new pulumi.Config();
 
 const zones = config.requireObject<ZoneConf[]>("zones");
 
+// TODO: Split this into tunnel and dns projects, so we can do [infra] -> tunnel -> k8s -> dns
 const jaritanetTunnel = tunnel(
   config.requireObject<TunnelConf>("tunnel").name,
   zones
