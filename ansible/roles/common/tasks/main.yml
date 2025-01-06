@@ -7,6 +7,8 @@
     name:
       - snapd
       - python3-pip
+      - python3-kubernetes
+      - python3-k8sclient
       - acl
       - fish
       - btop
