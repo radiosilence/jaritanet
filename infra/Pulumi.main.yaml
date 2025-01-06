@@ -25,7 +25,7 @@ config:
         - fastmail
       services:
         - name: files
-          service: http://files-service.files.svc.cluster.local
+          service: http://files-service.jaritanet.svc.cluster.local
         - name: bambi
           service: http://bambi-art-service.bambi-art.svc.cluster.local
 
