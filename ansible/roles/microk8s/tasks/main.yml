@@ -86,7 +86,7 @@
   register: sa_token_secret
 
 - name: Save token to a file
-  copy:
+  ansible.builtin.copy:
     content: "{{ sa_token_secret.resources[0].data.token | b64decode }}"
     dest: "/root/github-deployer-token"
     mode: "0600"
@@ -103,11 +103,11 @@
   register: sa_token_secret
 
 - name: Get microk8s CA certificate
-  command: microk8s kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
+  ansible.builtin.command: microk8s kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
   register: cluster_ca_cert
 
 - name: Create secrets file for GitHub Actions
-  copy:
+  ansible.builtin.copy:
     dest: "{{ playbook_dir }}/github-secrets.json"
     mode: "0600"
     content: |
@@ -118,14 +118,14 @@
       }
 
 - name: Get Tailscale hostname
-  command: tailscale status --json
+  ansible.builtin.command: tailscale status --json
   register: tailscale_status
 
 - name: Parse Tailscale hostname
-  set_fact:
+  ansible.builtin.set_fact:
     tailscale_hostname: "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
 
 - name: Add Tailscale hostname to secrets
-  command: |
+  ansible.builtin.command: |
     jq '.KUBE_HOST = "{{ tailscale_hostname }}"' {{ playbook_dir }}/github-secrets.json > {{ playbook_dir }}/github-secrets.json.tmp && 
     mv {{ playbook_dir }}/github-secrets.json.tmp {{ playbook_dir }}/github-secrets.json
