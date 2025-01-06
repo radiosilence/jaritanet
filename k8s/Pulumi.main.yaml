@@ -17,7 +17,7 @@ config:
           ND_ENABLETRANSCODINGCONFIG: "true"
         resources:
           limits:
-            cpu: 4
+            cpu: 2
             memory: 4Gi
         nodeSelector:
           key: kubernetes.io/hostname

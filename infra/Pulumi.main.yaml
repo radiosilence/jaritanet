@@ -17,7 +17,7 @@ config:
         - name: "@"
           service: http://blit-service.blit.svc.cluster.local
         - name: music
-          service: http://navidrome-service.navidrome.svc.cluster.local
+          service: http://navidrome-service.jaritanet.svc.cluster.local
 
     - name: radiosilence.dev
       zoneId: 3373ad7c3dc3104e7aeab31c1176e684
