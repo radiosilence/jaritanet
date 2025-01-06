@@ -148,7 +148,7 @@ export function createLocalServer(
               storageClassName: volume.storageClass,
               selector: {
                 matchLabels: {
-                  storageName: volumes[key].metadata.name,
+                  storageName: `${name}-${key}-vol`,
                 },
               },
               resources: {
