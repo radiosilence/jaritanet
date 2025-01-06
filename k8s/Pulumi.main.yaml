@@ -25,4 +25,6 @@ config:
             claimStorageSize: 5Gi
             path: /srv/files
             mountPath: /srv/files
-            accessMode: ReadOnlyMany
+            accessModes: [ReadOnlyMany]
+            volumeMode: Filesystem
+            persistentVolumeReclaimPolicy: Delete

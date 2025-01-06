@@ -9,8 +9,9 @@ interface Volume {
   claimStorageSize: string;
   path: string;
   mountPath: string;
-  accessMode: string;
+  accessModes: string[];
   volumeMode: string;
+  persistentVolumeReclaimPolicy: string;
 }
 
 export interface LocalServerArgs {
@@ -37,7 +38,6 @@ export interface LocalServerArgs {
 
 export function createLocalServer(
   provider: k8s.Provider,
-  namespace: k8s.core.v1.Namespace,
   name: string,
   {
     ports,
@@ -55,15 +55,18 @@ export function createLocalServer(
       `${name}-${key}-vol`,
       {
         metadata: {
-          namespace: namespace.metadata.name,
+          labels: {
+            storageName: `${name}-${key}-vol`,
+          },
         },
         spec: {
           capacity: {
             storage: volume.storageSize,
           },
           volumeMode: volume.volumeMode,
-          accessModes: [volume.accessMode],
+          accessModes: volume.accessModes,
           storageClassName: volume.storageClass,
+          persistentVolumeReclaimPolicy: volume.persistentVolumeReclaimPolicy,
           local: {
             path: volume.path,
           },
@@ -81,22 +84,20 @@ export function createLocalServer(
     `${name}-service`,
     {
       metadata: {
-        namespace: namespace.metadata.name,
+        // TODO: Auto generate this in future when we use the output for DNS
+        name: `${name}-service`,
       },
       spec: {
         selector: { app: name },
         ports: [{ protocol: "TCP", port: 80, targetPort: ports.web }],
       },
     },
-    { provider }
+    { provider, deleteBeforeReplace: true }
   );
 
   new k8s.apps.v1.StatefulSet(
     `${name}-statefulset`,
     {
-      metadata: {
-        namespace: namespace.metadata.name,
-      },
       spec: {
         serviceName: service.metadata.name,
         replicas: 1,
@@ -143,7 +144,7 @@ export function createLocalServer(
               name: `${key}-claim`,
             },
             spec: {
-              accessModes: [volume.accessMode],
+              accessModes: volume.accessModes,
               storageClassName: volume.storageClass,
               selector: {
                 matchLabels: {
@@ -164,6 +165,6 @@ export function createLocalServer(
   );
 
   return {
-    service: pulumi.interpolate`http://${service.metadata.name}.${namespace.metadata.name}.svc.cluster.local`,
+    service: pulumi.interpolate`${service.metadata.name}`,
   };
 }

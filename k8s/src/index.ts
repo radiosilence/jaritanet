@@ -5,23 +5,26 @@ import type { ServersConf } from "./types";
 
 const config = new pulumi.Config();
 
+export const namespace = "jaritanet";
+
 const provider = new k8s.Provider("provider", {
-  renderYamlToDirectory: "rendered/",
+  // renderYamlToDirectory: "rendered/",
+  namespace,
 });
 
-const namespace = new k8s.core.v1.Namespace(
-  "jaritanet",
+new k8s.core.v1.Namespace(
+  namespace,
   {
     metadata: {
-      name: "jaritanet",
+      name: namespace,
     },
   },
   { provider }
 );
 
 // TODO: Make this generate the infra config
-interface ServerOutput extends Record<string, string> {
-  service: string;
+interface ServerOutput {
+  url: pulumi.Output<string>;
 }
 
 export const servers: Record<string, ServerOutput> = {};
@@ -31,7 +34,11 @@ for (const { name, args, template } of config.requireObject<ServersConf>(
 )) {
   switch (template) {
     case "local-server": {
-      servers[name] = createLocalServer(provider, namespace, name, args);
+      const service = createLocalServer(provider, name, args);
+
+      servers[name] = {
+        url: pulumi.interpolate`https://${service.service}.${namespace}.svc.cluster.local`,
+      };
       break;
     }
     case "web-server": {
