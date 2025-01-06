@@ -3,7 +3,7 @@ config:
     servers:
       - name: files
         template: local-server
-        config:
+        args:
           ports:
             web: 80
           image:
