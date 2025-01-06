@@ -1,29 +1,28 @@
 config:
-  jaritanet-k8s:
-    servers:
-      - name: files
-        template: local-server
-        args:
-          ports:
-            web: 80
-          image:
-            repository: "ghcr.io/radiosilence/jaritanet-files"
-            tag: tag
-            pullPolicy: "Always"
-          resources:
-            limits:
-              cpu: 50m
-              memory: 128Mi
-          nodeSelector:
-            key: kubernetes.io/hostname
-            operator: In
-            values:
-              - oldboy
-          persistence:
-            files:
-              storageClass: local-storage
-              storageSize: 10Gi
-              claimStorageSize: 5Gi
-              path: /srv/files
-              mountPath: /srv/files
-              accessMode: ReadOnlyMany
+  jaritanet-k8s:servers:
+    - name: files
+      template: local-server
+      args:
+        ports:
+          web: 80
+        image:
+          repository: "ghcr.io/radiosilence/jaritanet-files"
+          tag: tag
+          pullPolicy: "Always"
+        resources:
+          limits:
+            cpu: 50m
+            memory: 128Mi
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          files:
+            storageClass: local-storage
+            storageSize: 10Gi
+            claimStorageSize: 5Gi
+            path: /srv/files
+            mountPath: /srv/files
+            accessMode: ReadOnlyMany
