@@ -91,10 +91,3 @@
     dest: "/root/github-deployer-token"
     mode: "0600"
   when: sa_token_secret.resources | length > 0
-
-- name: Configure microk8s for external access
-  community.general.snap_config:
-    snap_name: microk8s
-    key: listen-address
-    value: "0.0.0.0" # Will listen on all interfaces including Tailscale
-  notify: restart microk8s
