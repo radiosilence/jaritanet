@@ -1,0 +1,70 @@
+name: Pulumi k8s
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "k8s/**"
+      - ".github/workflows/pulumi-k8s.yml"
+
+concurrency:
+  group: "k8s"
+
+env:
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
+
+jobs:
+  up:
+    name: Update
+    runs-on: ubuntu-24.04
+    env:
+      working-directory: ./k8s
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          version: "1.78.1"
+          tags: tag:ci
+      - name: Generate kubeconfig
+        run: |
+          cat << EOF > kubeconfig.yaml
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - cluster:
+              server: https://oldboy:16443  # Replace 'oldboy' with your Tailscale hostname
+              insecure-skip-tls-verify: true  # Only if you're using self-signed certs
+            name: microk8s-cluster
+          contexts:
+          - context:
+              cluster: microk8s-cluster
+              user: admin
+            name: microk8s
+          current-context: microk8s
+          users:
+          - name: admin
+            user:
+              token: ${{ secrets.KUBE_TOKEN }}  # Get this from your microk8s cluster
+          EOF
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          package_json_file: ${{env.working-directory}}/package.json
+          run_install: true
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: radiosilence/jaritanet/dev
+          work-dir: ${{env.working-directory}}
+          kubeconfig: kubeconfig.yaml
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
