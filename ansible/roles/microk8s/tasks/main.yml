@@ -49,7 +49,10 @@
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config
-  ansible.builtin.command: microk8s kubectl config view --raw > ~/.kube/config
+  ansible.builtin.shell:
+    cmd: |
+      mkdir -p ~/.kube
+      microk8s kubectl config view --raw > ~/.kube/config
   register: kubeconfig
 
 - name: Create service account for GitHub deployments
