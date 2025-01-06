@@ -4,11 +4,42 @@
       - snapd
     state: present
 
-- name: Enable microk8s addons
-  community.general.snap_addon:
-    snap_name: microk8s
-    name: "{{ item }}"
+- name: Install microk8s via snap
+  community.general.snap:
+    name: microk8s
+    classic: true
+    channel: stable
+
+- name: Create microk8s group
+  ansible.builtin.group:
+    name: microk8s
     state: present
+
+- name: Add current user to microk8s group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups:
+      - microk8s
+    append: true
+
+- name: Add user to microk8s group
+  ansible.builtin.user:
+    name: "{{ username }}"
+    groups:
+      - microk8s
+    append: true
+
+- name: Check if MicroK8s is running
+  ansible.builtin.command: microk8s status --wait-ready
+  register: microk8s_status
+  failed_when: microk8s_status.rc not in [0, 1]
+
+- name: Start MicroK8s if not running
+  ansible.builtin.command: microk8s start
+  when: microk8s_status.rc != 0
+
+- name: Enable microk8s addons
+  ansible.builtin.command: "microk8s enable {{ item }}"
   loop:
     - community
     - dns
