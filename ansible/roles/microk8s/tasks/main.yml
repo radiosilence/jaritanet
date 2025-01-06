@@ -91,3 +91,41 @@
     dest: "/root/github-deployer-token"
     mode: "0600"
   when: sa_token_secret.resources | length > 0
+
+- name: Create service account token secret
+  kubernetes.core.k8s_info:
+    kind: Secret
+    namespace: default
+    field_selectors:
+      - type=kubernetes.io/service-account-token
+    label_selectors:
+      - kubernetes.io/service-account.name=github-deployer
+  register: sa_token_secret
+
+- name: Get microk8s CA certificate
+  command: microk8s kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
+  register: cluster_ca_cert
+
+- name: Create secrets file for GitHub Actions
+  copy:
+    dest: "{{ playbook_dir }}/github-secrets.json"
+    mode: "0600"
+    content: |
+      {
+        "KUBE_TOKEN": "{{ sa_token_secret.resources[0].data.token }}",
+        "KUBE_CA_CERT": "{{ cluster_ca_cert.stdout }}",
+        "KUBE_API_PORT": "16443"
+      }
+
+- name: Get Tailscale hostname
+  command: tailscale status --json
+  register: tailscale_status
+
+- name: Parse Tailscale hostname
+  set_fact:
+    tailscale_hostname: "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
+
+- name: Add Tailscale hostname to secrets
+  command: |
+    jq '.KUBE_HOST = "{{ tailscale_hostname }}"' {{ playbook_dir }}/github-secrets.json > {{ playbook_dir }}/github-secrets.json.tmp && 
+    mv {{ playbook_dir }}/github-secrets.json.tmp {{ playbook_dir }}/github-secrets.json

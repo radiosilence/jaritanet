@@ -21,6 +21,12 @@
     - microk8s
     - syncthing
 
+  handlers:
+    - name: restart microk8s
+      systemd:
+        name: snap.microk8s.daemon-kubelet
+        state: restarted
+
 - name: Ensure tailnet is joined
   hosts: tailnet
   become: true

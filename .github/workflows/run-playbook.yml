@@ -47,3 +47,30 @@ jobs:
         env:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
+
+      - name: Set GitHub Secrets
+        run: |
+          if [ -f ansible/github-secrets.json ]; then
+            # Read each key-value pair from the JSON file and set as secret
+            jq -r 'to_entries | .[] | @sh "echo \(.value) | gh secret set \(.key)"' ansible/github-secrets.json | while read -r cmd; do
+              eval "$cmd"
+            done
+            
+            # Also set secrets for other repositories that need deployment access
+            REPOS=(
+              "org-name/repo1"
+              "org-name/repo2"
+              # Add more repos as needed
+            )
+            
+            for repo in "${REPOS[@]}"; do
+              jq -r 'to_entries | .[] | @sh "echo \(.value) | gh secret set \(.key) --repo \""${repo}"\""' ansible/github-secrets.json | while read -r cmd; do
+                eval "$cmd"
+              done
+            done
+          else
+            echo "github-secrets.json not found!"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRET_WRITER_TOKEN }}
