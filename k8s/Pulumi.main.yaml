@@ -1,0 +1,48 @@
+config:
+  cloudflare:apiToken:
+    secure: AAABACC9ME5uIdTkHilCbU+HDDihHaBY8jFoxAWky5F6VLQ6effL4hg4ldJySUL/YmDsp+62yIoJAC2eB4SnYPBOrEsA55IL
+
+  jaritanet:cloudflare:
+    accountId: 365e5168438376dc99d7ee2aedef4624
+
+  jaritanet:tunnel:
+    name: "jaritanet"
+
+  jaritanet:zones:
+    - name: "blit.cc"
+      zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
+      modules:
+        - fastmail
+      services:
+        - name: "@"
+          service: http://blit-service.blit.svc.cluster.local
+        - name: music
+          service: http://navidrome-service.navidrome.svc.cluster.local
+
+    - name: radiosilence.dev
+      zoneId: 3373ad7c3dc3104e7aeab31c1176e684
+      modules:
+        - fastmail
+      services:
+        - name: files
+          service: http://files-service.files.svc.cluster.local
+        - name: bambi
+          service: http://bambi-art-service.bambi-art.svc.cluster.local
+
+    - name: buttholes.live
+      zoneId: 1115a1e5006523692d61e49e672f6df0
+      modules:
+        - fastmail
+        - bluesky
+
+  jaritanet:fastmail:
+    mxDomain: smtp.messagingengine.com
+    dkimDomain: dkim.fmhosted.com
+    dkimSubdomain: _domainkey
+    dmarcSubdomain: _dmarc
+    dmarcAggEmail: dmarc-agg@blit.cc
+    dmarcPolicy: reject
+    spfDomain: spf.messagingengine.com
+
+  jaritanet:bluesky:
+    did: did:plc:d32vuqlfqjttwbckkxgxgbgl

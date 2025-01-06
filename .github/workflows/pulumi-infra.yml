@@ -1,4 +1,4 @@
-name: Pulumi Up
+name: Pulumi Infra
 
 permissions:
   contents: read
@@ -9,7 +9,7 @@ on:
       - main
     paths:
       - "infra/**"
-      - ".github/workflows/pulumi-up.yml"
+      - ".github/workflows/pulumi-infra.yml"
 
 concurrency:
   group: "infra"
