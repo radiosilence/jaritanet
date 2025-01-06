@@ -1,0 +1,4 @@
+- name: restart microk8s
+  systemd:
+    name: snap.microk8s.daemon-kubelet
+    state: restarted
