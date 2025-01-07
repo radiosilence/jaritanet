@@ -163,6 +163,6 @@ export function createLocalServer(
   );
 
   return {
-    service: pulumi.interpolate`${service.metadata.name}`,
+    name: pulumi.interpolate`${service.metadata.name}`,
   };
 }

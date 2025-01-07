@@ -37,7 +37,7 @@ for (const { name, args, template } of config.requireObject<ServersConf>(
       const service = createLocalServer(provider, name, args);
 
       services[name] = {
-        url: pulumi.interpolate`http://${service.service}.${namespace}.svc.cluster.local`,
+        url: pulumi.interpolate`https://${service.name}.${namespace}.svc.cluster.local`,
       };
       break;
     }
