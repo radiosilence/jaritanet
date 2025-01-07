@@ -40,7 +40,7 @@ jobs:
           kind: Config
           clusters:
           - cluster:
-              server: https://oldboy:16443  # Replace 'oldboy' with your Tailscale hostname
+              server: https://${{ secrets.KUBE_HOST }}:${{ secrets.KUBE_API_PORT }} 
               insecure-skip-tls-verify: true  # Only if you're using self-signed certs
             name: microk8s-cluster
           contexts:
