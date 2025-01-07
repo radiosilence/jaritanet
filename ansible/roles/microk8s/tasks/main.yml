@@ -133,19 +133,11 @@
     mode: "0600"
   register: remote_secrets
 
-- name: Ensure local secrets directory exists
-  become: false
-  delegate_to: localhost
-  ansible.builtin.file:
-    path: "./secrets"
-    state: directory
-    mode: "0700"
-
 - name: Fetch secrets file from remote
   become: false
   ansible.builtin.fetch:
     src: /tmp/github-secrets.json
-    dest: ./secrets/github-secrets.json
+    dest: ./github-secrets.json
     flat: yes
 
 - name: Remove temporary secrets file from remote
