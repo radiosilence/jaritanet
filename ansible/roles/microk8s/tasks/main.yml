@@ -138,7 +138,7 @@
   ansible.builtin.fetch:
     src: /tmp/github-secrets.json
     dest: ./github-secrets.json
-    flat: yes
+    flat: true
 
 - name: Remove temporary secrets file from remote
   ansible.builtin.file:
