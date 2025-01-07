@@ -17,8 +17,8 @@
     - group_vars/homeservers.yml
 
   roles:
-    - samba
     - microk8s
+    - samba
     - syncthing
 
   handlers:
