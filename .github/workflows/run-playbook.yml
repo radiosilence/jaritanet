@@ -50,7 +50,7 @@ jobs:
 
       - name: Set GitHub Secrets
         run: |
-          if [ -f ansible/github-secrets.json ]; then
+          if [ -f ansible/secrets/github-secrets.json ]; then
             # Read each key-value pair from the JSON file and set as secret
             jq -r 'to_entries | .[] | @sh "echo \(.value) | gh secret set \(.key)"' ansible/github-secrets.json | while read -r cmd; do
               eval "$cmd"
