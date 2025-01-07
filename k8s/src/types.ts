@@ -6,10 +6,10 @@ interface LocalServerConf {
   args: LocalServerArgs;
 }
 
-interface WebServerConf {
-  name: string;
-  template: "web-server";
-  args: unknown;
-}
+// interface WebServerConf {
+//   name: string;
+//   template: "web-server";
+//   args: unknown;
+// }
 
 export type ServersConf = LocalServerConf[];
