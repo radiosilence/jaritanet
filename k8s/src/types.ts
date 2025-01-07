@@ -12,4 +12,4 @@ interface WebServerConf {
   args: unknown;
 }
 
-export type ServersConf = (LocalServerConf | WebServerConf)[];
+export type ServersConf = LocalServerConf[];

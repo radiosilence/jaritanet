@@ -23,26 +23,23 @@ new k8s.core.v1.Namespace(
 );
 
 // TODO: Make this generate the infra config
-interface ServiceOutput {
-  url: pulumi.Output<string>;
-}
+// interface ServiceOutput {
+//   url: pulumi.Output<string>;
+// }
 
-export const services: Record<string, ServiceOutput> = {};
+const templates = {
+  "local-server": createLocalServer,
+} as const;
 
-for (const { name, args, template } of config.requireObject<ServersConf>(
-  "servers"
-)) {
-  switch (template) {
-    case "local-server": {
-      const service = createLocalServer(provider, name, args);
-
-      services[name] = {
-        url: pulumi.interpolate`https://${service.name}.${namespace}.svc.cluster.local`,
-      };
-      break;
-    }
-    case "web-server": {
-      break;
-    }
-  }
-}
+export const services = Object.fromEntries(
+  config
+    .requireObject<ServersConf>("servers")
+    .map(({ name, args, template }) => [
+      name,
+      {
+        url: pulumi.interpolate`http://${
+          templates[template](provider, name, args).name
+        }.${namespace}.svc.cluster.local`,
+      },
+    ])
+);
