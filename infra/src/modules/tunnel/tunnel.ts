@@ -7,6 +7,14 @@ import * as dns from "../dns";
 const config = new pulumi.Config();
 const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
 
+// TODO: Split this into tunnel and dns projects, so we can do [infra] -> tunnel -> k8s -> dns
+const stackRef = new pulumi.StackReference(
+  `radiosilence/jaritanet-k8s/${pulumi.getStack()}`
+);
+
+// TODO: Shared types etc
+const servicesOutput = stackRef.getOutput("services");
+
 /**
  * Creates a new Cloudflare tunnel.
  *
@@ -30,7 +38,13 @@ export function tunnel(name: string, zones: ZoneConf[]) {
 
     return zone.services.map(({ name, service }) => ({
       hostname: name === "@" ? zone.name : `${name}.${zone.name}`,
-      service,
+      service:
+        typeof service === "string"
+          ? service
+          : servicesOutput.apply(
+              (services: Record<string, { url: string }>) =>
+                services[service.ref].url
+            ),
       originRequest: {
         connectTimeout: "2m0s",
       },

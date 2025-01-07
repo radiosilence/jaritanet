@@ -43,7 +43,7 @@ export interface ServiceConf {
   /**
    * Internal service URL.
    */
-  service: string;
+  service: string | { ref: string };
 }
 
 /**

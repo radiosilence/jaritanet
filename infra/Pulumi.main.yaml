@@ -17,7 +17,7 @@ config:
         - name: "@"
           service: http://blit-service.blit.svc.cluster.local
         - name: music
-          service: http://navidrome-service.jaritanet.svc.cluster.local
+          service: { ref: navidrome }
 
     - name: radiosilence.dev
       zoneId: 3373ad7c3dc3104e7aeab31c1176e684
@@ -25,7 +25,7 @@ config:
         - fastmail
       services:
         - name: files
-          service: http://files-service.jaritanet.svc.cluster.local
+          service: { ref: files }
         - name: bambi
           service: http://bambi-art-service.bambi-art.svc.cluster.local
 
