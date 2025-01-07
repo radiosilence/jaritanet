@@ -116,29 +116,42 @@
     state: directory
     mode: "0700"
 
-- name: Create secrets file for GitHub Actions
-  ansible.builtin.copy:
-    dest: "{{ inventory_dir }}/secrets/github-secrets.json"
-    mode: "0600"
+- name: Get Tailscale hostname
+  command: tailscale status --json
+  register: tailscale_status
+
+- name: Create temporary secrets file on remote
+  copy:
     content: |
       {
         "KUBE_TOKEN": "{{ token_secret.resources[0].data.token }}",
         "KUBE_CA_CERT": "{{ cluster_ca_cert.stdout }}",
-        "KUBE_API_PORT": "16443"
+        "KUBE_API_PORT": "16443",
+        "KUBE_HOST": "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
       }
+    dest: /tmp/github-secrets.json
+    mode: "0600"
+  register: remote_secrets
 
-- name: Get Tailscale hostname
-  ansible.builtin.command: tailscale status --json
-  register: tailscale_status
+- name: Ensure local secrets directory exists
+  become: false
+  delegate_to: localhost
+  ansible.builtin.file:
+    path: "./secrets"
+    state: directory
+    mode: "0700"
 
-- name: Parse Tailscale hostname
-  ansible.builtin.set_fact:
-    tailscale_hostname: "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
+- name: Fetch secrets file from remote
+  become: false
+  ansible.builtin.fetch:
+    src: /tmp/github-secrets.json
+    dest: ./secrets/github-secrets.json
+    flat: yes
 
-- name: Add Tailscale hostname to secrets
-  ansible.builtin.command: |
-    jq '.KUBE_HOST = "{{ tailscale_hostname }}"' {{ inventory_dir }}/secrets/github-secrets.json > {{ inventory_dir }}/secrets/github-secrets.json.tmp && 
-    mv {{ inventory_dir }}/secrets/github-secrets.json.tmp {{ inventory_dir }}/secrets/github-secrets.json
+- name: Remove temporary secrets file from remote
+  ansible.builtin.file:
+    path: /tmp/github-secrets.json
+    state: absent
 
 # handlers/main.yml
 - name: restart microk8s
