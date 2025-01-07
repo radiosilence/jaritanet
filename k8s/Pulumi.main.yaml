@@ -1,7 +1,6 @@
 config:
-  jaritanet-k8s:servers:
+  jaritanet-k8s:local-servers:
     - name: navidrome
-      template: local-server
       args:
         ports:
           web: 4533
@@ -63,3 +62,6 @@ config:
             path: /srv/files
             mountPath: /srv/files
             accessModes: [ReadOnlyMany]
+
+  jaritanet-k8s:cloudflared:
+    name: cloudflared

@@ -1,0 +1,73 @@
+import * as k8s from "@pulumi/kubernetes";
+import type * as pulumi from "@pulumi/pulumi";
+
+interface CloudflaredArgs {
+  token: pulumi.Output<string>;
+  replicas?: number;
+}
+
+export function createCloudflared(
+  provider: k8s.Provider,
+  name: string,
+  { token, replicas = 2 }: CloudflaredArgs
+) {
+  return new k8s.apps.v1.Deployment(
+    `${name}-deployment`,
+    {
+      metadata: {
+        labels: {
+          app: name,
+        },
+      },
+      spec: {
+        replicas,
+        selector: {
+          matchLabels: {
+            pod: name,
+          },
+        },
+        template: {
+          metadata: {
+            labels: {
+              pod: name,
+            },
+          },
+          spec: {
+            containers: [
+              {
+                command: [
+                  "cloudflared",
+                  "tunnel",
+                  "--no-autoupdate",
+                  "--metrics",
+                  "0.0.0.0:2000",
+                  "run",
+                ],
+                args: ["--token", token],
+                image: "cloudflare/cloudflared:latest",
+                imagePullPolicy: "Always",
+                name: "cloudflared",
+                livenessProbe: {
+                  httpGet: {
+                    path: "/ready",
+                    port: 2000,
+                  },
+                  failureThreshold: 1,
+                  initialDelaySeconds: 10,
+                  periodSeconds: 10,
+                },
+                resources: {
+                  limits: {
+                    memory: "128Mi",
+                    cpu: "250m",
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+    { provider }
+  );
+}

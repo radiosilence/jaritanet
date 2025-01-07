@@ -13,7 +13,7 @@ const stackRef = new pulumi.StackReference(
 );
 
 // TODO: Shared types etc
-const servicesOutput = stackRef.getOutput("services");
+const servicesOutput = stackRef.requireOutput("services");
 
 /**
  * Creates a new Cloudflare tunnel.

@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { createLocalServer } from "./templates";
-import type { ServersConf } from "./types";
+import { createCloudflared, createLocalServer } from "./templates";
+import type { CloudflaredConf, LocalServerConf } from "./types";
 
 const config = new pulumi.Config();
 
@@ -22,24 +22,26 @@ new k8s.core.v1.Namespace(
   { provider }
 );
 
-// TODO: Make this generate the infra config
-// interface ServiceOutput {
-//   url: pulumi.Output<string>;
-// }
-
-const templates = {
-  "local-server": createLocalServer,
-} as const;
-
 export const services = Object.fromEntries(
   config
-    .requireObject<ServersConf>("servers")
-    .map(({ name, args, template }) => [
+    .requireObject<LocalServerConf[]>("local-servers")
+    .map(({ name, args }) => [
       name,
       {
         url: pulumi.interpolate`http://${
-          templates[template](provider, name, args).name
+          createLocalServer(provider, name, args).name
         }.${namespace}.svc.cluster.local`,
       },
     ])
 );
+
+const tunnelToken = new pulumi.StackReference(
+  "radiosilence/jaritanet/main"
+).requireOutput("tunnelToken");
+
+const cloudflared = config.requireObject<CloudflaredConf>("cloudflared");
+
+createCloudflared(provider, cloudflared.name, {
+  ...cloudflared.args,
+  token: pulumi.interpolate`${tunnelToken}`,
+});
