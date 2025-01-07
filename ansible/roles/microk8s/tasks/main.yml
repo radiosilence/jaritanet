@@ -82,55 +82,64 @@
         name: cluster-admin
         apiGroup: rbac.authorization.k8s.io
 
-- name: Create service account token secret
-  kubernetes.core.k8s_info:
-    kind: Secret
-    namespace: default
-    field_selectors:
-      - type=kubernetes.io/service-account-token
-    label_selectors:
-      - kubernetes.io/service-account.name=github-deployer
-  register: sa_token_secret
+- name: Create service account token
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: github-deployer-token
+        namespace: default
+        annotations:
+          kubernetes.io/service-account.name: github-deployer
+      type: kubernetes.io/service-account-token
 
-- name: Save token to a file
+- name: Wait for token to be populated
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: github-deployer-token
+    namespace: default
+  register: token_secret
+  until: token_secret.resources[0].data.token is defined
+  retries: 10
+  delay: 5
+
+- name: Get microk8s CA certificate
+  ansible.builtin.command: microk8s kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
+  register: cluster_ca_cert
+
+- name: Create secrets directory
+  ansible.builtin.file:
+    path: "{{ inventory_dir }}/secrets"
+    state: directory
+    mode: "0700"
+
+- name: Create secrets file for GitHub Actions
   ansible.builtin.copy:
-    content: "{{ sa_token_secret }}"
-    dest: "/root/github-deployer-token"
+    dest: "{{ inventory_dir }}/secrets/github-secrets.json"
     mode: "0600"
+    content: |
+      {
+        "KUBE_TOKEN": "{{ token_secret.resources[0].data.token }}",
+        "KUBE_CA_CERT": "{{ cluster_ca_cert.stdout }}",
+        "KUBE_API_PORT": "16443"
+      }
 
-- name: Create service account token secret
-  kubernetes.core.k8s_info:
-    kind: Secret
-    namespace: default
-    field_selectors:
-      - type=kubernetes.io/service-account-token
-    label_selectors:
-      - kubernetes.io/service-account.name=github-deployer
-  register: sa_token_secret
-# - name: Get microk8s CA certificate
-#   ansible.builtin.command: microk8s kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
-#   register: cluster_ca_cert
+- name: Get Tailscale hostname
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
 
-# - name: Create secrets file for GitHub Actions
-#   ansible.builtin.copy:
-#     dest: "{{ playbook_dir }}/github-secrets.json"
-#     mode: "0600"
-#     content: |
-#       {
-#         "KUBE_TOKEN": "{{ sa_token_secret.resources[0].data.token }}",
-#         "KUBE_CA_CERT": "{{ cluster_ca_cert.stdout }}",
-#         "KUBE_API_PORT": "16443"
-#       }
+- name: Parse Tailscale hostname
+  ansible.builtin.set_fact:
+    tailscale_hostname: "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
 
-# - name: Get Tailscale hostname
-#   ansible.builtin.command: tailscale status --json
-#   register: tailscale_status
+- name: Add Tailscale hostname to secrets
+  ansible.builtin.command: |
+    jq '.KUBE_HOST = "{{ tailscale_hostname }}"' {{ inventory_dir }}/secrets/github-secrets.json > {{ inventory_dir }}/secrets/github-secrets.json.tmp && 
+    mv {{ inventory_dir }}/secrets/github-secrets.json.tmp {{ inventory_dir }}/secrets/github-secrets.json
 
-# - name: Parse Tailscale hostname
-#   ansible.builtin.set_fact:
-#     tailscale_hostname: "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
-
-# - name: Add Tailscale hostname to secrets
-#   ansible.builtin.command: |
-#     jq '.KUBE_HOST = "{{ tailscale_hostname }}"' {{ playbook_dir }}/github-secrets.json > {{ playbook_dir }}/github-secrets.json.tmp &&
-#     mv {{ playbook_dir }}/github-secrets.json.tmp {{ playbook_dir }}/github-secrets.json
+# handlers/main.yml
+- name: restart microk8s
+  ansible.builtin.command: snap restart microk8s

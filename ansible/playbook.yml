@@ -23,9 +23,7 @@
 
   handlers:
     - name: restart microk8s
-      systemd:
-        name: snap.microk8s.daemon-kubelet
-        state: restarted
+      ansible.builtin.command: snap restart microk8s
 
 - name: Ensure tailnet is joined
   hosts: tailnet
