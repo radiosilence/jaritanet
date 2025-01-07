@@ -35,7 +35,7 @@ jobs:
           tags: tag:ci
       - name: Generate kubeconfig
         run: |
-          cat << EOF > kubeconfig.yaml
+          cat << EOF > ${{ env.KUBECONFIG }}
           apiVersion: v1
           kind: Config
           clusters:
@@ -64,6 +64,6 @@ jobs:
           command: up
           stack-name: radiosilence/jaritanet/dev
           work-dir: ${{env.working-directory}}
-          kubeconfig: kubeconfig.yaml
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
