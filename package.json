@@ -15,6 +15,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@pulumi/cloudflare": "^5.47.0",
     "@pulumi/kubernetes": "^4.19.0",
     "@pulumi/pulumi": "^3.144.1",
     "@pulumi/random": "^4.16.8"
