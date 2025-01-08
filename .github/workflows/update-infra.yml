@@ -2,6 +2,7 @@ name: Update Infra
 
 permissions:
   contents: read
+  packages: write
 
 on:
   push:
