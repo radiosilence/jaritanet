@@ -8,8 +8,10 @@ on:
   workflow_call:
     inputs:
       stack-name:
+        type: string
         required: true
       working-directory:
+        type: string
         required: true
     secrets:
       PULUMI_ACCESS_TOKEN:
