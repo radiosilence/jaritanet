@@ -7,7 +7,7 @@ import {
   type ServiceConf,
   ServicesArraySchema,
 } from "./config.schemas";
-import { kubeconfig } from "./kubeconfig";
+import { getKubeconfig } from "./kubeconfig";
 import {
   createCloudflared,
   createLocalStorageService,
@@ -18,12 +18,30 @@ const config = new pulumi.Config();
 
 export const namespace = "jaritanet";
 
-const provider = new k8s.Provider("provider", {
-  kubeconfig: kubeconfig({
-    host: process.env.KUBE_HOST ?? "",
-    port: process.env.KUBE_API_PORT ?? 16443,
-    token: process.env.KUBE_TOKEN ?? "",
+if (!process.env.KUBE_HOST) {
+  throw new Error("KUBE_HOST is required");
+}
+
+if (!process.env.KUBE_API_PORT) {
+  throw new Error("KUBE_API_PORT is required");
+}
+
+if (!process.env.KUBE_TOKEN) {
+  throw new Error("KUBE_TOKEN is required");
+}
+
+const kubeconfig = JSON.stringify(
+  getKubeconfig({
+    host: process.env.KUBE_HOST,
+    port: process.env.KUBE_API_PORT,
+    token: atob(process.env.KUBE_TOKEN),
   }),
+  null,
+  2
+);
+
+const provider = new k8s.Provider("provider", {
+  kubeconfig,
   namespace,
 });
 

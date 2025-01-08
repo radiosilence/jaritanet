@@ -62,7 +62,7 @@
       apiVersion: v1
       kind: ServiceAccount
       metadata:
-        name: github-deployer
+        name: "{{ k8s.service_account }}"
         namespace: default
 
 - name: Create cluster role binding for deployer
@@ -72,10 +72,10 @@
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: github-deployer-admin
+        name: "{{ k8s.service_account }}:admin"
       subjects:
         - kind: ServiceAccount
-          name: github-deployer
+          name: "{{ k8s.service_account }}"
           namespace: default
       roleRef:
         kind: ClusterRole
@@ -89,10 +89,10 @@
       apiVersion: v1
       kind: Secret
       metadata:
-        name: github-deployer-token
+        name: "{{ k8s.service_account }}-token"
         namespace: default
         annotations:
-          kubernetes.io/service-account.name: github-deployer
+          kubernetes.io/service-account.name: "{{ k8s.service_account }}"
       type: kubernetes.io/service-account-token
 
 - name: Wait for token to be populated
@@ -106,10 +106,6 @@
   retries: 10
   delay: 5
 
-- name: Get microk8s CA certificate
-  ansible.builtin.command: microk8s kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
-  register: cluster_ca_cert
-
 - name: Create secrets directory
   ansible.builtin.file:
     path: "{{ inventory_dir }}/secrets"
@@ -117,15 +113,14 @@
     mode: "0700"
 
 - name: Get Tailscale hostname
-  command: tailscale status --json
+  ansible.builtin.command: tailscale status --json
   register: tailscale_status
 
 - name: Create temporary secrets file on remote
-  copy:
+  ansible.builtin.copy:
     content: |
       {
         "KUBE_TOKEN": "{{ token_secret.resources[0].data.token }}",
-        "KUBE_CA_CERT": "{{ cluster_ca_cert.stdout }}",
         "KUBE_API_PORT": "16443",
         "KUBE_HOST": "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
       }
