@@ -1,6 +1,7 @@
 config:
   jaritanet:cloudflare:
     accountId: 365e5168438376dc99d7ee2aedef4624
-
   jaritanet:tunnel:
-    name: "tunnel"
+    name: "jaritanet"
+  cloudflare:apiToken:
+    secure: AAABALJFhVInKD9olE/Wp80SPUNHn7dof5XxpluL5Fhx/WxBeM/T8XZikQVM6aO1JBVaeVMEackO2lNUIssReuQCOGlIeXtN
