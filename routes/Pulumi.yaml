@@ -2,8 +2,7 @@ name: jaritanet-routes
 description: Personal routes layer
 runtime:
   name: nodejs
-  options:
-    packagemanager: pnpm
+
 config:
   pulumi:tags:
     value:
