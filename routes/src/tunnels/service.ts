@@ -9,16 +9,10 @@ export interface ServiceOutput {
 
 export function getRecord(hostname: string) {
   const parts = hostname.split(".");
-  const zoneName = parts.slice(-2).join(".");
-  let recordName = parts.slice(0, -2).join(".");
-
-  if (parts.length === 2) {
-    recordName = "@";
-  }
 
   return {
-    zoneName,
-    recordName,
+    zoneName: parts.slice(-2).join("."),
+    recordName: parts.length === 2 ? "@" : parts.slice(0, -2).join("."),
   };
 }
 
@@ -42,7 +36,7 @@ export function createZone(
 ) {
   const { recordName: name } = getRecord(hostname);
 
-  return new cloudflare.Record(`${hostname}-tunnel-rule`, {
+  return new cloudflare.Record(`${hostname}-tunneled-record`, {
     zoneId,
     name,
     type: "CNAME",

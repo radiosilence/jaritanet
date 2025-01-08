@@ -1,0 +1,26 @@
+name: Update Infra
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "routes/**"
+      - "infra/**"
+      - "k8s/**"
+      - ".github/workflows/update-infra.yml"
+      - ".github/workflows/pulumi-*.yml"
+
+jobs:
+  infra:
+    name: Update Infra
+    uses: ./github/workflows/pulumi-infra.yml
+  k8s:
+    name: Update K8s
+    uses: ./github/workflows/pulumi-k8s.yml
+  routes:
+    name: Update Routes
+    uses: ./github/workflows/pulumi-routes.yml

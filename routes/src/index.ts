@@ -57,6 +57,7 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
       if (!zone) {
         throw new Error(`Zone ${zoneName} not found`);
       }
+
       createZone(
         tunnelOutput.apply(
           (t: cloudflare.ZeroTrustTunnelCloudflared) => t.cname
@@ -66,10 +67,21 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
       );
     }
   });
-
   createTunnelConfig(
     accountId,
     tunnelOutput.apply((t: cloudflare.ZeroTrustTunnelCloudflared) => t.id),
     ingressRules
   );
+}
+
+// TODO: Legacy, support, remove
+for (const zone of zones) {
+  if (!zone.services) continue;
+  for (const service of zone.services) {
+    createZone(
+      tunnelOutput.apply((t: cloudflare.ZeroTrustTunnelCloudflared) => t.cname),
+      zone,
+      service
+    );
+  }
 }
