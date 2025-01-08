@@ -12,7 +12,7 @@ export const namespace = "jaritanet";
 const provider = new k8s.Provider("provider", {
   kubeconfig: kubeconfig({
     host: process.env.KUBE_HOST ?? "",
-    apiPort: process.env.KUBE_API_PORT ?? "16443",
+    port: process.env.KUBE_API_PORT ?? 16443,
     token: process.env.KUBE_TOKEN ?? "",
   }),
   namespace,

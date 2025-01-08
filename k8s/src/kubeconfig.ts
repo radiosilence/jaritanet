@@ -1,17 +1,18 @@
 interface KubeConfigArgs {
   host: string;
-  apiPort: string;
+  port?: string | number;
   token: string;
+  caCert?: string;
 }
 
-export const kubeconfig = ({ host, apiPort, token }: KubeConfigArgs) =>
+export const kubeconfig = ({ host, port = 16443, token }: KubeConfigArgs) =>
   JSON.stringify({
     apiVersion: "v1",
     kind: "Config",
     clusters: [
       {
         cluster: {
-          server: `https://${host}:${apiPort}`,
+          server: `https://${host}:${port}`,
           "insecure-skip-tls-verify": true,
         },
         name: "microk8s-cluster",
