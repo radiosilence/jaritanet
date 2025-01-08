@@ -25,9 +25,6 @@ on:
       KUBE_TOKEN:
         required: true
 
-env:
-  KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
-
 concurrency:
   group: "k8s"
 
