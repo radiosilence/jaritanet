@@ -74,7 +74,7 @@ export const services = ServicesArraySchema.parse(
 
   return {
     hostname: conf.hostname,
-    service: pulumi.interpolate`${service.metadata.name}.${namespace}.svc.cluster.local`,
+    service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
   };
 });
 
