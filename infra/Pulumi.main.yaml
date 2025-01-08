@@ -3,4 +3,4 @@ config:
     accountId: 365e5168438376dc99d7ee2aedef4624
 
   jaritanet:tunnel:
-    name: "jaritanet"
+    name: "tunnel"
