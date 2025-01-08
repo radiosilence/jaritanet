@@ -1,4 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
+import * as pulumi from "@pulumi/pulumi";
+import * as random from "@pulumi/random";
 import type { LocalStorageServiceArgs } from "./local-storage.schemas";
 
 export function createLocalStorageService(
@@ -13,41 +15,51 @@ export function createLocalStorageService(
     nodeSelector,
   }: LocalStorageServiceArgs
 ) {
-  const volumes: Record<string, k8s.core.v1.PersistentVolume> = {};
+  const volumes = Object.fromEntries(
+    Object.entries(persistence).map(([key, volume]) => [
+      key,
 
-  for (const [key, volume] of Object.entries(persistence)) {
-    volumes[key] = new k8s.core.v1.PersistentVolume(
-      `${name}-${key}-vol`,
-      {
-        metadata: {
-          labels: {
-            storageName: `${name}-${key}-vol`,
+      new k8s.core.v1.PersistentVolume(
+        `${name}-${key}-vol`,
+        {
+          metadata: {
+            labels: {
+              storageName: pulumi.interpolate`${name}-${key}-${id}-vol`,
+            },
           },
-        },
-        spec: {
-          capacity: {
-            storage: volume.storageSize,
-          },
-          volumeMode: "Filesystem",
-          accessModes: volume.accessModes,
-          storageClassName: "local-storage",
-          persistentVolumeReclaimPolicy: "Delete",
-          local: {
-            path: volume.path,
-          },
-          nodeAffinity: {
-            required: {
-              nodeSelectorTerms: [{ matchExpressions: [nodeSelector] }],
+          spec: {
+            capacity: {
+              storage: volume.storageSize,
+            },
+            volumeMode: "Filesystem",
+            accessModes: volume.accessModes,
+            storageClassName: "local-storage",
+            persistentVolumeReclaimPolicy: "Delete",
+            local: {
+              path: volume.path,
+            },
+            nodeAffinity: {
+              required: {
+                nodeSelectorTerms: [{ matchExpressions: [nodeSelector] }],
+              },
             },
           },
         },
-      },
-      { provider }
-    );
-  }
+        { provider }
+      ),
+    ])
+  );
+
+  const id = new random.RandomString(`${name}-id`, {
+    length: 6,
+  });
+
   const service = new k8s.core.v1.Service(
     `${name}-service`,
     {
+      metadata: {
+        name: `${name}-service`,
+      },
       spec: {
         selector: { app: name },
         ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
@@ -109,7 +121,7 @@ export function createLocalStorageService(
               storageClassName: "local-storage",
               selector: {
                 matchLabels: {
-                  storageName: `${name}-${key}-vol`,
+                  storageName: volumes[key].metadata.labels.storageName,
                 },
               },
               resources: {
@@ -122,7 +134,7 @@ export function createLocalStorageService(
         ),
       },
     },
-    { provider }
+    { provider, deleteBeforeReplace: true }
   );
 
   return service;
