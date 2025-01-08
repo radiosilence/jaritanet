@@ -1,0 +1,4 @@
+packages:
+  - infra
+  - k8s
+  - routes

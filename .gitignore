@@ -26,3 +26,5 @@ secrets/*.yml
 !secrets/README.md
 
 mise.local.toml
+
+node_modules
