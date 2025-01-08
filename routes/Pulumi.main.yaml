@@ -1,4 +1,7 @@
 config:
+  cloudflare:apiToken:
+    secure: AAABAJG6tTBjNvd2RQOYsJrgn5x1G6+jZAEr1eNZnXrZ72rj7XICfgvGHgnZbUVvEK37w2ROk1/skoqrVcFCpxlolT5WWvhG
+
   jaritanet-routes:cloudflare:
     accountId: 365e5168438376dc99d7ee2aedef4624
   jaritanet-routes:serviceStacks:

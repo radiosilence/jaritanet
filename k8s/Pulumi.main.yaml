@@ -65,5 +65,3 @@ config:
             accessModes: [ReadOnlyMany]
   jaritanet-k8s:cloudflared:
     name: cloudflared
-  cloudflare:apiToken:
-    secure: AAABAJzMgakdHkA610qt2BzLxJJ6Rv8J4qcGhP6U+60PPUnnV55oXdMoGi/Cyr5dFD849ozmPj4CcFtVHyynxcCYdZJgZFft
