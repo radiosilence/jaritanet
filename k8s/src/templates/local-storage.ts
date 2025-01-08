@@ -1,6 +1,4 @@
 import * as k8s from "@pulumi/kubernetes";
-import * as pulumi from "@pulumi/pulumi";
-import * as random from "@pulumi/random";
 import type { LocalStorageServiceArgs } from "./local-storage.schemas";
 
 export function createLocalStorageService(
@@ -15,12 +13,6 @@ export function createLocalStorageService(
     nodeSelector,
   }: LocalStorageServiceArgs
 ) {
-  const id = new random.RandomString(`${name}-id`, {
-    length: 6,
-    lower: true,
-    special: false,
-  });
-
   const volumes = Object.fromEntries(
     Object.entries(persistence).map(([key, volume]) => [
       key,
@@ -30,7 +22,7 @@ export function createLocalStorageService(
         {
           metadata: {
             labels: {
-              storageName: pulumi.interpolate`${name}-${key}-${id.result}-vol`,
+              storageName: `${name}-${key}-vol`,
             },
           },
           spec: {
@@ -40,7 +32,7 @@ export function createLocalStorageService(
             volumeMode: "Filesystem",
             accessModes: volume.accessModes,
             storageClassName: "local-storage",
-            persistentVolumeReclaimPolicy: "Delete",
+            persistentVolumeReclaimPolicy: "Retain",
             local: {
               path: volume.path,
             },
@@ -51,7 +43,7 @@ export function createLocalStorageService(
             },
           },
         },
-        { provider, deleteBeforeReplace: true }
+        { provider }
       ),
     ])
   );
