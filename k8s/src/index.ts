@@ -1,9 +1,13 @@
 import type * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import type { CloudflaredConf, ServiceConf } from "./conf";
 import { kubeconfig } from "./kubeconfig";
-import { createCloudflared, createLocalServer } from "./templates";
-import type { CloudflaredConf, ServiceConf } from "./types";
+import {
+  createCloudflared,
+  createLocalStorageService,
+  createStaticService,
+} from "./templates";
 
 const config = new pulumi.Config();
 
@@ -28,18 +32,25 @@ new k8s.core.v1.Namespace(
   { provider }
 );
 
-const templates = {
-  "local-server": createLocalServer,
-};
-
 export const services = config
   .requireObject<ServiceConf[]>("services")
   .map(({ name, args, hostname, template }) => {
-    const service = templates[template](provider, name, args);
+    let service: k8s.core.v1.Service;
+
+    switch (template) {
+      case "local-storage": {
+        service = createLocalStorageService(provider, name, args);
+        break;
+      }
+      case "static": {
+        service = createStaticService(provider, name, args);
+        break;
+      }
+    }
 
     return {
       hostname,
-      service: pulumi.interpolate`${service.name}.${namespace}.svc.cluster.local`,
+      service: pulumi.interpolate`${service.metadata.name}.${namespace}.svc.cluster.local`,
     };
   });
 

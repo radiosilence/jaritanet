@@ -1,7 +1,4 @@
 import * as k8s from "@pulumi/kubernetes";
-import * as pulumi from "@pulumi/pulumi";
-
-export const service = [];
 
 interface Volume {
   storageClass: string;
@@ -12,7 +9,7 @@ interface Volume {
   accessModes: string[];
 }
 
-export interface LocalServerArgs {
+export interface LocalStorageServiceArgs {
   env?: Record<string, string>;
   ports: Record<string, number> & { web: number };
   persistence: Record<string, Volume>;
@@ -34,7 +31,7 @@ export interface LocalServerArgs {
   };
 }
 
-export function createLocalServer(
+export function createLocalStorageService(
   provider: k8s.Provider,
   name: string,
   {
@@ -44,7 +41,7 @@ export function createLocalServer(
     env = {},
     image,
     nodeSelector,
-  }: LocalServerArgs
+  }: LocalStorageServiceArgs
 ) {
   const volumes: Record<string, k8s.core.v1.PersistentVolume> = {};
 
@@ -162,7 +159,5 @@ export function createLocalServer(
     { provider }
   );
 
-  return {
-    name: pulumi.interpolate`${service.metadata.name}`,
-  };
+  return service;
 }

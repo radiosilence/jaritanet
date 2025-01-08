@@ -1,7 +1,8 @@
 config:
-  jaritanet-k8s:local-servers:
+  jaritanet-k8s:services:
     - name: navidrome
       hostname: music.blit.cc
+      template: local
       args:
         ports:
           web: 4533
@@ -39,7 +40,7 @@ config:
             accessModes: [ReadWriteOnce]
     - name: files
       hostname: files.radiosilence.dev
-      template: local-server
+      template: local
       args:
         ports:
           web: 80
@@ -63,5 +64,15 @@ config:
             path: /srv/files
             mountPath: /srv/files
             accessModes: [ReadOnlyMany]
+    - name: blit
+      hostname: blit.cc
+      template: local
+      args:
+        ports:
+          web: 80
+        image:
+          repository: "ghcr.io/radiosilence/blit"
+          tag: latest
+          pullPolicy: "Always"
   jaritanet-k8s:cloudflared:
     name: cloudflared
