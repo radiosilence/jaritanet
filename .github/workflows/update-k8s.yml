@@ -50,7 +50,6 @@ jobs:
           work-dir: k8s
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
           KUBE_HOST: ${{ secrets.KUBE_HOST }}
           KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
