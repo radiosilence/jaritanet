@@ -1,3 +1,3 @@
 export * from "./cloudflared";
-export * from "./local-service";
-export * from "./static-service";
+export * from "./local-storage";
+export * from "./static";
