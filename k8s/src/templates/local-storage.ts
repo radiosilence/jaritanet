@@ -1,35 +1,5 @@
 import * as k8s from "@pulumi/kubernetes";
-
-interface Volume {
-  storageClass: string;
-  storageSize: string;
-  claimStorageSize: string;
-  path: string;
-  mountPath: string;
-  accessModes: string[];
-}
-
-export interface LocalStorageServiceArgs {
-  env?: Record<string, string>;
-  ports?: { http: number };
-  persistence: Record<string, Volume>;
-  image: {
-    repository: string;
-    tag: string;
-    pullPolicy: string;
-  };
-  resources: {
-    limits: {
-      memory: string;
-      cpu: string;
-    };
-  };
-  nodeSelector: {
-    key: string;
-    operator: string;
-    values: string[];
-  };
-}
+import type { LocalStorageServiceArgs } from "./local-storage.schemas";
 
 export function createLocalStorageService(
   provider: k8s.Provider,

@@ -1,4 +1,7 @@
 {
   "name": "jaritanet-k8s",
-  "main": "./src/index.ts"
+  "main": "./src/index.ts",
+  "dependencies": {
+    "zod": "^3.24.1"
+  }
 }

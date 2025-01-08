@@ -18,7 +18,8 @@
     "@pulumi/cloudflare": "^5.47.0",
     "@pulumi/kubernetes": "^4.19.0",
     "@pulumi/pulumi": "^3.145.0",
-    "@pulumi/random": "^4.16.8"
+    "@pulumi/random": "^4.16.8",
+    "zod": "^3.24.1"
   },
   "keywords": [],
   "author": "",

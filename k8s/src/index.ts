@@ -1,7 +1,12 @@
 import type * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import type { CloudflaredConf, ServiceConf } from "./config";
+import {
+  type CloudflaredConf,
+  CloudflaredConfSchema,
+  type ServiceConf,
+  ServicesArraySchema,
+} from "./config.schemas";
 import { kubeconfig } from "./kubeconfig";
 import {
   createCloudflared,
@@ -44,16 +49,16 @@ function createService(serviceConf: ServiceConf) {
   }
 }
 
-export const services = config
-  .requireObject<ServiceConf[]>("services")
-  .map((conf) => {
-    const service = createService(conf);
+export const services = ServicesArraySchema.parse(
+  config.requireObject<ServiceConf[]>("services")
+).map((conf) => {
+  const service = createService(conf);
 
-    return {
-      hostname: conf.hostname,
-      service: pulumi.interpolate`${service.metadata.name}.${namespace}.svc.cluster.local`,
-    };
-  });
+  return {
+    hostname: conf.hostname,
+    service: pulumi.interpolate`${service.metadata.name}.${namespace}.svc.cluster.local`,
+  };
+});
 
 const tunnelOutput = new pulumi.StackReference(
   "radiosilence/jaritanet/main"
@@ -61,9 +66,12 @@ const tunnelOutput = new pulumi.StackReference(
   "tunnel"
 ) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
 
-const cloudflared = config.requireObject<CloudflaredConf>("cloudflared");
+const cloudflaredConf = CloudflaredConfSchema.parse(
+  config.requireObject<CloudflaredConf>("cloudflared")
+);
 
-createCloudflared(provider, cloudflared.name, {
-  ...cloudflared.args,
-  token: tunnelOutput.apply((t) => t.tunnelToken),
-});
+createCloudflared(
+  provider,
+  cloudflaredConf.name,
+  tunnelOutput.apply((t) => t.tunnelToken)
+);

@@ -1,14 +1,5 @@
 import * as k8s from "@pulumi/kubernetes";
-
-export interface StaticServiceArgs {
-  image: {
-    repository: string;
-    tag: string;
-  };
-  ports?: {
-    http: number;
-  };
-}
+import type { StaticServiceArgs } from "./static.schemas";
 
 export function createStaticService(
   provider: k8s.Provider,

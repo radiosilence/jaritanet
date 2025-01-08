@@ -1,15 +1,12 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
-
-interface CloudflaredArgs {
-  token: pulumi.Output<string>;
-  replicas?: number;
-}
+import type { CloudflaredArgs } from "./cloudflared.schemas";
 
 export function createCloudflared(
   provider: k8s.Provider,
   name: string,
-  { token, replicas = 2 }: CloudflaredArgs
+  token: pulumi.Output<string>,
+  { replicas = 2 }: CloudflaredArgs = {}
 ) {
   return new k8s.apps.v1.Deployment(
     `${name}-deployment`,
