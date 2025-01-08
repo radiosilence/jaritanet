@@ -16,12 +16,12 @@ on:
 
 jobs:
   infra:
-    name: Update Infra
+    name: Infra
     uses: ./.github/workflows/pulumi-infra.yml
     secrets:
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
   k8s:
-    name: Update K8s
+    name: K8s
     needs: infra
     uses: ./.github/workflows/pulumi-k8s.yml
     with:
@@ -35,7 +35,7 @@ jobs:
       KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
       KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
   routes:
-    name: Update Routes
+    name: Routes
     needs: k8s
     uses: ./.github/workflows/pulumi-routes.yml
     secrets:
