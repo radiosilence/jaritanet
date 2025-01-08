@@ -52,4 +52,4 @@ jobs:
       - name: Set GitHub Secrets
         run: ./scripts/update-secrets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_PAT }}
