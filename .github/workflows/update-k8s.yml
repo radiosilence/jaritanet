@@ -11,27 +11,76 @@ on:
       - "k8s/**"
       - ".github/workflows/update-k8s.yml"
       - ".github/workflows/pulumi-k8s.yml"
+  workflow_call:
+    secrets:
+      PULUMI_ACCESS_TOKEN:
+        required: true
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
+        required: true
+      KUBE_HOST:
+        required: true
+      KUBE_API_PORT:
+        required: true
+      KUBE_TOKEN:
+        required: true
+
+env:
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
+
+concurrency:
+  group: "k8s"
 
 jobs:
   k8s:
     name: K8s
-    uses: ./.github/workflows/pulumi-k8s.yml
-    with:
-      stack-name: radiosilence/jaritanet-k8s/main
-      working-directory: ./k8s
-    secrets:
-      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
-      KUBE_HOST: ${{ secrets.KUBE_HOST }}
-      KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
-      KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: Generate kubeconfig
+        run: |
+          cat << EOF > ${{ env.KUBECONFIG }}
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - cluster:
+              server: https://${{ secrets.KUBE_HOST }}:${{ secrets.KUBE_API_PORT }} 
+              insecure-skip-tls-verify: true  # Only if you're using self-signed certs
+            name: microk8s-cluster
+          contexts:
+          - context:
+              cluster: microk8s-cluster
+              user: admin
+            name: microk8s
+          current-context: microk8s
+          users:
+          - name: admin
+            user:
+              token: ${{ secrets.KUBE_TOKEN }}  # Get this from your microk8s cluster
+          EOF
+
+      - uses: jdx/mise-action@v2
+      - run: bun install
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: radiosilence/jaritanet-k8s/main
+          work-dir: k8s
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig.yaml
+
   routes:
     name: Routes
     needs: k8s
-    uses: ./.github/workflows/pulumi-routes.yml
-    with:
-      stack-name: radiosilence/jaritanet-routes/main
-      working-directory: ./routes
+    uses: ./.github/workflows/update-routes.yml
     secrets:
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
