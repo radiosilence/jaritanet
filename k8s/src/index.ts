@@ -1,6 +1,7 @@
 import type * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import { kubeconfig } from "./kubeconfig";
 import { createCloudflared, createLocalServer } from "./templates";
 import type { CloudflaredConf, LocalServerConf } from "./types";
 
@@ -8,8 +9,21 @@ const config = new pulumi.Config();
 
 export const namespace = "jaritanet";
 
+console.log(
+  "Kubeconfig",
+  kubeconfig({
+    host: process.env.KUBE_HOST ?? "",
+    apiPort: process.env.KUBE_API_PORT ?? "16443",
+    token: process.env.KUBE_TOKEN ?? "",
+  })
+);
+
 const provider = new k8s.Provider("provider", {
-  // renderYamlToDirectory: "rendered/",
+  kubeconfig: kubeconfig({
+    host: process.env.KUBE_HOST ?? "",
+    apiPort: process.env.KUBE_API_PORT ?? "16443",
+    token: process.env.KUBE_TOKEN ?? "",
+  }),
   namespace,
 });
 
