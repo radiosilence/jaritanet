@@ -60,7 +60,7 @@ jobs:
             REPOS=(
               "radiosilence/jaritanet"
               "radiosilence/blit"
-              # Add more repos as needed
+              "radiosilence/bambi-art"
             )
             
             for repo in "${REPOS[@]}"; do
