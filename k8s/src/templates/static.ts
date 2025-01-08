@@ -5,19 +5,22 @@ export interface StaticServiceArgs {
     repository: string;
     tag: string;
   };
+  ports?: {
+    http: number;
+  };
 }
 
 export function createStaticService(
   provider: k8s.Provider,
   name: string,
-  { image }: StaticServiceArgs
+  { image, ports = { http: 80 } }: StaticServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
     {
       spec: {
         selector: { app: name },
-        ports: [{ protocol: "TCP", port: 80, targetPort: 80 }],
+        ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
       },
     },
     { provider }
@@ -41,7 +44,10 @@ export function createStaticService(
                 name,
                 image: `${image.repository}:${image.tag}`,
                 imagePullPolicy: "Always",
-                ports: [{ name: "http", containerPort: 80 }],
+                ports: Object.entries(ports).map(([name, containerPort]) => ({
+                  name,
+                  containerPort,
+                })),
                 resources: {
                   limits: {
                     memory: "64Mi",

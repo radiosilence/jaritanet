@@ -11,16 +11,10 @@ config:
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
       modules:
         - fastmail
-      services:
-        - hostname: blit.cc
-          service: http://blit-service.blit.svc.cluster.local
     - name: radiosilence.dev
       zoneId: 3373ad7c3dc3104e7aeab31c1176e684
       modules:
         - fastmail
-      services:
-        - hostname: bambi.radiosilence.dev
-          service: http://bambi-art-service.bambi-art.svc.cluster.local
     - name: buttholes.live
       zoneId: 1115a1e5006523692d61e49e672f6df0
       modules:

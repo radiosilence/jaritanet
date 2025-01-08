@@ -1,7 +1,7 @@
 import type * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import type { CloudflaredConf, ServiceConf } from "./conf";
+import type { CloudflaredConf, ServiceConf } from "./config";
 import { kubeconfig } from "./kubeconfig";
 import {
   createCloudflared,

@@ -11,7 +11,7 @@ interface Volume {
 
 export interface LocalStorageServiceArgs {
   env?: Record<string, string>;
-  ports: Record<string, number> & { web: number };
+  ports?: { http: number };
   persistence: Record<string, Volume>;
   image: {
     repository: string;
@@ -35,7 +35,7 @@ export function createLocalStorageService(
   provider: k8s.Provider,
   name: string,
   {
-    ports,
+    ports = { http: 80 },
     persistence,
     resources,
     env = {},
@@ -84,7 +84,7 @@ export function createLocalStorageService(
       },
       spec: {
         selector: { app: name },
-        ports: [{ protocol: "TCP", port: 80, targetPort: ports.web }],
+        ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
       },
     },
     { provider, deleteBeforeReplace: true }
@@ -109,9 +109,9 @@ export function createLocalStorageService(
                 name,
                 image: `${image.repository}:${image.tag}`,
                 imagePullPolicy: image.pullPolicy,
-                ports: Object.entries(ports).map(([name, port]) => ({
+                ports: Object.entries(ports).map(([name, containerPort]) => ({
                   name,
-                  containerPort: port,
+                  containerPort,
                 })),
                 env: Object.entries(env).map(([key, value]) => ({
                   name: key,
