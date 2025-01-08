@@ -15,6 +15,12 @@ export function createLocalStorageService(
     nodeSelector,
   }: LocalStorageServiceArgs
 ) {
+  const id = new random.RandomString(`${name}-id`, {
+    length: 6,
+    lower: true,
+    special: false,
+  });
+
   const volumes = Object.fromEntries(
     Object.entries(persistence).map(([key, volume]) => [
       key,
@@ -24,7 +30,7 @@ export function createLocalStorageService(
         {
           metadata: {
             labels: {
-              storageName: pulumi.interpolate`${name}-${key}-${id}-vol`,
+              storageName: pulumi.interpolate`${name}-${key}-${id.result}-vol`,
             },
           },
           spec: {
@@ -45,21 +51,14 @@ export function createLocalStorageService(
             },
           },
         },
-        { provider }
+        { provider, deleteBeforeReplace: true }
       ),
     ])
   );
 
-  const id = new random.RandomString(`${name}-id`, {
-    length: 6,
-  });
-
   const service = new k8s.core.v1.Service(
     `${name}-service`,
     {
-      metadata: {
-        name: `${name}-service`,
-      },
       spec: {
         selector: { app: name },
         ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
@@ -86,7 +85,7 @@ export function createLocalStorageService(
               {
                 name,
                 image: `${image.repository}:${image.tag}`,
-                imagePullPolicy: image.pullPolicy,
+                imagePullPolicy: image.pullPolicy ?? "Always",
                 ports: Object.entries(ports).map(([name, containerPort]) => ({
                   name,
                   containerPort,
