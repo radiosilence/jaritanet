@@ -8,7 +8,7 @@ export function createTunnelConfig(
     cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngressRule[]
   >
 ) {
-  new cloudflare.ZeroTrustTunnelCloudflaredConfig("jaritanet-tunnel-config", {
+  new cloudflare.ZeroTrustTunnelCloudflaredConfig("tunnel-config", {
     accountId,
     tunnelId,
     config: {
