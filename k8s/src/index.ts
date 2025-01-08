@@ -1,3 +1,4 @@
+import type * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { createCloudflared, createLocalServer } from "./templates";
@@ -31,13 +32,15 @@ export const services = config
     }.${namespace}.svc.cluster.local`,
   }));
 
-const tunnelToken = new pulumi.StackReference(
+const tunnelOutput = new pulumi.StackReference(
   "radiosilence/jaritanet/main"
-).requireOutput("tunnelToken");
+).requireOutput("tunnel");
 
 const cloudflared = config.requireObject<CloudflaredConf>("cloudflared");
 
 createCloudflared(provider, cloudflared.name, {
   ...cloudflared.args,
-  token: pulumi.interpolate`${tunnelToken}`,
+  token: tunnelOutput.apply(
+    (t: cloudflare.ZeroTrustTunnelCloudflared) => t.tunnelToken
+  ),
 });
