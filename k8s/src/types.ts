@@ -3,6 +3,7 @@ import type { LocalServerArgs } from "./templates";
 export interface LocalServerConf {
   name: string;
   hostname: string;
+  template: "local-server";
   args: LocalServerArgs;
 }
 
@@ -19,4 +20,4 @@ export interface CloudflaredConf {
 //   args: unknown;
 // }
 
-export type ServersConf = (LocalServerConf | CloudflaredConf)[];
+export type ServiceConf = LocalServerConf;
