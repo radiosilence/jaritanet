@@ -31,7 +31,6 @@ const tunnelOutput = infraStackRef.requireOutput(
 ) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
 
 for (const { path, stack = pulumi.getStack() } of serviceStacks) {
-  console.log(`Deploying service stack ${path}/${stack}`);
   const stackRef = new pulumi.StackReference(`${path}/${stack}`);
   const servicesOutput = stackRef.requireOutput("services");
 
