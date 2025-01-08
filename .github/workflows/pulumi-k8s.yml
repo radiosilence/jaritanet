@@ -2,7 +2,6 @@ name: Pulumi k8s
 
 permissions:
   contents: read
-  packages: write
 
 on:
   workflow_call:
