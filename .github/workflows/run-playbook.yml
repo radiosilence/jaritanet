@@ -3,6 +3,7 @@ name: Run Playbook
 permissions:
   contents: read
   packages: write
+  actions: write
 
 on:
   push:
@@ -49,28 +50,6 @@ jobs:
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
 
       - name: Set GitHub Secrets
-        run: |
-          if [ -f ansible/github-secrets.json ]; then
-            # Read each key-value pair from the JSON file and set as secret
-            jq -r 'to_entries | .[] | @sh "echo \(.value) | gh secret set \(.key)"' ansible/github-secrets.json | while read -r cmd; do
-              eval "$cmd"
-            done
-            
-            # Also set secrets for other repositories that need deployment access
-            REPOS=(
-              "radiosilence/jaritanet"
-              "radiosilence/blit"
-              "radiosilence/bambi-art"
-            )
-            
-            for repo in "${REPOS[@]}"; do
-              jq -r 'to_entries | .[] | @sh "echo \(.value) | gh secret set \(.key) --repo \""${repo}"\""' ansible/github-secrets.json | while read -r cmd; do
-                eval "$cmd"
-              done
-            done
-          else
-            echo "github-secrets.json not found!"
-            exit 1
-          fi
+        run: ./scripts/update-secrets
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
