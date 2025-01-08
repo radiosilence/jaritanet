@@ -4,12 +4,10 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "infra/**"
-      - ".github/workflows/pulumi-infra.yml"
+  workflow_call:
+    secrets:
+      PULUMI_ACCESS_TOKEN:
+        required: true
 
 concurrency:
   group: "infra"
