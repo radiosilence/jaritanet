@@ -2,7 +2,7 @@ config:
   jaritanet-k8s:services:
     - name: navidrome
       hostname: music.blit.cc
-      template: local
+      template: local-storage
       args:
         ports:
           http: 4533
@@ -40,7 +40,7 @@ config:
             accessModes: [ReadWriteOnce]
     - name: files
       hostname: files.radiosilence.dev
-      template: local
+      template: local-storage
       args:
         image:
           repository: "ghcr.io/radiosilence/jaritanet-files"
@@ -62,6 +62,7 @@ config:
             path: /srv/files
             mountPath: /srv/files
             accessModes: [ReadOnlyMany]
+
     - name: blit
       hostname: blit.cc
       template: static
@@ -70,6 +71,7 @@ config:
           repository: "ghcr.io/radiosilence/blit"
           tag: latest
           pullPolicy: "Always"
+
     - name: bambi-art
       hostname: bambi.radiosilence.dev
       template: static

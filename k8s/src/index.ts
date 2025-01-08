@@ -32,24 +32,25 @@ new k8s.core.v1.Namespace(
   { provider }
 );
 
+function createService(serviceConf: ServiceConf) {
+  const { name, template, args } = serviceConf;
+
+  switch (template) {
+    case "local-storage":
+      return createLocalStorageService(provider, name, args);
+
+    case "static":
+      return createStaticService(provider, name, args);
+  }
+}
+
 export const services = config
   .requireObject<ServiceConf[]>("services")
-  .map(({ name, args, hostname, template }) => {
-    let service: k8s.core.v1.Service;
-
-    switch (template) {
-      case "local-storage": {
-        service = createLocalStorageService(provider, name, args);
-        break;
-      }
-      case "static": {
-        service = createStaticService(provider, name, args);
-        break;
-      }
-    }
+  .map((conf) => {
+    const service = createService(conf);
 
     return {
-      hostname,
+      hostname: conf.hostname,
       service: pulumi.interpolate`${service.metadata.name}.${namespace}.svc.cluster.local`,
     };
   });
