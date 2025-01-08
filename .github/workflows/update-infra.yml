@@ -17,10 +17,10 @@ on:
 jobs:
   infra:
     name: Update Infra
-    uses: ./github/workflows/pulumi-infra.yml
+    uses: ./.github/workflows/pulumi-infra.yml
   k8s:
     name: Update K8s
-    uses: ./github/workflows/pulumi-k8s.yml
+    uses: ./.github/workflows/pulumi-k8s.yml
   routes:
     name: Update Routes
-    uses: ./github/workflows/pulumi-routes.yml
+    uses: ./.github/workflows/pulumi-routes.yml
