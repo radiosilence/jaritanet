@@ -1,5 +1,5 @@
 {
-  "name": "jaritanet",
+  "name": "jaritanet-k8s",
   "main": "./src/index.ts",
   "devDependencies": {
     "@evilmartians/lefthook": "^1.10.1",

@@ -5,6 +5,13 @@ permissions:
 
 on:
   workflow_call:
+    inputs:
+      stack-name:
+        type: string
+        required: true
+      working-directory:
+        type: string
+        required: true
     secrets:
       PULUMI_ACCESS_TOKEN:
         required: true
@@ -23,12 +30,12 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: latest
-          package_json_file: ${{ env.working-directory }}/package.json
+          package_json_file: ${{ inputs.working-directory }}/package.json
           run_install: true
       - uses: pulumi/actions@v6
         with:
           command: up
-          stack-name: radiosilence/jaritanet-routes/main
-          work-dir: ${{ env.working-directory }}/
+          stack-name: ${{ inputs.stack-name }}}
+          work-dir: ${{ inputs.working-directory }}
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

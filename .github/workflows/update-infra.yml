@@ -18,6 +18,9 @@ jobs:
   infra:
     name: Infra
     uses: ./.github/workflows/pulumi-infra.yml
+    with:
+      stack-name: radiosilence/jaritanet/main
+      working-directory: ./infra
     secrets:
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
   k8s:
@@ -25,7 +28,7 @@ jobs:
     needs: infra
     uses: ./.github/workflows/pulumi-k8s.yml
     with:
-      stack-name: radiosilence/jaritanet/main
+      stack-name: radiosilence/jaritanet-k8s/main
       working-directory: ./k8s
     secrets:
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
@@ -38,5 +41,8 @@ jobs:
     name: Routes
     needs: k8s
     uses: ./.github/workflows/pulumi-routes.yml
+    with:
+      stack-name: radiosilence/jaritanet-routes/main
+      working-directory: ./routes
     secrets:
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
