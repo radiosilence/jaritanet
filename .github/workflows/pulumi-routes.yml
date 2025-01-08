@@ -32,7 +32,7 @@ jobs:
       - uses: pulumi/actions@v6
         with:
           command: up
-          stack-name: ${{ inputs.stack-name }}}
+          stack-name: ${{ inputs.stack-name }}
           work-dir: ${{ inputs.working-directory }}
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
