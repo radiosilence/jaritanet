@@ -34,13 +34,13 @@ export const services = config
 
 const tunnelOutput = new pulumi.StackReference(
   "radiosilence/jaritanet/main"
-).requireOutput("tunnel");
+).requireOutput(
+  "tunnel"
+) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
 
 const cloudflared = config.requireObject<CloudflaredConf>("cloudflared");
 
 createCloudflared(provider, cloudflared.name, {
   ...cloudflared.args,
-  token: tunnelOutput.apply(
-    (t: cloudflare.ZeroTrustTunnelCloudflared) => t.tunnelToken
-  ),
+  token: tunnelOutput.apply((t) => t.tunnelToken),
 });
