@@ -12,7 +12,7 @@ const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
  * @param name - The name of the tunnel.
  * @returns The created tunnel.
  */
-export function tunnel(name: string) {
+export function createTunnel(name: string) {
   const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });

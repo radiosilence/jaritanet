@@ -36,7 +36,7 @@ export function getServiceIngressRule(
 }
 
 export function createZone(
-  tunnelCname: string,
+  tunnelCname: pulumi.Output<string>,
   { zoneId }: ZoneConf,
   { hostname }: ServiceOutput
 ) {
@@ -50,23 +50,3 @@ export function createZone(
     proxied: true,
   });
 }
-
-// export class Service {
-//   constructor(servicesOutput: pulumi.Output<ServiceOutput>) {
-//     const stackRef = new pulumi.StackReference(
-//       `radiosilence/jaritanet-k8s/${pulumi.getStack()}`
-//     );
-//     const servicesOutput = stackRef.requireOutput("services");
-//   }
-//   get hostname() {
-//     return "TODO";
-//   }
-//   get service() {
-//     return "TODO";
-//   }
-//   get originRequest() {
-//     return {
-//       connectTimeout: "2m0s",
-//     };
-//   }
-// }
