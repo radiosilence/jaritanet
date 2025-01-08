@@ -48,16 +48,12 @@ export function createLocalStorageService(
   const service = new k8s.core.v1.Service(
     `${name}-service`,
     {
-      metadata: {
-        // TODO: Auto generate this in future when we use the output for DNS
-        name: `${name}-service`,
-      },
       spec: {
         selector: { app: name },
         ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
       },
     },
-    { provider, deleteBeforeReplace: true }
+    { provider }
   );
 
   new k8s.apps.v1.StatefulSet(
