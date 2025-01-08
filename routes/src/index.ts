@@ -26,7 +26,9 @@ const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`
 );
 
-const tunnelOutput = infraStackRef.requireOutput("tunnel");
+const tunnelOutput = infraStackRef.requireOutput(
+  "tunnel"
+) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
 
 for (const { path, stack = pulumi.getStack() } of serviceStacks) {
   console.log(`Deploying service stack ${path}/${stack}`);
@@ -59,9 +61,7 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
       }
 
       createZone(
-        tunnelOutput.apply(
-          (t: cloudflare.ZeroTrustTunnelCloudflared) => t.cname
-        ),
+        tunnelOutput.apply((t) => t.cname),
         zone,
         service
       );
@@ -69,7 +69,7 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
   });
   createTunnelConfig(
     accountId,
-    tunnelOutput.apply((t: cloudflare.ZeroTrustTunnelCloudflared) => t.id),
+    tunnelOutput.apply((t) => t.id),
     ingressRules
   );
 }
@@ -79,7 +79,7 @@ for (const zone of zones) {
   if (!zone.services) continue;
   for (const service of zone.services) {
     createZone(
-      tunnelOutput.apply((t: cloudflare.ZeroTrustTunnelCloudflared) => t.cname),
+      tunnelOutput.apply((t) => t.cname),
       zone,
       service
     );
