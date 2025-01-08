@@ -2,6 +2,7 @@ import type { LocalServerArgs } from "./templates";
 
 export interface LocalServerConf {
   name: string;
+  hostname: string;
   args: LocalServerArgs;
 }
 

@@ -1,6 +1,7 @@
 config:
   jaritanet-k8s:local-servers:
     - name: navidrome
+      hostname: music.blit.cc
       args:
         ports:
           web: 4533
@@ -38,6 +39,7 @@ config:
             accessModes: [ReadWriteOnce]
 
     - name: files
+      hostname: files.radiosilence.dev
       template: local-server
       args:
         ports:

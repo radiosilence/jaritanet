@@ -22,18 +22,14 @@ new k8s.core.v1.Namespace(
   { provider }
 );
 
-export const services = Object.fromEntries(
-  config
-    .requireObject<LocalServerConf[]>("local-servers")
-    .map(({ name, args }) => [
-      name,
-      {
-        url: pulumi.interpolate`http://${
-          createLocalServer(provider, name, args).name
-        }.${namespace}.svc.cluster.local`,
-      },
-    ])
-);
+export const services = config
+  .requireObject<LocalServerConf[]>("local-servers")
+  .map(({ name, args, hostname }) => ({
+    hostname,
+    service: pulumi.interpolate`http://${
+      createLocalServer(provider, name, args).name
+    }.${namespace}.svc.cluster.local`,
+  }));
 
 const tunnelToken = new pulumi.StackReference(
   "radiosilence/jaritanet/main"

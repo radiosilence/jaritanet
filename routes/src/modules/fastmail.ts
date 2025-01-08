@@ -1,6 +1,6 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
-import type { FastmailConf, ZoneConf } from "../../types";
+import type { FastmailConf, ZoneConf } from "../conf";
 
 const config = new pulumi.Config();
 

@@ -1,6 +1,6 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
-import type { BlueskyConf, ZoneConf } from "../../types";
+import type { BlueskyConf, ZoneConf } from "../conf";
 
 const config = new pulumi.Config();
 
