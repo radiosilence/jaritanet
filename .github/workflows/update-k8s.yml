@@ -1,4 +1,4 @@
-name: infra -> k8s -> routes
+name: k8s -> routes
 
 permissions:
   contents: read
@@ -8,22 +8,13 @@ on:
     branches:
       - main
     paths:
-      - "infra/**"
-      - ".github/workflows/*-infra.yml"
-      - ".github/workflows/*-infra.yml"
+      - "k8s/**"
+      - ".github/workflows/update-k8s.yml"
+      - ".github/workflows/pulumi-k8s.yml"
 
 jobs:
-  infra:
-    name: Infra
-    uses: ./.github/workflows/pulumi-infra.yml
-    with:
-      stack-name: radiosilence/jaritanet/main
-      working-directory: ./infra
-    secrets:
-      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
   k8s:
     name: K8s
-    needs: infra
     uses: ./.github/workflows/pulumi-k8s.yml
     with:
       stack-name: radiosilence/jaritanet-k8s/main

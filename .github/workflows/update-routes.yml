@@ -1,0 +1,23 @@
+name: routes
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "routes/**"
+      - ".github/workflows/*-routes.yml"
+      - ".github/workflows/*-routes.yml"
+
+jobs:
+  routes:
+    name: Routes
+    uses: ./.github/workflows/pulumi-routes.yml
+    with:
+      stack-name: radiosilence/jaritanet-routes/main
+      working-directory: ./routes
+    secrets:
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
