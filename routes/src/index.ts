@@ -1,7 +1,11 @@
+import { z } from "zod";
 import type * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
-import type { CloudflareConf, ServiceStackConf, ZoneConf } from "./conf";
-import * as modules from "./modules";
+import {
+  type CloudflareConf,
+  ServiceStackConfSchema,
+  ZoneConfSchema,
+} from "./conf.schemas";
 import {
   createTunnelConfig,
   createZone,
@@ -11,17 +15,11 @@ import {
 } from "./tunnels";
 
 const config = new pulumi.Config();
+const serviceStacks = z
+  .array(ServiceStackConfSchema)
+  .parse(config.requireObject("serviceStacks"));
 
-const zones = config.requireObject<ZoneConf[]>("zones");
-
-for (const zone of zones) {
-  for (const module of zone.modules) {
-    modules[module](zone);
-  }
-}
-
-const serviceStacks = config.requireObject<ServiceStackConf[]>("serviceStacks");
-
+const zones = z.array(ZoneConfSchema).parse(config.requireObject("zones"));
 const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`
 );
@@ -37,17 +35,9 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
   const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
 
   const ingressRules = servicesOutput.apply((services: ServiceOutput[]) => {
-    return [
-      ...services.map(({ hostname, service }: ServiceOutput) =>
-        getServiceIngressRule(hostname, service)
-      ),
-      // TODO: remove this in favor of the above.
-      ...zones.flatMap((zone) =>
-        (zone.services ?? []).map(({ hostname, service }) =>
-          getServiceIngressRule(hostname, service)
-        )
-      ),
-    ];
+    return services.map(({ hostname, service }: ServiceOutput) =>
+      getServiceIngressRule(hostname, service)
+    );
   });
 
   servicesOutput.apply((services: ServiceOutput[]) => {
@@ -71,16 +61,4 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
     tunnelOutput.apply((t) => t.id),
     ingressRules
   );
-}
-
-// TODO: Legacy, support, remove
-for (const zone of zones) {
-  if (!zone.services) continue;
-  for (const service of zone.services) {
-    createZone(
-      tunnelOutput.apply((t) => t.cname),
-      zone,
-      service
-    );
-  }
 }

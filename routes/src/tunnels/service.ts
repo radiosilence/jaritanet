@@ -1,4 +1,4 @@
-import type { ZoneConf } from "src/conf";
+import type { ZoneConf } from "src/conf.schemas";
 import * as cloudflare from "@pulumi/cloudflare";
 import type * as pulumi from "@pulumi/pulumi";
 

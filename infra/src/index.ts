@@ -1,9 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
+import { TunnelConfSchema } from "./conf.schemas";
 import { createTunnel } from "./modules";
-import type { TunnelConf } from "./types";
 
 const config = new pulumi.Config();
 
-const { name } = config.requireObject<TunnelConf>("tunnel");
+const { name } = TunnelConfSchema.parse(config.requireObject("tunnel"));
 
 export const tunnel = createTunnel(name);

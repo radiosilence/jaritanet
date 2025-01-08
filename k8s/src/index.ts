@@ -50,7 +50,7 @@ function createService(serviceConf: ServiceConf) {
 }
 
 export const services = ServicesArraySchema.parse(
-  config.requireObject<ServiceConf[]>("services")
+  config.requireObject("services")
 ).map((conf) => {
   const service = createService(conf);
 

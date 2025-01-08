@@ -1,7 +1,7 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import type { CloudflareConf } from "../types";
+import type { CloudflareConf } from "../conf.schemas";
 
 const config = new pulumi.Config();
 const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
