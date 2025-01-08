@@ -10,14 +10,14 @@
     "@evilmartians/lefthook": "^1.10.1",
     "@types/node": "^22.10.5",
     "eslint": "^9.17.0",
-    "eslint-config-sheriff": "^25.5.0",
+    "eslint-config-sheriff": "^25.6.0",
     "eslint-define-config": "^2.1.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.3"
   },
   "dependencies": {
     "@pulumi/cloudflare": "^5.47.0",
     "@pulumi/kubernetes": "^4.19.0",
-    "@pulumi/pulumi": "^3.144.1",
+    "@pulumi/pulumi": "^3.145.0",
     "@pulumi/random": "^4.16.8"
   },
   "keywords": [],
