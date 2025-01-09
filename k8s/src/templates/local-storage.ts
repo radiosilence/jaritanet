@@ -4,13 +4,7 @@ import type { LocalStorageServiceArgs } from "./local-storage.schemas";
 export function createLocalStorageService(
   provider: k8s.Provider,
   name: string,
-  {
-    ports = { http: 80 },
-    persistence,
-    resources,
-    env = {},
-    image,
-  }: LocalStorageServiceArgs
+  { ports, hostVolumes, limits, env = {}, image }: LocalStorageServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
@@ -20,17 +14,22 @@ export function createLocalStorageService(
       },
       spec: {
         selector: { app: name },
-        ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
+        ports: [
+          {
+            protocol: "TCP",
+            port: 80,
+            targetPort: ports.http,
+          },
+        ],
       },
     },
     { provider, deleteBeforeReplace: true }
   );
 
-  new k8s.apps.v1.StatefulSet(
-    `${name}-statefulset`,
+  new k8s.apps.v1.Deployment(
+    `${name}-deployment`,
     {
       spec: {
-        serviceName: service.metadata.name,
         replicas: 1,
         selector: {
           matchLabels: { app: name },
@@ -40,11 +39,11 @@ export function createLocalStorageService(
             labels: { app: name },
           },
           spec: {
-            volumes: Object.entries(persistence).map(([key, volume]) => ({
-              name: `${key}-volume`,
+            volumes: hostVolumes.map(({ name, hostPath, hostPathType }) => ({
+              name,
               hostPath: {
-                path: volume.hostPath,
-                type: "Directory",
+                path: hostPath,
+                type: hostPathType,
               },
             })),
             containers: [
@@ -60,12 +59,12 @@ export function createLocalStorageService(
                   name: key,
                   value,
                 })),
-                resources,
-                volumeMounts: Object.entries(persistence).map(
-                  ([key, volume]) => ({
-                    name: `${key}-volume`,
-                    mountPath: volume.mountPath,
-                    readOnly: !volume.rw,
+                resources: { limits },
+                volumeMounts: hostVolumes.map(
+                  ({ name, mountPath, readOnly }) => ({
+                    name,
+                    mountPath,
+                    readOnly,
                   })
                 ),
               },
@@ -74,7 +73,7 @@ export function createLocalStorageService(
         },
       },
     },
-    { provider, deleteBeforeReplace: true }
+    { provider }
   );
 
   return service;

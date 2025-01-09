@@ -19,17 +19,17 @@ config:
         resources:
           limits:
             cpu: 2000m
-            memory: 4Gi
+            memory: 2Gi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
           values:
             - oldboy
-        persistence:
-          music:
+        hostVolumes:
+          - name: music
             hostPath: /mnt/kontent/music
             mountPath: /music
-          data:
+          - name: data
             hostPath: /home/navidrome/data
             mountPath: /data
             rw: true
@@ -44,14 +44,14 @@ config:
         resources:
           limits:
             cpu: 50m
-            memory: 128Mi
+            memory: 64Mi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
           values:
             - oldboy
-        persistence:
-          files:
+        hostVolumes:
+          - name: files
             hostPath: /srv/files
             mountPath: /srv/files
 

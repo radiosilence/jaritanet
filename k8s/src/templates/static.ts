@@ -4,7 +4,7 @@ import type { StaticServiceArgs } from "./static.schemas";
 export function createStaticService(
   provider: k8s.Provider,
   name: string,
-  { image, ports = { http: 80 } }: StaticServiceArgs
+  { image, ports = { http: 80 }, limits }: StaticServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
@@ -43,12 +43,7 @@ export function createStaticService(
                   name,
                   containerPort,
                 })),
-                resources: {
-                  limits: {
-                    memory: "64Mi",
-                    cpu: "50m",
-                  },
-                },
+                resources: { limits },
               },
             ],
           },

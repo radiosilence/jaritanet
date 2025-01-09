@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PortsSchema } from "./schemas";
+import { LimitsSchema, PortsSchema } from "./schemas";
 
 export const StaticServiceArgsSchema = z.object({
   image: z.object({
@@ -7,6 +7,7 @@ export const StaticServiceArgsSchema = z.object({
     tag: z.string(),
   }),
   ports: PortsSchema,
+  limits: LimitsSchema,
 });
 
 export type StaticServiceArgs = z.infer<typeof StaticServiceArgsSchema>;

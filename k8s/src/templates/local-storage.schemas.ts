@@ -1,17 +1,17 @@
 import { z } from "zod";
-import { ImageSchema, PortsSchema, VolumeSchema } from "./schemas";
+import {
+  HostVolumeSchema,
+  ImageSchema,
+  LimitsSchema,
+  PortsSchema,
+} from "./schemas";
 
 export const LocalStorageServiceArgsSchema = z.object({
   env: z.record(z.string()).optional(),
   ports: PortsSchema,
-  persistence: z.record(VolumeSchema),
+  hostVolumes: z.array(HostVolumeSchema).default([]),
   image: ImageSchema,
-  resources: z.object({
-    limits: z.object({
-      memory: z.string(),
-      cpu: z.string(),
-    }),
-  }),
+  limits: LimitsSchema,
 });
 
 export type LocalStorageServiceArgs = z.infer<
