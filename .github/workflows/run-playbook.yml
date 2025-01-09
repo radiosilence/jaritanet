@@ -31,12 +31,12 @@ jobs:
           tags: tag:ci
       - name: ping oldboy
         run: |
-          tailscale status --json | yq -P
-          # Show detailed path information to oldboy
-          tailscale netcheck 
-
           # See if DERP is being used (relay servers)
           tailscale debug derp-map | yq -P
+
+          tailscale status --peers --json | yq -P
+          # Show detailed path information to oldboy
+          tailscale netcheck 
 
           # Check latency to the target
           tailscale ping oldboy
