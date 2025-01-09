@@ -13,6 +13,7 @@ import {
   getServiceIngressRule,
   type ServiceOutput,
 } from "./tunnels";
+import * as modules from "./modules";
 
 const config = new pulumi.Config();
 const serviceStacks = z
