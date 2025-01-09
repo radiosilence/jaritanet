@@ -4,11 +4,10 @@ import * as pulumi from "@pulumi/pulumi";
 import {
   type CloudflaredConf,
   CloudflaredConfSchema,
-  type ServiceConf,
   ServicesArraySchema,
 } from "./config.schemas";
 import { getKubeconfig } from "./kubeconfig";
-import { createCloudflared, createWebService } from "./templates";
+import { createCloudflared, createService } from "./templates";
 
 const config = new pulumi.Config();
 
@@ -51,23 +50,13 @@ new k8s.core.v1.Namespace(
   { provider }
 );
 
-function createService(serviceConf: ServiceConf) {
-  const { name, template, args } = serviceConf;
-
-  switch (template) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    case "web":
-      return createWebService(provider, name, args);
-  }
-}
-
 export const services = ServicesArraySchema.parse(
   config.requireObject("services")
-).map((conf) => {
-  const service = createService(conf);
+).map(({ name, args, hostname }) => {
+  const service = createService(provider, name, args);
 
   return {
-    hostname: conf.hostname,
+    hostname,
     service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
   };
 });

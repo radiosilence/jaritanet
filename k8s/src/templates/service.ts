@@ -1,10 +1,10 @@
 import * as k8s from "@pulumi/kubernetes";
-import type { StaticServiceArgs } from "./web.schemas";
+import type { ServiceArgs } from "./service.schemas";
 
-export function createWebService(
+export function createService(
   provider: k8s.Provider,
   name: string,
-  { image, replicas, httpPort, limits, hostVolumes }: StaticServiceArgs
+  { image, replicas, httpPort, limits, hostVolumes }: ServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,

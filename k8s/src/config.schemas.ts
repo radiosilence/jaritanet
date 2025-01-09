@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { StaticServiceArgsSchema } from "./templates";
+import { ServiceArgsSchema } from "./templates";
 
 export const CloudflaredConfSchema = z.object({
   name: z.string(),
@@ -7,19 +7,12 @@ export const CloudflaredConfSchema = z.object({
 
 export type CloudflaredConf = z.infer<typeof CloudflaredConfSchema>;
 
-const StaticServiceConfSchema = z.object({
+export const ServiceConfSchema = z.object({
+  name: z.string(),
+  hostname: z.string(),
   template: z.literal("web"),
-  args: StaticServiceArgsSchema,
+  args: ServiceArgsSchema,
 });
-
-export type StaticServiceConf = z.infer<typeof StaticServiceConfSchema>;
-
-export const ServiceConfSchema = z
-  .object({
-    name: z.string(),
-    hostname: z.string(),
-  })
-  .and(z.discriminatedUnion("template", [StaticServiceConfSchema]));
 export type ServiceConf = z.infer<typeof ServiceConfSchema>;
 
 export const ServicesArraySchema = z.array(ServiceConfSchema);
