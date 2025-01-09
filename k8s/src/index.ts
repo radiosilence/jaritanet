@@ -8,11 +8,7 @@ import {
   ServicesArraySchema,
 } from "./config.schemas";
 import { getKubeconfig } from "./kubeconfig";
-import {
-  createCloudflared,
-  createLocalStorageService,
-  createStaticService,
-} from "./templates";
+import { createCloudflared, createWebService } from "./templates";
 
 const config = new pulumi.Config();
 
@@ -59,11 +55,9 @@ function createService(serviceConf: ServiceConf) {
   const { name, template, args } = serviceConf;
 
   switch (template) {
-    case "local-storage":
-      return createLocalStorageService(provider, name, args);
-
-    case "static":
-      return createStaticService(provider, name, args);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    case "web":
+      return createWebService(provider, name, args);
   }
 }
 

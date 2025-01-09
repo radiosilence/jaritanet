@@ -2,7 +2,7 @@ config:
   jaritanet-k8s:services:
     - name: navidrome
       hostname: music.blit.cc
-      template: local-storage
+      template: web
       args:
         httpPort: 4533
         image:
@@ -15,10 +15,9 @@ config:
           ND_SESSIONTIMEOUT: "24h"
           ND_ENABLESHARING: "true"
           ND_ENABLETRANSCODINGCONFIG: "true"
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 2Gi
+        limits:
+          cpu: 2000m
+          memory: 2Gi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
@@ -31,19 +30,15 @@ config:
           - name: data
             hostPath: /home/navidrome/data
             mountPath: /data
-            rw: true
+            readOnly: false
     - name: files
       hostname: files.radiosilence.dev
-      template: local-storage
+      template: web
       args:
         image:
           repository: "ghcr.io/radiosilence/jaritanet-files"
           tag: latest
           pullPolicy: "Always"
-        resources:
-          limits:
-            cpu: 50m
-            memory: 64Mi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
@@ -56,7 +51,7 @@ config:
 
     - name: blit
       hostname: blit.cc
-      template: static
+      template: web
       args:
         image:
           repository: "ghcr.io/radiosilence/blit"
@@ -65,7 +60,7 @@ config:
 
     - name: bambi-art
       hostname: bambi.radiosilence.dev
-      template: static
+      template: web
       args:
         httpPort: 3000
         image:

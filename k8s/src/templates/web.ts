@@ -1,17 +1,10 @@
 import * as k8s from "@pulumi/kubernetes";
-import type { LocalStorageServiceArgs } from "./local-storage.schemas";
+import type { StaticServiceArgs } from "./web.schemas";
 
-export function createLocalStorageService(
+export function createWebService(
   provider: k8s.Provider,
   name: string,
-  {
-    replicas,
-    httpPort,
-    hostVolumes,
-    limits,
-    env = {},
-    image,
-  }: LocalStorageServiceArgs
+  { image, replicas, httpPort, limits, hostVolumes }: StaticServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
@@ -57,12 +50,8 @@ export function createLocalStorageService(
               {
                 name,
                 image: `${image.repository}:${image.tag}`,
-                imagePullPolicy: image.pullPolicy ?? "Always",
+                imagePullPolicy: "Always",
                 ports: [{ name: "http", containerPort: httpPort }],
-                env: Object.entries(env).map(([key, value]) => ({
-                  name: key,
-                  value,
-                })),
                 resources: { limits },
                 volumeMounts: hostVolumes.map(
                   ({ name, mountPath, readOnly }) => ({

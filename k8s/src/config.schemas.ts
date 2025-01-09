@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-  LocalStorageServiceArgsSchema,
-  StaticServiceArgsSchema,
-} from "./templates";
+import { StaticServiceArgsSchema } from "./templates";
 
 export const CloudflaredConfSchema = z.object({
   name: z.string(),
@@ -10,17 +7,8 @@ export const CloudflaredConfSchema = z.object({
 
 export type CloudflaredConf = z.infer<typeof CloudflaredConfSchema>;
 
-export const LocalStorageServiceConfSchema = z.object({
-  template: z.literal("local-storage"),
-  args: LocalStorageServiceArgsSchema,
-});
-
-export type LocalStorageServiceConf = z.infer<
-  typeof LocalStorageServiceConfSchema
->;
-
 const StaticServiceConfSchema = z.object({
-  template: z.literal("static"),
+  template: z.literal("web"),
   args: StaticServiceArgsSchema,
 });
 
@@ -31,12 +19,7 @@ export const ServiceConfSchema = z
     name: z.string(),
     hostname: z.string(),
   })
-  .and(
-    z.discriminatedUnion("template", [
-      LocalStorageServiceConfSchema,
-      StaticServiceConfSchema,
-    ]),
-  );
+  .and(z.discriminatedUnion("template", [StaticServiceConfSchema]));
 export type ServiceConf = z.infer<typeof ServiceConfSchema>;
 
 export const ServicesArraySchema = z.array(ServiceConfSchema);
