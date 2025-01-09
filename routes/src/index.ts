@@ -20,6 +20,12 @@ const serviceStacks = z
   .parse(config.requireObject("serviceStacks"));
 
 const zones = z.array(ZoneConfSchema).parse(config.requireObject("zones"));
+
+for (const zone of zones) {
+  for (const module of zone.modules) {
+    modules[module](zone);
+  }
+}
 const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`
 );
