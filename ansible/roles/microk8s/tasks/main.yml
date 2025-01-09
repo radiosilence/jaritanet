@@ -47,6 +47,7 @@
     - helm
     - rbac
     - hostpath-storage
+    - metrics-server
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config
