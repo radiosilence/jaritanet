@@ -27,6 +27,8 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
+      - name: ping oldboy
+        run: ping oldboy.zonkey-jazz.ts.net -c 5
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Create SSH key
