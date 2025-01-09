@@ -2,7 +2,6 @@ config:
   jaritanet-k8s:services:
     - name: navidrome
       hostname: music.blit.cc
-      template: web
       args:
         httpPort: 4533
         image:
@@ -33,7 +32,6 @@ config:
             readOnly: false
     - name: files
       hostname: files.radiosilence.dev
-      template: web
       args:
         image:
           repository: "ghcr.io/radiosilence/jaritanet-files"
@@ -51,7 +49,10 @@ config:
 
     - name: blit
       hostname: blit.cc
-      template: web
+      replicas: 4
+      limits:
+        cpu: 250m
+        memory: 256Mi
       args:
         image:
           repository: "ghcr.io/radiosilence/blit"
