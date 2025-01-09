@@ -1,11 +1,9 @@
 import { z } from "zod";
 
 export const VolumeSchema = z.object({
-  storageSize: z.string(),
-  claimStorageSize: z.string(),
-  path: z.string(),
+  hostPath: z.string(),
   mountPath: z.string(),
-  accessModes: z.array(z.string()),
+  rw: z.boolean().optional(),
 });
 export type Volume = z.infer<typeof VolumeSchema>;
 

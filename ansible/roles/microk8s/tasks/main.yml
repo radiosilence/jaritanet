@@ -46,6 +46,7 @@
     - storage
     - helm
     - rbac
+    - hostpath-storage
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config

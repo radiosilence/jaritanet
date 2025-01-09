@@ -26,24 +26,6 @@ export function createLocalStorageService(
     { provider, deleteBeforeReplace: true }
   );
 
-  for (const [key, volume] of Object.entries(persistence)) {
-    new k8s.storage.v1.StorageClass(
-      `${key}-storage-class`,
-      {
-        metadata: {
-          name: `${key}-storage-class`,
-        },
-        provisioner: "microk8s.io/hostpath",
-        reclaimPolicy: "Retain",
-        parameters: {
-          pvDir: volume.path,
-        },
-        volumeBindingMode: "WaitForFirstConsumer",
-      },
-      { provider }
-    );
-  }
-
   new k8s.apps.v1.StatefulSet(
     `${name}-statefulset`,
     {
@@ -58,6 +40,13 @@ export function createLocalStorageService(
             labels: { app: name },
           },
           spec: {
+            volumes: Object.entries(persistence).map(([key, volume]) => ({
+              name: `${key}-volume`,
+              hostPath: {
+                path: volume.hostPath,
+                type: "Directory",
+              },
+            })),
             containers: [
               {
                 name,
@@ -71,38 +60,18 @@ export function createLocalStorageService(
                   name: key,
                   value,
                 })),
-                resources: {
-                  limits: {
-                    memory: resources.limits.memory,
-                    cpu: resources.limits.cpu,
-                  },
-                },
+                resources,
                 volumeMounts: Object.entries(persistence).map(
                   ([key, volume]) => ({
-                    name: `${key}-pvc`,
+                    name: `${key}-volume`,
                     mountPath: volume.mountPath,
+                    readOnly: !volume.rw,
                   })
                 ),
               },
             ],
           },
         },
-        volumeClaimTemplates: Object.entries(persistence).map(
-          ([key, volume]) => ({
-            metadata: {
-              name: `${key}-pvc`,
-            },
-            spec: {
-              accessModes: volume.accessModes,
-              storageClassName: `${key}-storage-class`,
-              resources: {
-                requests: {
-                  storage: volume.storageSize,
-                },
-              },
-            },
-          })
-        ),
       },
     },
     { provider, deleteBeforeReplace: true }

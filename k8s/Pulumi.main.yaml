@@ -27,17 +27,12 @@ config:
             - oldboy
         persistence:
           music:
-            storageSize: 1Ti
-            claimStorageSize: 1Ti
-            path: /mnt/kontent/music
+            hostPath: /mnt/kontent/music
             mountPath: /music
-            accessModes: [ReadOnlyMany]
           data:
-            storageSize: 1Gi
-            claimStorageSize: 1Gi
-            path: /home/navidrome/data
+            hostPath: /home/navidrome/data
             mountPath: /data
-            accessModes: [ReadWriteOnce]
+            rw: true
     - name: files
       hostname: files.radiosilence.dev
       template: local-storage
@@ -57,11 +52,8 @@ config:
             - oldboy
         persistence:
           files:
-            storageSize: 10Gi
-            claimStorageSize: 5Gi
-            path: /srv/files
+            hostPath: /srv/files
             mountPath: /srv/files
-            accessModes: [ReadOnlyMany]
 
     - name: blit
       hostname: blit.cc
