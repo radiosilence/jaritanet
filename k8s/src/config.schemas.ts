@@ -10,7 +10,6 @@ export type CloudflaredConf = z.infer<typeof CloudflaredConfSchema>;
 export const ServiceConfSchema = z.object({
   name: z.string(),
   hostname: z.string(),
-  template: z.literal("web"),
   args: ServiceArgsSchema,
 });
 export type ServiceConf = z.infer<typeof ServiceConfSchema>;
