@@ -62,7 +62,7 @@ export const services = ServicesArraySchema.parse(
 });
 
 const tunnelOutput = new pulumi.StackReference(
-  "radiosilence/jaritanet/main"
+  `radiosilence/jaritanet/${pulumi.getStack()}`
 ).requireOutput(
   "tunnel"
 ) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
