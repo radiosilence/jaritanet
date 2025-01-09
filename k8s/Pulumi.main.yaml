@@ -58,15 +58,15 @@ config:
           tag: latest
           pullPolicy: "Always"
 
-    - name: bambi-art
-      hostname: bambi.radiosilence.dev
-      template: web
-      args:
-        httpPort: 3000
-        image:
-          repository: "ghcr.io/radiosilence/bambi-art"
-          tag: latest
-          pullPolicy: "Always"
+    # - name: bambi-art
+    #   hostname: bambi.radiosilence.dev
+    #   template: web
+    #   args:
+    #     httpPort: 3000
+    #     image:
+    #       repository: "ghcr.io/radiosilence/bambi-art"
+    #       tag: latest
+    #       pullPolicy: "Always"
 
   jaritanet-k8s:cloudflared:
     name: cloudflared

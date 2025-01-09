@@ -60,6 +60,9 @@ export function createService(
                     readOnly,
                   })
                 ),
+                securityContext: {
+                  allowPrivilegeEscalation: false,
+                },
               },
             ],
           },
