@@ -1,3 +1,4 @@
 [tools]
 bun = "latest"
 node = "20"
+yq = "latest"

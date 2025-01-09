@@ -21,6 +21,8 @@ jobs:
     name: Run Playbook
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v2
+      - uses: jdx/mise-action@v2
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
@@ -29,14 +31,23 @@ jobs:
           tags: tag:ci
       - name: ping oldboy
         run: |
-          tailscale status
+          tailscale status --json | yq -P
+          # Show detailed path information to oldboy
+          tailscale netcheck 
+
+          # Show active peer connections with relay info
+          tailscale debug netmap | yq -P
+
+          # See if DERP is being used (relay servers)
+          tailscale debug derp-map | yq -P
+
+          # Check latency to the target
+          tailscale ping oldboy
           sleep 5
           ping oldboy.zonkey-jazz.ts.net -c 2
           sleep 5
           ping oldboy.zonkey-jazz.ts.net -c 2
           tailscale status
-      - name: Checkout repository
-        uses: actions/checkout@v2
       - name: Create SSH key
         run: |
           mkdir -p ~/.ssh/
