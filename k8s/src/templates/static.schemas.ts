@@ -1,13 +1,17 @@
 import { z } from "zod";
-import { LimitsSchema, PortsSchema } from "./schemas";
+import {
+  HostVolumeSchema,
+  ImageSchema,
+  LimitsSchema,
+  PortsSchema,
+} from "./schemas";
 
 export const StaticServiceArgsSchema = z.object({
-  image: z.object({
-    repository: z.string(),
-    tag: z.string(),
-  }),
+  image: ImageSchema,
+  env: z.record(z.string()).default({}),
   ports: PortsSchema,
   limits: LimitsSchema,
+  hostVolumes: z.array(HostVolumeSchema).default([]),
 });
 
 export type StaticServiceArgs = z.infer<typeof StaticServiceArgsSchema>;

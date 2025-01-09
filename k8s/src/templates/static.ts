@@ -8,14 +8,19 @@ export function createStaticService(
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
-
     {
       metadata: {
         name: `${name}-service`,
       },
       spec: {
         selector: { app: name },
-        ports: [{ protocol: "TCP", port: 80, targetPort: ports.http }],
+        ports: [
+          {
+            protocol: "TCP",
+            port: 80,
+            targetPort: ports.http,
+          },
+        ],
       },
     },
     { provider, deleteBeforeReplace: true }

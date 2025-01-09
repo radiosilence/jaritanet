@@ -7,11 +7,11 @@ import {
 } from "./schemas";
 
 export const LocalStorageServiceArgsSchema = z.object({
-  env: z.record(z.string()).optional(),
-  ports: PortsSchema,
-  hostVolumes: z.array(HostVolumeSchema).default([]),
   image: ImageSchema,
+  env: z.record(z.string()).default({}),
+  ports: PortsSchema,
   limits: LimitsSchema,
+  hostVolumes: z.array(HostVolumeSchema).default([]),
 });
 
 export type LocalStorageServiceArgs = z.infer<
