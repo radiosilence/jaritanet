@@ -49,11 +49,11 @@ config:
 
     - name: blit
       hostname: blit.cc
-      replicas: 4
-      limits:
-        cpu: 250m
-        memory: 256Mi
       args:
+        replicas: 2
+        limits:
+          cpu: 250m
+          memory: 256Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: latest
