@@ -29,17 +29,12 @@ jobs:
           tags: tag:ci
       - name: ping oldboy
         run: |
+          tailscale status
           sleep 5
           ping oldboy.zonkey-jazz.ts.net -c 2
           sleep 5
           ping oldboy.zonkey-jazz.ts.net -c 2
-          sleep 5
-          ping oldboy.zonkey-jazz.ts.net -c 2
-          sleep 5
-          ping oldboy.zonkey-jazz.ts.net -c 2
-          sleep 5
-          ping oldboy.zonkey-jazz.ts.net -c 2
-          sleep 5
+          tailscale status
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Create SSH key
