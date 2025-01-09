@@ -35,9 +35,6 @@ jobs:
           # Show detailed path information to oldboy
           tailscale netcheck 
 
-          # Show active peer connections with relay info
-          tailscale debug netmap | yq -P
-
           # See if DERP is being used (relay servers)
           tailscale debug derp-map | yq -P
 
