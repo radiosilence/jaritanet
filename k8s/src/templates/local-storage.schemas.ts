@@ -12,11 +12,6 @@ export const LocalStorageServiceArgsSchema = z.object({
       cpu: z.string(),
     }),
   }),
-  nodeSelector: z.object({
-    key: z.string(),
-    operator: z.string(),
-    values: z.array(z.string()),
-  }),
 });
 
 export type LocalStorageServiceArgs = z.infer<

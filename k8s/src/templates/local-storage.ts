@@ -10,44 +10,8 @@ export function createLocalStorageService(
     resources,
     env = {},
     image,
-    nodeSelector,
   }: LocalStorageServiceArgs
 ) {
-  const volumes = Object.fromEntries(
-    Object.entries(persistence).map(([key, volume]) => [
-      key,
-
-      new k8s.core.v1.PersistentVolume(
-        `${name}-${key}-vol`,
-        {
-          metadata: {
-            labels: {
-              storageName: `${name}-${key}-vol`,
-            },
-          },
-          spec: {
-            capacity: {
-              storage: volume.storageSize,
-            },
-            volumeMode: "Filesystem",
-            accessModes: volume.accessModes,
-            storageClassName: "local-storage",
-            persistentVolumeReclaimPolicy: "Retain",
-            local: {
-              path: volume.path,
-            },
-            nodeAffinity: {
-              required: {
-                nodeSelectorTerms: [{ matchExpressions: [nodeSelector] }],
-              },
-            },
-          },
-        },
-        { provider }
-      ),
-    ])
-  );
-
   const service = new k8s.core.v1.Service(
     `${name}-service`,
     {
@@ -61,6 +25,24 @@ export function createLocalStorageService(
     },
     { provider, deleteBeforeReplace: true }
   );
+
+  for (const [key, volume] of Object.entries(persistence)) {
+    new k8s.storage.v1.StorageClass(
+      `${key}-storage-class`,
+      {
+        metadata: {
+          name: `${key}-storage-class`,
+        },
+        provisioner: "microk8s.io/hostpath",
+        reclaimPolicy: "Retain",
+        parameters: {
+          pvDir: volume.path,
+        },
+        volumeBindingMode: "WaitForFirstConsumer",
+      },
+      { provider }
+    );
+  }
 
   new k8s.apps.v1.StatefulSet(
     `${name}-statefulset`,
@@ -97,7 +79,7 @@ export function createLocalStorageService(
                 },
                 volumeMounts: Object.entries(persistence).map(
                   ([key, volume]) => ({
-                    name: `${key}-claim`,
+                    name: `${key}-pvc`,
                     mountPath: volume.mountPath,
                   })
                 ),
@@ -108,16 +90,11 @@ export function createLocalStorageService(
         volumeClaimTemplates: Object.entries(persistence).map(
           ([key, volume]) => ({
             metadata: {
-              name: `${key}-claim`,
+              name: `${key}-pvc`,
             },
             spec: {
               accessModes: volume.accessModes,
-              storageClassName: "local-storage",
-              selector: {
-                matchLabels: {
-                  storageName: volumes[key].metadata.labels.storageName,
-                },
-              },
+              storageClassName: `${key}-storage-class`,
               resources: {
                 requests: {
                   storage: volume.storageSize,

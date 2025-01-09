@@ -1,10 +1,12 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import type { CloudflareConf } from "../conf.schemas";
+import { CloudflareConfSchema } from "../conf.schemas";
 
 const config = new pulumi.Config();
-const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
+const { accountId } = CloudflareConfSchema.parse(
+  config.requireObject("cloudflare")
+);
 
 /**
  * Creates a new Cloudflare tunnel.
