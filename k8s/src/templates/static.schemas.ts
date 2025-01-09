@@ -8,6 +8,7 @@ import {
 
 export const StaticServiceArgsSchema = z.object({
   image: ImageSchema,
+  replicas: z.number().default(1),
   env: z.record(z.string()).default({}),
   ports: PortsSchema,
   limits: LimitsSchema,
