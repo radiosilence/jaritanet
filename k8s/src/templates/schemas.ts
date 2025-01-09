@@ -27,15 +27,11 @@ export const ImageSchema = z.object({
 
 export type Image = z.infer<typeof ImageSchema>;
 
-export const PortsSchema = z.object({
-  http: z.number().default(80),
-});
-
-export type Ports = z.infer<typeof PortsSchema>;
-
-export const LimitsSchema = z.object({
-  memory: z.string().default("64Mi"),
-  cpu: z.string().default("50m"),
-});
+export const LimitsSchema = z
+  .object({
+    memory: z.string().default("64Mi"),
+    cpu: z.string().default("50m"),
+  })
+  .default({});
 
 export type Limits = z.infer<typeof LimitsSchema>;

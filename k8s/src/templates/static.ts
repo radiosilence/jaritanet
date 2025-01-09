@@ -4,7 +4,7 @@ import type { StaticServiceArgs } from "./static.schemas";
 export function createStaticService(
   provider: k8s.Provider,
   name: string,
-  { image, ports = { http: 80 }, limits }: StaticServiceArgs
+  { image, replicas, httpPort, limits, hostVolumes }: StaticServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
@@ -18,7 +18,7 @@ export function createStaticService(
           {
             protocol: "TCP",
             port: 80,
-            targetPort: ports.http,
+            targetPort: httpPort,
           },
         ],
       },
@@ -30,7 +30,7 @@ export function createStaticService(
     `${name}-deployment`,
     {
       spec: {
-        replicas: 1,
+        replicas,
         selector: {
           matchLabels: { app: name },
         },
@@ -39,16 +39,27 @@ export function createStaticService(
             labels: { app: name },
           },
           spec: {
+            volumes: hostVolumes.map(({ name, hostPath, hostPathType }) => ({
+              name,
+              hostPath: {
+                path: hostPath,
+                type: hostPathType,
+              },
+            })),
             containers: [
               {
                 name,
                 image: `${image.repository}:${image.tag}`,
                 imagePullPolicy: "Always",
-                ports: Object.entries(ports).map(([name, containerPort]) => ({
-                  name,
-                  containerPort,
-                })),
+                ports: [{ name: "http", containerPort: httpPort }],
                 resources: { limits },
+                volumeMounts: hostVolumes.map(
+                  ({ name, mountPath, readOnly }) => ({
+                    name,
+                    mountPath,
+                    readOnly,
+                  })
+                ),
               },
             ],
           },

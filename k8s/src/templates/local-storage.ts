@@ -4,7 +4,14 @@ import type { LocalStorageServiceArgs } from "./local-storage.schemas";
 export function createLocalStorageService(
   provider: k8s.Provider,
   name: string,
-  { ports, hostVolumes, limits, env = {}, image }: LocalStorageServiceArgs
+  {
+    replicas,
+    httpPort,
+    hostVolumes,
+    limits,
+    env = {},
+    image,
+  }: LocalStorageServiceArgs
 ) {
   const service = new k8s.core.v1.Service(
     `${name}-service`,
@@ -18,7 +25,7 @@ export function createLocalStorageService(
           {
             protocol: "TCP",
             port: 80,
-            targetPort: ports.http,
+            targetPort: httpPort,
           },
         ],
       },
@@ -30,7 +37,7 @@ export function createLocalStorageService(
     `${name}-deployment`,
     {
       spec: {
-        replicas: 1,
+        replicas,
         selector: {
           matchLabels: { app: name },
         },
@@ -51,10 +58,7 @@ export function createLocalStorageService(
                 name,
                 image: `${image.repository}:${image.tag}`,
                 imagePullPolicy: image.pullPolicy ?? "Always",
-                ports: Object.entries(ports).map(([name, containerPort]) => ({
-                  name,
-                  containerPort,
-                })),
+                ports: [{ name: "http", containerPort: httpPort }],
                 env: Object.entries(env).map(([key, value]) => ({
                   name: key,
                   value,

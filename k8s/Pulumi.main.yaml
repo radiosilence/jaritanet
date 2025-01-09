@@ -4,8 +4,7 @@ config:
       hostname: music.blit.cc
       template: local-storage
       args:
-        ports:
-          http: 4533
+        httpPort: 4533
         image:
           repository: "deluan/navidrome"
           tag: latest
@@ -68,8 +67,7 @@ config:
       hostname: bambi.radiosilence.dev
       template: static
       args:
-        ports:
-          http: 3000
+        httpPort: 3000
         image:
           repository: "ghcr.io/radiosilence/bambi-art"
           tag: latest
