@@ -48,7 +48,7 @@ export function createService(
               },
             },
           },
-          { provider, deleteBeforeReplace: true }
+          { provider }
         ),
       ]
     )
@@ -67,7 +67,7 @@ export function createService(
             resources: { requests: { storage } },
           },
         },
-        { provider, deleteBeforeReplace: true }
+        { provider }
       ),
     ])
   );
@@ -89,7 +89,7 @@ export function createService(
         ],
       },
     },
-    { provider, deleteBeforeReplace: true }
+    { provider }
   );
 
   new k8s.apps.v1.Deployment(
