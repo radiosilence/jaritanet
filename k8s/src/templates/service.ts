@@ -136,10 +136,12 @@ export function createService(
                     mountPath,
                     readOnly,
                   })),
-                  ...Object.entries(hostVolumes).map(([key, volume]) => ({
-                    name: `${name}-${key}-pvc-vol`,
-                    mountPath: volume.mountPath,
-                  })),
+                  ...Object.entries(persistence).map(
+                    ([key, { mountPath }]) => ({
+                      name: `${name}-${key}-pvc-vol`,
+                      mountPath,
+                    })
+                  ),
                 ],
                 securityContext: {
                   allowPrivilegeEscalation: false,
