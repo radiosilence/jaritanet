@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { HostVolumeSchema, ImageSchema, LimitsSchema } from "./schemas";
+import {
+  HostVolumeSchema,
+  ImageSchema,
+  LimitsSchema,
+  PersistenceSchema,
+} from "./schemas";
 
 export const ServiceArgsSchema = z.object({
   image: ImageSchema,
@@ -8,6 +13,7 @@ export const ServiceArgsSchema = z.object({
   httpPort: z.number().default(80),
   limits: LimitsSchema,
   hostVolumes: z.array(HostVolumeSchema).default([]),
+  persistence: z.record(PersistenceSchema).default({}),
 });
 
 export type ServiceArgs = z.infer<typeof ServiceArgsSchema>;

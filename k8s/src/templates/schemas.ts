@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { storage } from "@pulumi/kubernetes";
 
 export const HostVolumeSchema = z.object({
   name: z.string(),
@@ -18,6 +19,17 @@ export const HostVolumeSchema = z.object({
   readOnly: z.boolean().default(true),
 });
 export type HostVolumeSchema = z.infer<typeof HostVolumeSchema>;
+
+export const PersistenceSchema = z.object({
+  storageClassName: z.string().default("local-storage"),
+  accessModes: z.array(z.string()).default(["ReadWriteOnce"]),
+  storage: z.string(),
+  localPath: z.string(),
+  mountPath: z.string(),
+  nodeAffinityHostname: z.string(),
+});
+
+export type Persistence = z.infer<typeof PersistenceSchema>;
 
 export const ImageSchema = z.object({
   repository: z.string(),
