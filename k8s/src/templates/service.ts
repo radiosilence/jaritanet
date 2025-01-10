@@ -6,68 +6,71 @@ export function createService(
   name: string,
   { image, replicas, httpPort, limits, hostVolumes, persistence }: ServiceArgs
 ) {
+  const pvs = Object.fromEntries(
+    persistence.map(
+      ({
+        name: key,
+        storageClassName,
+        readOnly,
+        storage,
+        nodeAffinityHostname,
+        hostPath,
+      }) => [
+        key,
+        new k8s.core.v1.PersistentVolume(
+          `${name}-${key}-pv`,
+          {
+            spec: {
+              capacity: {
+                storage,
+              },
+              volumeMode: "Filesystem",
+              accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteOnce"],
+              persistentVolumeReclaimPolicy: "Delete",
+              storageClassName,
+              local: {
+                path: hostPath,
+              },
+              nodeAffinity: {
+                required: {
+                  nodeSelectorTerms: [
+                    {
+                      matchExpressions: [
+                        {
+                          key: "kubernetes.io/hostname",
+                          operator: "In",
+                          values: [nodeAffinityHostname],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          { provider, deleteBeforeReplace: true }
+        ),
+      ]
+    )
+  );
+
   const pvcs = Object.fromEntries(
-    persistence.map(({ name: key, storageClassName, accessModes, storage }) => [
+    persistence.map(({ name: key, storageClassName, readOnly, storage }) => [
       key,
       new k8s.core.v1.PersistentVolumeClaim(
         `${name}-${key}-pvc`,
         {
           spec: {
             storageClassName,
-            accessModes,
+            volumeName: pvs[key].metadata.name,
+            accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteOnce"],
             resources: { requests: { storage } },
           },
         },
-        { provider }
+        { provider, deleteBeforeReplace: true }
       ),
     ])
   );
-
-  for (const {
-    name: key,
-    hostPath,
-    storageClassName,
-    storage,
-    accessModes,
-    nodeAffinityHostname,
-  } of persistence) {
-    new k8s.core.v1.PersistentVolume(
-      `${name}-${key}-pv`,
-      {
-        spec: {
-          claimRef: {
-            name: pvcs[key].metadata.name,
-          },
-          capacity: {
-            storage,
-          },
-          volumeMode: "Filesystem",
-          accessModes,
-          persistentVolumeReclaimPolicy: "Delete",
-          storageClassName,
-          local: {
-            path: hostPath,
-          },
-          nodeAffinity: {
-            required: {
-              nodeSelectorTerms: [
-                {
-                  matchExpressions: [
-                    {
-                      key: "kubernetes.io/hostname",
-                      operator: "In",
-                      values: [nodeAffinityHostname],
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        },
-      },
-      { provider }
-    );
-  }
 
   const service = new k8s.core.v1.Service(
     `${name}-service`,
@@ -110,9 +113,9 @@ export function createService(
                   type: hostPathType,
                 },
               })),
-              ...Object.keys(pvcs).map((key) => ({
-                name: `${name}-${key}-pvc-vol`,
-                persistentVolumeClaim: { claimName: pvcs[key].metadata.name },
+              ...Object.keys(pvcs).map((name) => ({
+                name,
+                persistentVolumeClaim: { claimName: pvcs[name].metadata.name },
               })),
             ],
             containers: [
@@ -128,9 +131,10 @@ export function createService(
                     mountPath,
                     readOnly,
                   })),
-                  ...persistence.map(({ name: key, mountPath }) => ({
-                    name: `${name}-${key}-pvc-vol`,
+                  ...persistence.map(({ name, mountPath, readOnly }) => ({
+                    name,
                     mountPath,
+                    readOnly,
                   })),
                 ],
                 securityContext: {
