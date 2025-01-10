@@ -13,7 +13,7 @@ export const ServiceArgsSchema = z.object({
   httpPort: z.number().default(80),
   limits: LimitsSchema,
   hostVolumes: z.array(HostVolumeSchema).default([]),
-  persistence: z.record(PersistenceSchema).default({}),
+  persistence: z.array(PersistenceSchema).default([]),
 });
 
 export type ServiceArgs = z.infer<typeof ServiceArgsSchema>;

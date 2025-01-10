@@ -20,10 +20,11 @@ export const HostVolumeSchema = z.object({
 export type HostVolumeSchema = z.infer<typeof HostVolumeSchema>;
 
 export const PersistenceSchema = z.object({
+  name: z.string(),
   storageClassName: z.string().default("local-storage"),
-  accessModes: z.array(z.string()).default(["ReadWriteOnce"]),
+  accessModes: z.array(z.string()).default(["ReadOnlyMany"]),
   storage: z.string(),
-  localPath: z.string(),
+  hostPath: z.string(),
   mountPath: z.string(),
   nodeAffinityHostname: z.string(),
 });

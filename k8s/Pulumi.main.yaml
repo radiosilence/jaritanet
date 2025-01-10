@@ -42,10 +42,12 @@ config:
           operator: In
           values:
             - oldboy
-        hostVolumes:
+        persistence:
           - name: files
+            storage: 20Mi
             hostPath: /srv/files
             mountPath: /srv/files
+            nodeAffinityHostname: oldboy
 
     - name: blit
       hostname: blit.cc

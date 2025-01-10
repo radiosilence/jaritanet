@@ -7,76 +7,68 @@ export function createService(
   { image, replicas, httpPort, limits, hostVolumes, persistence }: ServiceArgs
 ) {
   const pvcs = Object.fromEntries(
-    Object.entries(persistence).map(
-      ([key, { storageClassName, accessModes, storage }]) => [
-        key,
-        new k8s.core.v1.PersistentVolumeClaim(
-          `${name}-${key}-pvc`,
-          {
-            spec: {
-              storageClassName,
-              accessModes,
-              resources: { requests: { storage } },
-            },
+    persistence.map(({ name: key, storageClassName, accessModes, storage }) => [
+      key,
+      new k8s.core.v1.PersistentVolumeClaim(
+        `${name}-${key}-pvc`,
+        {
+          spec: {
+            storageClassName,
+            accessModes,
+            resources: { requests: { storage } },
           },
-          { provider }
-        ),
-      ]
-    )
+        },
+        { provider }
+      ),
+    ])
   );
 
-  Object.fromEntries(
-    Object.entries(persistence).map(
-      ([
-        key,
-        {
-          localPath,
-          storageClassName,
-          storage,
+  for (const {
+    name: key,
+    hostPath,
+    storageClassName,
+    storage,
+    accessModes,
+    nodeAffinityHostname,
+  } of persistence) {
+    new k8s.core.v1.PersistentVolume(
+      `${name}-${key}-pv`,
+      {
+        spec: {
+          claimRef: {
+            name: pvcs[key].metadata.name,
+          },
+          capacity: {
+            storage,
+          },
+          volumeMode: "Filesystem",
           accessModes,
-          nodeAffinityHostname,
-        },
-      ]) => [
-        key,
-        new k8s.core.v1.PersistentVolume(
-          `${name}-${key}-pv`,
-          {
-            spec: {
-              claimRef: {
-                name: pvcs[key].metadata.name,
-              },
-              capacity: {
-                storage,
-              },
-              volumeMode: "Filesystem",
-              accessModes,
-              persistentVolumeReclaimPolicy: "Delete",
-              storageClassName,
-              local: {
-                path: localPath,
-              },
-              nodeAffinity: {
-                required: {
-                  nodeSelectorTerms: [
+          persistentVolumeReclaimPolicy: "Delete",
+          storageClassName,
+          local: {
+            path: hostPath,
+          },
+          nodeAffinity: {
+            required: {
+              nodeSelectorTerms: [
+                {
+                  matchExpressions: [
                     {
-                      matchExpressions: [
-                        {
-                          key: "kubernetes.io/hostname",
-                          operator: "In",
-                          values: [nodeAffinityHostname],
-                        },
-                      ],
+                      key: "kubernetes.io/hostname",
+                      operator: "In",
+                      values: [nodeAffinityHostname],
                     },
                   ],
                 },
-              },
+              ],
             },
           },
-          { provider }
-        ),
-      ]
-    )
-  );
+        },
+      },
+      { provider }
+    );
+  }
+
   const service = new k8s.core.v1.Service(
     `${name}-service`,
     {
@@ -136,12 +128,10 @@ export function createService(
                     mountPath,
                     readOnly,
                   })),
-                  ...Object.entries(persistence).map(
-                    ([key, { mountPath }]) => ({
-                      name: `${name}-${key}-pvc-vol`,
-                      mountPath,
-                    })
-                  ),
+                  ...persistence.map(({ name: key, mountPath }) => ({
+                    name: `${name}-${key}-pvc-vol`,
+                    mountPath,
+                  })),
                 ],
                 securityContext: {
                   allowPrivilegeEscalation: false,
