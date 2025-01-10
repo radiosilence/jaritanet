@@ -25,7 +25,7 @@ export function createService(
     )
   );
 
-  const pvs = Object.fromEntries(
+  Object.fromEntries(
     Object.entries(persistence).map(
       ([
         key,

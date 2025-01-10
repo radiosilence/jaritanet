@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { storage } from "@pulumi/kubernetes";
 
 export const HostVolumeSchema = z.object({
   name: z.string(),
