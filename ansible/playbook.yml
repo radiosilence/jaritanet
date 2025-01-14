@@ -19,6 +19,7 @@
   roles:
     - microk8s
     - samba
+    - nfs
     - syncthing
 
   handlers:
