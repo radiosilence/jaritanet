@@ -9,13 +9,13 @@
   ansible.builtin.blockinfile:
     path: /etc/samba/smb.conf
     block: |
-      {% for share in samba_shares %}
+      {% for share in shares %}
       [{{ share.name }}]
           path = {{ share.path }}
           browseable = yes
           read only = yes
           guest ok = yes
-          write list = {{ share.write_list }}
+          write list = {{ share.owner }}
           create mask = 0664
           directory mask = 0775
       {% endfor %}
