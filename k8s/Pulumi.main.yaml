@@ -10,11 +10,13 @@ config:
           tag: latest
           pullPolicy: "Always"
         env:
-          ND_SCANSCHEDULE: "1h"
-          ND_LOGLEVEL: "info"
-          ND_SESSIONTIMEOUT: "24h"
+          ND_SCANSCHEDULE: 1h
+          ND_LOGLEVEL: info
+          ND_SESSIONTIMEOUT: 24h
           ND_ENABLESHARING: "true"
           ND_ENABLETRANSCODINGCONFIG: "true"
+          ND_TRANSCODINGCACHESIZE: 5Gi
+          ND_ENABLEGRAVATAR: "true"
         limits:
           cpu: 2000m
           memory: 2Gi
@@ -30,7 +32,7 @@ config:
             mountPath: /music
             nodeAffinityHostname: oldboy
           - name: data
-            storage: 5Gi
+            storage: 20Gi
             hostPath: /home/navidrome/data
             mountPath: /data
             readOnly: false

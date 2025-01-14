@@ -4,7 +4,15 @@ import type { ServiceArgs } from "./service.schemas";
 export function createService(
   provider: k8s.Provider,
   name: string,
-  { image, replicas, httpPort, limits, hostVolumes, persistence }: ServiceArgs
+  {
+    image,
+    replicas,
+    httpPort,
+    limits,
+    hostVolumes,
+    persistence,
+    env,
+  }: ServiceArgs
 ) {
   const pvs = Object.fromEntries(
     persistence.map(
@@ -125,6 +133,10 @@ export function createService(
                 imagePullPolicy: "Always",
                 ports: [{ name: "http", containerPort: httpPort }],
                 resources: { limits },
+                env: Object.entries(env).map(([name, value]) => ({
+                  name,
+                  value,
+                })),
                 volumeMounts: [
                   ...hostVolumes.map(({ name, mountPath, readOnly }) => ({
                     name,
