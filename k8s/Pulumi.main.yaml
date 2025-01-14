@@ -19,7 +19,7 @@ config:
           ND_ENABLEGRAVATAR: "true"
         limits:
           cpu: 2000m
-          memory: 2Gi
+          memory: 8Gi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
