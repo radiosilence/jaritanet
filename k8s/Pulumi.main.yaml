@@ -2,6 +2,7 @@ config:
   jaritanet-k8s:services:
     - name: navidrome
       hostname: music.blit.cc
+      proxied: false
       args:
         httpPort: 4533
         image:

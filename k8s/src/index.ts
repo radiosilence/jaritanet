@@ -52,11 +52,12 @@ new k8s.core.v1.Namespace(
 
 export const services = ServicesArraySchema.parse(
   config.requireObject("services")
-).map(({ name, args, hostname }) => {
+).map(({ name, args, hostname, proxied }) => {
   const service = createService(provider, name, args);
 
   return {
     hostname,
+    proxied,
     service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
   };
 });

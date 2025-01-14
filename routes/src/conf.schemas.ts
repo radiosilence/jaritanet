@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const ServiceOutputSchema = z.object({
+  service: z.string(),
+  hostname: z.string(),
+  proxied: z.boolean(),
+});
+
+export type ServiceOutput = z.infer<typeof ServiceOutputSchema>;
+
 const DnsModuleEnum = z.enum(["bluesky", "fastmail"]);
 
 export type DnsModule = z.infer<typeof DnsModuleEnum>;

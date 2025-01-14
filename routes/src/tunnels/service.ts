@@ -1,11 +1,6 @@
-import type { ZoneConf } from "src/conf.schemas";
 import * as cloudflare from "@pulumi/cloudflare";
 import type * as pulumi from "@pulumi/pulumi";
-
-export interface ServiceOutput {
-  service: string;
-  hostname: string;
-}
+import type { ServiceOutput, ZoneConf } from "../conf.schemas";
 
 export function getRecord(hostname: string) {
   const parts = hostname.split(".");
@@ -32,7 +27,7 @@ export function getServiceIngressRule(
 export function createZone(
   tunnelCname: pulumi.Output<string>,
   { zoneId }: ZoneConf,
-  { hostname }: ServiceOutput
+  { hostname, proxied }: ServiceOutput
 ) {
   const { recordName: name } = getRecord(hostname);
 
@@ -41,6 +36,6 @@ export function createZone(
     name,
     type: "CNAME",
     content: tunnelCname,
-    proxied: true,
+    proxied,
   });
 }
