@@ -158,7 +158,7 @@ export function createService(
         },
       },
     },
-    { provider }
+    { provider, deleteBeforeReplace: persistence.length > 0 }
   );
 
   return service;
