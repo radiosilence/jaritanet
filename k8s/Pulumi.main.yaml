@@ -27,11 +27,13 @@ config:
             storage: 2Ti
             hostPath: /mnt/kontent/music
             mountPath: /music
+            nodeAffinityHostname: oldboy
           - name: data
             storage: 5Gi
             hostPath: /home/navidrome/data
             mountPath: /data
             readOnly: false
+            nodeAffinityHostname: oldboy
     - name: files
       hostname: files.radiosilence.dev
       args:
