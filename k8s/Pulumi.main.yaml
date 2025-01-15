@@ -7,7 +7,7 @@ config:
         httpPort: 4533
         image:
           repository: "deluan/navidrome"
-          tag: 0.54.3
+          tag: 0.54.4
           pullPolicy: "Always"
         env:
           ND_SCANSCHEDULE: 1h
