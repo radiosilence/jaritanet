@@ -1,17 +1,17 @@
-import type * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import {
   type CloudflaredConf,
   CloudflaredConfSchema,
   ServicesArraySchema,
-} from "./config.schemas";
+} from "./conf.schemas";
 import { getKubeconfig } from "./kubeconfig";
+import { outputDetailsSecret, TunnelSchema } from "./references.schemas";
 import { createCloudflared, createService } from "./templates";
 
 const config = new pulumi.Config();
 
-export const namespace = "jaritanet";
+const namespace = "jaritanet";
 
 if (!process.env.KUBE_HOST) {
   throw new Error("KUBE_HOST is required");
@@ -50,30 +50,35 @@ new k8s.core.v1.Namespace(
   { provider }
 );
 
-export const services = ServicesArraySchema.parse(
-  config.requireObject("services")
-).map(({ name, args, hostname, proxied }) => {
-  const service = createService(provider, name, args);
+const infraStackRef = new pulumi.StackReference(
+  `radiosilence/jaritanet/${pulumi.getStack()}`
+);
+
+export = async () => {
+  const services = ServicesArraySchema.parse(
+    config.requireObject("services")
+  ).map(({ name, args, hostname, proxied }) => {
+    const service = createService(provider, name, args);
+
+    return {
+      hostname,
+      proxied,
+      service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
+    };
+  });
+
+  const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(
+    await infraStackRef.getOutputDetails("tunnel")
+  );
+
+  const cloudflaredConf = CloudflaredConfSchema.parse(
+    config.requireObject<CloudflaredConf>("cloudflared")
+  );
+
+  createCloudflared(provider, cloudflaredConf.name, tunnel.tunnelToken);
 
   return {
-    hostname,
-    proxied,
-    service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
+    services,
+    namespace,
   };
-});
-
-const tunnelOutput = new pulumi.StackReference(
-  `radiosilence/jaritanet/${pulumi.getStack()}`
-).requireOutput(
-  "tunnel"
-) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
-
-const cloudflaredConf = CloudflaredConfSchema.parse(
-  config.requireObject<CloudflaredConf>("cloudflared")
-);
-
-createCloudflared(
-  provider,
-  cloudflaredConf.name,
-  tunnelOutput.apply((t) => t.tunnelToken)
-);
+};

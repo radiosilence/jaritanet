@@ -27,6 +27,7 @@ export default defineFlatConfig([
       "unicorn/consistent-destructuring": "warn",
       "unicorn/no-unused-properties": "warn",
       "unicorn/switch-case-braces": ["warn", "avoid"],
+
       "@typescript-eslint/no-deprecated": "warn",
       curly: "off",
 

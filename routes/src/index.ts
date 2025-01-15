@@ -1,13 +1,17 @@
 import { z } from "zod";
-import type * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
 import {
   type CloudflareConf,
-  type ServiceOutput,
+  ServiceSchema,
   ServiceStackConfSchema,
   ZoneConfSchema,
 } from "./conf.schemas";
 import * as modules from "./modules";
+import {
+  outputDetails,
+  outputDetailsSecret,
+  TunnelSchema,
+} from "./references.schemas";
 import {
   createTunnelConfig,
   createZone,
@@ -21,35 +25,33 @@ const serviceStacks = z
   .parse(config.requireObject("serviceStacks"));
 
 const zones = z.array(ZoneConfSchema).parse(config.requireObject("zones"));
-
-for (const zone of zones) {
-  for (const module of zone.modules) {
-    modules[module](zone);
-  }
-}
 const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`
 );
 
-const tunnelOutput = infraStackRef.requireOutput(
-  "tunnel"
-) as pulumi.Output<cloudflare.ZeroTrustTunnelCloudflared>;
+export = async () => {
+  for (const zone of zones) {
+    for (const module of zone.modules) {
+      modules[module](zone);
+    }
+  }
 
-for (const { path, stack = pulumi.getStack() } of serviceStacks) {
-  const stackRef = new pulumi.StackReference(`${path}/${stack}`);
-  const servicesOutput = stackRef.requireOutput("services") as pulumi.Output<
-    ServiceOutput[]
-  >;
+  const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(
+    await infraStackRef.getOutputDetails("tunnel")
+  );
 
-  const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
+  for (const { path, stack = pulumi.getStack() } of serviceStacks) {
+    const stackRef = new pulumi.StackReference(`${path}/${stack}`);
+    const { value: services } = outputDetails(z.array(ServiceSchema)).parse(
+      await stackRef.getOutputDetails("services")
+    );
 
-  const ingressRules = servicesOutput.apply((services) => {
-    return services.map(({ hostname, service }) =>
+    const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
+
+    const ingressRules = services.map(({ hostname, service }) =>
       getServiceIngressRule(hostname, service)
     );
-  });
 
-  servicesOutput.apply((services) => {
     for (const service of services) {
       const { zoneName } = getRecord(service.hostname);
       const zone = zones.find((z) => z.name === zoneName);
@@ -58,16 +60,8 @@ for (const { path, stack = pulumi.getStack() } of serviceStacks) {
         throw new Error(`Zone ${zoneName} not found`);
       }
 
-      createZone(
-        tunnelOutput.apply((t) => t.cname),
-        zone,
-        service
-      );
+      createZone(tunnel.cname, zone, service);
     }
-  });
-  createTunnelConfig(
-    accountId,
-    tunnelOutput.apply((t) => t.id),
-    ingressRules
-  );
-}
+    createTunnelConfig(accountId, tunnel.id, ingressRules);
+  }
+};
