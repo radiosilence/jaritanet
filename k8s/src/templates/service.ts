@@ -108,6 +108,9 @@ export function createService(
         selector: {
           matchLabels: { app: name },
         },
+        strategy: {
+          type: "Recreate",
+        },
         template: {
           metadata: {
             labels: { app: name },
