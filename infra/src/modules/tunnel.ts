@@ -5,7 +5,7 @@ import { CloudflareConfSchema } from "../conf.schemas";
 
 const config = new pulumi.Config();
 const { accountId } = CloudflareConfSchema.parse(
-  config.requireObject("cloudflare")
+  config.requireObject("cloudflare"),
 );
 
 /**

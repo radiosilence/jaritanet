@@ -26,7 +26,7 @@ const serviceStacks = z
 
 const zones = z.array(ZoneConfSchema).parse(config.requireObject("zones"));
 const infraStackRef = new pulumi.StackReference(
-  `radiosilence/jaritanet/${pulumi.getStack()}`
+  `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
 export = async () => {
@@ -37,19 +37,19 @@ export = async () => {
   }
 
   const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(
-    await infraStackRef.getOutputDetails("tunnel")
+    await infraStackRef.getOutputDetails("tunnel"),
   );
 
   for (const { path, stack = pulumi.getStack() } of serviceStacks) {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
     const { value: services } = outputDetails(z.array(ServiceSchema)).parse(
-      await stackRef.getOutputDetails("services")
+      await stackRef.getOutputDetails("services"),
     );
 
     const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
 
     const ingressRules = services.map(({ hostname, service }) =>
-      getServiceIngressRule(hostname, service)
+      getServiceIngressRule(hostname, service),
     );
 
     for (const service of services) {

@@ -32,7 +32,7 @@ const kubeconfig = JSON.stringify(
     token: atob(process.env.KUBE_TOKEN),
   }),
   null,
-  2
+  2,
 );
 
 const provider = new k8s.Provider("provider", {
@@ -47,16 +47,16 @@ new k8s.core.v1.Namespace(
       name: namespace,
     },
   },
-  { provider }
+  { provider },
 );
 
 const infraStackRef = new pulumi.StackReference(
-  `radiosilence/jaritanet/${pulumi.getStack()}`
+  `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
 export = async () => {
   const services = ServicesArraySchema.parse(
-    config.requireObject("services")
+    config.requireObject("services"),
   ).map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
 
@@ -68,11 +68,11 @@ export = async () => {
   });
 
   const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(
-    await infraStackRef.getOutputDetails("tunnel")
+    await infraStackRef.getOutputDetails("tunnel"),
   );
 
   const cloudflaredConf = CloudflaredConfSchema.parse(
-    config.requireObject<CloudflaredConf>("cloudflared")
+    config.requireObject<CloudflaredConf>("cloudflared"),
   );
 
   createCloudflared(provider, cloudflaredConf.name, tunnel.tunnelToken);

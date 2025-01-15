@@ -3,7 +3,7 @@ import * as cloudflare from "@pulumi/cloudflare";
 export function createTunnelConfig(
   accountId: string,
   tunnelId: string,
-  ingressRules: cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngressRule[]
+  ingressRules: cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngressRule[],
 ) {
   new cloudflare.ZeroTrustTunnelCloudflaredConfig("tunnel-config", {
     accountId,

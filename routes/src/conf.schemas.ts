@@ -30,7 +30,7 @@ export const BlueskyConfSchema = z.object({
   did: z
     .string()
     .describe(
-      "Bluesky requires a DID to be set in the DNS records for authentication."
+      "Bluesky requires a DID to be set in the DNS records for authentication.",
     ),
 });
 
@@ -45,7 +45,7 @@ export const LegacyServiceConfSchema = z
     service: z.string().describe("Internal service URL."),
   })
   .describe(
-    "Configuration for a tunneled service. @deprecated In favor of `ServiceOutput`."
+    "Configuration for a tunneled service. @deprecated In favor of `ServiceOutput`.",
   );
 
 export const ZoneConfSchema = z.object({

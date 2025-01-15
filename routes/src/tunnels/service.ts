@@ -12,7 +12,7 @@ export function getRecord(hostname: string) {
 
 export function getServiceIngressRule(
   hostname: string,
-  service: string
+  service: string,
 ): cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngressRule {
   return {
     hostname,
@@ -26,7 +26,7 @@ export function getServiceIngressRule(
 export function createZone(
   tunnelCname: string,
   { zoneId }: ZoneConf,
-  { hostname, proxied }: Service
+  { hostname, proxied }: Service,
 ) {
   const { recordName: name } = getRecord(hostname);
 

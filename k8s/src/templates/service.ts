@@ -12,7 +12,7 @@ export function createService(
     hostVolumes,
     persistence,
     env,
-  }: ServiceArgs
+  }: ServiceArgs,
 ) {
   const pvs = Object.fromEntries(
     persistence.map(
@@ -56,10 +56,10 @@ export function createService(
               },
             },
           },
-          { provider }
+          { provider },
         ),
-      ]
-    )
+      ],
+    ),
   );
 
   const pvcs = Object.fromEntries(
@@ -75,9 +75,9 @@ export function createService(
             resources: { requests: { storage } },
           },
         },
-        { provider }
+        { provider },
       ),
-    ])
+    ]),
   );
 
   const service = new k8s.core.v1.Service(
@@ -97,7 +97,7 @@ export function createService(
         ],
       },
     },
-    { provider }
+    { provider },
   );
 
   new k8s.apps.v1.Deployment(
@@ -161,7 +161,7 @@ export function createService(
         },
       },
     },
-    { provider, deleteBeforeReplace: persistence.length > 0 }
+    { provider, deleteBeforeReplace: persistence.length > 0 },
   );
 
   return service;
