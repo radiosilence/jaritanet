@@ -8,6 +8,7 @@ import {
 import { getKubeconfig } from "./kubeconfig";
 import { outputDetailsSecret, TunnelSchema } from "./references.schemas";
 import { createCloudflared, createService } from "./templates";
+import { parse } from "@schema-hub/zod-error-formatter";
 
 const config = new pulumi.Config();
 
@@ -55,7 +56,8 @@ const infraStackRef = new pulumi.StackReference(
 );
 
 export = async () => {
-  const services = ServicesArraySchema.parse(
+  const services = parse(
+    ServicesArraySchema,
     config.requireObject("services"),
   ).map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
@@ -67,11 +69,13 @@ export = async () => {
     };
   });
 
-  const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(
+  const { secretValue: tunnel } = parse(
+    outputDetailsSecret(TunnelSchema),
     await infraStackRef.getOutputDetails("tunnel"),
   );
 
-  const cloudflaredConf = CloudflaredConfSchema.parse(
+  const cloudflaredConf = parse(
+    CloudflaredConfSchema,
     config.requireObject<CloudflaredConf>("cloudflared"),
   );
 

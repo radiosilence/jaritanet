@@ -18,13 +18,15 @@ import {
   getRecord,
   getServiceIngressRule,
 } from "./tunnels";
+import { parse } from "@schema-hub/zod-error-formatter";
 
 const config = new pulumi.Config();
-const serviceStacks = z
-  .array(ServiceStackConfSchema)
-  .parse(config.requireObject("serviceStacks"));
+const serviceStacks = parse(
+  z.array(ServiceStackConfSchema),
+  config.requireObject("serviceStacks"),
+);
 
-const zones = z.array(ZoneConfSchema).parse(config.requireObject("zones"));
+const zones = parse(z.array(ZoneConfSchema), config.requireObject("zones"));
 const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
@@ -36,13 +38,15 @@ export = async () => {
     }
   }
 
-  const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(
+  const { secretValue: tunnel } = parse(
+    outputDetailsSecret(TunnelSchema),
     await infraStackRef.getOutputDetails("tunnel"),
   );
 
   for (const { path, stack = pulumi.getStack() } of serviceStacks) {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
-    const { value: services } = outputDetails(z.array(ServiceSchema)).parse(
+    const { value: services } = parse(
+      outputDetails(z.array(ServiceSchema)),
       await stackRef.getOutputDetails("services"),
     );
 

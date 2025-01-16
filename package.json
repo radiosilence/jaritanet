@@ -20,6 +20,7 @@
     "@pulumi/kubernetes": "^4.20.0",
     "@pulumi/pulumi": "^3.145.0",
     "@pulumi/random": "^4.16.8",
+    "@schema-hub/zod-error-formatter": "^0.0.8",
     "zod": "^3.24.1"
   },
   "keywords": [],
