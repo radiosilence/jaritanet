@@ -37,11 +37,3 @@
     enabled: true
     state: started
 
-- name: Open NFS ports in firewall
-  ufw:
-    rule: allow
-    port: "{{ item }}"
-    proto: tcp
-  with_items:
-    - 2049
-    - 111

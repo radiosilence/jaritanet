@@ -18,6 +18,7 @@
 
   roles:
     - microk8s
+    - nfs
     - samba
     - syncthing
 
