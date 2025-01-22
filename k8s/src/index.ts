@@ -1,3 +1,4 @@
+import { z } from "zod";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import {
@@ -10,45 +11,64 @@ import { outputDetailsSecret, TunnelSchema } from "./references.schemas";
 import { createCloudflared, createService } from "./templates";
 import { parse } from "@schema-hub/zod-error-formatter";
 
-const config = new pulumi.Config();
+// Environment validation schema
+const EnvSchema = z.object({
+  KUBE_HOST: z.string().min(1, "KUBE_HOST is required"),
+  KUBE_API_PORT: z.string().min(1, "KUBE_API_PORT is required"),
+  KUBE_TOKEN: z.string().min(1, "KUBE_TOKEN is required"),
+});
 
+const config = new pulumi.Config();
 const namespace = "jaritanet";
 
-if (!process.env.KUBE_HOST) {
-  throw new Error("KUBE_HOST is required");
-}
-
-if (!process.env.KUBE_API_PORT) {
-  throw new Error("KUBE_API_PORT is required");
-}
-
-if (!process.env.KUBE_TOKEN) {
-  throw new Error("KUBE_TOKEN is required");
-}
+// Validate environment variables
+const env = parse(EnvSchema, process.env);
 
 const kubeconfig = JSON.stringify(
   getKubeconfig({
-    host: process.env.KUBE_HOST,
-    port: process.env.KUBE_API_PORT,
-    token: atob(process.env.KUBE_TOKEN),
+    host: env.KUBE_HOST,
+    port: env.KUBE_API_PORT,
+    token: atob(env.KUBE_TOKEN),
   }),
   null,
   2,
 );
 
-const provider = new k8s.Provider("provider", {
-  kubeconfig,
-  namespace,
-});
+// Initialize Kubernetes provider with retry logic
+const provider = new k8s.Provider(
+  "provider",
+  {
+    kubeconfig,
+    namespace,
+  },
+  {
+    customTimeouts: {
+      create: "5m",
+      update: "5m",
+      delete: "5m",
+    },
+  },
+);
 
+// Create namespace with proper labels and annotations
 new k8s.core.v1.Namespace(
   namespace,
   {
     metadata: {
       name: namespace,
+      labels: {
+        name: namespace,
+        "kubernetes.io/metadata.name": namespace,
+      },
+      annotations: {
+        "pulumi.com/managed-by": "jaritanet",
+      },
     },
   },
-  { provider },
+  {
+    provider,
+    protect: true, // Prevent accidental deletion
+  },
 );
 
 const infraStackRef = new pulumi.StackReference(
@@ -62,12 +82,12 @@ export = async () => {
   ).map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
 
-    return {
-      hostname,
-      proxied,
-      service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
-    };
-  });
+      return {
+        hostname,
+        proxied,
+        service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
+      };
+    });
 
   const { secretValue: tunnel } = parse(
     outputDetailsSecret(TunnelSchema),
@@ -79,10 +99,25 @@ export = async () => {
     config.requireObject<CloudflaredConf>("cloudflared"),
   );
 
-  createCloudflared(provider, cloudflaredConf.name, tunnel.tunnelToken);
+    // Create cloudflared deployment with proper error handling
+    const cloudflared = createCloudflared(
+      provider,
+      cloudflaredConf.name,
+      tunnel.tunnelToken,
+      cloudflaredConf.args,
+    );
 
-  return {
-    services,
-    namespace,
-  };
+    return {
+      services,
+      namespace,
+      cloudflaredStatus: cloudflared.status,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new pulumi.RunError(
+        `Failed to configure Kubernetes resources: ${error.message}`,
+      );
+    }
+    throw error;
+  }
 };

@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { ServiceArgsSchema } from "./templates";
+import { CloudflaredArgsSchema, ServiceArgsSchema } from "./templates";
 
 export const CloudflaredConfSchema = z.object({
   name: z.string(),
+  args: CloudflaredArgsSchema.default({}),
 });
 
 export type CloudflaredConf = z.infer<typeof CloudflaredConfSchema>;
