@@ -50,7 +50,6 @@ const provider = new k8s.Provider(
   },
 );
 
-// Create namespace with proper labels and annotations
 new k8s.core.v1.Namespace(
   namespace,
   {
@@ -65,10 +64,7 @@ new k8s.core.v1.Namespace(
       },
     },
   },
-  {
-    provider,
-    protect: true, // Prevent accidental deletion
-  },
+  { provider },
 );
 
 const infraStackRef = new pulumi.StackReference(
@@ -82,12 +78,12 @@ export = async () => {
   ).map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
 
-      return {
-        hostname,
-        proxied,
-        service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
-      };
-    });
+    return {
+      hostname,
+      proxied,
+      service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
+    };
+  });
 
   const { secretValue: tunnel } = parse(
     outputDetailsSecret(TunnelSchema),
@@ -99,25 +95,17 @@ export = async () => {
     config.requireObject<CloudflaredConf>("cloudflared"),
   );
 
-    // Create cloudflared deployment with proper error handling
-    const cloudflared = createCloudflared(
-      provider,
-      cloudflaredConf.name,
-      tunnel.tunnelToken,
-      cloudflaredConf.args,
-    );
+  // Create cloudflared deployment with proper error handling
+  const cloudflared = createCloudflared(
+    provider,
+    cloudflaredConf.name,
+    tunnel.tunnelToken,
+    cloudflaredConf.args,
+  );
 
-    return {
-      services,
-      namespace,
-      cloudflaredStatus: cloudflared.status,
-    };
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new pulumi.RunError(
-        `Failed to configure Kubernetes resources: ${error.message}`,
-      );
-    }
-    throw error;
-  }
+  return {
+    services,
+    namespace,
+    cloudflaredStatus: cloudflared.status,
+  };
 };
