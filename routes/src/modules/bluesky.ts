@@ -16,6 +16,6 @@ export function bluesky(zone: ZoneConf) {
     ...zone,
     type: "TXT",
     name: "_atproto",
-    content: `"${did}"`,
+    content: `"did=${did}"`,
   });
 }
