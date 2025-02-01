@@ -11,10 +11,12 @@ config:
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
       modules:
         - fastmail
+        - bluesky
     - name: radiosilence.dev
       zoneId: 3373ad7c3dc3104e7aeab31c1176e684
       modules:
         - fastmail
+        - bluesky
     - name: buttholes.live
       zoneId: 1115a1e5006523692d61e49e672f6df0
       modules:
