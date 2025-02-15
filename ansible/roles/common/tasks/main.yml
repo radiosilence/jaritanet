@@ -12,4 +12,5 @@
       - acl
       - fish
       - btop
+      - aria2
     state: present
