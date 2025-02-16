@@ -65,7 +65,7 @@ config:
           memory: 256Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: latest
+          tag: 1.0.15
           pullPolicy: "Always"
 
     # - name: bambi-art
