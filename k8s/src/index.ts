@@ -9,7 +9,8 @@ import {
 } from "./conf.schemas";
 import { getKubeconfig } from "./kubeconfig";
 import { TunnelSchema, outputDetailsSecret } from "./references.schemas";
-import { createCloudflared, createService } from "./templates";
+import { createCloudflared } from "./templates/cloudflared";
+import { createService } from "./templates/service";
 
 // Environment validation schema
 const EnvSchema = z.object({
