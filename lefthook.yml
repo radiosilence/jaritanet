@@ -1,11 +1,8 @@
 pre-commit:
-  parallel: true
   commands:
-    pretty-quick:
-      run: pnpx pretty-quick {staged_files} && git add {staged_files}
-    # eslint-web:
-    #   glob: "./web/*.{tsx,ts,astro,mjs,js}}"
-    #   run: pnpx eslint -c ./web/eslint.config.mjs {staged_files}
+    check:
+      run: npx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+      stage_fixed: true
 pre-push:
   commands:
     version-check:

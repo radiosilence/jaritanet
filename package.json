@@ -10,7 +10,6 @@
     "@biomejs/biome": "1.9.4",
     "@evilmartians/lefthook": "^1.10.10",
     "@types/node": "^22.13.4",
-    "prettier": "^3.5.1",
     "typescript": "^5.7.3"
   },
   "dependencies": {
@@ -24,5 +23,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "trustedDependencies": ["@biomejs/biome", "@evilmartians/lefthook", "@pulumi/kubernetes", "protobufjs"]
+  "trustedDependencies": [
+    "@biomejs/biome",
+    "@evilmartians/lefthook",
+    "@pulumi/kubernetes",
+    "protobufjs"
+  ]
 }
