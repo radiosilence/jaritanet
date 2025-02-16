@@ -3,37 +3,29 @@
   "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
   "files": { "ignoreUnknown": false, "ignore": [] },
   "formatter": {
-    "enabled": true,
-    "useEditorconfig": true,
-    "formatWithErrors": false,
     "indentStyle": "space",
-    "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 80,
-    "attributePosition": "auto",
-    "bracketSpacing": true,
-    "ignore": [
-      "./node_modules/",
-      "./dist/",
-      "./build/",
-      "./artifacts/",
-      "./coverage/",
-      "**/.git/"
-    ]
+    "attributePosition": "auto"
   },
   "organizeImports": { "enabled": true },
   "linter": { "enabled": true, "rules": { "recommended": true } },
   "javascript": {
     "formatter": {
-      "jsxQuoteStyle": "double",
-      "quoteProperties": "asNeeded",
       "trailingCommas": "all",
-      "semicolons": "asNeeded",
-      "arrowParentheses": "always",
-      "bracketSameLine": false,
-      "quoteStyle": "single",
+      "semicolons": "always",
+      "arrowParentheses": "asNeeded",
+      "bracketSameLine": true,
+      "quoteStyle": "double",
       "attributePosition": "auto",
       "bracketSpacing": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true
+    },
+    "parser": {
+      "allowTrailingCommas": true,
+      "allowComments": true
     }
   }
 }

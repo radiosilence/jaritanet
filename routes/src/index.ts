@@ -1,5 +1,6 @@
-import { z } from "zod";
 import * as pulumi from "@pulumi/pulumi";
+import { parse } from "@schema-hub/zod-error-formatter";
+import { z } from "zod";
 import {
   type CloudflareConf,
   ServiceSchema,
@@ -8,9 +9,9 @@ import {
 } from "./conf.schemas";
 import * as modules from "./modules";
 import {
+  TunnelSchema,
   outputDetails,
   outputDetailsSecret,
-  TunnelSchema,
 } from "./references.schemas";
 import {
   createTunnelConfig,
@@ -18,7 +19,6 @@ import {
   getRecord,
   getServiceIngressRule,
 } from "./tunnels";
-import { parse } from "@schema-hub/zod-error-formatter";
 
 const config = new pulumi.Config();
 const serviceStacks = parse(
@@ -58,7 +58,7 @@ export = async () => {
 
     for (const service of services) {
       const { zoneName } = getRecord(service.hostname);
-      const zone = zones.find((z) => z.name === zoneName);
+      const zone = zones.find(z => z.name === zoneName);
 
       if (!zone) {
         throw new Error(`Zone ${zoneName} not found`);
