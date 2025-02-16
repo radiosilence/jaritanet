@@ -7,18 +7,24 @@ import {
   ServiceStackConfSchema,
   ZoneConfSchema,
 } from "./conf.schemas";
-import * as modules from "./modules";
+import { bluesky } from "./modules/bluesky";
+import { fastmail } from "./modules/fastmail";
 import {
   TunnelSchema,
   outputDetails,
   outputDetailsSecret,
 } from "./references.schemas";
 import {
-  createTunnelConfig,
   createZone,
   getRecord,
   getServiceIngressRule,
-} from "./tunnels";
+} from "./tunnels/service";
+import { createTunnelConfig } from "./tunnels/tunnel-config";
+
+const modules = {
+  bluesky,
+  fastmail,
+};
 
 const config = new pulumi.Config();
 const serviceStacks = parse(
