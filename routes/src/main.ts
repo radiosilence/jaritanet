@@ -64,7 +64,7 @@ export = async () => {
 
     for (const service of services) {
       const { zoneName } = getRecord(service.hostname);
-      const zone = zones.find(z => z.name === zoneName);
+      const zone = zones.find((z) => z.name === zoneName);
 
       if (!zone) {
         throw new Error(`Zone ${zoneName} not found`);

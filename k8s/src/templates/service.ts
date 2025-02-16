@@ -124,7 +124,7 @@ export function createService(
                   type: hostPathType,
                 },
               })),
-              ...Object.keys(pvcs).map(name => ({
+              ...Object.keys(pvcs).map((name) => ({
                 name,
                 persistentVolumeClaim: { claimName: pvcs[name].metadata.name },
               })),
