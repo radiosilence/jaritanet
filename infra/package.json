@@ -1,4 +1,4 @@
 {
   "name": "jaritanet-infra",
-  "main": "./src/index.ts"
+  "main": "./src/main.ts"
 }
