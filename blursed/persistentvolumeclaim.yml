@@ -1,9 +1,0 @@
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: blursed-pvc
-spec:
-  storageClassName: local-storage
-  accessModes: [ReadOnlyMany]
-  resources: { requests: { storage: 20Mi } }
