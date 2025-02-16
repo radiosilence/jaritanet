@@ -8,21 +8,21 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@evilmartians/lefthook": "^1.10.7",
-    "@types/node": "^22.10.6",
-    "prettier": "^3.4.2",
+    "@evilmartians/lefthook": "^1.10.10",
+    "@types/node": "^22.13.4",
+    "prettier": "^3.5.1",
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@pulumi/cloudflare": "^5.47.0",
-    "@pulumi/kubernetes": "^4.20.0",
-    "@pulumi/pulumi": "^3.145.0",
-    "@pulumi/random": "^4.16.8",
+    "@pulumi/cloudflare": "^5.49.0",
+    "@pulumi/kubernetes": "^4.21.1",
+    "@pulumi/pulumi": "^3.150.0",
+    "@pulumi/random": "^4.17.0",
     "@schema-hub/zod-error-formatter": "^0.0.8",
-    "zod": "^3.24.1"
+    "zod": "^3.24.2"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "trustedDependencies": ["protobufjs"]
+  "trustedDependencies": ["@biomejs/biome", "@evilmartians/lefthook", "@pulumi/kubernetes", "protobufjs"]
 }
