@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@evilmartians/lefthook": "^1.10.7",
     "@types/node": "^22.10.6",
     "prettier": "^3.4.2",
@@ -23,7 +24,5 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "trustedDependencies": [
-    "protobufjs"
-  ]
+  "trustedDependencies": ["protobufjs"]
 }
