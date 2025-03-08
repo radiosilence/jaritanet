@@ -1,23 +1,13 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { z } from "zod";
 import { conf } from "./conf";
+import { env } from "./env";
 import { getKubeconfig } from "./kubeconfig";
 import { createReferences } from "./references";
 import { createCloudflared } from "./templates/cloudflared";
 import { createService } from "./templates/service";
 
-// Environment validation schema
-const EnvSchema = z.object({
-  KUBE_HOST: z.string().min(1, "KUBE_HOST is required"),
-  KUBE_API_PORT: z.string().min(1, "KUBE_API_PORT is required"),
-  KUBE_TOKEN: z.string().min(1, "KUBE_TOKEN is required"),
-});
-
 const namespace = "jaritanet";
-
-// Validate environment variables
-const env = EnvSchema.parse(process.env);
 
 const kubeconfig = JSON.stringify(
   getKubeconfig({
