@@ -1,10 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
-import { parse } from "@schema-hub/zod-error-formatter";
 import { RoutesConfSchema } from "./conf.schemas";
 
 const config = new pulumi.Config();
 
-export const conf = parse(RoutesConfSchema, {
+export const conf = RoutesConfSchema.parse({
   serviceStacks: config.requireObject("serviceStacks"),
   zones: config.requireObject("zones"),
   cloudflare: config.requireObject("cloudflare"),

@@ -1,21 +1,15 @@
 import * as pulumi from "@pulumi/pulumi";
-import { parse } from "@schema-hub/zod-error-formatter";
-import { z } from "zod";
 import { conf } from "./conf";
-import { ServiceSchema } from "./conf.schemas";
 import { bluesky } from "./modules/bluesky";
 import { fastmail } from "./modules/fastmail";
-import {
-  TunnelSchema,
-  outputDetails,
-  outputDetailsSecret,
-} from "./references.schemas";
 import {
   createZone,
   getRecord,
   getServiceIngressRule,
 } from "./tunnels/service";
 import { createTunnelConfig } from "./tunnels/tunnel-config";
+
+import { createReferences } from "./references";
 
 const modules = {
   bluesky,
@@ -33,17 +27,12 @@ export = async () => {
     }
   }
 
-  const { secretValue: tunnel } = parse(
-    outputDetailsSecret(TunnelSchema),
-    await infraStackRef.getOutputDetails("tunnel"),
-  );
+  const { getTunnel, getServices } = await createReferences();
+  const tunnel = await getTunnel(infraStackRef);
 
   for (const { path, stack = pulumi.getStack() } of conf.serviceStacks) {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
-    const { value: services } = parse(
-      outputDetails(z.array(ServiceSchema)),
-      await stackRef.getOutputDetails("services"),
-    );
+    const services = await getServices(stackRef);
 
     const ingressRules = services.map(({ hostname, service }) =>
       getServiceIngressRule(hostname, service),

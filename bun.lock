@@ -8,7 +8,6 @@
         "@pulumi/kubernetes": "latest",
         "@pulumi/pulumi": "latest",
         "@pulumi/random": "latest",
-        "@schema-hub/zod-error-formatter": "latest",
         "zod": "latest",
       },
       "devDependencies": {
@@ -143,8 +142,6 @@
     "@pulumi/query": ["@pulumi/query@0.3.0", "", {}, "sha512-xfo+yLRM2zVjVEA4p23IjQWzyWl1ZhWOGobsBqRpIarzLvwNH/RAGaoehdxlhx4X92302DrpdIFgTICMN4P38w=="],
 
     "@pulumi/random": ["@pulumi/random@4.18.0", "", { "dependencies": { "@pulumi/pulumi": "^3.142.0" } }, "sha512-6joE5/jhadtWmwuMh3YtDB1kA3G4pDLVhk+l5mSxe/kuf+ejQ1w+LnfbpRi9iinwPl2AqzfDp9IheksTxIwzFA=="],
-
-    "@schema-hub/zod-error-formatter": ["@schema-hub/zod-error-formatter@0.0.8", "", { "peerDependencies": { "zod": "^3.22.4" } }, "sha512-Tm0XHGCRc8b+XM3ncZ+cbCHKMtq9YNln4dR483kXUZ9IOS5hG/FXepC36T9GCKnhsoUGSsAo4pzkN8T74SHqow=="],
 
     "@sigstore/bundle": ["@sigstore/bundle@2.3.2", "", { "dependencies": { "@sigstore/protobuf-specs": "^0.3.2" } }, "sha512-wueKWDk70QixNLB363yHc2D2ItTgYiMTdPwK8D9dKQMR3ZQ0c35IxP5xnwQ8cNLoCgCRcHf14kE+CLIvNX1zmA=="],
 

@@ -1,10 +1,9 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { parse } from "@schema-hub/zod-error-formatter";
 import { z } from "zod";
 import { conf } from "./conf";
 import { getKubeconfig } from "./kubeconfig";
-import { TunnelSchema, outputDetailsSecret } from "./references.schemas";
+import { createReferences } from "./references";
 import { createCloudflared } from "./templates/cloudflared";
 import { createService } from "./templates/service";
 
@@ -18,7 +17,7 @@ const EnvSchema = z.object({
 const namespace = "jaritanet";
 
 // Validate environment variables
-const env = parse(EnvSchema, process.env);
+const env = EnvSchema.parse(process.env);
 
 const kubeconfig = JSON.stringify(
   getKubeconfig({
@@ -78,10 +77,9 @@ export = async () => {
     };
   });
 
-  const { secretValue: tunnel } = parse(
-    outputDetailsSecret(TunnelSchema),
-    await infraStackRef.getOutputDetails("tunnel"),
-  );
+  const { getTunnel } = await createReferences();
+
+  const tunnel = await getTunnel(infraStackRef);
 
   const cloudflaredConf = conf.cloudflared;
 

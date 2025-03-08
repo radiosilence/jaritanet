@@ -16,7 +16,6 @@
     "@pulumi/kubernetes": "latest",
     "@pulumi/pulumi": "latest",
     "@pulumi/random": "latest",
-    "@schema-hub/zod-error-formatter": "latest",
     "zod": "latest"
   },
   "keywords": [],
