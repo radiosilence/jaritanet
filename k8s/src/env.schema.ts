@@ -1,4 +1,4 @@
-import z from "zod";
+import { z } from "zod";
 
 // Environment validation schema
 export const EnvSchema = z.object({
