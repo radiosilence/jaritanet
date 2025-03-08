@@ -5,9 +5,9 @@ import { RoutesConfSchema } from "./conf.schemas";
 const config = new pulumi.Config();
 
 export const conf = parse(RoutesConfSchema, {
-  serviceStacks: config.require("serviceStacks"),
-  zones: config.require("zones"),
-  cloudflare: config.require("cloudflare"),
-  bluesky: config.require("bluesky"),
-  fastmail: config.require("fastmail"),
+  serviceStacks: config.requireObject("serviceStacks"),
+  zones: config.requireObject("zones"),
+  cloudflare: config.requireObject("cloudflare"),
+  bluesky: config.requireObject("bluesky"),
+  fastmail: config.requireObject("fastmail"),
 });
