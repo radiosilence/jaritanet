@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "bin",
+    "baseUrl": ".",
+    "target": "es2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "pretty": true,
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": false,
+    "noImplicitReturns": false,
+    "forceConsistentCasingInFileNames": true
+  }
+}
