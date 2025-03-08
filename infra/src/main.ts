@@ -6,6 +6,6 @@ import { createTunnel } from "./modules/tunnel";
 
 const config = new pulumi.Config();
 
-const { name } = parse(TunnelConfSchema, config.requireObject("tunnel"));
-
-export const tunnel = createTunnel(name);
+export const tunnel = createTunnel(
+  parse(TunnelConfSchema, config.requireObject("tunnel")),
+);

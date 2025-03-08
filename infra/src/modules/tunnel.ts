@@ -11,12 +11,16 @@ const { accountId } = parse(
 );
 
 /**
- * Creates a new Cloudflare tunnel.
- *
- * @param name - The name of the tunnel.
- * @returns The created tunnel.
+ * Creates a new Cloudflare tunnel
  */
-export function createTunnel(name: string) {
+export function createTunnel({
+  name,
+}: {
+  /**
+   * The name of the tunnel.
+   */
+  name: string;
+}) {
   const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });
