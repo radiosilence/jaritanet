@@ -20,7 +20,7 @@
     "zod": "latest"
   },
   "keywords": [],
-  "author": "",
+  "author": "James Cleveland <jc@blit.cc>",
   "license": "ISC",
   "trustedDependencies": [
     "@biomejs/biome",
