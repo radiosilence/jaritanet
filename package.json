@@ -1,24 +1,23 @@
 {
-  "name": "jaritanet",
+  "name": "@radiosilence/jaritanet",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@evilmartians/lefthook": "^1.11.3",
-    "@types/node": "^22.13.10",
-    "typescript": "^5.8.2"
+    "@biomejs/biome": "latest",
+    "@evilmartians/lefthook": "latest",
+    "@types/node": "^22",
+    "typescript": "latest"
   },
   "dependencies": {
-    "@pulumi/cloudflare": "^5.49.1",
-    "@pulumi/kubernetes": "^4.21.1",
-    "@pulumi/pulumi": "^3.154.0",
-    "@pulumi/random": "^4.18.0",
-    "@schema-hub/zod-error-formatter": "^0.0.8",
-    "zod": "^3.24.2"
+    "@pulumi/cloudflare": "latest",
+    "@pulumi/kubernetes": "latest",
+    "@pulumi/pulumi": "latest",
+    "@pulumi/random": "latest",
+    "@schema-hub/zod-error-formatter": "latest",
+    "zod": "latest"
   },
   "keywords": [],
   "author": "",
