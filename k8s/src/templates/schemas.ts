@@ -17,7 +17,6 @@ export const HostVolumeSchema = z.object({
   mountPath: z.string(),
   readOnly: z.boolean().default(true),
 });
-export type HostVolumeSchema = z.infer<typeof HostVolumeSchema>;
 
 export const PersistenceSchema = z.object({
   name: z.string(),
@@ -29,15 +28,11 @@ export const PersistenceSchema = z.object({
   nodeAffinityHostname: z.string(),
 });
 
-export type Persistence = z.infer<typeof PersistenceSchema>;
-
 export const ImageSchema = z.object({
   repository: z.string(),
   tag: z.string(),
   pullPolicy: z.string().optional(),
 });
-
-export type Image = z.infer<typeof ImageSchema>;
 
 export const LimitsSchema = z
   .object({
@@ -45,5 +40,3 @@ export const LimitsSchema = z
     cpu: z.string().default("50m"),
   })
   .default({});
-
-export type Limits = z.infer<typeof LimitsSchema>;

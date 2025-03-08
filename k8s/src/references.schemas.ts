@@ -15,4 +15,3 @@ export const TunnelSchema = z.object({
   cname: z.string(),
   tunnelToken: z.string(),
 });
-export type TunnelSchema = z.infer<typeof TunnelSchema>;

@@ -6,11 +6,7 @@ export const ServiceSchema = z.object({
   proxied: z.boolean(),
 });
 
-export type Service = z.infer<typeof ServiceSchema>;
-
 const DnsModuleEnum = z.enum(["bluesky", "fastmail"]);
-
-export type DnsModule = z.infer<typeof DnsModuleEnum>;
 
 export const CloudflareConfSchema = z.object({
   accountId: z.string().describe("Cloudflare account ID."),
@@ -53,10 +49,3 @@ export const ZoneConfSchema = z.object({
   name: z.string().describe("The name of the zone."),
   modules: z.array(DnsModuleEnum).describe("DNS modules to apply."),
 });
-
-export type CloudflareConf = z.infer<typeof CloudflareConfSchema>;
-export type FastmailConf = z.infer<typeof FastmailConfSchema>;
-export type BlueskyConf = z.infer<typeof BlueskyConfSchema>;
-export type ServiceStackConf = z.infer<typeof ServiceStackConfSchema>;
-export type LegacyServiceConf = z.infer<typeof LegacyServiceConfSchema>;
-export type ZoneConf = z.infer<typeof ZoneConfSchema>;

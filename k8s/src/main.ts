@@ -2,11 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { parse } from "@schema-hub/zod-error-formatter";
 import { z } from "zod";
-import {
-  type CloudflaredConf,
-  CloudflaredConfSchema,
-  ServicesArraySchema,
-} from "./conf.schemas";
+import { CloudflaredConfSchema, ServicesArraySchema } from "./conf.schemas";
 import { getKubeconfig } from "./kubeconfig";
 import { TunnelSchema, outputDetailsSecret } from "./references.schemas";
 import { createCloudflared } from "./templates/cloudflared";
@@ -93,7 +89,7 @@ export = async () => {
 
   const cloudflaredConf = parse(
     CloudflaredConfSchema,
-    config.requireObject<CloudflaredConf>("cloudflared"),
+    config.requireObject("cloudflared"),
   );
 
   // Create cloudflared deployment with proper error handling

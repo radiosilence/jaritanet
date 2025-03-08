@@ -15,5 +15,3 @@ export const ServiceArgsSchema = z.object({
   hostVolumes: z.array(HostVolumeSchema).default([]),
   persistence: z.array(PersistenceSchema).default([]),
 });
-
-export type ServiceArgs = z.infer<typeof ServiceArgsSchema>;
