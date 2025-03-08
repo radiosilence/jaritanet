@@ -1,8 +1,0 @@
-#!/bin/bash
-extra_args="${*:2}"
-
-set -e
-kubectl create namespace "$1" || true
-
-# shellcheck disable=SC2086
-jsonnet -y $extra_args "k8s-jsonnet/$1.jsonnet" | yq -P >"k8s-jsonnet/dist/$1.yaml" && kubectl apply -n "$1" -f "k8s-jsonnet/dist/$1.yaml"

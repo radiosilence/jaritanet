@@ -1,4 +1,0 @@
-#!/bin/bash
-set -e
-
-kubectl delete -n "$1" -f "k8s/dist/$1.yaml"
