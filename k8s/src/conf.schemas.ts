@@ -15,3 +15,8 @@ export const ServiceConfSchema = z.object({
 });
 
 export const ServicesArraySchema = z.array(ServiceConfSchema);
+
+export const K8sConfSchema = z.object({
+  cloudflared: CloudflaredConfSchema,
+  services: ServicesArraySchema,
+});

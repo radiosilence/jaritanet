@@ -13,3 +13,15 @@ export const TunnelConfSchema = z.object({
    */
   name: z.string().describe("Cloudflare Tunnel Name."),
 });
+
+export const InfraConfSchema = z.object({
+  /**
+   * The Cloudflare configuration.
+   */
+  cloudflare: CloudflareConfSchema,
+
+  /**
+   * The Cloudflare tunnel configuration.
+   */
+  tunnel: TunnelConfSchema,
+});

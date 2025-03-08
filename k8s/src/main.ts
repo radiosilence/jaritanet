@@ -2,7 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { parse } from "@schema-hub/zod-error-formatter";
 import { z } from "zod";
-import { CloudflaredConfSchema, ServicesArraySchema } from "./conf.schemas";
+import { conf } from "./conf";
 import { getKubeconfig } from "./kubeconfig";
 import { TunnelSchema, outputDetailsSecret } from "./references.schemas";
 import { createCloudflared } from "./templates/cloudflared";
@@ -15,7 +15,6 @@ const EnvSchema = z.object({
   KUBE_TOKEN: z.string().min(1, "KUBE_TOKEN is required"),
 });
 
-const config = new pulumi.Config();
 const namespace = "jaritanet";
 
 // Validate environment variables
@@ -69,10 +68,7 @@ const infraStackRef = new pulumi.StackReference(
 );
 
 export = async () => {
-  const services = parse(
-    ServicesArraySchema,
-    config.requireObject("services"),
-  ).map(({ name, args, hostname, proxied }) => {
+  const services = conf.services.map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
 
     return {
@@ -87,10 +83,7 @@ export = async () => {
     await infraStackRef.getOutputDetails("tunnel"),
   );
 
-  const cloudflaredConf = parse(
-    CloudflaredConfSchema,
-    config.requireObject("cloudflared"),
-  );
+  const cloudflaredConf = conf.cloudflared;
 
   // Create cloudflared deployment with proper error handling
   const cloudflared = createCloudflared(

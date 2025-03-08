@@ -1,10 +1,7 @@
 import * as cloudflare from "@pulumi/cloudflare";
-import * as pulumi from "@pulumi/pulumi";
-import { parse } from "@schema-hub/zod-error-formatter";
 import type { z } from "zod";
-import { FastmailConfSchema, type ZoneConfSchema } from "../conf.schemas";
-
-const config = new pulumi.Config();
+import { conf } from "../conf";
+import type { ZoneConfSchema } from "../conf.schemas";
 
 const {
   mxDomain,
@@ -14,7 +11,7 @@ const {
   dmarcAggEmail,
   dmarcPolicy,
   spfDomain,
-} = parse(FastmailConfSchema, config.requireObject("fastmail"));
+} = conf.fastmail;
 
 /**
  * Fastmail DNS records, configured globally.

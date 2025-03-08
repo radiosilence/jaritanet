@@ -35,6 +35,8 @@ export const ServiceStackConfSchema = z.object({
   stack: z.string().optional(),
 });
 
+export const ServiceStacksConfSchema = z.array(ServiceStackConfSchema);
+
 export const LegacyServiceConfSchema = z
   .object({
     hostname: z.string().describe("Record name for the service."),
@@ -48,4 +50,14 @@ export const ZoneConfSchema = z.object({
   zoneId: z.string().describe("The Cloudflare ID of the zone."),
   name: z.string().describe("The name of the zone."),
   modules: z.array(DnsModuleEnum).describe("DNS modules to apply."),
+});
+
+export const ZonesConfSchema = z.array(ZoneConfSchema);
+
+export const RoutesConfSchema = z.object({
+  serviceStacks: ServiceStacksConfSchema,
+  zones: ZonesConfSchema,
+  cloudflare: CloudflareConfSchema,
+  bluesky: BlueskyConfSchema,
+  fastmail: FastmailConfSchema,
 });

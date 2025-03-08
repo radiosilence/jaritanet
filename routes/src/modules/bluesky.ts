@@ -1,13 +1,8 @@
 import * as cloudflare from "@pulumi/cloudflare";
-import * as pulumi from "@pulumi/pulumi";
 
-import { parse } from "@schema-hub/zod-error-formatter";
 import type { z } from "zod";
-import { BlueskyConfSchema, type ZoneConfSchema } from "../conf.schemas";
-
-const config = new pulumi.Config();
-
-const { did } = parse(BlueskyConfSchema, config.requireObject("bluesky"));
+import { conf } from "../conf";
+import type { ZoneConfSchema } from "../conf.schemas";
 
 /**
  * Bluesky DNS records, configured globally.
@@ -19,6 +14,6 @@ export function bluesky(zone: z.infer<typeof ZoneConfSchema>) {
     ...zone,
     type: "TXT",
     name: "_atproto",
-    content: `"did=${did}"`,
+    content: `"did=${conf.bluesky.did}"`,
   });
 }

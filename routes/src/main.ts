@@ -1,12 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
 import { parse } from "@schema-hub/zod-error-formatter";
 import { z } from "zod";
-import {
-  CloudflareConfSchema,
-  ServiceSchema,
-  ServiceStackConfSchema,
-  ZoneConfSchema,
-} from "./conf.schemas";
+import { conf } from "./conf";
+import { ServiceSchema } from "./conf.schemas";
 import { bluesky } from "./modules/bluesky";
 import { fastmail } from "./modules/fastmail";
 import {
@@ -26,19 +22,12 @@ const modules = {
   fastmail,
 };
 
-const config = new pulumi.Config();
-const serviceStacks = parse(
-  z.array(ServiceStackConfSchema),
-  config.requireObject("serviceStacks"),
-);
-
-const zones = parse(z.array(ZoneConfSchema), config.requireObject("zones"));
 const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
 export = async () => {
-  for (const zone of zones) {
+  for (const zone of conf.zones) {
     for (const module of zone.modules) {
       modules[module](zone);
     }
@@ -49,16 +38,11 @@ export = async () => {
     await infraStackRef.getOutputDetails("tunnel"),
   );
 
-  for (const { path, stack = pulumi.getStack() } of serviceStacks) {
+  for (const { path, stack = pulumi.getStack() } of conf.serviceStacks) {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
     const { value: services } = parse(
       outputDetails(z.array(ServiceSchema)),
       await stackRef.getOutputDetails("services"),
-    );
-
-    const { accountId } = parse(
-      CloudflareConfSchema,
-      config.requireObject("cloudflare"),
     );
 
     const ingressRules = services.map(({ hostname, service }) =>
@@ -67,7 +51,7 @@ export = async () => {
 
     for (const service of services) {
       const { zoneName } = getRecord(service.hostname);
-      const zone = zones.find((z) => z.name === zoneName);
+      const zone = conf.zones.find((z) => z.name === zoneName);
 
       if (!zone) {
         throw new Error(`Zone ${zoneName} not found`);
@@ -75,6 +59,6 @@ export = async () => {
 
       createZone(tunnel.cname, zone, service);
     }
-    createTunnelConfig(accountId, tunnel.id, ingressRules);
+    createTunnelConfig(conf.cloudflare.accountId, tunnel.id, ingressRules);
   }
 };
