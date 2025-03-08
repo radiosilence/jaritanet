@@ -1,5 +1,6 @@
 import * as cloudflare from "@pulumi/cloudflare";
-import type { Service, ZoneConf } from "../conf.schemas";
+import type { z } from "zod";
+import type { ServiceSchema, ZoneConfSchema } from "../conf.schemas";
 
 export function getRecord(hostname: string) {
   const parts = hostname.split(".");
@@ -25,8 +26,8 @@ export function getServiceIngressRule(
 
 export function createZone(
   tunnelCname: string,
-  { zoneId }: ZoneConf,
-  { hostname, proxied }: Service,
+  { zoneId }: z.infer<typeof ZoneConfSchema>,
+  { hostname, proxied }: z.infer<typeof ServiceSchema>,
 ) {
   const { recordName: name } = getRecord(hostname);
 

@@ -1,8 +1,15 @@
 pre-commit:
+  parallel: true
   commands:
     check:
       run: npx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
       stage_fixed: true
+    typecheck-infra:
+      run: npx tsc -p infra/tsconfig.json
+    typecheck-k8s:
+      run: npx tsc -p k8s/tsconfig.json
+    typecheck-routes:
+      run: npx tsc -p routes/tsconfig.json
 pre-push:
   commands:
     version-check:

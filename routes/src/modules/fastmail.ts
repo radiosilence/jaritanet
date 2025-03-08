@@ -1,6 +1,8 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as pulumi from "@pulumi/pulumi";
-import type { FastmailConf, ZoneConf } from "../conf.schemas";
+import { parse } from "@schema-hub/zod-error-formatter";
+import type { z } from "zod";
+import { FastmailConfSchema, type ZoneConfSchema } from "../conf.schemas";
 
 const config = new pulumi.Config();
 
@@ -12,14 +14,14 @@ const {
   dmarcAggEmail,
   dmarcPolicy,
   spfDomain,
-} = config.requireObject<FastmailConf>("fastmail");
+} = parse(FastmailConfSchema, config.requireObject("fastmail"));
 
 /**
  * Fastmail DNS records, configured globally.
  *
  * @param zone - The zone to create the record in.
  */
-export function fastmail(zone: ZoneConf) {
+export function fastmail(zone: z.infer<typeof ZoneConfSchema>) {
   for (const [key, value] of Object.entries({ in1: 10, in2: 20 })) {
     new cloudflare.Record(`${zone.name}-fm-mx-${key}`, {
       ...zone,

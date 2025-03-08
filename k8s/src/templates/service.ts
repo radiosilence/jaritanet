@@ -1,5 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
-import type { ServiceArgs } from "./service.schemas";
+import type { z } from "zod";
+import type { ServiceArgsSchema } from "./service.schemas";
 
 export function createService(
   provider: k8s.Provider,
@@ -12,7 +13,7 @@ export function createService(
     hostVolumes,
     persistence,
     env,
-  }: ServiceArgs,
+  }: z.infer<typeof ServiceArgsSchema>,
 ) {
   const pvs = Object.fromEntries(
     persistence.map(

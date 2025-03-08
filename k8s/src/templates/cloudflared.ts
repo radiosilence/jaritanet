@@ -1,11 +1,12 @@
 import * as k8s from "@pulumi/kubernetes";
-import type { CloudflaredArgs } from "./cloudflared.schemas";
+import type { z } from "zod";
+import type { CloudflaredArgsSchema } from "./cloudflared.schemas";
 
 export function createCloudflared(
   provider: k8s.Provider,
   name: string,
   token: string,
-  { replicas }: CloudflaredArgs,
+  { replicas }: z.infer<typeof CloudflaredArgsSchema>,
 ) {
   return new k8s.apps.v1.Deployment(
     `${name}-deployment`,

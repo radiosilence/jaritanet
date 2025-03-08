@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { parse } from "@schema-hub/zod-error-formatter";
 import { z } from "zod";
 import {
-  type CloudflareConf,
+  CloudflareConfSchema,
   ServiceSchema,
   ServiceStackConfSchema,
   ZoneConfSchema,
@@ -56,7 +56,10 @@ export = async () => {
       await stackRef.getOutputDetails("services"),
     );
 
-    const { accountId } = config.requireObject<CloudflareConf>("cloudflare");
+    const { accountId } = parse(
+      CloudflareConfSchema,
+      config.requireObject("cloudflare"),
+    );
 
     const ingressRules = services.map(({ hostname, service }) =>
       getServiceIngressRule(hostname, service),
