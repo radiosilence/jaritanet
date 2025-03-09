@@ -2,6 +2,17 @@
   ansible.builtin.apt:
     update_cache: true
 
+- name: Add Azlux repo using key from URL
+  ansible.builtin.deb822_repository:
+    name: azlux
+    types: [deb]
+    uris: http://packages.azlux.fr/debian/
+    components: [stable]
+    suites: [main]
+    signed_by: https://azlux.fr/repo.gpg
+    state: present
+    enabled: true
+
 - name: Install required system packages
   ansible.builtin.apt:
     name:
@@ -12,5 +23,6 @@
       - acl
       - fish
       - btop
+      - broot
       - aria2
     state: present

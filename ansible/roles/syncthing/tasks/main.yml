@@ -1,6 +1,6 @@
 - name: Add SyncThing repo using key from URL.
   ansible.builtin.deb822_repository:
-    name: mise
+    name: syncthing
     types: [deb]
     uris: https://apt.syncthing.net/
     components: [stable]
