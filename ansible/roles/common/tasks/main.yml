@@ -15,6 +15,7 @@
 
 - name: Install required system packages
   ansible.builtin.apt:
+    update_cache: true
     name:
       - snapd
       - python3-pip
