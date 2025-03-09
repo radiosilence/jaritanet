@@ -11,7 +11,7 @@
     suites: [stable]
     signed_by: https://azlux.fr/repo.gpg
     state: present
-    enabled: false
+    enabled: true
 
 - name: Install required system packages
   ansible.builtin.apt:
