@@ -29,22 +29,6 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-      - name: ping oldboy
-        run: |
-          # See if DERP is being used (relay servers)
-          tailscale debug derp-map | yq -P
-
-          tailscale status --peers --json | yq -P
-          # Show detailed path information to oldboy
-          tailscale netcheck 
-
-          # Check latency to the target
-          tailscale ping oldboy
-          sleep 5
-          ping oldboy.zonkey-jazz.ts.net -c 2
-          sleep 5
-          ping oldboy.zonkey-jazz.ts.net -c 2
-          tailscale status
       - name: Create SSH key
         run: |
           mkdir -p ~/.ssh/
