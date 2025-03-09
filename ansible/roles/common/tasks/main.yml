@@ -9,8 +9,9 @@
     state: present
     enabled: true
 
-- name: Install required system packages
+- name: Install required system packages and update all packages to the latest version (dist-upgrade)
   ansible.builtin.apt:
+    upgrade: dist
     update_cache: true
     name:
       - snapd
