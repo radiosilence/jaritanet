@@ -7,7 +7,7 @@ config:
         httpPort: 4533
         image:
           repository: "deluan/navidrome"
-          tag: 0.54.4
+          tag: 0.54.5
           pullPolicy: "Always"
         env:
           ND_SCANSCHEDULE: 1h
@@ -65,7 +65,7 @@ config:
           memory: 256Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: 1.0.15
+          tag: 1.1.2
           pullPolicy: "Always"
 
     # - name: bambi-art
