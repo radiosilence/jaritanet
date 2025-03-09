@@ -1,7 +1,3 @@
-- name: Update apt cache
-  ansible.builtin.apt:
-    update_cache: true
-
 - name: Add Azlux repo using key from URL
   ansible.builtin.deb822_repository:
     name: azlux
