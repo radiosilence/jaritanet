@@ -1,5 +1,5 @@
 import { z } from "zod";
 
-export const CloudflaredArgsSchema = z.object({
-  replicas: z.number().default(2),
+export const CloudflaredArgsSchema = z.interface({
+  "replicas?": z.int().default(2),
 });

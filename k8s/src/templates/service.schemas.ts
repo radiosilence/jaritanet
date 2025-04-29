@@ -9,7 +9,7 @@ import {
 export const ServiceArgsSchema = z.object({
   image: ImageSchema,
   replicas: z.number().default(1),
-  env: z.record(z.string()).default({}),
+  env: z.record(z.string(), z.string()).default({}),
   httpPort: z.number().default(80),
   limits: LimitsSchema,
   hostVolumes: z.array(HostVolumeSchema).default([]),

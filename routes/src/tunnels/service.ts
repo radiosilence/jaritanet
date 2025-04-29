@@ -11,15 +11,15 @@ export function getRecord(hostname: string) {
   };
 }
 
-export function getServiceIngressRule(
+export function getServiceIngress(
   hostname: string,
   service: string,
-): cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngressRule {
+): cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngress {
   return {
     hostname,
     service,
     originRequest: {
-      connectTimeout: "2m0s",
+      connectTimeout: 120,
     },
   };
 }
@@ -31,11 +31,12 @@ export function createZone(
 ) {
   const { recordName: name } = getRecord(hostname);
 
-  return new cloudflare.Record(`${hostname}-tunneled-record`, {
+  return new cloudflare.DnsRecord(`${hostname}-tunneled-record`, {
     zoneId,
     name,
     type: "CNAME",
     content: tunnelCname,
     proxied,
+    ttl: 1,
   });
 }

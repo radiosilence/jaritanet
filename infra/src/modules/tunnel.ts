@@ -10,7 +10,7 @@ export function createTunnel({ name }: { name: string }) {
   const tunnel = new cloudflare.ZeroTrustTunnelCloudflared(`${name}-tunnel`, {
     ...conf.cloudflare,
     name,
-    secret: secret.hex,
+    tunnelSecret: secret.hex,
   });
 
   return tunnel;

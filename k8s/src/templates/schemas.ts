@@ -34,9 +34,7 @@ export const ImageSchema = z.object({
   pullPolicy: z.string().optional(),
 });
 
-export const LimitsSchema = z
-  .object({
-    memory: z.string().default("64Mi"),
-    cpu: z.string().default("50m"),
-  })
-  .default({});
+export const LimitsSchema = z.object({
+  memory: z.string().optional().default("64Mi"),
+  cpu: z.string().optional().default("50m"),
+});

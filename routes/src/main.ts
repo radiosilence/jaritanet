@@ -2,11 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf";
 import { bluesky } from "./modules/bluesky";
 import { fastmail } from "./modules/fastmail";
-import {
-  createZone,
-  getRecord,
-  getServiceIngressRule,
-} from "./tunnels/service";
+import { createZone, getRecord, getServiceIngress } from "./tunnels/service";
 import { createTunnelConfig } from "./tunnels/tunnel-config";
 
 import { createReferences } from "./references";
@@ -34,8 +30,8 @@ export = async () => {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
     const services = await getServices(stackRef);
 
-    const ingressRules = services.map(({ hostname, service }) =>
-      getServiceIngressRule(hostname, service),
+    const ingresses = services.map(({ hostname, service }) =>
+      getServiceIngress(hostname, service),
     );
 
     for (const service of services) {
@@ -48,6 +44,6 @@ export = async () => {
 
       createZone(tunnel.cname, zone, service);
     }
-    createTunnelConfig(conf.cloudflare.accountId, tunnel.id, ingressRules);
+    createTunnelConfig(conf.cloudflare.accountId, tunnel.id, ingresses);
   }
 };
