@@ -35,6 +35,6 @@ export const ImageSchema = z.object({
 });
 
 export const LimitsSchema = z.object({
-  memory: z.string().optional().default("64Mi"),
-  cpu: z.string().optional().default("50m"),
+  memory: z.string().default("64Mi"),
+  cpu: z.string().default("50m"),
 });
