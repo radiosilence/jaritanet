@@ -70,13 +70,13 @@ export = async () => {
 
   const { getTunnel } = await createReferences();
 
-  const tunnel = await getTunnel(infraStackRef);
+  const { id: tunnelId } = await getTunnel(infraStackRef);
 
   const cloudflaredConf = conf.cloudflared;
 
   const { token } = await cloudflare.getZeroTrustTunnelCloudflaredToken({
     accountId: conf.cloudflare.accountId,
-    tunnelId: tunnel.id,
+    tunnelId,
   });
 
   // Create cloudflared deployment with proper error handling
