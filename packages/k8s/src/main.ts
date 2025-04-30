@@ -77,7 +77,7 @@ export = async () => {
   const cloudflared = createCloudflared(
     provider,
     cloudflaredConf.name,
-    tunnel.tunnelToken,
+    tunnel.tunnelSecret,
     cloudflaredConf.args,
   );
 

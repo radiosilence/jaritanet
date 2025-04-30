@@ -12,5 +12,5 @@ export const outputDetailsSecret = <T>(schema: z.ZodType<T>) =>
 
 export const TunnelSchema = z.object({
   id: z.string(),
-  tunnelToken: z.string(),
+  tunnelSecret: z.string(),
 });
