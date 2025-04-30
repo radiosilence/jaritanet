@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
+    "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
+    "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
@@ -16,7 +19,7 @@
     "@pulumi/kubernetes": "latest",
     "@pulumi/pulumi": "latest",
     "@pulumi/random": "latest",
-    "zod": "^4.0.0-beta.20250424T163858"
+    "zod": "latest"
   },
   "workspaces": ["packages/*"],
   "keywords": [],

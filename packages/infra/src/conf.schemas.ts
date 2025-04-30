@@ -12,3 +12,5 @@ export const InfraConfSchema = z.object({
   cloudflare: CloudflareConfSchema,
   tunnel: TunnelConfSchema,
 });
+
+const x = InfraConfSchema.parse({});

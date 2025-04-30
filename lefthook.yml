@@ -5,11 +5,11 @@ pre-commit:
       run: bunx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
       stage_fixed: true
     typecheck-infra:
-      run: bunx tsc -p infra/tsconfig.json
+      run: npm run typecheck:infra
     typecheck-k8s:
-      run: bunx tsc -p k8s/tsconfig.json
+      run: npm run typecheck:k8s
     typecheck-routes:
-      run: bunx tsc -p routes/tsconfig.json
+      run: npm run typecheck:routes
 pre-push:
   commands:
     version-check:
