@@ -19,7 +19,7 @@
     "@pulumi/kubernetes": "latest",
     "@pulumi/pulumi": "latest",
     "@pulumi/random": "latest",
-    "zod": "latest"
+    "zod": "^4.0.0-beta.20250424T163858"
   },
   "workspaces": ["packages/*"],
   "keywords": [],
