@@ -1,3 +1,4 @@
+import * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf";
@@ -73,11 +74,16 @@ export = async () => {
 
   const cloudflaredConf = conf.cloudflared;
 
+  const { token } = await cloudflare.getZeroTrustTunnelCloudflaredToken({
+    accountId: conf.cloudflare.accountId,
+    tunnelId: tunnel.id,
+  });
+
   // Create cloudflared deployment with proper error handling
   const cloudflared = createCloudflared(
     provider,
     cloudflaredConf.name,
-    tunnel.tunnelSecret,
+    token,
     cloudflaredConf.args,
   );
 

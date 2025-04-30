@@ -2,6 +2,10 @@ import { z } from "zod";
 import { CloudflaredArgsSchema } from "./templates/cloudflared.schemas";
 import { ServiceArgsSchema } from "./templates/service.schemas";
 
+export const CloudflareConfSchema = z.object({
+  accountId: z.string(),
+});
+
 export const CloudflaredConfSchema = z.object({
   name: z.string(),
   args: CloudflaredArgsSchema,
@@ -17,6 +21,7 @@ export const ServiceConfSchema = z.object({
 export const ServicesArraySchema = z.array(ServiceConfSchema);
 
 export const K8sConfSchema = z.object({
+  cloudflare: CloudflareConfSchema,
   cloudflared: CloudflaredConfSchema,
   services: ServicesArraySchema,
 });
