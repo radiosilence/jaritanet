@@ -80,3 +80,5 @@ config:
 
   jaritanet-k8s:cloudflared:
     name: cloudflared
+    args:
+      replicas: 2

@@ -4,7 +4,7 @@ import { ServiceArgsSchema } from "./templates/service.schemas";
 
 export const CloudflaredConfSchema = z.object({
   name: z.string(),
-  args: CloudflaredArgsSchema.default({}),
+  args: CloudflaredArgsSchema,
 });
 
 export const ServiceConfSchema = z.object({
