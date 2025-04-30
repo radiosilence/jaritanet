@@ -1,7 +1,6 @@
 config:
   cloudflare:apiToken:
-    secure: AAABALJFhVInKD9olE/Wp80SPUNHn7dof5XxpluL5Fhx/WxBeM/T8XZikQVM6aO1JBVaeVMEackO2lNUIssReuQCOGlIeXtN
-
+    secure: AAABAH8N/17bOG5faUfKAJeMi87/29g3vtpuBTm6THowt5i/Ba5LS1HywQv50Z6rS5yEn0ys3QsjSVrKJATzZK9LZd7YdPxQ
   jaritanet:cloudflare:
     accountId: 365e5168438376dc99d7ee2aedef4624
   jaritanet:tunnel:
