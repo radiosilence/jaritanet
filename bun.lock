@@ -17,6 +17,15 @@
         "typescript": "latest",
       },
     },
+    "packages/infra": {
+      "name": "jaritanet-infra",
+    },
+    "packages/k8s": {
+      "name": "jaritanet-k8s",
+    },
+    "packages/routes": {
+      "name": "jaritanet-routes",
+    },
   },
   "trustedDependencies": [
     "@evilmartians/lefthook",
@@ -320,6 +329,12 @@
     "isexe": ["isexe@3.1.1", "", {}, "sha512-LpB/54B+/2J5hqQ7imZHfdU31OlgQqx7ZicVlkm9kzg9/w8GKLEcFfJl/t7DCEDueOyBAD6zCCwTO6Fzs0NoEQ=="],
 
     "jackspeak": ["jackspeak@3.4.3", "", { "dependencies": { "@isaacs/cliui": "^8.0.2" }, "optionalDependencies": { "@pkgjs/parseargs": "^0.11.0" } }, "sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw=="],
+
+    "jaritanet-infra": ["jaritanet-infra@workspace:packages/infra"],
+
+    "jaritanet-k8s": ["jaritanet-k8s@workspace:packages/k8s"],
+
+    "jaritanet-routes": ["jaritanet-routes@workspace:packages/routes"],
 
     "js-yaml": ["js-yaml@3.14.1", "", { "dependencies": { "argparse": "^1.0.7", "esprima": "^4.0.0" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-okMH7OXXJ7YrN9Ok3/SXrnu4iX9yOk+25nqX4imS2npuvTYDmo/QEZoqwZkYaIDk3jVvBOTOIEgEhaLOynBS9g=="],
 
