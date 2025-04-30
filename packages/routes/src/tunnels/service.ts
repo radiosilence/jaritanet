@@ -25,7 +25,7 @@ export function getServiceIngress(
 }
 
 export function createZone(
-  tunnelCname: string,
+  content: string,
   { zoneId }: z.infer<typeof ZoneConfSchema>,
   { hostname, proxied }: z.infer<typeof ServiceSchema>,
 ) {
@@ -35,7 +35,7 @@ export function createZone(
     zoneId,
     name,
     type: "CNAME",
-    content: tunnelCname,
+    content,
     proxied,
     ttl: 1,
   });

@@ -6,7 +6,6 @@ export function createTunnel({ name }: { name: string }) {
   const secret = new random.RandomBytes(`${name}-secret`, {
     length: 256,
   });
-
   const tunnel = new cloudflare.ZeroTrustTunnelCloudflared(`${name}-tunnel`, {
     ...conf.cloudflare,
     name,

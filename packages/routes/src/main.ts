@@ -42,7 +42,7 @@ export = async () => {
         throw new Error(`Zone ${zoneName} not found`);
       }
 
-      createZone(tunnel.cname, zone, service);
+      createZone(`${tunnel.id}.cfargotunnel.com`, zone, service);
     }
     createTunnelConfig(conf.cloudflare.accountId, tunnel.id, ingresses);
   }
