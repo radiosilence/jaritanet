@@ -8,7 +8,7 @@ on:
     branches:
       - main
     paths:
-      - "routes/**"
+      - "packages/routes/**"
       - ".github/workflows/*-routes.yml"
   workflow_call:
     secrets:
@@ -23,7 +23,7 @@ jobs:
     name: Routes
     runs-on: ubuntu-24.04
     env:
-      working-directory: ./routes
+      working-directory: ./packages/routes
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
@@ -32,6 +32,6 @@ jobs:
         with:
           command: up
           stack-name: radiosilence/jaritanet-routes/main
-          work-dir: routes
+          work-dir: packages/routes
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

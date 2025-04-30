@@ -8,7 +8,7 @@ on:
     branches:
       - main
     paths:
-      - "infra/**"
+      - "packages/infra/**"
       - ".github/workflows/*-infra.yml"
   workflow_call:
     secrets:
@@ -25,7 +25,7 @@ jobs:
     name: Infra
     runs-on: ubuntu-24.04
     env:
-      working-directory: ./infra
+      working-directory: ./packages/infra
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
@@ -34,7 +34,7 @@ jobs:
         with:
           command: up
           stack-name: radiosilence/jaritanet/main
-          work-dir: infra
+          work-dir: packages/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
   k8s:
