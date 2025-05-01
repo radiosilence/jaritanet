@@ -1,11 +1,11 @@
 import type * as pulumi from "@pulumi/pulumi";
 import { z } from "zod";
-import { ServiceSchema } from "./conf.schemas.mts";
+import { ServiceSchema } from "./conf.schemas.ts";
 import {
   TunnelSchema,
   outputDetails,
   outputDetailsSecret,
-} from "./references.schemas.mts";
+} from "./references.schemas.ts";
 
 export async function tunnelRef(stackRef: pulumi.StackReference) {
   const { secretValue: tunnel } = outputDetailsSecret(TunnelSchema).parse(

@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import type { z } from "zod";
-import type { ServiceArgsSchema } from "./service.schemas.mts";
+import type { ServiceArgsSchema } from "./service.schemas.ts";
 
 const annotations = {
   "pulumi.com/skipAwait": "true",

@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import type { z } from "zod";
-import type { CloudflaredArgsSchema } from "./cloudflared.schemas.mts";
+import type { CloudflaredArgsSchema } from "./cloudflared.schemas.ts";
 
 export function createCloudflared(
   provider: k8s.Provider,

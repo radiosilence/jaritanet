@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { CloudflaredArgsSchema } from "./templates/cloudflared.schemas.mts";
-import { ServiceArgsSchema } from "./templates/service.schemas.mts";
+import { CloudflaredArgsSchema } from "./templates/cloudflared.schemas.ts";
+import { ServiceArgsSchema } from "./templates/service.schemas.ts";
 
 export const CloudflareConfSchema = z.object({
   accountId: z.string(),

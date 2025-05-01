@@ -1,12 +1,12 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { conf } from "./conf.mts";
-import { env } from "./env.mts";
-import { getKubeconfig } from "./kubeconfig.mts";
-import { tunnelRef } from "./references.mts";
-import { createCloudflared } from "./templates/cloudflared.mts";
-import { createService } from "./templates/service.mts";
+import { conf } from "./conf.ts";
+import { env } from "./env.ts";
+import { getKubeconfig } from "./kubeconfig.ts";
+import { tunnelRef } from "./references.ts";
+import { createCloudflared } from "./templates/cloudflared.ts";
+import { createService } from "./templates/service.ts";
 
 const namespace = "jaritanet";
 

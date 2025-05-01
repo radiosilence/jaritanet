@@ -1,7 +1,7 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import type { z } from "zod";
-import { conf } from "../conf.mts";
-import type { ZoneConfSchema } from "../conf.schemas.mts";
+import type { ZoneConfSchema } from "../conf.schemas.ts";
+import { conf } from "../conf.ts";
 
 const {
   mxDomain,

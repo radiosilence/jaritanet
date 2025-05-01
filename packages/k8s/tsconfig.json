@@ -1,5 +1,5 @@
 {
   "extends": ["../../tsconfig.json"],
-  "files": ["src/main.mts"],
-  "include": ["src/**/*.mts"]
+  "files": ["src/main.ts"],
+  "include": ["src/**/*.ts", "src/templates/service.schemas.ts"]
 }

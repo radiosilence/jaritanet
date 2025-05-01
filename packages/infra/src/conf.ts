@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { InfraConfSchema } from "./conf.schemas.mts";
+import { InfraConfSchema } from "./conf.schemas.ts";
 
 const config = new pulumi.Config();
 

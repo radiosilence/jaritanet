@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { K8sConfSchema } from "./conf.schemas.mts";
+import { K8sConfSchema } from "./conf.schemas.ts";
 
 const config = new pulumi.Config();
 

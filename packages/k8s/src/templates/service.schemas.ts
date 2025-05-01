@@ -5,7 +5,7 @@ import {
   LIMITS_DEFAULT,
   LimitsSchema,
   PersistenceSchema,
-} from "./schemas.mts";
+} from "./schemas.ts";
 
 export const ServiceArgsSchema = z.object({
   image: ImageSchema,
