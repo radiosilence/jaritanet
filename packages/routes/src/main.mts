@@ -20,7 +20,8 @@ const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
-export default async () => {
+export default async function () {
+  console.error("conf.zones", conf.zones);
   for (const zone of conf.zones) {
     for (const module of zone.modules) {
       modules[module](zone);
@@ -50,4 +51,5 @@ export default async () => {
     }
     createTunnelConfig(conf.cloudflare.accountId, tunnel.id, ingresses);
   }
-};
+  return { hi: "ho", ...conf, tunnel };
+}

@@ -57,7 +57,7 @@ const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
-export default async () => {
+export default async function () {
   const services = conf.services.map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
 
@@ -92,4 +92,4 @@ export default async () => {
     namespace,
     cloudflaredStatus: cloudflared.status,
   };
-};
+}
