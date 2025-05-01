@@ -16,7 +16,6 @@
         "@tsconfig/node-ts": "^23.6.1",
         "@tsconfig/node23": "^23.0.1",
         "@types/node": "^22.15.3",
-        "ts-node": "TypeStrong/ts-node#main",
         "typescript": "latest",
       },
     },
