@@ -2,6 +2,10 @@ import * as k8s from "@pulumi/kubernetes";
 import type { z } from "zod";
 import type { ServiceArgsSchema } from "./service.schemas.mts";
 
+const annotations = {
+  "pulumi.com/skipAwait": "true",
+};
+
 export function createService(
   provider: k8s.Provider,
   name: string,
@@ -29,6 +33,9 @@ export function createService(
         new k8s.core.v1.PersistentVolume(
           `${name}-${key}-pv`,
           {
+            metadata: {
+              annotations,
+            },
             spec: {
               capacity: {
                 storage,
@@ -69,6 +76,9 @@ export function createService(
       new k8s.core.v1.PersistentVolumeClaim(
         `${name}-${key}-pvc`,
         {
+          metadata: {
+            annotations,
+          },
           spec: {
             storageClassName,
             volumeName: pvs[key].metadata.name,
@@ -86,6 +96,7 @@ export function createService(
     {
       metadata: {
         name: `${name}-service`,
+        annotations,
       },
       spec: {
         selector: { app: name },
@@ -104,6 +115,9 @@ export function createService(
   new k8s.apps.v1.Deployment(
     `${name}-deployment`,
     {
+      metadata: {
+        annotations,
+      },
       spec: {
         replicas,
         selector: {
@@ -115,6 +129,7 @@ export function createService(
         template: {
           metadata: {
             labels: { app: name },
+            annotations,
           },
           spec: {
             volumes: [
