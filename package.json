@@ -11,9 +11,9 @@
   "devDependencies": {
     "@biomejs/biome": "latest",
     "@evilmartians/lefthook": "latest",
-    "@tsconfig/node-ts": "^23.6.1",
-    "@tsconfig/node23": "^23.0.1",
-    "@types/node": "^22.15.3",
+    "@tsconfig/node-ts": "^23",
+    "@tsconfig/node23": "^23",
+    "@types/node": "latest",
     "typescript": "latest"
   },
   "dependencies": {
@@ -21,7 +21,7 @@
     "@pulumi/kubernetes": "latest",
     "@pulumi/pulumi": "latest",
     "@pulumi/random": "latest",
-    "zod": "^4.0.0-beta.20250430T185432"
+    "zod": "next"
   },
   "workspaces": ["packages/*"],
   "keywords": [],
