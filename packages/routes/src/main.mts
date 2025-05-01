@@ -9,7 +9,7 @@ import {
 } from "./tunnels/service.mts";
 import { createTunnelConfig } from "./tunnels/tunnel-config.mts";
 
-import { createReferences } from "./references.mts";
+import { servicesRef, tunnelRef } from "./references.mts";
 
 const modules = {
   bluesky,
@@ -28,12 +28,11 @@ export default async function () {
     }
   }
 
-  const { getTunnel, getServices } = await createReferences();
-  const tunnel = await getTunnel(infraStackRef);
+  const tunnel = await tunnelRef(infraStackRef);
 
   for (const { path, stack = pulumi.getStack() } of conf.serviceStacks) {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
-    const services = await getServices(stackRef);
+    const services = await servicesRef(stackRef);
 
     const ingresses = services.map(({ hostname, service }) =>
       getServiceIngress(hostname, service),

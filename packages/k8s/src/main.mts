@@ -4,7 +4,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf.mts";
 import { env } from "./env.mts";
 import { getKubeconfig } from "./kubeconfig.mts";
-import { createReferences } from "./references.mts";
+import { tunnelRef } from "./references.mts";
 import { createCloudflared } from "./templates/cloudflared.mts";
 import { createService } from "./templates/service.mts";
 
@@ -68,9 +68,7 @@ export default async function () {
     };
   });
 
-  const { getTunnel } = await createReferences();
-
-  const { id: tunnelId } = await getTunnel(infraStackRef);
+  const { id: tunnelId } = await tunnelRef(infraStackRef);
 
   const cloudflaredConf = conf.cloudflared;
 
