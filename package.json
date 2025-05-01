@@ -11,7 +11,7 @@
   "devDependencies": {
     "@biomejs/biome": "latest",
     "@evilmartians/lefthook": "latest",
-    "@tsconfig/node22": "^22.0.1",
+    "@tsconfig/node23": "^23.0.1",
     "@types/node": "^22.15.3",
     "typescript": "latest"
   },

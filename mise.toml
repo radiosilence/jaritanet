@@ -1,4 +1,4 @@
 [tools]
 bun = "latest"
-node = "22"
+node = "23"
 yq = "latest"
