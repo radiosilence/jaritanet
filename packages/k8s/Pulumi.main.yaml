@@ -46,6 +46,10 @@ config:
           repository: "ghcr.io/radiosilence/jaritanet-files"
           tag: latest
           pullPolicy: "Always"
+        replicas: 1
+        limits:
+          cpu: 50m
+          memory: 128Mi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
@@ -60,9 +64,9 @@ config:
     - name: blit
       hostname: blit.cc
       args:
-        replicas: 2
+        replicas: 1
         limits:
-          cpu: 250m
+          cpu: 50m
           memory: 256Mi
         image:
           repository: "ghcr.io/radiosilence/blit"

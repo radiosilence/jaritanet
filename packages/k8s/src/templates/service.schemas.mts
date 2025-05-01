@@ -13,8 +13,8 @@ export const ServiceArgsSchema = z.object({
   httpPort: z.number().default(80),
   limits: LimitsSchema.default({
     // TODO: Find better way
-    cpu: "64Mi",
-    memory: "50m",
+    cpu: "50m",
+    memory: "64Mi",
   }),
   hostVolumes: z.array(HostVolumeSchema).default([]),
   persistence: z.array(PersistenceSchema).default([]),
