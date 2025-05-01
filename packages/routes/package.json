@@ -1,4 +1,4 @@
 {
   "name": "jaritanet-routes",
-  "main": "./src/main.ts"
+  "main": "./src/main.mts"
 }

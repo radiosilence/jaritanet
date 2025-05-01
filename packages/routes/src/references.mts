@@ -1,11 +1,11 @@
 import type * as pulumi from "@pulumi/pulumi";
 import { z } from "zod";
-import { ServiceSchema } from "./conf.schemas";
+import { ServiceSchema } from "./conf.schemas.mts";
 import {
   TunnelSchema,
   outputDetails,
   outputDetailsSecret,
-} from "./references.schemas";
+} from "./references.schemas.mts";
 
 export const createReferences = async () => {
   const getTunnel = async (stackRef: pulumi.StackReference) => {

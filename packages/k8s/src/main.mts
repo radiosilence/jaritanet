@@ -1,12 +1,12 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { conf } from "./conf";
-import { env } from "./env";
-import { getKubeconfig } from "./kubeconfig";
-import { createReferences } from "./references";
-import { createCloudflared } from "./templates/cloudflared";
-import { createService } from "./templates/service";
+import { conf } from "./conf.mts";
+import { env } from "./env.mts";
+import { getKubeconfig } from "./kubeconfig.mts";
+import { createReferences } from "./references.mts";
+import { createCloudflared } from "./templates/cloudflared.mts";
+import { createService } from "./templates/service.mts";
 
 const namespace = "jaritanet";
 
@@ -57,7 +57,7 @@ const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
-export = async () => {
+export default async () => {
   const services = conf.services.map(({ name, args, hostname, proxied }) => {
     const service = createService(provider, name, args);
 

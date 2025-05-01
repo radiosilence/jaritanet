@@ -1,6 +1,6 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as random from "@pulumi/random";
-import { conf } from "../conf";
+import { conf } from "../conf.mts";
 
 export function createTunnel({ name }: { name: string }) {
   const secret = new random.RandomBytes(`${name}-secret`, {

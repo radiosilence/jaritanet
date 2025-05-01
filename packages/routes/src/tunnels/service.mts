@@ -1,6 +1,6 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import type { z } from "zod";
-import type { ServiceSchema, ZoneConfSchema } from "../conf.schemas";
+import type { ServiceSchema, ZoneConfSchema } from "../conf.schemas.mts";
 
 export function getRecord(hostname: string) {
   const parts = hostname.split(".");

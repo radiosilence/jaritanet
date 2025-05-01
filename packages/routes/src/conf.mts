@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { RoutesConfSchema } from "./conf.schemas";
+import { RoutesConfSchema } from "./conf.schemas.mts";
 
 const config = new pulumi.Config();
 

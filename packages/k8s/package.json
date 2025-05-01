@@ -1,4 +1,4 @@
 {
   "name": "jaritanet-k8s",
-  "main": "./src/main.ts"
+  "main": "./src/main.mts"
 }

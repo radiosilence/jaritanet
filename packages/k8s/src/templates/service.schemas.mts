@@ -4,7 +4,7 @@ import {
   ImageSchema,
   LimitsSchema,
   PersistenceSchema,
-} from "./schemas";
+} from "./schemas.mts";
 
 export const ServiceArgsSchema = z.object({
   image: ImageSchema,

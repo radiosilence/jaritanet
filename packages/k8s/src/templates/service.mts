@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import type { z } from "zod";
-import type { ServiceArgsSchema } from "./service.schemas";
+import type { ServiceArgsSchema } from "./service.schemas.mts";
 
 export function createService(
   provider: k8s.Provider,

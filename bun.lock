@@ -13,6 +13,7 @@
       "devDependencies": {
         "@biomejs/biome": "latest",
         "@evilmartians/lefthook": "latest",
+        "@tsconfig/node-ts": "^23.6.1",
         "@tsconfig/node23": "^23.0.1",
         "@types/node": "^22.15.3",
         "typescript": "latest",
@@ -166,6 +167,8 @@
     "@sindresorhus/is": ["@sindresorhus/is@4.6.0", "", {}, "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw=="],
 
     "@szmarczak/http-timer": ["@szmarczak/http-timer@4.0.6", "", { "dependencies": { "defer-to-connect": "^2.0.0" } }, "sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w=="],
+
+    "@tsconfig/node-ts": ["@tsconfig/node-ts@23.6.1", "", {}, "sha512-1E5cUp+S65pLKKI9VrGMQPWDHxOEq3dAGM2onG3fLeSRwWbylYFwhIjnzJikjSN7w2nCgwxmv8ifvUKDFkK38Q=="],
 
     "@tsconfig/node23": ["@tsconfig/node23@23.0.1", "", {}, "sha512-oJ0Y42TmsBLuLAfEbPTS5JXSbJJEEU4bULROS6zsL54Gdlw5aOy27rpsquotMKGf2auP6rkbfYsjl43WdGrNcg=="],
 

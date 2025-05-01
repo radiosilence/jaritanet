@@ -1,11 +1,15 @@
 import * as pulumi from "@pulumi/pulumi";
-import { conf } from "./conf";
-import { bluesky } from "./modules/bluesky";
-import { fastmail } from "./modules/fastmail";
-import { createZone, getRecord, getServiceIngress } from "./tunnels/service";
-import { createTunnelConfig } from "./tunnels/tunnel-config";
+import { conf } from "./conf.mts";
+import { bluesky } from "./modules/bluesky.mts";
+import { fastmail } from "./modules/fastmail.mts";
+import {
+  createZone,
+  getRecord,
+  getServiceIngress,
+} from "./tunnels/service.mts";
+import { createTunnelConfig } from "./tunnels/tunnel-config.mts";
 
-import { createReferences } from "./references";
+import { createReferences } from "./references.mts";
 
 const modules = {
   bluesky,
@@ -16,7 +20,7 @@ const infraStackRef = new pulumi.StackReference(
   `radiosilence/jaritanet/${pulumi.getStack()}`,
 );
 
-export = async () => {
+export default async () => {
   for (const zone of conf.zones) {
     for (const module of zone.modules) {
       modules[module](zone);
