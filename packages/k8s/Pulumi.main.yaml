@@ -47,9 +47,6 @@ config:
           tag: latest
           pullPolicy: "Always"
         replicas: 1
-        limits:
-          cpu: 50m
-          memory: 128Mi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
@@ -65,9 +62,6 @@ config:
       hostname: blit.cc
       args:
         replicas: 1
-        limits:
-          cpu: 50m
-          memory: 256Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: 1.2.2
