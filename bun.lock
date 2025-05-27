@@ -12,7 +12,6 @@
       },
       "devDependencies": {
         "@biomejs/biome": "latest",
-        "@evilmartians/lefthook": "^1.11.13",
         "@tsconfig/node-ts": "^23.6.1",
         "@tsconfig/node23": "^23.0.2",
         "@types/node": "latest",
@@ -30,7 +29,6 @@
     },
   },
   "trustedDependencies": [
-    "@evilmartians/lefthook",
     "@biomejs/biome",
     "@pulumi/kubernetes",
     "protobufjs",
@@ -55,8 +53,6 @@
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@1.9.4", "", { "os": "win32", "cpu": "x64" }, "sha512-8Y5wMhVIPaWe6jw2H+KlEm4wP/f7EW3810ZLmDlrEEy5KvBsb9ECEfu/kMWD484ijfQ8+nIi0giMgu9g1UAuuA=="],
 
     "@cspotcode/source-map-support": ["@cspotcode/source-map-support@0.8.1", "", { "dependencies": { "@jridgewell/trace-mapping": "0.3.9" } }, "sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw=="],
-
-    "@evilmartians/lefthook": ["@evilmartians/lefthook@1.11.13", "", { "os": [ "linux", "win32", "darwin", ], "cpu": [ "x64", "ia32", "arm64", ], "bin": { "lefthook": "bin/index.js" } }, "sha512-CcR9u7lb3uCKD+295S2GfhROI6q9npTsJ/E07XupZZFO8sdYHm3Uo3x8t+lzKmI/7rCFA2t0MWRggjNrxpjXFg=="],
 
     "@grpc/grpc-js": ["@grpc/grpc-js@1.13.3", "", { "dependencies": { "@grpc/proto-loader": "^0.7.13", "@js-sdsl/ordered-map": "^4.4.2" } }, "sha512-FTXHdOoPbZrBjlVLHuKbDZnsTxXv2BlHF57xw6LuThXacXvtkahEPED0CKMk6obZDf65Hv4k3z62eyPNpvinIg=="],
 
