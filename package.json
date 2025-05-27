@@ -13,6 +13,7 @@
     "@tsconfig/node-ts": "^23.6.1",
     "@tsconfig/node23": "^23.0.2",
     "@types/node": "latest",
+    "lefthook": "latest",
     "typescript": "latest"
   },
   "dependencies": {
