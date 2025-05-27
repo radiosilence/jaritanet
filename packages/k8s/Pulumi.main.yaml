@@ -64,7 +64,7 @@ config:
         replicas: 1
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-4ca299d
+          tag: sha-13b4bdb
           pullPolicy: "Always"
   jaritanet-k8s:cloudflared:
     name: cloudflared
