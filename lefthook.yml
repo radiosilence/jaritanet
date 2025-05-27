@@ -10,7 +10,3 @@ pre-commit:
       run: npm run typecheck:k8s
     typecheck-routes:
       run: npm run typecheck:routes
-pre-push:
-  commands:
-    version-check:
-      run: curl -sSL https://raw.githubusercontent.com/radiosilence/blit-workflows/refs/heads/main/scripts/tag-latest.sh | bash
