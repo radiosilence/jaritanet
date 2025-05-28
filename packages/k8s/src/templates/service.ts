@@ -17,6 +17,7 @@ export function createService(
     hostVolumes,
     persistence,
     env,
+    healthCheck,
   }: z.infer<typeof ServiceArgsSchema>,
 ) {
   const pvs = Object.fromEntries(
@@ -168,6 +169,59 @@ export function createService(
                     readOnly,
                   })),
                 ],
+                ...(healthCheck && {
+                  ...(healthCheck.enableLiveness && {
+                    livenessProbe: {
+                      httpGet: {
+                        path: healthCheck.path,
+                        port: healthCheck.port ?? httpPort,
+                        ...(healthCheck.httpHeaders.length > 0 && {
+                          httpHeaders: healthCheck.httpHeaders,
+                        }),
+                      },
+                      initialDelaySeconds: healthCheck.initialDelaySeconds,
+                      periodSeconds: healthCheck.periodSeconds,
+                      timeoutSeconds: healthCheck.timeoutSeconds,
+                      failureThreshold: healthCheck.failureThreshold,
+                      successThreshold: healthCheck.successThreshold,
+                    },
+                  }),
+                  ...(healthCheck.enableReadiness && {
+                    readinessProbe: {
+                      httpGet: {
+                        path: healthCheck.path,
+                        port: healthCheck.port ?? httpPort,
+                        ...(healthCheck.httpHeaders.length > 0 && {
+                          httpHeaders: healthCheck.httpHeaders,
+                        }),
+                      },
+                      initialDelaySeconds: healthCheck.initialDelaySeconds,
+                      periodSeconds: healthCheck.periodSeconds,
+                      timeoutSeconds: healthCheck.timeoutSeconds,
+                      failureThreshold: healthCheck.failureThreshold,
+                      successThreshold: healthCheck.successThreshold,
+                    },
+                  }),
+                  ...(healthCheck.enableStartup && {
+                    startupProbe: {
+                      httpGet: {
+                        path: healthCheck.path,
+                        port: healthCheck.port ?? httpPort,
+                        ...(healthCheck.httpHeaders.length > 0 && {
+                          httpHeaders: healthCheck.httpHeaders,
+                        }),
+                      },
+                      initialDelaySeconds: healthCheck.initialDelaySeconds,
+                      periodSeconds: healthCheck.periodSeconds,
+                      timeoutSeconds: healthCheck.timeoutSeconds,
+                      failureThreshold: Math.max(
+                        healthCheck.failureThreshold * 3,
+                        30,
+                      ), // Higher threshold for startup
+                      successThreshold: healthCheck.successThreshold,
+                    },
+                  }),
+                }),
                 securityContext: {
                   allowPrivilegeEscalation: false,
                 },

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import {
   HostVolumeSchema,
   ImageSchema,
@@ -15,4 +16,5 @@ export const ServiceArgsSchema = z.object({
   limits: LimitsSchema.default(LIMITS_DEFAULT),
   hostVolumes: z.array(HostVolumeSchema).default([]),
   persistence: z.array(PersistenceSchema).default([]),
+  healthCheck: HealthCheckConfigSchema.optional(),
 });
