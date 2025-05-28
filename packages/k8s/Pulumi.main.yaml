@@ -71,5 +71,41 @@ config:
     name: cloudflared
     args:
       replicas: 2
+  jaritanet-k8s:monitoring:
+    prometheus:
+      name: prometheus
+      hostname: prometheus.radiosilence.dev
+      proxied: false
+      args:
+        retention: "30d"
+        storageSize: "20Gi"
+        persistence:
+          hostPath: /srv/prometheus
+          nodeAffinityHostname: oldboy
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+    grafana:
+      name: grafana
+      hostname: grafana.radiosilence.dev
+      proxied: false
+      args:
+        adminUser: admin
+        adminPassword: admin123
+        storageSize: "5Gi"
+        persistence:
+          hostPath: /srv/grafana
+          nodeAffinityHostname: oldboy
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
   cloudflare:apiToken:
     secure: AAABAMqg9u/8sqfZC9qSCmJwf5Rb1Px2EfzFnpRkI3uAI872vNEJE9q8XgKqcbkD+vQn/s0fwwyS02NnGMoatRNOpzxURXeP

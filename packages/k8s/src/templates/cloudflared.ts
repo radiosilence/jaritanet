@@ -8,7 +8,39 @@ export function createCloudflared(
   token: string,
   { replicas }: z.infer<typeof CloudflaredArgsSchema>,
 ) {
-  return new k8s.apps.v1.Deployment(
+  const annotations = {
+    "pulumi.com/skipAwait": "true",
+  };
+
+  // Create service for metrics
+  const service = new k8s.core.v1.Service(
+    `${name}-service`,
+    {
+      metadata: {
+        name: `${name}-service`,
+        annotations: {
+          ...annotations,
+          "prometheus.io/scrape": "true",
+          "prometheus.io/port": "2000",
+          "prometheus.io/path": "/metrics",
+        },
+      },
+      spec: {
+        selector: { pod: name },
+        ports: [
+          {
+            name: "metrics",
+            protocol: "TCP",
+            port: 2000,
+            targetPort: 2000,
+          },
+        ],
+      },
+    },
+    { provider },
+  );
+
+  const deployment = new k8s.apps.v1.Deployment(
     `${name}-deployment`,
     {
       metadata: {
@@ -44,6 +76,12 @@ export function createCloudflared(
                 image: "cloudflare/cloudflared:latest",
                 imagePullPolicy: "Always",
                 name: "cloudflared",
+                ports: [
+                  {
+                    name: "metrics",
+                    containerPort: 2000,
+                  },
+                ],
                 livenessProbe: {
                   httpGet: {
                     path: "/ready",
@@ -67,4 +105,6 @@ export function createCloudflared(
     },
     { provider },
   );
+
+  return { deployment, service };
 }

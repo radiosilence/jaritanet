@@ -6,6 +6,8 @@ import { env } from "./env.ts";
 import { getKubeconfig } from "./kubeconfig.ts";
 import { tunnelRef } from "./references.ts";
 import { createCloudflared } from "./templates/cloudflared.ts";
+import { createGrafana } from "./templates/grafana.ts";
+import { createPrometheus } from "./templates/prometheus.ts";
 import { createService } from "./templates/service.ts";
 
 const namespace = "jaritanet";
@@ -85,9 +87,40 @@ export default async function () {
     cloudflaredConf.args,
   );
 
+  // Deploy monitoring stack if configured
+  let monitoring:
+    | { prometheus: pulumi.Output<string>; grafana: pulumi.Output<string> }
+    | undefined;
+  if (conf.monitoring) {
+    const prometheus = createPrometheus(
+      provider,
+      conf.monitoring.prometheus.name,
+      conf.monitoring.prometheus.args,
+    );
+
+    const grafana = createGrafana(provider, conf.monitoring.grafana.name, {
+      ...conf.monitoring.grafana.args,
+      datasources: [
+        {
+          name: "Prometheus",
+          type: "prometheus",
+          url: `http://${conf.monitoring.prometheus.name}-service:9090`,
+          access: "proxy",
+          isDefault: true,
+        },
+      ],
+    });
+
+    monitoring = {
+      prometheus: prometheus.metadata.name,
+      grafana: grafana.metadata.name,
+    };
+  }
+
   return {
     services,
     namespace,
-    cloudflaredStatus: cloudflared.status,
+    cloudflaredStatus: cloudflared.deployment.status,
+    monitoring,
   };
 }

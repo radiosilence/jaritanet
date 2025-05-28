@@ -7,7 +7,8 @@
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
     "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
     "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
-    "prepare": "bunx lefthook install"
+    "prepare": "bunx lefthook install",
+    "monitoring": "./scripts/monitoring-access.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",

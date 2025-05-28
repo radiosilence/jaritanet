@@ -97,7 +97,12 @@ export function createService(
     {
       metadata: {
         name: `${name}-service`,
-        annotations,
+        annotations: {
+          ...annotations,
+          "prometheus.io/scrape": "true",
+          "prometheus.io/port": httpPort.toString(),
+          "prometheus.io/path": "/metrics",
+        },
       },
       spec: {
         selector: { app: name },
