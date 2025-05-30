@@ -43,3 +43,11 @@ export const LimitsSchema = z.object({
   memory: z.string().default(LIMITS_DEFAULT.memory),
   cpu: z.string().default(LIMITS_DEFAULT.cpu),
 });
+
+export const STRATEGY_DEFAULTS = {
+  type: "RollingUpdate",
+} as const;
+
+export const StrategySchema = z.object({
+  type: z.enum(["Recreate", "RollingUpdate"]).default("RollingUpdate"),
+});

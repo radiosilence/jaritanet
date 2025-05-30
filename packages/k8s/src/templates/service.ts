@@ -18,6 +18,7 @@ export function createService(
     persistence,
     env,
     healthCheck,
+    strategy,
   }: z.infer<typeof ServiceArgsSchema>,
 ) {
   const pvs = Object.fromEntries(
@@ -124,9 +125,7 @@ export function createService(
         selector: {
           matchLabels: { app: name },
         },
-        strategy: {
-          type: "Recreate",
-        },
+        strategy,
         template: {
           metadata: {
             labels: { app: name },

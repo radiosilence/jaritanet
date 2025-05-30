@@ -6,6 +6,8 @@ import {
   LIMITS_DEFAULT,
   LimitsSchema,
   PersistenceSchema,
+  STRATEGY_DEFAULTS,
+  StrategySchema,
 } from "./schemas.ts";
 
 export const ServiceArgsSchema = z.object({
@@ -17,4 +19,5 @@ export const ServiceArgsSchema = z.object({
   hostVolumes: z.array(HostVolumeSchema).default([]),
   persistence: z.array(PersistenceSchema).default([]),
   healthCheck: HealthCheckConfigSchema.optional(),
+  strategy: StrategySchema.default(STRATEGY_DEFAULTS),
 });
