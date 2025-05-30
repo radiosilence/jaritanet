@@ -44,6 +44,8 @@ config:
     - name: files
       hostname: files.radiosilence.dev
       args:
+        strategy:
+          type: Recreate
         image:
           repository: "ghcr.io/radiosilence/jaritanet-files"
           tag: latest
