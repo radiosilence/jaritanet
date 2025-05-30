@@ -61,8 +61,7 @@ config:
     - name: blit
       hostname: blit.cc
       args:
-        healthCheck: {}
-        replicas: 1
+        replicas: 2
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: sha-2452c43
