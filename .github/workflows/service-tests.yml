@@ -127,8 +127,15 @@ jobs:
           # Process results (this is simplified - GitHub Actions will provide the actual values)
           if echo '${{ toJson(needs.service-test-matrix.result) }}' | grep -q 'failure\|cancelled'; then
             overall_status="failed"
-            failed_services=("Unknown - some matrix jobs failed")
-            detailed_diagnostics="Some service tests failed to complete properly."
+            failed_services=("MATRIX_JOB_FAILURE")
+            detailed_diagnostics="**Matrix Job Execution Failed**
+
+One or more service test matrix jobs failed to complete properly. This could indicate:
+- GitHub Actions infrastructure issues
+- Workflow configuration problems  
+- Network connectivity issues during test execution
+
+Check the individual matrix job logs for specific error details."
           else
             # Count failed services from matrix outputs
             failed_count=0
@@ -346,7 +353,20 @@ jobs:
             const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}';
             const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}`;
             const failedServices = '${{ needs.service-availability.outputs.failed_services }}';
-            const failedCount = failedServices.split(' ').filter(s => s.trim()).length;
+            
+            // Handle matrix job failures vs actual service failures
+            let failedCount = 0;
+            let failedServicesList = [];
+            
+            if (failedServices.includes('MATRIX_JOB_FAILURE')) {
+              failedCount = 1;
+              failedServicesList = ['⚠️ Matrix job execution failed - check workflow logs'];
+            } else if (failedServices.trim()) {
+              // Split by spaces and filter out empty strings for actual service URLs
+              failedServicesList = failedServices.split(' ').filter(s => s.trim() && s.startsWith('http'));
+              failedCount = failedServicesList.length;
+            }
+            
             const title = `🚨 Service Availability Issue Detected (${failedCount} service${failedCount > 1 ? 's' : ''} down)`;
 
             const body = `
@@ -362,7 +382,7 @@ jobs:
             **🎯 Trigger:** ${context.eventName}
 
             ### 🔴 Failed Services
-            ${failedServices.split(' ').map(service => `- 🌐 **${service}**`).join('\n')}
+            ${failedServicesList.map(service => `- 🌐 **${service}**`).join('\n')}
 
             ---
 
@@ -484,7 +504,7 @@ jobs:
               **Latest Run:** [#${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
 
               ### 🔴 Currently Failed Services
-              ${failedServices.split(' ').map(service => `- 🌐 **${service}**`).join('\n')}
+              ${failedServicesList.map(service => `- 🌐 **${service}**`).join('\n')}
 
               ### 🔬 Latest Diagnostics
               ${diagnostics}
