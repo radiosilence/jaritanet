@@ -2,7 +2,7 @@ name: 🌐 Service Integration Tests
 
 on:
   schedule:
-    - cron: "0 * * * *" # Every hour
+    - cron: "*/10 * * * *" # Every 10 minutes
   workflow_dispatch:
   workflow_call:
 
@@ -356,10 +356,10 @@ jobs:
 
             **❌ ${failedServices.split(' ').length} service(s) are currently down or unresponsive**
 
-            **🕐 Detected at:** ${new Date().toISOString()}  
-            **🔗 Workflow Run:** [#${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId}) (Click to view full details)  
-            **📂 Repository:** ${context.payload.repository?.full_name || 'N/A'}  
-            **🎯 Trigger:** ${context.eventName}  
+            **🕐 Detected at:** ${new Date().toISOString()}
+            **🔗 Workflow Run:** [#${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId}) (Click to view full details)
+            **📂 Repository:** ${context.payload.repository?.full_name || 'N/A'}
+            **🎯 Trigger:** ${context.eventName}
 
             ### 🔴 Failed Services
             ${failedServices.split(' ').map(service => `- 🌐 **${service}**`).join('\n')}
@@ -395,7 +395,7 @@ jobs:
             ${tunnelStatus !== 'healthy' ? '- 🔥 **Cloudflare Tunnel Issues** - Check tunnel connectivity and configuration\n' : ''}
             ${diagnostics.includes('HTTP') && diagnostics.includes('50') ? '- 🚫 **Server Errors (5xx)** - Check application logs and service health\n' : ''}
             ${diagnostics.includes('HTTP') && diagnostics.includes('40') ? '- 🔒 **Client Errors (4xx)** - Check routing and authentication\n' : ''}
-            
+
             ${!diagnostics.includes('DNS_FAILED') && !diagnostics.includes('CONNECTION_FAILED') && !diagnostics.includes('TIMEOUT') && tunnelStatus === 'healthy' ? '- 🤔 **Unknown Issue** - Manual investigation required\n' : ''}
 
             ## 🛠️ Quick Diagnostic Commands
@@ -425,7 +425,7 @@ jobs:
             1. 📱 **Check the cupboard MacBook** - Ensure the 2014 MacBook Pro is powered on and connected
             2. 🔍 **Verify cluster health** - Run the diagnostic commands above to check K3s status
 
-            ### 🔧 Priority 2 - Service Recovery  
+            ### 🔧 Priority 2 - Service Recovery
             3. 🔄 **Restart failing services** - \`kubectl rollout restart deployment/<service>-deployment -n jaritanet\`
             4. 🔥 **Check tunnel logs** - Look for connection errors in cloudflared logs
             5. 🌐 **Test connectivity** - Manual verification of service endpoints
@@ -449,10 +449,10 @@ jobs:
 
             ## 🤖 Automation Info
 
-            **Created by:** Service Integration Test Workflow  
-            **Auto-management:** This issue will automatically close when all services are healthy again  
-            **Manual trigger:** You can [re-run the workflow](${context.payload.repository?.html_url}/actions/workflows/service-tests.yml) to check current status  
-            **Last check:** ${new Date().toISOString()}  
+            **Created by:** Service Integration Test Workflow
+            **Auto-management:** This issue will automatically close when all services are healthy again
+            **Manual trigger:** You can [re-run the workflow](${context.payload.repository?.html_url}/actions/workflows/service-tests.yml) to check current status
+            **Last check:** ${new Date().toISOString()}
 
             > 💡 **Tip:** Check the [workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) for complete logs and timing information.
             `;
@@ -479,16 +479,16 @@ jobs:
               const existingIssue = issues.data[0];
               const updateComment = `
               ## 🔄 Issue Update - ${new Date().toISOString()}
-              
+
               **Current Status:** ${failedCount} service${failedCount > 1 ? 's' : ''} still down
               **Latest Run:** [#${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
-              
+
               ### 🔴 Currently Failed Services
               ${failedServices.split(' ').map(service => `- 🌐 **${service}**`).join('\n')}
-              
+
               ### 🔬 Latest Diagnostics
               ${diagnostics}
-              
+
               ---
               ⚡ This is an automated update from the service monitoring workflow.
               `;
