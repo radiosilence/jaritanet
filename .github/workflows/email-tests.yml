@@ -71,7 +71,7 @@ jobs:
           fi
 
           echo "mx_details<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$mx_details" >> $GITHUB_OUTPUT
+          echo -e "$mx_verbose" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: 🔐 Test SPF Records
