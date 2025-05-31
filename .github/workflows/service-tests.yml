@@ -79,8 +79,6 @@ jobs:
             echo "detailed_diagnostics<<EOF" >> $GITHUB_OUTPUT
             echo "$detailed_diagnostics" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
-            exit 1
           else
             echo "✅ All services are healthy"
             echo "status=passed" >> $GITHUB_OUTPUT
@@ -207,7 +205,7 @@ jobs:
     name: 🚨 Issue Management
     runs-on: ubuntu-latest
     needs: [service-availability, tunnel-connectivity, bluesky-tests]
-    if: always() && (needs.service-availability.outputs.service-status == 'failed' || needs.service-availability.result == 'failure')
+    if: always() && needs.service-availability.outputs.service-status == 'failed'
     steps:
       - name: 🚨 Create Service Issue
         uses: actions/github-script@v7
@@ -215,11 +213,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const title = '🚨 Service Availability Issue Detected';
-            const tunnelStatus = '${{ needs.tunnel-connectivity.outputs.tunnel-status }}' || 'unknown';
-            const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}' || '';
-            const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}` || '';
-            const failedServices = '${{ needs.service-availability.outputs.failed_services }}' || '';
-            const jobResult = '${{ needs.service-availability.result }}';
+            const tunnelStatus = '${{ needs.tunnel-connectivity.outputs.tunnel-status }}';
+            const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}';
+            const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}`;
+            const failedServices = '${{ needs.service-availability.outputs.failed_services }}';
             
             const body = `
             ## 🌐 Service Availability Alert
@@ -233,25 +230,11 @@ jobs:
             
             The automated integration tests have detected that some services are not responding properly.
             
-            **Failed Services:** ${failedServices || 'Unknown (job failed before completion)'}
-            **Job Status:** ${jobResult}
+            **Failed Services:** ${failedServices}
             
             ## 🔬 Detailed Diagnostics
             
-            ${diagnostics || `
-            ⚠️ **Diagnostics unavailable** - The service availability job failed before diagnostics could be collected.
-            
-            This usually means:
-            - All services are completely unreachable
-            - The 2014 MacBook Pro may be powered off
-            - Network connectivity issues preventing any HTTP requests
-            
-            **Basic troubleshooting:**
-            1. Check if the MacBook Pro in the cupboard is powered on
-            2. Verify network connectivity to the device
-            3. Check if K8s cluster is running: \`kubectl get nodes\`
-            4. Restart the cluster if needed: \`sudo systemctl restart k3s\`
-            `}
+            ${diagnostics}
             
             ### 🔥 Cloudflare Tunnel Status
             
@@ -335,7 +318,7 @@ jobs:
     name: 🔔 Close Fixed Issues
     runs-on: ubuntu-latest
     needs: [service-availability, tunnel-connectivity, bluesky-tests]
-    if: needs.service-availability.outputs.service-status == 'passed' && needs.service-availability.result == 'success'
+    if: needs.service-availability.outputs.service-status == 'passed'
     steps:
       - name: 🔔 Close Fixed Service Issues
         uses: actions/github-script@v7
@@ -366,10 +349,26 @@ jobs:
               });
             }
 
+  workflow-status:
+    name: 🚨 Workflow Status
+    runs-on: ubuntu-latest
+    needs: [service-availability, tunnel-connectivity, bluesky-tests]
+    if: always()
+    steps:
+      - name: 🚨 Fail Workflow if Services Down
+        run: |
+          service_status="${{ needs.service-availability.outputs.service-status }}"
+          if [[ "$service_status" == "failed" ]]; then
+            echo "❌ Workflow failing due to service availability issues"
+            exit 1
+          else
+            echo "✅ All services healthy, workflow passing"
+          fi
+
   results:
     name: 📊 Results
     runs-on: ubuntu-latest
-    needs: [service-availability, tunnel-connectivity, bluesky-tests]
+    needs: [service-availability, tunnel-connectivity, bluesky-tests, workflow-status]
     if: always()
     steps:
       - name: 📈 Generate Test Summary
