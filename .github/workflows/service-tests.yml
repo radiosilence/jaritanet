@@ -122,6 +122,28 @@ jobs:
             fi
           done
 
+  debug-outputs:
+    name: 🔍 Debug Outputs
+    runs-on: ubuntu-latest
+    needs: [service-availability]
+    if: always()
+    steps:
+      - name: 🔍 Show Service Availability Outputs
+        run: |
+          echo "=== Service Availability Job Outputs ==="
+          echo "service-status: '${{ needs.service-availability.outputs.service-status }}'"
+          echo "result: '${{ needs.service-availability.result }}'"
+          echo "conclusion: '${{ needs.service-availability.conclusion }}'"
+          echo "=== Raw Debug ==="
+          echo "Length of service-status: ${#service_status}"
+          service_status="${{ needs.service-availability.outputs.service-status }}"
+          echo "service_status variable: '$service_status'"
+          if [[ -z "$service_status" ]]; then
+            echo "❌ service-status is empty!"
+          else
+            echo "✅ service-status has value: '$service_status'"
+          fi
+
   tunnel-connectivity:
     name: 🔥 Cloudflare Tunnel Status
     runs-on: ubuntu-latest
@@ -211,9 +233,26 @@ jobs:
     name: 🚨 Issue Management
     runs-on: ubuntu-latest
     needs: [service-availability, tunnel-connectivity, bluesky-tests]
-    if: always() && needs.service-availability.outputs.service-status == 'failed'
+    if: always()
     steps:
+      - name: 🔍 Debug Issue Creation Condition
+        run: |
+          echo "=== Issue Creation Debug ==="
+          echo "service-status: '${{ needs.service-availability.outputs.service-status }}'"
+          echo "Length: ${#status_value}"
+          status_value="${{ needs.service-availability.outputs.service-status }}"
+          echo "Raw value: '$status_value'"
+          echo "Comparison result (failed): $([ "$status_value" = "failed" ] && echo "true" || echo "false")"
+          echo "Comparison result (empty): $([ -z "$status_value" ] && echo "true" || echo "false")"
+          
+          if [[ "$status_value" == "failed" ]]; then
+            echo "✅ Condition met - will create issue"
+          else
+            echo "❌ Condition not met - will not create issue"
+          fi
+          
       - name: 🚨 Create Service Issue
+        if: needs.service-availability.outputs.service-status == 'failed'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
