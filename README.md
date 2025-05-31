@@ -1,8 +1,8 @@
 # JARITANET
 
-[![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
 [![🌐 Service Tests](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
-[![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
 [![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 [![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 
@@ -142,33 +142,39 @@ Each package references outputs from previous deployments using Pulumi StackRefe
 
 ## Integration Testing
 
-The system includes comprehensive automated integration tests that run every 6 hours to ensure critical infrastructure remains healthy. The tests cover:
+The system includes comprehensive automated integration tests split into two workflows that run every 6 hours to ensure critical infrastructure remains healthy:
 
-### 📧 Mail Server Configuration
+### 📧 Email Integration Tests
+Focuses specifically on mail server configuration for **blit.cc**:
 - **MX Records**: Verifies Fastmail MX records (in1/in2.fastmail.com) are properly configured
-- **SPF Records**: Checks SPF includes for Fastmail authorization
+- **SPF Records**: Checks SPF includes for Fastmail authorization  
 - **DKIM Records**: Tests all DKIM selectors (fm1-fm4) for domain authentication
 - **DMARC Records**: Validates DMARC policy configuration
 
-### 🦋 Bluesky DNS Configuration
-- **DID Records**: Verifies Bluesky decentralized identifier records for domain verification
+### 🌐 Service Integration Tests (`service-tests.yml`)
+Monitors service availability and infrastructure health:
 
-### 🌐 Service Availability
-- **HTTP Health Checks**: Tests that all services (blit.cc, bambi.art, files.blit.cc) are responding
+- **HTTP Health Checks**: Tests that all services (blit.cc, music.blit.cc, files.blit.cc) are responding
 - **Response Time Monitoring**: Tracks service performance metrics
-
-### 🔥 Cloudflare Tunnel Status
-- **Tunnel Connectivity**: Verifies services are accessible through Cloudflare's edge network
+- **SSL Certificate Validation**: Monitors certificate expiry and validity
+- **Cloudflare Tunnel Status**: Verifies services are accessible through Cloudflare's edge network
 - **CF Header Detection**: Confirms traffic is properly routed through Cloudflare
+- **Bluesky DNS Configuration**: Verifies Bluesky decentralized identifier records for domain verification
 
 ### 🚨 Automated Issue Management
-When mail server configuration issues are detected, the system automatically:
-- Creates a GitHub issue with diagnostic information
-- Provides specific debugging commands and steps
-- Auto-closes issues when problems are resolved
-- Prevents duplicate issue creation
+Both workflows include intelligent issue management:
 
-The integration tests provide early warning for infrastructure problems and ensure email delivery remains reliable, which is critical for business operations.
+**Email Issues**: When mail server configuration problems are detected, automatically creates GitHub issues with:
+- Detailed diagnostic information for DNS record problems
+- Specific debugging commands for mail server troubleshooting
+- Auto-resolution when tests pass again
+
+**Service Issues**: When services become unavailable, creates issues highlighting:
+- Failed service endpoints and response codes
+- Kubernetes pod status and tunnel connectivity guidance
+- Cupboard MacBook Pro health check reminders
+
+The split testing approach provides targeted monitoring - critical email infrastructure gets dedicated attention while service availability is monitored separately, ensuring reliable email delivery and service uptime.
 
 ## Additional Components
 
