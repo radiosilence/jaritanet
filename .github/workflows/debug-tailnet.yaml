@@ -1,4 +1,4 @@
-name: Debug tailnet
+name: 🐛 Debug Tailnet
 
 permissions:
   contents: read
@@ -19,18 +19,18 @@ concurrency:
 
 jobs:
   playbook:
-    name: Debug tailnet
+    name: 🔍 Debug Tailnet Session
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v2
-      - name: Create SSH key
+      - name: 🔑 Create SSH Key
         run: |
           mkdir -p ~/.ssh/
           chmod 700 ~/.ssh/
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           sudo chmod 600 ~/.ssh/*
-      - name: Tailscale
+      - name: 🔌 Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
@@ -38,12 +38,12 @@ jobs:
           version: "1.78.1"
           tags: tag:ci
 
-      - name: Install tmate
+      - name: 📦 Install tmate
         run: |
           sudo apt-get update
           sudo apt-get install -y tmate
 
-      - name: Start tmate session
+      - name: 🚀 Start Debug Session
         run: |
           tmate -S /tmp/tmate.sock new-session -d
           tmate -S /tmp/tmate.sock wait tmate-ready

@@ -1,4 +1,4 @@
-name: Publish Files Container
+name: 📦 Build & Publish Files Container
 
 permissions:
   contents: read
@@ -16,6 +16,7 @@ on:
 
 jobs:
   publish:
+    name: 🚀 Build & Publish Container
     uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@main
     with:
       working-directory: "./containers/files"

@@ -1,4 +1,4 @@
-name: Run Playbook
+name: 🏗️ Run Ansible Playbook
 
 permissions:
   contents: read
@@ -18,24 +18,26 @@ concurrency:
 
 jobs:
   playbook:
-    name: Run Playbook
+    name: 🚀 Deploy Configuration
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: jdx/mise-action@v2
-      - name: Tailscale
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v2
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 🔌 Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-      - name: Create SSH key
+      - name: 🔑 Setup SSH Key
         run: |
           mkdir -p ~/.ssh/
           chmod 700 ~/.ssh/
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           sudo chmod 600 ~/.ssh/*
-      - name: Run playbook
+      - name: 🏗️ Execute Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v2
         with:
           playbook: playbook.yml
@@ -48,7 +50,7 @@ jobs:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
 
-      - name: Set GitHub Secrets
+      - name: 🔐 Update GitHub Secrets
         run: ./scripts/update-secrets
         env:
           GITHUB_TOKEN: ${{ secrets.SECRETS_PAT }}

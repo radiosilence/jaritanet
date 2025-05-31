@@ -100,6 +100,8 @@ jobs:
           dkim_status="${{ steps.dkim-check.outputs.dkim_status }}"
           dmarc_status="${{ steps.dmarc-check.outputs.dmarc_status }}"
           
+          echo "🔍 Debug: MX=$mx_status, SPF=$spf_status, DKIM=$dkim_status, DMARC=$dmarc_status"
+          
           if [[ "$mx_status" == "failed" || "$spf_status" == "failed" || "$dkim_status" == "failed" || "$dmarc_status" == "failed" ]]; then
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "❌ Mail server configuration has issues"
@@ -226,19 +228,22 @@ jobs:
             }
 
   results:
-    name: 📊 Test Results Summary
+    name: 📊 Results
     runs-on: ubuntu-latest
     needs: [mail-server-tests]
     if: always()
     steps:
-      - name: 📈 Generate Summary
+      - name: 📈 Generate Test Summary
         run: |
           echo "## 📧 Email Integration Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ needs.mail-server-tests.outputs.mail-status }}" == "passed" ]]; then
+          mail_status="${{ needs.mail-server-tests.outputs.mail-status }}"
+          echo "🔍 **Debug:** mail-status = '$mail_status'" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "$mail_status" == "passed" ]]; then
             echo "| 📧 Mail Servers (blit.cc) | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| 📧 Mail Servers (blit.cc) | ❌ Issues Detected |" >> $GITHUB_STEP_SUMMARY
