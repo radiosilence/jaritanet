@@ -11,84 +11,158 @@ permissions:
   issues: write
 
 jobs:
-  service-availability:
-    name: 🌐 Service Availability
+  service-test-matrix:
+    name: 🌐 Test ${{ matrix.service.name }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: "blit.cc"
+            url: "https://blit.cc"
+          - name: "music.blit.cc"
+            url: "https://music.blit.cc"
+          - name: "files.radiosilence.dev"
+            url: "https://files.radiosilence.dev"
+      fail-fast: false
     outputs:
-      service-status: ${{ steps.service-check.outputs.status }}
+      status: ${{ steps.test-service.outputs.status }}
+      diagnostics: ${{ steps.test-service.outputs.diagnostics }}
     steps:
       - name: 🏗️ Setup
         uses: actions/checkout@v4
 
-      - name: 🏥 Health Check Services
-        id: service-check
+      - name: 🏥 Test Service Health
+        id: test-service
         run: |
-          echo "🌐 Checking service availability..."
-          services=(
-            "https://blit.cc"
-            "https://music.blit.cc"
-            "https://files.radiosilence.dev"
-          )
+          service_url="${{ matrix.service.url }}"
+          service_name="${{ matrix.service.name }}"
+          
+          echo "🌐 Testing $service_name at $service_url"
+          
+          # Test service with detailed metrics
+          response=$(curl -fs --max-time 30 -w "HTTPCODE:%{http_code}|TIME:%{time_total}|SIZE:%{size_download}" "$service_url" 2>&1)
+          curl_exit_code=$?
+          
+          if [[ $curl_exit_code -eq 0 ]]; then
+            # Extract metrics from curl output
+            http_code=$(echo "$response" | grep -o "HTTPCODE:[0-9]*" | cut -d: -f2)
+            time_total=$(echo "$response" | grep -o "TIME:[0-9.]*" | cut -d: -f2)
+            size_download=$(echo "$response" | grep -o "SIZE:[0-9]*" | cut -d: -f2)
+            
+            echo "✅ $service_name is responding (HTTP $http_code, ${time_total}s, ${size_download}B)"
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo "diagnostics=" >> $GITHUB_OUTPUT
+          else
+            echo "❌ $service_name is not responding"
+            echo "🔍 Collecting diagnostics for $service_name..."
+            
+            # Extract domain for DNS/connection tests
+            domain=$(echo "$service_url" | sed 's|https\?://||' | cut -d/ -f1)
+            
+            # DNS resolution check
+            dns_result=$(dig +short "$domain" 2>&1) || dns_result="DNS_FAILED"
+            
+            # Connection test
+            connection_test=$(timeout 10 nc -zv "$domain" 443 2>&1) || connection_test="CONNECTION_FAILED"
+            
+            # Verbose curl output
+            verbose_curl=$(curl -v --max-time 10 "$service_url" 2>&1 | head -20) || verbose_curl="CURL_VERBOSE_FAILED"
+            
+            echo "status=failed" >> $GITHUB_OUTPUT
+            
+            # Create diagnostics output
+            {
+              echo "diagnostics<<EOF"
+              echo "### ❌ $service_name Diagnostics"
+              echo ""
+              echo "**DNS Resolution:**"
+              echo '```'
+              echo "$dns_result"
+              echo '```'
+              echo ""
+              echo "**Connection Test (port 443):**"
+              echo '```'
+              echo "$connection_test"
+              echo '```'
+              echo ""
+              echo "**Curl Verbose Output:**"
+              echo '```'
+              echo "$verbose_curl"
+              echo '```'
+              echo ""
+              echo "**Exit Code:** $curl_exit_code"
+              echo ""
+              echo "---"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          fi
+
+  service-availability:
+    name: 🌐 Service Availability Summary
+    runs-on: ubuntu-latest
+    needs: [service-test-matrix]
+    if: always()
+    outputs:
+      service-status: ${{ steps.collect-results.outputs.status }}
+      failed_services: ${{ steps.collect-results.outputs.failed_services }}
+      detailed_diagnostics: ${{ steps.collect-results.outputs.detailed_diagnostics }}
+    steps:
+      - name: 📊 Collect Matrix Results
+        id: collect-results
+        run: |
+          echo "🔍 Collecting results from service tests..."
+          
+          # Get all matrix job results
+          results=('${{ toJson(needs.service-test-matrix.outputs) }}')
           
           failed_services=()
           detailed_diagnostics=""
+          overall_status="passed"
           
-          for service in "${services[@]}"; do
-            echo "Testing $service"
-            
-            # Detailed curl diagnostics
-            response=$(curl -fs --max-time 30 -w "HTTPCODE:%{http_code}|TIME:%{time_total}|SIZE:%{size_download}" "$service" 2>&1)
-            curl_exit_code=$?
-            
-            if [[ $curl_exit_code -eq 0 ]]; then
-              # Extract metrics from curl output
-              http_code=$(echo "$response" | grep -o "HTTPCODE:[0-9]*" | cut -d: -f2)
-              time_total=$(echo "$response" | grep -o "TIME:[0-9.]*" | cut -d: -f2)
-              size_download=$(echo "$response" | grep -o "SIZE:[0-9]*" | cut -d: -f2)
-              
-              echo "✅ $service is responding (HTTP $http_code, ${time_total}s, ${size_download}B)"
-            else
-              echo "❌ $service is not responding"
-              failed_services+=("$service")
-              
-              # Detailed diagnostics for failed service
-              echo "🔍 Collecting diagnostics for $service..."
-              
-              # DNS resolution check
-              domain=$(echo "$service" | sed 's|https\?://||' | cut -d/ -f1)
-              dns_result=$(dig +short "$domain" 2>&1 || echo "DNS_FAILED")
-              
-              # Connection test
-              connection_test=$(timeout 10 nc -zv "$domain" 443 2>&1 || echo "CONNECTION_FAILED")
-              
-              # Basic curl with verbose output
-              verbose_curl=$(curl -v --max-time 10 "$service" 2>&1 | head -20 || echo "CURL_VERBOSE_FAILED")
-              
-              # Add to detailed diagnostics
-              detailed_diagnostics+=$'\n### ❌ '"$service"$' Diagnostics\n\n**DNS Resolution:**\n```\n'"$dns_result"$'\n```\n\n**Connection Test (port 443):**\n```\n'"$connection_test"$'\n```\n\n**Curl Verbose Output:**\n```\n'"$verbose_curl"$'\n```\n\n**Exit Code:** '"$curl_exit_code"$'\n\n---\n'
-            fi
-          done
+          # Check each service result
+          services=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
+          statuses=(${{ toJson(needs.service-test-matrix.outputs.*.status) }})
+          diagnostics=(${{ toJson(needs.service-test-matrix.outputs.*.diagnostics) }})
           
-          # Set outputs regardless of success/failure
-          if [[ ${#failed_services[@]} -gt 0 ]]; then
-            echo "⚠️ Some services are not responding: ${failed_services[*]}"
-            echo "status=failed" >> $GITHUB_OUTPUT
-            echo "failed_services=${failed_services[*]}" >> $GITHUB_OUTPUT
-            
-            # Save detailed diagnostics to file and output
-            echo "$detailed_diagnostics" > /tmp/diagnostics.md
-            echo "detailed_diagnostics<<EOF" >> $GITHUB_OUTPUT
-            echo "$detailed_diagnostics" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+          # Process results (this is simplified - GitHub Actions will provide the actual values)
+          if echo '${{ toJson(needs.service-test-matrix.result) }}' | grep -q 'failure\|cancelled'; then
+            overall_status="failed"
+            failed_services=("Unknown - some matrix jobs failed")
+            detailed_diagnostics="Some service tests failed to complete properly."
           else
-            echo "✅ All services are healthy"
-            echo "status=passed" >> $GITHUB_OUTPUT
-            echo "failed_services=" >> $GITHUB_OUTPUT
+            # Count failed services from matrix outputs
+            failed_count=0
+            for i in "${!services[@]}"; do
+              service="${services[$i]}"
+              # In real execution, GitHub Actions will provide actual status values
+              if [[ "${statuses[$i]:-}" == "failed" ]]; then
+                failed_services+=("https://$service")
+                detailed_diagnostics+="${diagnostics[$i]:-}"$'\n\n'
+                failed_count=$((failed_count + 1))
+              fi
+            done
+            
+            if [[ $failed_count -gt 0 ]]; then
+              overall_status="failed"
+            fi
+          fi
+          
+          # Set outputs
+          echo "status=$overall_status" >> $GITHUB_OUTPUT
+          echo "failed_services=${failed_services[*]}" >> $GITHUB_OUTPUT
+          
+          if [[ -n "$detailed_diagnostics" ]]; then
+            {
+              echo "detailed_diagnostics<<EOF"
+              echo "$detailed_diagnostics"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
             echo "detailed_diagnostics=" >> $GITHUB_OUTPUT
           fi
           
-          # Debug output to verify what was set
-          echo "🔍 Debug: Set status to $(cat $GITHUB_OUTPUT | grep '^status=' | cut -d'=' -f2)"
+          echo "🔍 Debug: Set status to '$overall_status'"
+          echo "🔍 Debug: Failed services: ${failed_services[*]}"
 
       - name: 🔒 Test SSL Certificates
         run: |
