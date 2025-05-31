@@ -47,3 +47,12 @@ jobs:
     permissions:
       contents: read
       issues: write
+
+  email-tests:
+    name: 📧 Run Email Integration Tests
+
+    needs: routes
+    uses: ./.github/workflows/email-tests.yml
+    permissions:
+      contents: read
+      issues: write

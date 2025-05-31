@@ -2,11 +2,7 @@ name: 📧 Email Integration Tests
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    - cron: "0 */6 * * *" # Every 6 hours
   workflow_dispatch:
 
 permissions:
@@ -99,9 +95,9 @@ jobs:
           spf_status="${{ steps.spf-check.outputs.spf_status }}"
           dkim_status="${{ steps.dkim-check.outputs.dkim_status }}"
           dmarc_status="${{ steps.dmarc-check.outputs.dmarc_status }}"
-          
+
           echo "🔍 Debug: MX=$mx_status, SPF=$spf_status, DKIM=$dkim_status, DMARC=$dmarc_status"
-          
+
           if [[ "$mx_status" == "failed" || "$spf_status" == "failed" || "$dkim_status" == "failed" || "$dmarc_status" == "failed" ]]; then
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "❌ Mail server configuration has issues"
@@ -124,53 +120,53 @@ jobs:
             const title = '🚨 Mail Server Configuration Issue Detected';
             const body = `
             ## 📧 Mail Server Alert
-            
+
             **Detected at:** ${new Date().toISOString()}
             **Triggered by:** ${context.eventName}
             **Workflow:** ${context.workflow}
             **Run:** ${context.runNumber}
-            
+
             ### ❌ Issues Found
-            
+
             The automated integration tests have detected issues with mail server configuration for **blit.cc**.
-            
+
             ### 🔍 What to Check
-            
+
             1. **MX Records**: Verify Fastmail MX records are properly configured
             2. **SPF Records**: Check SPF includes for Fastmail
             3. **DKIM Records**: Ensure all DKIM selectors (fm1-fm4) are working
             4. **DMARC Records**: Verify DMARC policy is correctly set
-            
+
             ### 🛠️ Debugging Steps
-            
+
             \`\`\`bash
             # Check MX records
             dig MX blit.cc
-            
+
             # Check SPF
             dig TXT blit.cc | grep spf1
-            
+
             # Check DKIM
             dig TXT fm1._domainkey.blit.cc
             dig TXT fm2._domainkey.blit.cc
             dig TXT fm3._domainkey.blit.cc
             dig TXT fm4._domainkey.blit.cc
-            
+
             # Check DMARC
             dig TXT _dmarc.blit.cc
             \`\`\`
-            
+
             ### 🏃‍♂️ Next Steps
-            
+
             1. Run the Pulumi deployment for the routes package
             2. Verify DNS propagation (may take up to 24 hours)
             3. Re-run this workflow to verify fixes
-            
+
             ---
-            
+
             🤖 This issue was automatically created by the email integration test workflow.
             `;
-            
+
             // Check if issue already exists
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
@@ -178,7 +174,7 @@ jobs:
               labels: ['mail-server', 'automated'],
               state: 'open'
             });
-            
+
             if (issues.data.length === 0) {
               await github.rest.issues.create({
                 owner: context.repo.owner,
@@ -210,7 +206,7 @@ jobs:
               labels: ['mail-server', 'automated'],
               state: 'open'
             });
-            
+
             for (const issue of issues.data) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -218,7 +214,7 @@ jobs:
                 issue_number: issue.number,
                 body: '✅ Mail server tests are now passing. Auto-closing this issue.'
               });
-              
+
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -239,16 +235,16 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          
+
           mail_status="${{ needs.mail-server-tests.outputs.mail-status }}"
           echo "🔍 **Debug:** mail-status = '$mail_status'" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "$mail_status" == "passed" ]]; then
             echo "| 📧 Mail Servers (blit.cc) | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| 📧 Mail Servers (blit.cc) | ❌ Issues Detected |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📅 **Test Run:** $(date)" >> $GITHUB_STEP_SUMMARY
           echo "🏃 **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
