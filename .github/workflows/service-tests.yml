@@ -1,0 +1,280 @@
+name: 🌐 Service Integration Tests
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  service-availability:
+    name: 🌐 Service Availability
+    runs-on: ubuntu-latest
+    outputs:
+      service-status: ${{ steps.service-check.outputs.status }}
+    steps:
+      - name: 🏗️ Setup
+        uses: actions/checkout@v4
+
+      - name: 🏥 Health Check Services
+        id: service-check
+        run: |
+          echo "🌐 Checking service availability..."
+          services=(
+            "https://blit.cc"
+            "https://music.blit.cc"
+            "https://files.blit.cc"
+          )
+          
+          failed_services=()
+          
+          for service in "${services[@]}"; do
+            echo "Testing $service"
+            if curl -fs --max-time 30 "$service" > /dev/null; then
+              echo "✅ $service is responding"
+            else
+              echo "❌ $service is not responding"
+              failed_services+=("$service")
+            fi
+          done
+          
+          if [[ ${#failed_services[@]} -gt 0 ]]; then
+            echo "⚠️ Some services are not responding: ${failed_services[*]}"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failed_services=${failed_services[*]}" >> $GITHUB_OUTPUT
+          else
+            echo "✅ All services are healthy"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔒 Test SSL Certificates
+        run: |
+          echo "🔒 Checking SSL certificates..."
+          domains=("blit.cc" "music.blit.cc" "files.blit.cc")
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing SSL certificate for $domain"
+            cert_info=$(echo | openssl s_client -servername "$domain" -connect "$domain:443" 2>/dev/null | openssl x509 -noout -dates 2>/dev/null)
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ SSL certificate is valid for $domain"
+              
+              # Check expiry
+              end_date=$(echo "$cert_info" | grep "notAfter" | cut -d'=' -f2)
+              if [ -n "$end_date" ]; then
+                end_epoch=$(date -d "$end_date" +%s 2>/dev/null)
+                current_epoch=$(date +%s)
+                
+                if [ "$end_epoch" -gt "$current_epoch" ]; then
+                  days_until_expiry=$(( (end_epoch - current_epoch) / 86400 ))
+                  echo "📅 Certificate expires in $days_until_expiry days"
+                  
+                  if [ "$days_until_expiry" -lt 30 ]; then
+                    echo "⚠️ Warning: SSL certificate expires soon!"
+                  fi
+                fi
+              fi
+            else
+              echo "❌ Failed to retrieve SSL certificate for $domain"
+            fi
+          done
+
+  tunnel-connectivity:
+    name: 🔥 Cloudflare Tunnel Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🌍 Test Tunnel Endpoints
+        run: |
+          echo "🔥 Testing Cloudflare tunnel connectivity..."
+          domains=("blit.cc" "music.blit.cc" "files.blit.cc")
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing tunnel for $domain"
+            # Check if we get Cloudflare headers
+            cf_headers=$(curl -sI "https://$domain" | grep -i "cf-")
+            if [[ -n "$cf_headers" ]]; then
+              echo "✅ $domain is served through Cloudflare"
+            else
+              echo "⚠️ $domain may not be using Cloudflare"
+            fi
+            
+            # Check response time
+            response_time=$(curl -w "%{time_total}" -s -o /dev/null "https://$domain")
+            echo "📊 Response time for $domain: ${response_time}s"
+          done
+
+  bluesky-tests:
+    name: 🦋 Bluesky DNS Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Test Bluesky DID Records
+        run: |
+          echo "🦋 Checking Bluesky DID records..."
+          domains=("blit.cc")
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing Bluesky DID for $domain"
+            did_record=$(dig +short TXT _atproto.$domain)
+            if [[ -z "$did_record" ]]; then
+              echo "⚠️ No Bluesky DID record found for $domain (may be optional)"
+            else
+              echo "✅ Bluesky DID record for $domain: $did_record"
+              if echo "$did_record" | grep -q "did="; then
+                echo "✅ Valid DID format detected"
+              else
+                echo "⚠️ DID record format may be incorrect"
+              fi
+            fi
+          done
+
+  issue-creator:
+    name: 🚨 Issue Management
+    runs-on: ubuntu-latest
+    needs: [service-availability, tunnel-connectivity, bluesky-tests]
+    if: needs.service-availability.outputs.service-status == 'failed'
+    steps:
+      - name: 🚨 Create Service Issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = '🚨 Service Availability Issue Detected';
+            const body = `
+            ## 🌐 Service Availability Alert
+            
+            **Detected at:** ${new Date().toISOString()}
+            **Triggered by:** ${context.eventName}
+            **Workflow:** ${context.workflow}
+            **Run:** ${context.runNumber}
+            
+            ### ❌ Services Not Responding
+            
+            The automated integration tests have detected that some services are not responding properly.
+            
+            **Failed Services:** ${{ needs.service-availability.outputs.failed_services }}
+            
+            ### 🔍 What to Check
+            
+            1. **Service Health**: Check if services are running in Kubernetes
+            2. **Tunnel Status**: Verify Cloudflare tunnels are connected
+            3. **DNS Resolution**: Ensure domains resolve correctly
+            4. **SSL Certificates**: Check if certificates are valid
+            5. **Cupboard MacBook**: Check if the 2014 MacBook Pro is still running
+            
+            ### 🛠️ Debugging Steps
+            
+            \`\`\`bash
+            # Check service status
+            curl -I https://blit.cc
+            curl -I https://music.blit.cc
+            curl -I https://files.blit.cc
+            
+            # Check Kubernetes pods
+            kubectl get pods -n jaritanet
+            
+            # Check Cloudflare tunnel logs
+            kubectl logs -n jaritanet -l app=cloudflared
+            
+            # Check node status
+            kubectl get nodes
+            \`\`\`
+            
+            ### 🏃‍♂️ Next Steps
+            
+            1. Check the 2014 MacBook Pro in the cupboard 📱
+            2. Verify K8s cluster is healthy
+            3. Check tunnel connectivity
+            4. Restart services if needed
+            5. Re-run this workflow to verify fixes
+            
+            ---
+            
+            🤖 This issue was automatically created by the service integration test workflow.
+            `;
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['service-availability', 'automated'],
+              state: 'open'
+            });
+            
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['bug', 'service-availability', 'automated', 'high-priority']
+              });
+              console.log('🚨 Created new service availability issue');
+            } else {
+              console.log('📋 Service availability issue already exists, skipping creation');
+            }
+
+  close-fixed-issues:
+    name: 🔔 Close Fixed Issues
+    runs-on: ubuntu-latest
+    needs: [service-availability, tunnel-connectivity, bluesky-tests]
+    if: needs.service-availability.outputs.service-status == 'passed'
+    steps:
+      - name: 🔔 Close Fixed Service Issues
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Close any open service issues if tests are now passing
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['service-availability', 'automated'],
+              state: 'open'
+            });
+            
+            for (const issue of issues.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ Service availability tests are now passing. Auto-closing this issue.'
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
+
+  results:
+    name: 📊 Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [service-availability, tunnel-connectivity, bluesky-tests]
+    if: always()
+    steps:
+      - name: 📈 Generate Summary
+        run: |
+          echo "## 🌐 Service Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.service-availability.outputs.service-status }}" == "passed" ]]; then
+            echo "| 🌐 Service Availability | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🌐 Service Availability | ❌ Issues Detected |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "| 🔥 Tunnel Connectivity | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🦋 Bluesky DNS | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 SSL Certificates | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📅 **Test Run:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "🏃 **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "🖥️ **Infrastructure:** 2014 MacBook Pro (cupboard deployment)" >> $GITHUB_STEP_SUMMARY

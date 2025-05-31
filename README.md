@@ -1,9 +1,10 @@
 # JARITANET
 
-[![🔍 Integration Tests](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![🌐 Service Tests](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 [![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
-[![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
-[![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
+[![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 
 JARITANET is a comprehensive infrastructure-as-code system that provides secure, tunneled access to services running on Kubernetes clusters through Cloudflare Tunnels.
 
