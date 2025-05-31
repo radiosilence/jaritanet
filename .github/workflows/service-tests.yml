@@ -2,12 +2,9 @@ name: 🌐 Service Integration Tests
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    - cron: "0 */6 * * *" # Every 6 hours
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -32,9 +29,9 @@ jobs:
             "https://music.blit.cc"
             "https://files.radiosilence.dev"
           )
-          
+
           failed_services=()
-          
+
           for service in "${services[@]}"; do
             echo "Testing $service"
             if curl -fs --max-time 30 "$service" > /dev/null; then
@@ -44,11 +41,12 @@ jobs:
               failed_services+=("$service")
             fi
           done
-          
+
           if [[ ${#failed_services[@]} -gt 0 ]]; then
             echo "⚠️ Some services are not responding: ${failed_services[*]}"
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "failed_services=${failed_services[*]}" >> $GITHUB_OUTPUT
+            exit 1
           else
             echo "✅ All services are healthy"
             echo "status=passed" >> $GITHUB_OUTPUT
@@ -58,24 +56,24 @@ jobs:
         run: |
           echo "🔒 Checking SSL certificates..."
           domains=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
-          
+
           for domain in "${domains[@]}"; do
             echo "Testing SSL certificate for $domain"
             cert_info=$(echo | openssl s_client -servername "$domain" -connect "$domain:443" 2>/dev/null | openssl x509 -noout -dates 2>/dev/null)
-            
+
             if [ $? -eq 0 ]; then
               echo "✅ SSL certificate is valid for $domain"
-              
+
               # Check expiry
               end_date=$(echo "$cert_info" | grep "notAfter" | cut -d'=' -f2)
               if [ -n "$end_date" ]; then
                 end_epoch=$(date -d "$end_date" +%s 2>/dev/null)
                 current_epoch=$(date +%s)
-                
+
                 if [ "$end_epoch" -gt "$current_epoch" ]; then
                   days_until_expiry=$(( (end_epoch - current_epoch) / 86400 ))
                   echo "📅 Certificate expires in $days_until_expiry days"
-                  
+
                   if [ "$days_until_expiry" -lt 30 ]; then
                     echo "⚠️ Warning: SSL certificate expires soon!"
                   fi
@@ -94,7 +92,7 @@ jobs:
         run: |
           echo "🔥 Testing Cloudflare tunnel connectivity..."
           domains=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
-          
+
           for domain in "${domains[@]}"; do
             echo "Testing tunnel for $domain"
             # Check if we get Cloudflare headers
@@ -104,7 +102,7 @@ jobs:
             else
               echo "⚠️ $domain may not be using Cloudflare"
             fi
-            
+
             # Check response time
             response_time=$(curl -w "%{time_total}" -s -o /dev/null "https://$domain")
             echo "📊 Response time for $domain: ${response_time}s"
@@ -118,7 +116,7 @@ jobs:
         run: |
           echo "🦋 Checking Bluesky DID records..."
           domains=("blit.cc")
-          
+
           for domain in "${domains[@]}"; do
             echo "Testing Bluesky DID for $domain"
             did_record=$(dig +short TXT _atproto.$domain)
@@ -148,57 +146,57 @@ jobs:
             const title = '🚨 Service Availability Issue Detected';
             const body = `
             ## 🌐 Service Availability Alert
-            
+
             **Detected at:** ${new Date().toISOString()}
             **Triggered by:** ${context.eventName}
             **Workflow:** ${context.workflow}
             **Run:** ${context.runNumber}
-            
+
             ### ❌ Services Not Responding
-            
+
             The automated integration tests have detected that some services are not responding properly.
-            
+
             **Failed Services:** ${{ needs.service-availability.outputs.failed_services }}
-            
+
             ### 🔍 What to Check
-            
+
             1. **Service Health**: Check if services are running in Kubernetes
             2. **Tunnel Status**: Verify Cloudflare tunnels are connected
             3. **DNS Resolution**: Ensure domains resolve correctly
             4. **SSL Certificates**: Check if certificates are valid
             5. **Cupboard MacBook**: Check if the 2014 MacBook Pro is still running
-            
+
             ### 🛠️ Debugging Steps
-            
+
             \`\`\`bash
             # Check service status
             curl -I https://blit.cc
             curl -I https://music.blit.cc
             curl -I https://files.blit.cc
-            
+
             # Check Kubernetes pods
             kubectl get pods -n jaritanet
-            
+
             # Check Cloudflare tunnel logs
             kubectl logs -n jaritanet -l app=cloudflared
-            
+
             # Check node status
             kubectl get nodes
             \`\`\`
-            
+
             ### 🏃‍♂️ Next Steps
-            
+
             1. Check the 2014 MacBook Pro in the cupboard 📱
             2. Verify K8s cluster is healthy
             3. Check tunnel connectivity
             4. Restart services if needed
             5. Re-run this workflow to verify fixes
-            
+
             ---
-            
+
             🤖 This issue was automatically created by the service integration test workflow.
             `;
-            
+
             // Check if issue already exists
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
@@ -206,7 +204,7 @@ jobs:
               labels: ['service-availability', 'automated'],
               state: 'open'
             });
-            
+
             if (issues.data.length === 0) {
               await github.rest.issues.create({
                 owner: context.repo.owner,
@@ -238,7 +236,7 @@ jobs:
               labels: ['service-availability', 'automated'],
               state: 'open'
             });
-            
+
             for (const issue of issues.data) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -246,7 +244,7 @@ jobs:
                 issue_number: issue.number,
                 body: '✅ Service availability tests are now passing. Auto-closing this issue.'
               });
-              
+
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -267,20 +265,20 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          
+
           service_status="${{ needs.service-availability.outputs.service-status }}"
           echo "🔍 **Debug:** service-status = '$service_status'" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "$service_status" == "passed" ]]; then
             echo "| 🌐 Service Availability | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| 🌐 Service Availability | ❌ Issues Detected |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "| 🔥 Tunnel Connectivity | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
           echo "| 🦋 Bluesky DNS | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔒 SSL Certificates | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📅 **Test Run:** $(date)" >> $GITHUB_STEP_SUMMARY
           echo "🏃 **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

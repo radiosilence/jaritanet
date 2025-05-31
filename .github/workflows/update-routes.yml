@@ -39,3 +39,11 @@ jobs:
           work-dir: packages/routes
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  integration-tests:
+    name: 🌐 Run Integration Tests
+    needs: routes
+    uses: ./.github/workflows/service-tests.yml
+    permissions:
+      contents: read
+      issues: write
