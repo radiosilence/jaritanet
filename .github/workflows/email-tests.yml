@@ -32,7 +32,7 @@ jobs:
             echo "✅ MX records for blit.cc:"
             echo "$mx_records"
             # Check for Fastmail MX records
-            if echo "$mx_records" | grep -q "in[12]\.fastmail\.com"; then
+            if echo "$mx_records" | grep -q "in[12]\.messagingengine\.com"; then
               echo "✅ Fastmail MX records detected for blit.cc"
               echo "status=passed" >> $GITHUB_OUTPUT
             else
