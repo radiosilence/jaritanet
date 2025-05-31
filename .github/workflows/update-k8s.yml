@@ -61,5 +61,8 @@ jobs:
     name: 🛣️ Deploy Routes
     needs: k8s
     uses: ./.github/workflows/update-routes.yml
+    permissions:
+      contents: read
+      issues: write
     secrets:
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
