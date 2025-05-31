@@ -51,7 +51,7 @@ jobs:
             echo "spf_status=failed" >> $GITHUB_OUTPUT
           else
             echo "✅ SPF record for blit.cc: $spf_record"
-            if echo "$spf_record" | grep -q "include:spf\.fastmail\.com"; then
+            if echo "$spf_record" | grep -q "include:spf\.messagingengine\.com"; then
               echo "✅ Fastmail SPF include detected for blit.cc"
               echo "spf_status=passed" >> $GITHUB_OUTPUT
             else
