@@ -30,7 +30,6 @@ jobs:
         run: |
           echo "🔍 Checking MX records for blit.cc..."
           mx_records=$(dig +short MX blit.cc)
-          mx_verbose=$(dig MX blit.cc)
 
           if [[ -z "$mx_records" ]]; then
             echo "❌ No MX records found for blit.cc"
@@ -48,10 +47,7 @@ jobs:
               echo '```' >> $GITHUB_OUTPUT
               echo "$mx_records" >> $GITHUB_OUTPUT
               echo '```' >> $GITHUB_OUTPUT
-              echo "**Full DNS Response:**" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
-              echo "$mx_verbose" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
+
               echo "EOF" >> $GITHUB_OUTPUT
             else
               echo "⚠️ Expected Fastmail MX records not found for blit.cc"
@@ -62,10 +58,7 @@ jobs:
               echo "$mx_records" >> $GITHUB_OUTPUT
               echo '```' >> $GITHUB_OUTPUT
               echo "**Expected:** Fastmail MX records (in1.messagingengine.com, in2.messagingengine.com)" >> $GITHUB_OUTPUT
-              echo "**Full DNS Response:**" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
-              echo "$mx_verbose" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
+
               echo "EOF" >> $GITHUB_OUTPUT
             fi
           fi
@@ -84,16 +77,12 @@ jobs:
         run: |
           echo "🔐 Checking SPF records for blit.cc..."
           spf_record=$(dig +short TXT blit.cc | grep "v=spf1")
-          all_txt_records=$(dig TXT blit.cc)
 
           if [[ -z "$spf_record" ]]; then
             echo "❌ No SPF record found for blit.cc"
             echo "spf_status=failed" >> $GITHUB_OUTPUT
             echo "details<<EOF" >> $GITHUB_OUTPUT
             echo "**❌ No SPF record found for blit.cc**" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
-            echo "$all_txt_records" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
             echo "**Expected:** TXT record containing 'v=spf1' with 'include:spf.messagingengine.com'" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
@@ -106,10 +95,6 @@ jobs:
               echo '```' >> $GITHUB_OUTPUT
               echo "$spf_record" >> $GITHUB_OUTPUT
               echo '```' >> $GITHUB_OUTPUT
-              echo "**Full DNS Response:**" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
-              echo "$all_txt_records" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
               echo "EOF" >> $GITHUB_OUTPUT
             else
               echo "⚠️ Expected Fastmail SPF include not found for blit.cc"
@@ -120,10 +105,6 @@ jobs:
               echo "$spf_record" >> $GITHUB_OUTPUT
               echo '```' >> $GITHUB_OUTPUT
               echo "**Expected Include:** include:spf.messagingengine.com" >> $GITHUB_OUTPUT
-              echo "**Full DNS Response:**" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
-              echo "$all_txt_records" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
               echo "EOF" >> $GITHUB_OUTPUT
             fi
           fi
@@ -140,15 +121,11 @@ jobs:
 
           for selector in fm1 fm2 fm3 fm4; do
             dkim_record=$(dig +short TXT $selector._domainkey.blit.cc)
-            dkim_verbose=$(dig TXT $selector._domainkey.blit.cc)
 
             if [[ -z "$dkim_record" ]]; then
               echo "❌ No DKIM record found for $selector._domainkey.blit.cc"
               dkim_status="failed"
               echo "**$selector._domainkey.blit.cc:** ❌ No record found" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
-              echo "$dkim_verbose" >> $GITHUB_OUTPUT
-              echo '```' >> $GITHUB_OUTPUT
               echo "" >> $GITHUB_OUTPUT
             else
               echo "✅ DKIM record for $selector._domainkey.blit.cc found"
@@ -168,16 +145,12 @@ jobs:
         run: |
           echo "🛡️ Checking DMARC records for blit.cc..."
           dmarc_record=$(dig +short TXT _dmarc.blit.cc | grep "v=DMARC1")
-          dmarc_verbose=$(dig TXT _dmarc.blit.cc)
 
           if [[ -z "$dmarc_record" ]]; then
             echo "❌ No DMARC record found for blit.cc"
             echo "dmarc_status=failed" >> $GITHUB_OUTPUT
             echo "details<<EOF" >> $GITHUB_OUTPUT
             echo "**❌ No DMARC record found for _dmarc.blit.cc**" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
-            echo "$dmarc_verbose" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
             echo "**Expected:** TXT record containing 'v=DMARC1'" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
@@ -187,10 +160,6 @@ jobs:
             echo "**DMARC Record Found:**" >> $GITHUB_OUTPUT
             echo '```' >> $GITHUB_OUTPUT
             echo "$dmarc_record" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
-            echo "**Full DNS Response:**" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
-            echo "$dmarc_verbose" >> $GITHUB_OUTPUT
             echo '```' >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
