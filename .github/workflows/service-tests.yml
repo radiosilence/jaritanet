@@ -2,7 +2,7 @@ name: 🌐 Service Integration Tests
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # Every 6 hours
+    - cron: "0 * * * *" # Every hour
   workflow_dispatch:
   workflow_call:
 
@@ -36,40 +36,40 @@ jobs:
         run: |
           service_url="${{ matrix.service.url }}"
           service_name="${{ matrix.service.name }}"
-          
+
           echo "🌐 Testing $service_name at $service_url"
-          
+
           # Test service with detailed metrics
           response=$(curl -fs --max-time 30 -w "HTTPCODE:%{http_code}|TIME:%{time_total}|SIZE:%{size_download}" "$service_url" 2>&1)
           curl_exit_code=$?
-          
+
           if [[ $curl_exit_code -eq 0 ]]; then
             # Extract metrics from curl output
             http_code=$(echo "$response" | grep -o "HTTPCODE:[0-9]*" | cut -d: -f2)
             time_total=$(echo "$response" | grep -o "TIME:[0-9.]*" | cut -d: -f2)
             size_download=$(echo "$response" | grep -o "SIZE:[0-9]*" | cut -d: -f2)
-            
+
             echo "✅ $service_name is responding (HTTP $http_code, ${time_total}s, ${size_download}B)"
             echo "status=passed" >> $GITHUB_OUTPUT
             echo "diagnostics=" >> $GITHUB_OUTPUT
           else
             echo "❌ $service_name is not responding"
             echo "🔍 Collecting diagnostics for $service_name..."
-            
+
             # Extract domain for DNS/connection tests
             domain=$(echo "$service_url" | sed 's|https\?://||' | cut -d/ -f1)
-            
+
             # DNS resolution check
             dns_result=$(dig +short "$domain" 2>&1) || dns_result="DNS_FAILED"
-            
+
             # Connection test
             connection_test=$(timeout 10 nc -zv "$domain" 443 2>&1) || connection_test="CONNECTION_FAILED"
-            
+
             # Verbose curl output
             verbose_curl=$(curl -v --max-time 10 "$service_url" 2>&1 | head -20) || verbose_curl="CURL_VERBOSE_FAILED"
-            
+
             echo "status=failed" >> $GITHUB_OUTPUT
-            
+
             # Create diagnostics output
             {
               echo "diagnostics<<EOF"
@@ -111,19 +111,19 @@ jobs:
         id: collect-results
         run: |
           echo "🔍 Collecting results from service tests..."
-          
+
           # Get all matrix job results
           results=('${{ toJson(needs.service-test-matrix.outputs) }}')
-          
+
           failed_services=()
           detailed_diagnostics=""
           overall_status="passed"
-          
+
           # Check each service result
           services=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
           statuses=(${{ toJson(needs.service-test-matrix.outputs.*.status) }})
           diagnostics=(${{ toJson(needs.service-test-matrix.outputs.*.diagnostics) }})
-          
+
           # Process results (this is simplified - GitHub Actions will provide the actual values)
           if echo '${{ toJson(needs.service-test-matrix.result) }}' | grep -q 'failure\|cancelled'; then
             overall_status="failed"
@@ -141,16 +141,16 @@ jobs:
                 failed_count=$((failed_count + 1))
               fi
             done
-            
+
             if [[ $failed_count -gt 0 ]]; then
               overall_status="failed"
             fi
           fi
-          
+
           # Set outputs
           echo "status=$overall_status" >> $GITHUB_OUTPUT
           echo "failed_services=${failed_services[*]}" >> $GITHUB_OUTPUT
-          
+
           if [[ -n "$detailed_diagnostics" ]]; then
             {
               echo "detailed_diagnostics<<EOF"
@@ -160,7 +160,7 @@ jobs:
           else
             echo "detailed_diagnostics=" >> $GITHUB_OUTPUT
           fi
-          
+
           echo "🔍 Debug: Set status to '$overall_status'"
           echo "🔍 Debug: Failed services: ${failed_services[*]}"
 
@@ -230,24 +230,24 @@ jobs:
         run: |
           echo "🔥 Testing Cloudflare tunnel connectivity..."
           domains=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
-          
+
           tunnel_issues=""
           tunnel_status="healthy"
-          
+
           for domain in "${domains[@]}"; do
             echo "Testing tunnel for $domain"
-            
+
             # Check if we get Cloudflare headers with detailed info
             headers_response=$(curl -sI "https://$domain" 2>&1)
             cf_headers=$(echo "$headers_response" | grep -i "cf-")
-            
+
             if [[ -n "$cf_headers" ]]; then
               echo "✅ $domain is served through Cloudflare"
-              
+
               # Extract specific CF headers
               cf_ray=$(echo "$cf_headers" | grep -i "cf-ray" | head -1)
               cf_cache=$(echo "$cf_headers" | grep -i "cf-cache-status" | head -1)
-              
+
               echo "  📡 $cf_ray"
               echo "  💾 $cf_cache"
             else
@@ -256,24 +256,24 @@ jobs:
               tunnel_issues+="- $domain: No Cloudflare headers detected\n"
               tunnel_issues+="  Headers received:\n\`\`\`\n$headers_response\n\`\`\`\n"
             fi
-            
+
             # Check response time with timeout
             response_time=$(timeout 15 curl -w "%{time_total}" -s -o /dev/null "https://$domain" 2>/dev/null || echo "TIMEOUT")
-            
+
             if [[ "$response_time" == "TIMEOUT" ]]; then
               echo "⏰ Response timeout for $domain"
               tunnel_status="issues"
               tunnel_issues+="- $domain: Response timeout (>15s)\n"
             else
               echo "📊 Response time for $domain: ${response_time}s"
-              
+
               # Warn on slow responses
               if (( $(echo "$response_time > 5.0" | bc -l) )); then
                 tunnel_issues+="- $domain: Slow response time (${response_time}s)\n"
               fi
             fi
           done
-          
+
           echo "status=$tunnel_status" >> $GITHUB_OUTPUT
           echo "details<<EOF" >> $GITHUB_OUTPUT
           echo -e "$tunnel_issues" >> $GITHUB_OUTPUT
@@ -318,13 +318,13 @@ jobs:
           echo "Raw value: '$status_value'"
           echo "Comparison result (failed): $([ "$status_value" = "failed" ] && echo "true" || echo "false")"
           echo "Comparison result (empty): $([ -z "$status_value" ] && echo "true" || echo "false")"
-          
+
           if [[ "$status_value" == "failed" ]]; then
             echo "✅ Condition met - will create issue"
           else
             echo "❌ Condition not met - will not create issue"
           fi
-          
+
       - name: 🚨 Create Service Issue
         if: needs.service-availability.outputs.service-status == 'failed'
         uses: actions/github-script@v7
@@ -336,78 +336,78 @@ jobs:
             const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}';
             const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}`;
             const failedServices = '${{ needs.service-availability.outputs.failed_services }}';
-            
+
             const body = `
             ## 🌐 Service Availability Alert
-            
+
             **Detected at:** ${new Date().toISOString()}
             **Triggered by:** ${context.eventName}
             **Workflow:** ${context.workflow}
             **Run:** [${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
-            
+
             ### ❌ Services Not Responding
-            
+
             The automated integration tests have detected that some services are not responding properly.
-            
+
             **Failed Services:** ${failedServices}
-            
+
             ## 🔬 Detailed Diagnostics
-            
+
             ${diagnostics}
-            
+
             ### 🔥 Cloudflare Tunnel Status
-            
+
             **Status:** ${tunnelStatus === 'healthy' ? '✅ Healthy' : '⚠️ Issues Detected'}
-            
+
             ${tunnelDetails ? tunnelDetails : 'No tunnel issues detected.'}
-            
+
             ### 🎯 Likely Root Causes
-            
+
             Based on the diagnostics above, potential issues:
-            
+
             ${diagnostics.includes('DNS_FAILED') ? '🔍 **DNS Resolution Issues** - Check DNS configuration\n' : ''}
             ${diagnostics.includes('CONNECTION_FAILED') ? '🔌 **Connection Issues** - Check network connectivity and firewall\n' : ''}
             ${diagnostics.includes('TIMEOUT') || diagnostics.includes('CURL_VERBOSE_FAILED') ? '⏰ **Service Timeouts** - Check if services are running and responsive\n' : ''}
             ${tunnelStatus !== 'healthy' ? '🔥 **Cloudflare Tunnel Issues** - Check tunnel connectivity\n' : ''}
-            
+
             ### 🛠️ Quick Diagnostic Commands
-            
+
             \`\`\`bash
             # Check cluster status
             kubectl get nodes
             kubectl get pods -n jaritanet -o wide
-            
+
             # Check specific services
             kubectl describe pod -n jaritanet -l app=blit
             kubectl describe pod -n jaritanet -l app=navidrome
             kubectl describe pod -n jaritanet -l app=files
-            
+
             # Check tunnel connectivity
             kubectl logs -n jaritanet -l app=cloudflared --tail=50
             kubectl get svc -n jaritanet
-            
+
             # Test from inside cluster
             kubectl run debug --image=curlimages/curl -it --rm -- /bin/sh
             # Then run: curl -v http://blit-service.jaritanet.svc.cluster.local
             \`\`\`
-            
+
             ### 🏃‍♂️ Immediate Actions
-            
+
             1. 📱 **Check the cupboard MacBook** - Ensure the 2014 MacBook Pro is powered on and connected
             2. 🔍 **Verify cluster health** - Run the diagnostic commands above
             3. 🔄 **Restart failing services** - \`kubectl rollout restart deployment/<service>-deployment -n jaritanet\`
             4. 🔥 **Check tunnel logs** - Look for connection errors in cloudflared logs
             5. ✅ **Re-run tests** - Trigger this workflow again once fixes are applied
-            
+
             ### 📊 Infrastructure Context
-            
+
             - **Cluster:** Single-node K3s on 2014 MacBook Pro
             - **Network:** Cloudflare Tunnel (no port forwarding required)
             - **Services:** blit.cc, music.blit.cc, files.radiosilence.dev
             - **Location:** Home lab (cupboard deployment 🏠)
-            
+
             ---
-            
+
             🤖 This issue was automatically created by the service integration test workflow.
             🔄 It will auto-close when services are healthy again.
             `;
@@ -487,7 +487,13 @@ jobs:
   results:
     name: 📊 Results
     runs-on: ubuntu-latest
-    needs: [service-availability, tunnel-connectivity, bluesky-tests, workflow-status]
+    needs:
+      [
+        service-availability,
+        tunnel-connectivity,
+        bluesky-tests,
+        workflow-status,
+      ]
     if: always()
     steps:
       - name: 📈 Generate Test Summary
