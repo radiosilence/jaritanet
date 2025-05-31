@@ -2,7 +2,7 @@ name: 📧 Email Integration Tests
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # Every 6 hours
+    - cron: "*/5 * * * *" # Every 5 mins
   workflow_dispatch:
   workflow_call:
 
@@ -31,7 +31,7 @@ jobs:
           echo "🔍 Checking MX records for blit.cc..."
           mx_records=$(dig +short MX blit.cc)
           mx_verbose=$(dig MX blit.cc)
-          
+
           if [[ -z "$mx_records" ]]; then
             echo "❌ No MX records found for blit.cc"
             echo "status=failed" >> $GITHUB_OUTPUT
@@ -69,7 +69,7 @@ jobs:
               echo "EOF" >> $GITHUB_OUTPUT
             fi
           fi
-          
+
           echo "mx_details<<EOF" >> $GITHUB_OUTPUT
           echo -e "$mx_details" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -80,7 +80,7 @@ jobs:
           echo "🔐 Checking SPF records for blit.cc..."
           spf_record=$(dig +short TXT blit.cc | grep "v=spf1")
           all_txt_records=$(dig TXT blit.cc)
-          
+
           if [[ -z "$spf_record" ]]; then
             echo "❌ No SPF record found for blit.cc"
             echo "spf_status=failed" >> $GITHUB_OUTPUT
@@ -128,15 +128,15 @@ jobs:
         run: |
           echo "🔑 Checking DKIM records for blit.cc..."
           dkim_status="passed"
-          
+
           echo "details<<EOF" >> $GITHUB_OUTPUT
           echo "**DKIM Selector Check Results:**" >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
-          
+
           for selector in fm1 fm2 fm3 fm4; do
             dkim_record=$(dig +short TXT $selector._domainkey.blit.cc)
             dkim_verbose=$(dig TXT $selector._domainkey.blit.cc)
-            
+
             if [[ -z "$dkim_record" ]]; then
               echo "❌ No DKIM record found for $selector._domainkey.blit.cc"
               dkim_status="failed"
@@ -154,7 +154,7 @@ jobs:
               echo "" >> $GITHUB_OUTPUT
             fi
           done
-          
+
           echo "EOF" >> $GITHUB_OUTPUT
           echo "dkim_status=$dkim_status" >> $GITHUB_OUTPUT
 
@@ -164,7 +164,7 @@ jobs:
           echo "🛡️ Checking DMARC records for blit.cc..."
           dmarc_record=$(dig +short TXT _dmarc.blit.cc | grep "v=DMARC1")
           dmarc_verbose=$(dig TXT _dmarc.blit.cc)
-          
+
           if [[ -z "$dmarc_record" ]]; then
             echo "❌ No DMARC record found for blit.cc"
             echo "dmarc_status=failed" >> $GITHUB_OUTPUT
@@ -202,22 +202,22 @@ jobs:
 
           # Collect detailed diagnostics
           detailed_diagnostics=""
-          
+
           if [[ "$mx_status" == "failed" ]]; then
             detailed_diagnostics+="## 🔍 MX Records Issues"$'\n\n'
             detailed_diagnostics+="${{ steps.mx-check.outputs.details }}"$'\n\n'
           fi
-          
+
           if [[ "$spf_status" == "failed" ]]; then
             detailed_diagnostics+="## 🔐 SPF Records Issues"$'\n\n'
             detailed_diagnostics+="${{ steps.spf-check.outputs.details }}"$'\n\n'
           fi
-          
+
           if [[ "$dkim_status" == "failed" ]]; then
             detailed_diagnostics+="## 🔑 DKIM Records Issues"$'\n\n'
             detailed_diagnostics+="${{ steps.dkim-check.outputs.details }}"$'\n\n'
           fi
-          
+
           if [[ "$dmarc_status" == "failed" ]]; then
             detailed_diagnostics+="## 🛡️ DMARC Records Issues"$'\n\n'
             detailed_diagnostics+="${{ steps.dmarc-check.outputs.details }}"$'\n\n'
@@ -226,11 +226,11 @@ jobs:
           if [[ "$mx_status" == "failed" || "$spf_status" == "failed" || "$dkim_status" == "failed" || "$dmarc_status" == "failed" ]]; then
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "❌ Mail server configuration has issues"
-            
+
             echo "detailed_diagnostics<<EOF" >> $GITHUB_OUTPUT
             echo "$detailed_diagnostics" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             exit 1
           else
             echo "status=passed" >> $GITHUB_OUTPUT
@@ -250,84 +250,84 @@ jobs:
           script: |
             const title = '🚨 Mail Server Configuration Issue Detected';
             const diagnostics = `${{ needs.mail-server-tests.outputs.detailed-diagnostics }}`;
-            
+
             const body = `
             ## 📧 Mail Server Configuration Alert
-            
+
             **Detected at:** ${new Date().toISOString()}
             **Triggered by:** ${context.eventName}
             **Workflow:** ${context.workflow}
             **Run:** [${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
-            
+
             ### ❌ Issues Found
-            
+
             The automated integration tests have detected issues with mail server configuration for **blit.cc**.
-            
+
             ## 🔬 Detailed Diagnostics
-            
+
             ${diagnostics || 'No detailed diagnostics available'}
-            
+
             ### 🎯 Expected Configuration
-            
+
             For **blit.cc** with Fastmail:
-            
+
             **MX Records:**
             \`\`\`
             10 in1.messagingengine.com.
             20 in2.messagingengine.com.
             \`\`\`
-            
+
             **SPF Record:**
             \`\`\`
             "v=spf1 include:spf.messagingengine.com ~all"
             \`\`\`
-            
+
             **DKIM Selectors:**
             - fm1._domainkey.blit.cc
-            - fm2._domainkey.blit.cc  
+            - fm2._domainkey.blit.cc
             - fm3._domainkey.blit.cc
             - fm4._domainkey.blit.cc
-            
+
             **DMARC Policy:**
             \`\`\`
             "v=DMARC1; p=none; rua=mailto:admin@blit.cc"
             \`\`\`
-            
+
             ### 🛠️ Quick Diagnostic Commands
-            
+
             \`\`\`bash
             # Check all mail configuration at once
             dig MX blit.cc
             dig TXT blit.cc | grep spf1
             dig TXT _dmarc.blit.cc
-            
+
             # Check all DKIM selectors
             for selector in fm1 fm2 fm3 fm4; do
               echo "=== $selector ==="
               dig TXT $selector._domainkey.blit.cc
             done
-            
+
             # Test mail deliverability
             echo "Subject: Test" | sendmail -f test@blit.cc your-email@domain.com
             \`\`\`
-            
+
             ### 🏃‍♂️ Resolution Steps
-            
+
             1. 🌐 **Check DNS Provider** - Verify records in your DNS management console
             2. 📮 **Update Routes Package** - Deploy Pulumi routes if DNS records need changes
             3. ⏰ **Wait for Propagation** - DNS changes can take up to 24-48 hours
             4. 🔄 **Re-run Tests** - Trigger this workflow again once changes are made
             5. 📧 **Test Email Delivery** - Send test emails to verify functionality
-            
+
             ### 📊 Infrastructure Context
-            
+
             - **Domain:** blit.cc
             - **Email Provider:** Fastmail
             - **DNS Management:** Cloudflare (via Pulumi routes package)
             - **Expected Propagation:** 5-10 minutes (Cloudflare) + up to 24h (global DNS)
-            
+
             ---
-            
+
             🤖 This issue was automatically created by the email integration test workflow.
             🔄 It will auto-close when mail server tests pass again.
             `;
