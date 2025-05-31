@@ -9,6 +9,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   mail-server-tests:
     name: 📧 Mail Server Configuration

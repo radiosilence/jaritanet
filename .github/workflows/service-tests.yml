@@ -9,6 +9,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   service-availability:
     name: 🌐 Service Availability
@@ -26,7 +30,7 @@ jobs:
           services=(
             "https://blit.cc"
             "https://music.blit.cc"
-            "https://files.blit.cc"
+            "https://files.radiosilence.dev"
           )
           
           failed_services=()
@@ -53,7 +57,7 @@ jobs:
       - name: 🔒 Test SSL Certificates
         run: |
           echo "🔒 Checking SSL certificates..."
-          domains=("blit.cc" "music.blit.cc" "files.blit.cc")
+          domains=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
           
           for domain in "${domains[@]}"; do
             echo "Testing SSL certificate for $domain"
@@ -89,7 +93,7 @@ jobs:
       - name: 🌍 Test Tunnel Endpoints
         run: |
           echo "🔥 Testing Cloudflare tunnel connectivity..."
-          domains=("blit.cc" "music.blit.cc" "files.blit.cc")
+          domains=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
           
           for domain in "${domains[@]}"; do
             echo "Testing tunnel for $domain"
