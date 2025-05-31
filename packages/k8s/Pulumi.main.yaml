@@ -74,7 +74,7 @@
         healthCheck: {}
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-2452c43
+          tag: sha-a72fc80
           pullPolicy: "Always"
         httpPort: 3000
   jaritanet-k8s:cloudflared:
