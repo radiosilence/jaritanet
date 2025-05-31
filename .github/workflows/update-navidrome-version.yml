@@ -133,7 +133,6 @@ jobs:
 
           **Commit:** ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
 
-          This issue was automatically created by GitHub Actions." \
-            --label "automated,navidrome,update"
+          This issue was automatically created by GitHub Actions."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
