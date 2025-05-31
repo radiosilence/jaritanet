@@ -208,6 +208,17 @@ jobs:
           echo "service-status: '${{ needs.service-availability.outputs.service-status }}'"
           echo "result: '${{ needs.service-availability.result }}'"
           echo "conclusion: '${{ needs.service-availability.conclusion }}'"
+          echo "failed_services: '${{ needs.service-availability.outputs.failed_services }}'"
+          echo ""
+          echo "=== Workflow Run Context ==="
+          echo "🔗 Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "📊 Run Number: ${{ github.run_number }}"
+          echo "🎯 Event: ${{ github.event_name }}"
+          echo "📂 Repository: ${{ github.repository }}"
+          echo "🌿 Ref: ${{ github.ref }}"
+          echo "🔧 SHA: ${{ github.sha }}"
+          echo "⏰ Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          echo ""
           echo "=== Raw Debug ==="
           echo "Length of service-status: ${#service_status}"
           service_status="${{ needs.service-availability.outputs.service-status }}"
@@ -331,46 +342,63 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const title = '🚨 Service Availability Issue Detected';
             const tunnelStatus = '${{ needs.tunnel-connectivity.outputs.tunnel-status }}';
             const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}';
             const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}`;
             const failedServices = '${{ needs.service-availability.outputs.failed_services }}';
+            const failedCount = failedServices.split(' ').filter(s => s.trim()).length;
+            const title = `🚨 Service Availability Issue Detected (${failedCount} service${failedCount > 1 ? 's' : ''} down)`;
 
             const body = `
-            ## 🌐 Service Availability Alert
+            # 🚨 Service Availability Issue Detected
 
-            **Detected at:** ${new Date().toISOString()}
-            **Triggered by:** ${context.eventName}
-            **Workflow:** ${context.workflow}
-            **Run:** [${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
+            ## 📋 Failure Summary
 
-            ### ❌ Services Not Responding
+            **❌ ${failedServices.split(' ').length} service(s) are currently down or unresponsive**
 
-            The automated integration tests have detected that some services are not responding properly.
+            **🕐 Detected at:** ${new Date().toISOString()}  
+            **🔗 Workflow Run:** [#${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId}) (Click to view full details)  
+            **📂 Repository:** ${context.payload.repository?.full_name || 'N/A'}  
+            **🎯 Trigger:** ${context.eventName}  
 
-            **Failed Services:** ${failedServices}
+            ### 🔴 Failed Services
+            ${failedServices.split(' ').map(service => `- 🌐 **${service}**`).join('\n')}
+
+            ---
 
             ## 🔬 Detailed Diagnostics
 
             ${diagnostics}
 
-            ### 🔥 Cloudflare Tunnel Status
+            ## 📊 Workflow Context
 
-            **Status:** ${tunnelStatus === 'healthy' ? '✅ Healthy' : '⚠️ Issues Detected'}
+            - **Workflow:** ${context.workflow}
+            - **Run ID:** ${context.runId}
+            - **Run Number:** ${context.runNumber}
+            - **Job:** ${context.job}
+            - **SHA:** ${context.sha}
+            - **Ref:** ${context.ref}
 
-            ${tunnelDetails ? tunnelDetails : 'No tunnel issues detected.'}
+            ## 🔥 Cloudflare Tunnel Status
 
-            ### 🎯 Likely Root Causes
+            **Status:** ${tunnelStatus === 'healthy' ? '✅ Healthy' : '❌ Issues Detected'}
 
-            Based on the diagnostics above, potential issues:
+            ${tunnelDetails ? `### 🔍 Tunnel Details\n\`\`\`\n${tunnelDetails}\n\`\`\`` : '✅ No tunnel issues detected.'}
 
-            ${diagnostics.includes('DNS_FAILED') ? '🔍 **DNS Resolution Issues** - Check DNS configuration\n' : ''}
-            ${diagnostics.includes('CONNECTION_FAILED') ? '🔌 **Connection Issues** - Check network connectivity and firewall\n' : ''}
-            ${diagnostics.includes('TIMEOUT') || diagnostics.includes('CURL_VERBOSE_FAILED') ? '⏰ **Service Timeouts** - Check if services are running and responsive\n' : ''}
-            ${tunnelStatus !== 'healthy' ? '🔥 **Cloudflare Tunnel Issues** - Check tunnel connectivity\n' : ''}
+            ## 🎯 Likely Root Causes
 
-            ### 🛠️ Quick Diagnostic Commands
+            Based on the diagnostics above, potential issues have been identified:
+
+            ${diagnostics.includes('DNS_FAILED') ? '- 🔍 **DNS Resolution Issues** - Check DNS configuration and external DNS servers\n' : ''}
+            ${diagnostics.includes('CONNECTION_FAILED') ? '- 🔌 **Connection Issues** - Check network connectivity, firewall rules, and port availability\n' : ''}
+            ${diagnostics.includes('TIMEOUT') || diagnostics.includes('CURL_VERBOSE_FAILED') ? '- ⏰ **Service Timeouts** - Check if services are running and responsive within expected timeframes\n' : ''}
+            ${tunnelStatus !== 'healthy' ? '- 🔥 **Cloudflare Tunnel Issues** - Check tunnel connectivity and configuration\n' : ''}
+            ${diagnostics.includes('HTTP') && diagnostics.includes('50') ? '- 🚫 **Server Errors (5xx)** - Check application logs and service health\n' : ''}
+            ${diagnostics.includes('HTTP') && diagnostics.includes('40') ? '- 🔒 **Client Errors (4xx)** - Check routing and authentication\n' : ''}
+            
+            ${!diagnostics.includes('DNS_FAILED') && !diagnostics.includes('CONNECTION_FAILED') && !diagnostics.includes('TIMEOUT') && tunnelStatus === 'healthy' ? '- 🤔 **Unknown Issue** - Manual investigation required\n' : ''}
+
+            ## 🛠️ Quick Diagnostic Commands
 
             \`\`\`bash
             # Check cluster status
@@ -391,25 +419,42 @@ jobs:
             # Then run: curl -v http://blit-service.jaritanet.svc.cluster.local
             \`\`\`
 
-            ### 🏃‍♂️ Immediate Actions
+            ## 🏃‍♂️ Immediate Actions Required
 
+            ### 🚨 Priority 1 - Infrastructure Check
             1. 📱 **Check the cupboard MacBook** - Ensure the 2014 MacBook Pro is powered on and connected
-            2. 🔍 **Verify cluster health** - Run the diagnostic commands above
+            2. 🔍 **Verify cluster health** - Run the diagnostic commands above to check K3s status
+
+            ### 🔧 Priority 2 - Service Recovery  
             3. 🔄 **Restart failing services** - \`kubectl rollout restart deployment/<service>-deployment -n jaritanet\`
             4. 🔥 **Check tunnel logs** - Look for connection errors in cloudflared logs
-            5. ✅ **Re-run tests** - Trigger this workflow again once fixes are applied
+            5. 🌐 **Test connectivity** - Manual verification of service endpoints
 
-            ### 📊 Infrastructure Context
+            ### ✅ Priority 3 - Validation
+            6. ✅ **Re-run tests** - [Trigger this workflow again](${context.payload.repository?.html_url}/actions/workflows/service-tests.yml) once fixes are applied
+            7. 📊 **Monitor results** - Watch for automatic issue closure when services recover
 
-            - **Cluster:** Single-node K3s on 2014 MacBook Pro
-            - **Network:** Cloudflare Tunnel (no port forwarding required)
-            - **Services:** blit.cc, music.blit.cc, files.radiosilence.dev
-            - **Location:** Home lab (cupboard deployment 🏠)
+            ## 📊 Infrastructure Context
+
+            | Component | Details |
+            |-----------|---------|
+            | **Cluster** | Single-node K3s on 2014 MacBook Pro |
+            | **Network** | Cloudflare Tunnel (no port forwarding required) |
+            | **Services** | blit.cc, music.blit.cc, files.radiosilence.dev |
+            | **Location** | Home lab (cupboard deployment 🏠) |
+            | **Monitoring** | Automated via GitHub Actions (this workflow) |
+            | **Test Frequency** | Every 30 minutes + manual triggers |
 
             ---
 
-            🤖 This issue was automatically created by the service integration test workflow.
-            🔄 It will auto-close when services are healthy again.
+            ## 🤖 Automation Info
+
+            **Created by:** Service Integration Test Workflow  
+            **Auto-management:** This issue will automatically close when all services are healthy again  
+            **Manual trigger:** You can [re-run the workflow](${context.payload.repository?.html_url}/actions/workflows/service-tests.yml) to check current status  
+            **Last check:** ${new Date().toISOString()}  
+
+            > 💡 **Tip:** Check the [workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) for complete logs and timing information.
             `;
 
             // Check if issue already exists
@@ -430,7 +475,42 @@ jobs:
               });
               console.log('🚨 Created new service availability issue');
             } else {
-              console.log('📋 Service availability issue already exists, skipping creation');
+              // Update existing issue with latest information
+              const existingIssue = issues.data[0];
+              const updateComment = `
+              ## 🔄 Issue Update - ${new Date().toISOString()}
+              
+              **Current Status:** ${failedCount} service${failedCount > 1 ? 's' : ''} still down
+              **Latest Run:** [#${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
+              
+              ### 🔴 Currently Failed Services
+              ${failedServices.split(' ').map(service => `- 🌐 **${service}**`).join('\n')}
+              
+              ### 🔬 Latest Diagnostics
+              ${diagnostics}
+              
+              ---
+              ⚡ This is an automated update from the service monitoring workflow.
+              `;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: updateComment
+              });
+
+              // Update issue title if failure count changed
+              if (!existingIssue.title.includes(`(${failedCount} service`)) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  title: title
+                });
+              }
+
+              console.log(`📋 Updated existing service availability issue #${existingIssue.number} with latest failure information`);
             }
 
   close-fixed-issues:
