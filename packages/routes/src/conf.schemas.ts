@@ -60,4 +60,5 @@ export const RoutesConfSchema = z.object({
   cloudflare: CloudflareConfSchema,
   bluesky: BlueskyConfSchema,
   fastmail: FastmailConfSchema,
+  infraStackPath: z.string().default("radiosilence/jaritanet"),
 });

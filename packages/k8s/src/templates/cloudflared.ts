@@ -6,7 +6,7 @@ export function createCloudflared(
   provider: k8s.Provider,
   name: string,
   token: string,
-  { replicas }: z.infer<typeof CloudflaredArgsSchema>,
+  { replicas, image, resources }: z.infer<typeof CloudflaredArgsSchema>,
 ) {
   return new k8s.apps.v1.Deployment(
     `${name}-deployment`,
@@ -41,7 +41,7 @@ export function createCloudflared(
                   "run",
                 ],
                 args: ["--token", token],
-                image: "cloudflare/cloudflared:latest",
+                image,
                 imagePullPolicy: "Always",
                 name: "cloudflared",
                 livenessProbe: {
@@ -53,12 +53,7 @@ export function createCloudflared(
                   initialDelaySeconds: 10,
                   periodSeconds: 10,
                 },
-                resources: {
-                  limits: {
-                    memory: "128Mi",
-                    cpu: "250m",
-                  },
-                },
+                resources,
               },
             ],
           },

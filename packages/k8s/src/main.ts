@@ -8,7 +8,7 @@ import { tunnelRef } from "./references.ts";
 import { createCloudflared } from "./templates/cloudflared.ts";
 import { createService } from "./templates/service.ts";
 
-const namespace = "jaritanet";
+const namespace = conf.namespace;
 
 const kubeconfig = JSON.stringify(
   getKubeconfig({
@@ -46,7 +46,7 @@ new k8s.core.v1.Namespace(
         "kubernetes.io/metadata.name": namespace,
       },
       annotations: {
-        "pulumi.com/managed-by": "jaritanet",
+        "pulumi.com/managed-by": conf.managedBy,
       },
     },
   },
@@ -54,7 +54,7 @@ new k8s.core.v1.Namespace(
 );
 
 const infraStackRef = new pulumi.StackReference(
-  `radiosilence/jaritanet/${pulumi.getStack()}`,
+  `${conf.infraStackPath}/${pulumi.getStack()}`,
 );
 
 export default async function () {
@@ -64,7 +64,7 @@ export default async function () {
     return {
       hostname,
       proxied,
-      service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local`,
+      service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.${conf.clusterDomain}`,
     };
   });
 

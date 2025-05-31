@@ -13,7 +13,7 @@ const modules = {
 };
 
 const infraStackRef = new pulumi.StackReference(
-  `radiosilence/jaritanet/${pulumi.getStack()}`,
+  `${conf.infraStackPath}/${pulumi.getStack()}`,
 );
 
 export default async function () {

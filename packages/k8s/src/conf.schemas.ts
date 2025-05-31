@@ -24,4 +24,8 @@ export const K8sConfSchema = z.object({
   cloudflare: CloudflareConfSchema,
   cloudflared: CloudflaredConfSchema,
   services: ServicesArraySchema,
+  namespace: z.string().default("jaritanet"),
+  infraStackPath: z.string().default("radiosilence/jaritanet"),
+  managedBy: z.string().default("jaritanet"),
+  clusterDomain: z.string().default("cluster.local"),
 });
