@@ -11,7 +11,7 @@ config:
           type: Recreate
         image:
           repository: "deluan/navidrome"
-          tag: 0.56.1
+          tag: 0.55.0
           pullPolicy: "Always"
         env:
           ND_SCANSCHEDULE: 1h
