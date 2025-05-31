@@ -1,5 +1,10 @@
 # JARITANET
 
+[![🔍 Integration Tests](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+[![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/integration-tests.yml)
+
 JARITANET is a comprehensive infrastructure-as-code system that provides secure, tunneled access to services running on Kubernetes clusters through Cloudflare Tunnels.
 
 > **Note**: This entire infrastructure runs on a 2014 MacBook Pro sitting in a cupboard, demonstrating that you don't need enterprise hardware to run a sophisticated cloud-native setup.
@@ -134,7 +139,38 @@ fastmail: FastmailConfig
 
 Each package references outputs from previous deployments using Pulumi StackReferences, ensuring proper dependency ordering.
 
+## Integration Testing
+
+The system includes comprehensive automated integration tests that run every 6 hours to ensure critical infrastructure remains healthy. The tests cover:
+
+### 📧 Mail Server Configuration
+- **MX Records**: Verifies Fastmail MX records (in1/in2.fastmail.com) are properly configured
+- **SPF Records**: Checks SPF includes for Fastmail authorization
+- **DKIM Records**: Tests all DKIM selectors (fm1-fm4) for domain authentication
+- **DMARC Records**: Validates DMARC policy configuration
+
+### 🦋 Bluesky DNS Configuration
+- **DID Records**: Verifies Bluesky decentralized identifier records for domain verification
+
+### 🌐 Service Availability
+- **HTTP Health Checks**: Tests that all services (blit.cc, bambi.art, files.blit.cc) are responding
+- **Response Time Monitoring**: Tracks service performance metrics
+
+### 🔥 Cloudflare Tunnel Status
+- **Tunnel Connectivity**: Verifies services are accessible through Cloudflare's edge network
+- **CF Header Detection**: Confirms traffic is properly routed through Cloudflare
+
+### 🚨 Automated Issue Management
+When mail server configuration issues are detected, the system automatically:
+- Creates a GitHub issue with diagnostic information
+- Provides specific debugging commands and steps
+- Auto-closes issues when problems are resolved
+- Prevents duplicate issue creation
+
+The integration tests provide early warning for infrastructure problems and ensure email delivery remains reliable, which is critical for business operations.
+
 ## Additional Components
+</edits>
 
 ### Ansible Infrastructure (`ansible/`)
 

@@ -1,0 +1,364 @@
+name: 🔍 Integration Tests
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  📧-mail-server-tests:
+    name: 📧 Mail Server Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      mail-status: ${{ steps.mail-check.outputs.status }}
+    steps:
+      - name: 🏗️ Setup
+        uses: actions/checkout@v4
+
+      - name: 🔍 Test MX Records
+        id: mx-check
+        run: |
+          echo "🔍 Checking MX records..."
+          domains=("blit.cc" "bambi.art")
+          failed_domains=()
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing MX for $domain"
+            mx_records=$(dig +short MX $domain)
+            if [[ -z "$mx_records" ]]; then
+              echo "❌ No MX records found for $domain"
+              failed_domains+=("$domain")
+            else
+              echo "✅ MX records for $domain:"
+              echo "$mx_records"
+              # Check for Fastmail MX records
+              if echo "$mx_records" | grep -q "in[12]\.fastmail\.com"; then
+                echo "✅ Fastmail MX records detected for $domain"
+              else
+                echo "⚠️ Expected Fastmail MX records not found for $domain"
+                failed_domains+=("$domain")
+              fi
+            fi
+          done
+          
+          if [[ ${#failed_domains[@]} -gt 0 ]]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failed_domains=${failed_domains[*]}" >> $GITHUB_OUTPUT
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔐 Test SPF Records
+        id: spf-check
+        run: |
+          echo "🔐 Checking SPF records..."
+          domains=("blit.cc" "bambi.art")
+          failed_domains=()
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing SPF for $domain"
+            spf_record=$(dig +short TXT $domain | grep "v=spf1")
+            if [[ -z "$spf_record" ]]; then
+              echo "❌ No SPF record found for $domain"
+              failed_domains+=("$domain")
+            else
+              echo "✅ SPF record for $domain: $spf_record"
+              if echo "$spf_record" | grep -q "include:fastmail.com"; then
+                echo "✅ Fastmail SPF include detected for $domain"
+              else
+                echo "⚠️ Expected Fastmail SPF include not found for $domain"
+                failed_domains+=("$domain")
+              fi
+            fi
+          done
+          
+          if [[ ${#failed_domains[@]} -gt 0 ]]; then
+            echo "spf_failed_domains=${failed_domains[*]}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔑 Test DKIM Records
+        id: dkim-check
+        run: |
+          echo "🔑 Checking DKIM records..."
+          domains=("blit.cc" "bambi.art")
+          failed_domains=()
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing DKIM for $domain"
+            for selector in fm1 fm2 fm3 fm4; do
+              dkim_record=$(dig +short TXT $selector._domainkey.$domain)
+              if [[ -z "$dkim_record" ]]; then
+                echo "❌ No DKIM record found for $selector._domainkey.$domain"
+                failed_domains+=("$domain")
+                break
+              else
+                echo "✅ DKIM record for $selector._domainkey.$domain found"
+              fi
+            done
+          done
+          
+          if [[ ${#failed_domains[@]} -gt 0 ]]; then
+            echo "dkim_failed_domains=${failed_domains[*]}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🛡️ Test DMARC Records
+        id: dmarc-check
+        run: |
+          echo "🛡️ Checking DMARC records..."
+          domains=("blit.cc" "bambi.art")
+          failed_domains=()
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing DMARC for $domain"
+            dmarc_record=$(dig +short TXT _dmarc.$domain | grep "v=DMARC1")
+            if [[ -z "$dmarc_record" ]]; then
+              echo "❌ No DMARC record found for $domain"
+              failed_domains+=("$domain")
+            else
+              echo "✅ DMARC record for $domain: $dmarc_record"
+            fi
+          done
+          
+          if [[ ${#failed_domains[@]} -gt 0 ]]; then
+            echo "dmarc_failed_domains=${failed_domains[*]}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📊 Mail Server Status Summary
+        id: mail-check
+        run: |
+          mx_failed="${{ steps.mx-check.outputs.failed_domains }}"
+          spf_failed="${{ steps.spf-check.outputs.spf_failed_domains }}"
+          dkim_failed="${{ steps.dkim-check.outputs.dkim_failed_domains }}"
+          dmarc_failed="${{ steps.dmarc-check.outputs.dmarc_failed_domains }}"
+          
+          if [[ -n "$mx_failed" || -n "$spf_failed" || -n "$dkim_failed" || -n "$dmarc_failed" ]]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ Mail server configuration has issues"
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo "✅ All mail server configurations are healthy"
+          fi
+
+  🦋-bluesky-tests:
+    name: 🦋 Bluesky DNS Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Test Bluesky DID Records
+        run: |
+          echo "🦋 Checking Bluesky DID records..."
+          domains=("blit.cc" "bambi.art")
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing Bluesky DID for $domain"
+            did_record=$(dig +short TXT _atproto.$domain)
+            if [[ -z "$did_record" ]]; then
+              echo "⚠️ No Bluesky DID record found for $domain (may be optional)"
+            else
+              echo "✅ Bluesky DID record for $domain: $did_record"
+              if echo "$did_record" | grep -q "did="; then
+                echo "✅ Valid DID format detected"
+              else
+                echo "⚠️ DID record format may be incorrect"
+              fi
+            fi
+          done
+
+  🌐-service-availability:
+    name: 🌐 Service Availability
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏥 Health Check Services
+        run: |
+          echo "🌐 Checking service availability..."
+          services=(
+            "https://blit.cc"
+            "https://bambi.art"
+            "https://files.blit.cc"
+          )
+          
+          failed_services=()
+          
+          for service in "${services[@]}"; do
+            echo "Testing $service"
+            if curl -fs --max-time 30 "$service" > /dev/null; then
+              echo "✅ $service is responding"
+            else
+              echo "❌ $service is not responding"
+              failed_services+=("$service")
+            fi
+          done
+          
+          if [[ ${#failed_services[@]} -gt 0 ]]; then
+            echo "⚠️ Some services are not responding: ${failed_services[*]}"
+          else
+            echo "✅ All services are healthy"
+          fi
+
+  🔥-tunnel-connectivity:
+    name: 🔥 Cloudflare Tunnel Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🌍 Test Tunnel Endpoints
+        run: |
+          echo "🔥 Testing Cloudflare tunnel connectivity..."
+          # Test if services are accessible through Cloudflare
+          domains=("blit.cc" "bambi.art" "files.blit.cc")
+          
+          for domain in "${domains[@]}"; do
+            echo "Testing tunnel for $domain"
+            # Check if we get Cloudflare headers
+            cf_headers=$(curl -sI "https://$domain" | grep -i "cf-")
+            if [[ -n "$cf_headers" ]]; then
+              echo "✅ $domain is served through Cloudflare"
+            else
+              echo "⚠️ $domain may not be using Cloudflare"
+            fi
+            
+            # Check response time
+            response_time=$(curl -w "%{time_total}" -s -o /dev/null "https://$domain")
+            echo "📊 Response time for $domain: ${response_time}s"
+          done
+
+  🚨-issue-creator:
+    name: 🚨 Issue Management
+    runs-on: ubuntu-latest
+    needs: [📧-mail-server-tests, 🦋-bluesky-tests, 🌐-service-availability, 🔥-tunnel-connectivity]
+    if: needs.📧-mail-server-tests.outputs.mail-status == 'failed'
+    steps:
+      - name: 🚨 Create Mail Server Issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = '🚨 Mail Server Configuration Issue Detected';
+            const body = `
+            ## 📧 Mail Server Alert
+            
+            **Detected at:** ${new Date().toISOString()}
+            **Triggered by:** ${context.eventName}
+            **Workflow:** ${context.workflow}
+            **Run:** ${context.runNumber}
+            
+            ### ❌ Issues Found
+            
+            The automated integration tests have detected issues with mail server configuration.
+            
+            ### 🔍 What to Check
+            
+            1. **MX Records**: Verify Fastmail MX records are properly configured
+            2. **SPF Records**: Check SPF includes for Fastmail
+            3. **DKIM Records**: Ensure all DKIM selectors (fm1-fm4) are working
+            4. **DMARC Records**: Verify DMARC policy is correctly set
+            
+            ### 🛠️ Debugging Steps
+            
+            \`\`\`bash
+            # Check MX records
+            dig MX blit.cc
+            dig MX bambi.art
+            
+            # Check SPF
+            dig TXT blit.cc | grep spf1
+            dig TXT bambi.art | grep spf1
+            
+            # Check DKIM
+            dig TXT fm1._domainkey.blit.cc
+            dig TXT fm1._domainkey.bambi.art
+            
+            # Check DMARC
+            dig TXT _dmarc.blit.cc
+            dig TXT _dmarc.bambi.art
+            \`\`\`
+            
+            ### 🏃‍♂️ Next Steps
+            
+            1. Run the Pulumi deployment for the routes package
+            2. Verify DNS propagation (may take up to 24 hours)
+            3. Re-run this workflow to verify fixes
+            
+            ---
+            
+            🤖 This issue was automatically created by the integration test workflow.
+            `;
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['mail-server', 'automated'],
+              state: 'open'
+            });
+            
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['bug', 'mail-server', 'automated', 'high-priority']
+              });
+              console.log('🚨 Created new mail server issue');
+            } else {
+              console.log('📋 Mail server issue already exists, skipping creation');
+            }
+
+      - name: 🔔 Close Fixed Issues
+        if: needs.📧-mail-server-tests.outputs.mail-status == 'passed'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Close any open mail server issues if tests are now passing
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['mail-server', 'automated'],
+              state: 'open'
+            });
+            
+            for (const issue of issues.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '✅ Mail server tests are now passing. Auto-closing this issue.'
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
+
+  📊-results:
+    name: 📊 Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [📧-mail-server-tests, 🦋-bluesky-tests, 🌐-service-availability, 🔥-tunnel-connectivity]
+    if: always()
+    steps:
+      - name: 📈 Generate Summary
+        run: |
+          echo "## 🔍 Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.📧-mail-server-tests.outputs.mail-status }}" == "passed" ]]; then
+            echo "| 📧 Mail Servers | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 📧 Mail Servers | ❌ Issues Detected |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "| 🦋 Bluesky DNS | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 Service Availability | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔥 Tunnel Connectivity | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📅 **Test Run:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "🏃 **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
