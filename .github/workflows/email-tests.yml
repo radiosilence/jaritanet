@@ -71,7 +71,12 @@ jobs:
           fi
 
           echo "mx_details<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$mx_verbose" >> $GITHUB_OUTPUT
+          if [[ -z "$mx_records" ]]; then
+            echo "No MX records found for blit.cc" >> $GITHUB_OUTPUT
+          else
+            echo "MX Records:" >> $GITHUB_OUTPUT
+            echo "$mx_records" >> $GITHUB_OUTPUT
+          fi
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: 🔐 Test SPF Records
