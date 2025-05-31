@@ -65,28 +65,7 @@ jobs:
               verbose_curl=$(curl -v --max-time 10 "$service" 2>&1 | head -20 || echo "CURL_VERBOSE_FAILED")
               
               # Add to detailed diagnostics
-              detailed_diagnostics+="
-### ❌ $service Diagnostics
-
-**DNS Resolution:**
-\`\`\`
-$dns_result
-\`\`\`
-
-**Connection Test (port 443):**
-\`\`\`
-$connection_test
-\`\`\`
-
-**Curl Verbose Output:**
-\`\`\`
-$verbose_curl
-\`\`\`
-
-**Exit Code:** $curl_exit_code
-
----
-"
+              detailed_diagnostics+=$'\n### ❌ '"$service"$' Diagnostics\n\n**DNS Resolution:**\n```\n'"$dns_result"$'\n```\n\n**Connection Test (port 443):**\n```\n'"$connection_test"$'\n```\n\n**Curl Verbose Output:**\n```\n'"$verbose_curl"$'\n```\n\n**Exit Code:** '"$curl_exit_code"$'\n\n---\n'
             fi
           done
           
