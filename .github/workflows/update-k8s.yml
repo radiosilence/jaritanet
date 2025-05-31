@@ -1,4 +1,4 @@
-name: k8s -> routes
+name: ☸️ Kubernetes → Routes
 
 permissions:
   contents: read
@@ -30,20 +30,23 @@ concurrency:
 
 jobs:
   k8s:
-    name: K8s
+    name: ☸️ Deploy Kubernetes
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v2
-      - name: Tailscale
+      - name: 🔌 Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-      - uses: jdx/mise-action@v2
-      - run: bun install
-      - uses: pulumi/actions@v6
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 📦 Install Dependencies
+        run: bun install
+      - name: 🚀 Deploy with Pulumi
+        uses: pulumi/actions@v6
         with:
           command: up
           stack-name: radiosilence/jaritanet-k8s/main
@@ -55,7 +58,7 @@ jobs:
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
 
   routes:
-    name: Routes
+    name: 🛣️ Deploy Routes
     needs: k8s
     uses: ./.github/workflows/update-routes.yml
     secrets:

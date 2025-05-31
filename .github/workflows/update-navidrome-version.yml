@@ -1,4 +1,4 @@
-name: Update Navidrome Version
+name: 🎵 Update Navidrome Version
 
 on:
   schedule:
@@ -7,23 +7,24 @@ on:
 
 jobs:
   update-navidrome:
+    name: 🎵 Update Navidrome
     runs-on: ubuntu-latest
     permissions:
       contents: write
       issues: write
     
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install yq
+      - name: 📦 Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Check for Navidrome updates
+      - name: 🔍 Check for Navidrome Updates
         run: |
           set -e
           
@@ -99,7 +100,7 @@ jobs:
           echo "GITHUB_VERSION=$GITHUB_VERSION" >> $GITHUB_ENV
           echo "VERSION_UPDATED=true" >> $GITHUB_ENV
 
-      - name: Commit and push changes
+      - name: 🚀 Commit and Push Changes
         if: env.VERSION_UPDATED == 'true'
         run: |
           git config --local user.email "action@github.com"
@@ -115,7 +116,7 @@ jobs:
           
           git push
 
-      - name: Create notification issue
+      - name: 📢 Create Notification Issue
         if: env.VERSION_UPDATED == 'true'
         run: |
           gh issue create \

@@ -1,4 +1,4 @@
-name: infra -> k8s -> routes
+name: 🏗️ Infrastructure → K8s → Routes
 
 permissions:
   contents: read
@@ -22,15 +22,19 @@ concurrency:
 
 jobs:
   infra:
-    name: Infra
+    name: 🏗️ Deploy Infrastructure
     runs-on: ubuntu-24.04
     env:
       working-directory: ./packages/infra
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-      - run: bun install
-      - uses: pulumi/actions@v6
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 📦 Install Dependencies
+        run: bun install
+      - name: 🚀 Deploy with Pulumi
+        uses: pulumi/actions@v6
         with:
           command: up
           stack-name: radiosilence/jaritanet/main
@@ -38,7 +42,7 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
   k8s:
-    name: K8s
+    name: ☸️ Deploy Kubernetes
     needs: infra
     uses: ./.github/workflows/update-k8s.yml
     secrets:
