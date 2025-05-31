@@ -1,4 +1,4 @@
-name: 🌐 Service Integration Tests
+name: 🌐 Service Smoke Tests
 
 on:
   schedule:
@@ -346,11 +346,11 @@ jobs:
             const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}';
             const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}`;
             const failedServices = '${{ needs.service-availability.outputs.failed_services }}';
-            
+
             // Handle matrix job failures vs actual service failures
             let failedCount = 0;
             let failedServicesList = [];
-            
+
             if (failedServices.includes('MATRIX_JOB_FAILURE')) {
               failedCount = 1;
               failedServicesList = ['⚠️ Matrix job execution failed - check workflow logs'];
@@ -359,7 +359,7 @@ jobs:
               failedServicesList = failedServices.split(' ').filter(s => s.trim() && s.startsWith('http'));
               failedCount = failedServicesList.length;
             }
-            
+
             const title = `🚨 Service Availability Issue Detected (${failedCount} service${failedCount > 1 ? 's' : ''} down)`;
 
             const body = `

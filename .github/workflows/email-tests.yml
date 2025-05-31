@@ -1,4 +1,4 @@
-name: 📧 Email Integration Tests
+name: 📧 Email Smoke Tests
 
 on:
   schedule:
