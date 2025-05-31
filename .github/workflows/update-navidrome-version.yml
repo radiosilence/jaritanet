@@ -34,7 +34,7 @@ jobs:
           
           # Fetch latest release from GitHub API
           echo "Fetching latest release from GitHub..."
-          LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
+          LATEST_RELEASE=$(curl -s -L "https://api.github.com/repos/$REPO/releases/latest")
           
           # Extract tag name from JSON response
           LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
