@@ -1,4 +1,4 @@
-config:
+@config:
   jaritanet-k8s:cloudflare:
     accountId: 365e5168438376dc99d7ee2aedef4624
   jaritanet-k8s:services:
@@ -11,7 +11,7 @@ config:
           type: Recreate
         image:
           repository: "deluan/navidrome"
-          tag: 0.56.1
+          tag: 0.56.0
           pullPolicy: "Always"
         env:
           ND_SCANSCHEDULE: 1h
@@ -21,6 +21,11 @@ config:
           ND_ENABLETRANSCODINGCONFIG: "true"
           ND_TRANSCODINGCACHESIZE: 5Gi
           ND_ENABLEGRAVATAR: "true"
+        healthCheck:
+          path: "/"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
         limits:
           cpu: 2000m
           memory: 8Gi
@@ -66,6 +71,7 @@ config:
       hostname: blit.cc
       args:
         replicas: 2
+        healthCheck: {}
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: sha-2452c43
