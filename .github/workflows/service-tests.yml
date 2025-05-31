@@ -69,6 +69,7 @@ jobs:
             fi
           done
           
+          # Set outputs regardless of success/failure
           if [[ ${#failed_services[@]} -gt 0 ]]; then
             echo "⚠️ Some services are not responding: ${failed_services[*]}"
             echo "status=failed" >> $GITHUB_OUTPUT
@@ -82,7 +83,12 @@ jobs:
           else
             echo "✅ All services are healthy"
             echo "status=passed" >> $GITHUB_OUTPUT
+            echo "failed_services=" >> $GITHUB_OUTPUT
+            echo "detailed_diagnostics=" >> $GITHUB_OUTPUT
           fi
+          
+          # Debug output to verify what was set
+          echo "🔍 Debug: Set status to $(cat $GITHUB_OUTPUT | grep '^status=' | cut -d'=' -f2)"
 
       - name: 🔒 Test SSL Certificates
         run: |
