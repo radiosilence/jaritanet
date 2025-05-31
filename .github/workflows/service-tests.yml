@@ -128,14 +128,7 @@ jobs:
           if echo '${{ toJson(needs.service-test-matrix.result) }}' | grep -q 'failure\|cancelled'; then
             overall_status="failed"
             failed_services=("MATRIX_JOB_FAILURE")
-            detailed_diagnostics="**Matrix Job Execution Failed**
-
-One or more service test matrix jobs failed to complete properly. This could indicate:
-- GitHub Actions infrastructure issues
-- Workflow configuration problems  
-- Network connectivity issues during test execution
-
-Check the individual matrix job logs for specific error details."
+            detailed_diagnostics="**Matrix Job Execution Failed**\n\nOne or more service test matrix jobs failed to complete properly. This could indicate:\n- GitHub Actions infrastructure issues\n- Workflow configuration problems\n- Network connectivity issues during test execution\n\nCheck the individual matrix job logs for specific error details."
           else
             # Count failed services from matrix outputs
             failed_count=0
