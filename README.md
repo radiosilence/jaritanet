@@ -170,7 +170,6 @@ When mail server configuration issues are detected, the system automatically:
 The integration tests provide early warning for infrastructure problems and ensure email delivery remains reliable, which is critical for business operations.
 
 ## Additional Components
-</edits>
 
 ### Ansible Infrastructure (`ansible/`)
 
