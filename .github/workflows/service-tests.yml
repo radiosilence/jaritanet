@@ -29,23 +29,78 @@ jobs:
             "https://music.blit.cc"
             "https://files.radiosilence.dev"
           )
-
+          
           failed_services=()
-
+          detailed_diagnostics=""
+          
           for service in "${services[@]}"; do
             echo "Testing $service"
-            if curl -fs --max-time 30 "$service" > /dev/null; then
-              echo "✅ $service is responding"
+            
+            # Detailed curl diagnostics
+            response=$(curl -fs --max-time 30 -w "HTTPCODE:%{http_code}|TIME:%{time_total}|SIZE:%{size_download}" "$service" 2>&1)
+            curl_exit_code=$?
+            
+            if [[ $curl_exit_code -eq 0 ]]; then
+              # Extract metrics from curl output
+              http_code=$(echo "$response" | grep -o "HTTPCODE:[0-9]*" | cut -d: -f2)
+              time_total=$(echo "$response" | grep -o "TIME:[0-9.]*" | cut -d: -f2)
+              size_download=$(echo "$response" | grep -o "SIZE:[0-9]*" | cut -d: -f2)
+              
+              echo "✅ $service is responding (HTTP $http_code, ${time_total}s, ${size_download}B)"
             else
               echo "❌ $service is not responding"
               failed_services+=("$service")
+              
+              # Detailed diagnostics for failed service
+              echo "🔍 Collecting diagnostics for $service..."
+              
+              # DNS resolution check
+              domain=$(echo "$service" | sed 's|https\?://||' | cut -d/ -f1)
+              dns_result=$(dig +short "$domain" 2>&1 || echo "DNS_FAILED")
+              
+              # Connection test
+              connection_test=$(timeout 10 nc -zv "$domain" 443 2>&1 || echo "CONNECTION_FAILED")
+              
+              # Basic curl with verbose output
+              verbose_curl=$(curl -v --max-time 10 "$service" 2>&1 | head -20 || echo "CURL_VERBOSE_FAILED")
+              
+              # Add to detailed diagnostics
+              detailed_diagnostics+="
+### ❌ $service Diagnostics
+
+**DNS Resolution:**
+\`\`\`
+$dns_result
+\`\`\`
+
+**Connection Test (port 443):**
+\`\`\`
+$connection_test
+\`\`\`
+
+**Curl Verbose Output:**
+\`\`\`
+$verbose_curl
+\`\`\`
+
+**Exit Code:** $curl_exit_code
+
+---
+"
             fi
           done
-
+          
           if [[ ${#failed_services[@]} -gt 0 ]]; then
             echo "⚠️ Some services are not responding: ${failed_services[*]}"
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "failed_services=${failed_services[*]}" >> $GITHUB_OUTPUT
+            
+            # Save detailed diagnostics to file and output
+            echo "$detailed_diagnostics" > /tmp/diagnostics.md
+            echo "detailed_diagnostics<<EOF" >> $GITHUB_OUTPUT
+            echo "$detailed_diagnostics" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
             exit 1
           else
             echo "✅ All services are healthy"
@@ -87,26 +142,63 @@ jobs:
   tunnel-connectivity:
     name: 🔥 Cloudflare Tunnel Status
     runs-on: ubuntu-latest
+    outputs:
+      tunnel-status: ${{ steps.tunnel-check.outputs.status }}
+      tunnel-details: ${{ steps.tunnel-check.outputs.details }}
     steps:
       - name: 🌍 Test Tunnel Endpoints
+        id: tunnel-check
         run: |
           echo "🔥 Testing Cloudflare tunnel connectivity..."
           domains=("blit.cc" "music.blit.cc" "files.radiosilence.dev")
-
+          
+          tunnel_issues=""
+          tunnel_status="healthy"
+          
           for domain in "${domains[@]}"; do
             echo "Testing tunnel for $domain"
-            # Check if we get Cloudflare headers
-            cf_headers=$(curl -sI "https://$domain" | grep -i "cf-")
+            
+            # Check if we get Cloudflare headers with detailed info
+            headers_response=$(curl -sI "https://$domain" 2>&1)
+            cf_headers=$(echo "$headers_response" | grep -i "cf-")
+            
             if [[ -n "$cf_headers" ]]; then
               echo "✅ $domain is served through Cloudflare"
+              
+              # Extract specific CF headers
+              cf_ray=$(echo "$cf_headers" | grep -i "cf-ray" | head -1)
+              cf_cache=$(echo "$cf_headers" | grep -i "cf-cache-status" | head -1)
+              
+              echo "  📡 $cf_ray"
+              echo "  💾 $cf_cache"
             else
               echo "⚠️ $domain may not be using Cloudflare"
+              tunnel_status="issues"
+              tunnel_issues+="- $domain: No Cloudflare headers detected\n"
+              tunnel_issues+="  Headers received:\n\`\`\`\n$headers_response\n\`\`\`\n"
             fi
-
-            # Check response time
-            response_time=$(curl -w "%{time_total}" -s -o /dev/null "https://$domain")
-            echo "📊 Response time for $domain: ${response_time}s"
+            
+            # Check response time with timeout
+            response_time=$(timeout 15 curl -w "%{time_total}" -s -o /dev/null "https://$domain" 2>/dev/null || echo "TIMEOUT")
+            
+            if [[ "$response_time" == "TIMEOUT" ]]; then
+              echo "⏰ Response timeout for $domain"
+              tunnel_status="issues"
+              tunnel_issues+="- $domain: Response timeout (>15s)\n"
+            else
+              echo "📊 Response time for $domain: ${response_time}s"
+              
+              # Warn on slow responses
+              if (( $(echo "$response_time > 5.0" | bc -l) )); then
+                tunnel_issues+="- $domain: Slow response time (${response_time}s)\n"
+              fi
+            fi
           done
+          
+          echo "status=$tunnel_status" >> $GITHUB_OUTPUT
+          echo "details<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$tunnel_issues" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
   bluesky-tests:
     name: 🦋 Bluesky DNS Configuration
@@ -136,7 +228,7 @@ jobs:
     name: 🚨 Issue Management
     runs-on: ubuntu-latest
     needs: [service-availability, tunnel-connectivity, bluesky-tests]
-    if: needs.service-availability.outputs.service-status == 'failed'
+    if: always() && needs.service-availability.outputs.service-status == 'failed'
     steps:
       - name: 🚨 Create Service Issue
         uses: actions/github-script@v7
@@ -144,57 +236,83 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const title = '🚨 Service Availability Issue Detected';
+            const tunnelStatus = '${{ needs.tunnel-connectivity.outputs.tunnel-status }}';
+            const tunnelDetails = '${{ needs.tunnel-connectivity.outputs.tunnel-details }}';
+            const diagnostics = `${{ needs.service-availability.outputs.detailed_diagnostics }}`;
+            
             const body = `
             ## 🌐 Service Availability Alert
-
+            
             **Detected at:** ${new Date().toISOString()}
             **Triggered by:** ${context.eventName}
             **Workflow:** ${context.workflow}
-            **Run:** ${context.runNumber}
-
+            **Run:** [${context.runNumber}](${context.payload.repository?.html_url}/actions/runs/${context.runId})
+            
             ### ❌ Services Not Responding
-
+            
             The automated integration tests have detected that some services are not responding properly.
-
+            
             **Failed Services:** ${{ needs.service-availability.outputs.failed_services }}
-
-            ### 🔍 What to Check
-
-            1. **Service Health**: Check if services are running in Kubernetes
-            2. **Tunnel Status**: Verify Cloudflare tunnels are connected
-            3. **DNS Resolution**: Ensure domains resolve correctly
-            4. **SSL Certificates**: Check if certificates are valid
-            5. **Cupboard MacBook**: Check if the 2014 MacBook Pro is still running
-
-            ### 🛠️ Debugging Steps
-
+            
+            ## 🔬 Detailed Diagnostics
+            
+            ${diagnostics}
+            
+            ### 🔥 Cloudflare Tunnel Status
+            
+            **Status:** ${tunnelStatus === 'healthy' ? '✅ Healthy' : '⚠️ Issues Detected'}
+            
+            ${tunnelDetails ? tunnelDetails : 'No tunnel issues detected.'}
+            
+            ### 🎯 Likely Root Causes
+            
+            Based on the diagnostics above, potential issues:
+            
+            ${diagnostics.includes('DNS_FAILED') ? '🔍 **DNS Resolution Issues** - Check DNS configuration\n' : ''}
+            ${diagnostics.includes('CONNECTION_FAILED') ? '🔌 **Connection Issues** - Check network connectivity and firewall\n' : ''}
+            ${diagnostics.includes('TIMEOUT') || diagnostics.includes('CURL_VERBOSE_FAILED') ? '⏰ **Service Timeouts** - Check if services are running and responsive\n' : ''}
+            ${tunnelStatus !== 'healthy' ? '🔥 **Cloudflare Tunnel Issues** - Check tunnel connectivity\n' : ''}
+            
+            ### 🛠️ Quick Diagnostic Commands
+            
             \`\`\`bash
-            # Check service status
-            curl -I https://blit.cc
-            curl -I https://music.blit.cc
-            curl -I https://files.blit.cc
-
-            # Check Kubernetes pods
-            kubectl get pods -n jaritanet
-
-            # Check Cloudflare tunnel logs
-            kubectl logs -n jaritanet -l app=cloudflared
-
-            # Check node status
+            # Check cluster status
             kubectl get nodes
+            kubectl get pods -n jaritanet -o wide
+            
+            # Check specific services
+            kubectl describe pod -n jaritanet -l app=blit
+            kubectl describe pod -n jaritanet -l app=navidrome
+            kubectl describe pod -n jaritanet -l app=files
+            
+            # Check tunnel connectivity
+            kubectl logs -n jaritanet -l app=cloudflared --tail=50
+            kubectl get svc -n jaritanet
+            
+            # Test from inside cluster
+            kubectl run debug --image=curlimages/curl -it --rm -- /bin/sh
+            # Then run: curl -v http://blit-service.jaritanet.svc.cluster.local
             \`\`\`
-
-            ### 🏃‍♂️ Next Steps
-
-            1. Check the 2014 MacBook Pro in the cupboard 📱
-            2. Verify K8s cluster is healthy
-            3. Check tunnel connectivity
-            4. Restart services if needed
-            5. Re-run this workflow to verify fixes
-
+            
+            ### 🏃‍♂️ Immediate Actions
+            
+            1. 📱 **Check the cupboard MacBook** - Ensure the 2014 MacBook Pro is powered on and connected
+            2. 🔍 **Verify cluster health** - Run the diagnostic commands above
+            3. 🔄 **Restart failing services** - \`kubectl rollout restart deployment/<service>-deployment -n jaritanet\`
+            4. 🔥 **Check tunnel logs** - Look for connection errors in cloudflared logs
+            5. ✅ **Re-run tests** - Trigger this workflow again once fixes are applied
+            
+            ### 📊 Infrastructure Context
+            
+            - **Cluster:** Single-node K3s on 2014 MacBook Pro
+            - **Network:** Cloudflare Tunnel (no port forwarding required)
+            - **Services:** blit.cc, music.blit.cc, files.radiosilence.dev
+            - **Location:** Home lab (cupboard deployment 🏠)
+            
             ---
-
+            
             🤖 This issue was automatically created by the service integration test workflow.
+            🔄 It will auto-close when services are healthy again.
             `;
 
             // Check if issue already exists
