@@ -1,6 +1,6 @@
 # JARITANET
 
-\*this readme was vibescoded
+\*this readme and the test actions were vibescoded, the original scripts and pulumi stuff was non-vibescoded
 
 [![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
 [![🌐 Service Tests](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
