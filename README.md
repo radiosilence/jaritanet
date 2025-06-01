@@ -1,5 +1,7 @@
 # JARITANET
 
+\*this readme was vibescoded
+
 [![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
 [![🌐 Service Tests](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 [![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
@@ -27,18 +29,21 @@ Additional components include Ansible playbooks for server provisioning, contain
 **Purpose**: Creates and manages Cloudflare Zero Trust tunnels that provide secure connectivity to internal services.
 
 **Key Components**:
+
 - `main.ts` - Entry point that creates tunnel resources
 - `modules/tunnel.ts` - Tunnel creation logic using Cloudflare provider
 - `conf.ts` - Configuration management with Zod validation
 - `conf.schemas.ts` - Type-safe configuration schemas
 
 **What it does**:
+
 - Generates cryptographically secure tunnel secrets (256 bytes)
 - Creates Cloudflare Zero Trust tunnels with specified names
 - Outputs tunnel configuration for use by other packages
 - Manages tunnel lifecycle through Pulumi state
 
-**Dependencies**: 
+**Dependencies**:
+
 - `@pulumi/cloudflare` - Cloudflare resource management
 - `@pulumi/random` - Secure secret generation
 - `zod` - Runtime type validation
@@ -48,6 +53,7 @@ Additional components include Ansible playbooks for server provisioning, contain
 **Purpose**: Deploys services to Kubernetes clusters and runs cloudflared daemon to connect services to Cloudflare tunnels.
 
 **Key Components**:
+
 - `main.ts` - Main deployment orchestration
 - `templates/service.ts` - Generic Kubernetes service templates
 - `templates/cloudflared.ts` - Cloudflared daemon deployment
@@ -55,6 +61,7 @@ Additional components include Ansible playbooks for server provisioning, contain
 - `references.ts` - Cross-stack resource references
 
 **What it does**:
+
 - Creates a dedicated `jaritanet` namespace in Kubernetes
 - Deploys user-defined services from configuration
 - Runs cloudflared as a deployment to establish tunnel connections
@@ -63,11 +70,13 @@ Additional components include Ansible playbooks for server provisioning, contain
 - Manages service health checking and monitoring
 
 **Configuration**:
+
 - Services are defined with name, hostname, proxy settings, and deployment args
 - Cloudflared configuration includes resource limits and replica settings
 - Supports custom container images, environment variables, and volume mounts
 
 **Dependencies**:
+
 - `@pulumi/kubernetes` - Kubernetes resource management
 - References tunnel resources from infrastructure package
 
@@ -76,6 +85,7 @@ Additional components include Ansible playbooks for server provisioning, contain
 **Purpose**: Configures DNS records and tunnel routing to make services accessible via custom domains.
 
 **Key Components**:
+
 - `main.ts` - Main routing configuration
 - `tunnels/service.ts` - Service ingress and DNS record management
 - `tunnels/tunnel-config.ts` - Tunnel configuration for Cloudflare
@@ -83,6 +93,7 @@ Additional components include Ansible playbooks for server provisioning, contain
 - `modules/fastmail.ts` - Fastmail service DNS configuration
 
 **What it does**:
+
 - Creates DNS records for each service hostname
 - Configures tunnel ingress rules to route traffic to services
 - Manages domain verification and SSL certificate provisioning
@@ -93,6 +104,7 @@ Additional components include Ansible playbooks for server provisioning, contain
 Services are accessed via: `https://hostname` → Cloudflare → Tunnel → `http://service-name.jaritanet.svc.cluster.local`
 
 **Dependencies**:
+
 - References tunnel from infrastructure package
 - References services from Kubernetes package
 - Manages Cloudflare DNS zones and records
@@ -102,6 +114,7 @@ Services are accessed via: `https://hostname` → Cloudflare → Tunnel → `htt
 All packages use Zod schemas for type-safe configuration validation. Configuration is provided through Pulumi config files (YAML) and validated at runtime.
 
 ### Infrastructure Configuration
+
 ```
 cloudflare:
   accountId: string
@@ -110,6 +123,7 @@ tunnel:
 ```
 
 ### Kubernetes Configuration
+
 ```
 cloudflare:
   accountId: string
@@ -124,6 +138,7 @@ services:
 ```
 
 ### Routes Configuration
+
 ```
 serviceStacks: StackReference[]
 zones: Zone[]
@@ -145,13 +160,16 @@ Each package references outputs from previous deployments using Pulumi StackRefe
 The system includes comprehensive automated integration tests split into two workflows that run every 6 hours to ensure critical infrastructure remains healthy:
 
 ### 📧 Email Integration Tests
+
 Focuses specifically on mail server configuration for **blit.cc**:
-- **MX Records**: Verifies Fastmail MX records (in1/in2.fastmail.com) are properly configured
-- **SPF Records**: Checks SPF includes for Fastmail authorization  
+
+- **MX Records**: Verifies Fastmail MX records (in1/in2 at fastmail servers) are properly configured
+- **SPF Records**: Checks SPF includes for Fastmail authorization
 - **DKIM Records**: Tests all DKIM selectors (fm1-fm4) for domain authentication
 - **DMARC Records**: Validates DMARC policy configuration
 
 ### 🌐 Service Integration Tests (`service-tests.yml`)
+
 Monitors service availability and infrastructure health:
 
 - **HTTP Health Checks**: Tests that all services (blit.cc, music.blit.cc, files.blit.cc) are responding
@@ -162,14 +180,17 @@ Monitors service availability and infrastructure health:
 - **Bluesky DNS Configuration**: Verifies Bluesky decentralized identifier records for domain verification
 
 ### 🚨 Automated Issue Management
+
 Both workflows include intelligent issue management:
 
 **Email Issues**: When mail server configuration problems are detected, automatically creates GitHub issues with:
+
 - Detailed diagnostic information for DNS record problems
 - Specific debugging commands for mail server troubleshooting
 - Auto-resolution when tests pass again
 
 **Service Issues**: When services become unavailable, creates issues highlighting:
+
 - Failed service endpoints and response codes
 - Kubernetes pod status and tunnel connectivity guidance
 - Cupboard MacBook Pro health check reminders
@@ -183,11 +204,13 @@ The split testing approach provides targeted monitoring - critical email infrast
 Automated server provisioning and configuration management:
 
 **Playbooks**:
+
 - Common system configuration (users, tools, security)
 - Homeserver setup (MicroK8s, NFS, Samba, Syncthing)
 - Tailscale network integration
 
 **Roles**:
+
 - `common` - Base system configuration
 - `users` - User account management
 - `microk8s` - Kubernetes cluster setup
@@ -197,6 +220,7 @@ Automated server provisioning and configuration management:
 ### Container Services (`containers/`)
 
 **File Server Container**:
+
 - Caddy-based HTTP file server with web interface
 - CORS-enabled for cross-origin requests
 - Automatic gzip/zstd compression
@@ -206,6 +230,7 @@ Automated server provisioning and configuration management:
 ### Utility Scripts (`scripts/`)
 
 **Secret Management** (`update-secrets`):
+
 - Reads secrets from `ansible/github-secrets.json`
 - Updates GitHub repository secrets via CLI
 - Supports multiple repository deployment access
@@ -214,16 +239,19 @@ Automated server provisioning and configuration management:
 ## Development Tools
 
 **Code Quality**:
+
 - Biome for code formatting and linting
 - TypeScript for type safety across all packages
 - Lefthook for git hooks and pre-commit checks
 
 **Package Management**:
+
 - Bun as the JavaScript runtime and package manager
 - Workspace-based monorepo structure
 - Shared dependencies and TypeScript configuration
 
 **Build System**:
+
 - Individual TypeScript compilation per package
 - Pulumi for infrastructure deployment
 - GitHub Actions integration via secret management
@@ -231,16 +259,19 @@ Automated server provisioning and configuration management:
 ## Security Model
 
 **Network Security**:
+
 - All external traffic routes through Cloudflare's edge network
 - Cloudflare Tunnels eliminate need for open firewall ports
 - Services remain private and accessible only via authenticated tunnels
 
 **Authentication**:
+
 - Kubernetes cluster access via service account tokens
 - Cloudflare API authentication via account IDs and tokens
 - Tunnel authentication via cryptographically secure secrets
 
 **Configuration Security**:
+
 - Sensitive values managed through Pulumi configuration encryption
 - GitHub secrets for CI/CD authentication
 - No hardcoded credentials in source code
