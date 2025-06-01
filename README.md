@@ -109,6 +109,25 @@ Services are accessed via: `https://hostname` → Cloudflare → Tunnel → `htt
 - References services from Kubernetes package
 - Manages Cloudflare DNS zones and records
 
+## Configured Domains
+
+The system currently manages three domains:
+
+- **`blit.cc`** - Primary domain hosting the main website and music server
+  - Services: `blit.cc`, `music.blit.cc`
+  - Email: Fastmail integration
+  - Bluesky: Decentralized identifier configured
+  
+- **`radiosilence.dev`** - Secondary domain for file services
+  - Services: `files.radiosilence.dev`
+  - Email: Fastmail integration
+  - Bluesky: Decentralized identifier configured
+  
+- **`buttholes.live`** - Additional domain with email/Bluesky only
+  - Email: Fastmail integration
+  - Bluesky: Decentralized identifier configured
+  - No web services currently configured
+
 ## Configuration System
 
 All packages use Zod schemas for type-safe configuration validation. Configuration is provided through Pulumi config files (YAML) and validated at runtime.
@@ -172,7 +191,7 @@ Focuses specifically on mail server configuration for **blit.cc**:
 
 Monitors service availability and infrastructure health:
 
-- **HTTP Health Checks**: Tests that all services (blit.cc, music.blit.cc, files.blit.cc) are responding
+- **HTTP Health Checks**: Tests that all services (blit.cc, music.blit.cc, files.radiosilence.dev) are responding
 - **Response Time Monitoring**: Tracks service performance metrics
 - **SSL Certificate Validation**: Monitors certificate expiry and validity
 - **Cloudflare Tunnel Status**: Verifies services are accessible through Cloudflare's edge network
