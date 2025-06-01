@@ -8,7 +8,7 @@
 [![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 [![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 
-JARITANET is a comprehensive infrastructure-as-code system that provides secure, tunneled access to services running on Kubernetes clusters through Cloudflare Tunnels.
+JARITANET is a comprehensive infrastructure-as-code system that provides secure access to services running on Kubernetes clusters through Cloudflare Tunnels.
 
 > **Fun fact**: This whole setup runs on a 2014 MacBook Pro chilling in a cupboard 📦
 
