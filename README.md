@@ -10,7 +10,7 @@
 
 JARITANET is a comprehensive infrastructure-as-code system that provides secure, tunneled access to services running on Kubernetes clusters through Cloudflare Tunnels.
 
-> **Note**: This entire infrastructure runs on a 2014 MacBook Pro sitting in a cupboard, demonstrating that you don't need enterprise hardware to run a sophisticated cloud-native setup.
+> **Fun fact**: This whole setup runs on a 2014 MacBook Pro chilling in a cupboard 📦
 
 ## System Architecture
 
