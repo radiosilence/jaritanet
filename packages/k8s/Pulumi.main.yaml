@@ -72,6 +72,9 @@ config:
       args:
         replicas: 2
         healthCheck: {}
+        limits:
+          cpu: 500m
+          memory: 512Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: sha-76ff600
