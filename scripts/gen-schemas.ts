@@ -10,7 +10,11 @@ const CloudflareApiSchema = z.object({
 async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
   await fs.writeFile(
     `./schemas/${name}.json`,
-    JSON.stringify(z.toJSONSchema(schema), null, 2),
+    JSON.stringify(
+      z.toJSONSchema(schema, { reused: "ref", io: "input" }),
+      null,
+      2,
+    ),
   );
 }
 

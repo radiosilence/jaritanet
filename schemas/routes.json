@@ -16,8 +16,7 @@
               "type": "string"
             }
           },
-          "required": ["accountId"],
-          "additionalProperties": false
+          "required": ["accountId"]
         },
         "jaritanet-routes:zones": {
           "type": "array",
@@ -41,8 +40,7 @@
                 }
               }
             },
-            "required": ["zoneId", "name", "modules"],
-            "additionalProperties": false
+            "required": ["zoneId", "name", "modules"]
           }
         },
         "jaritanet-routes:serviceStacks": {
@@ -57,8 +55,7 @@
                 "type": "string"
               }
             },
-            "required": ["path"],
-            "additionalProperties": false
+            "required": ["path"]
           }
         },
         "jaritanet-routes:bluesky": {
@@ -69,8 +66,7 @@
               "type": "string"
             }
           },
-          "required": ["did"],
-          "additionalProperties": false
+          "required": ["did"]
         },
         "jaritanet-routes:fastmail": {
           "type": "object",
@@ -105,8 +101,7 @@
             "dmarcAggEmail",
             "dmarcPolicy",
             "spfDomain"
-          ],
-          "additionalProperties": false
+          ]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -115,8 +110,7 @@
               "type": "string"
             }
           },
-          "required": ["secure"],
-          "additionalProperties": false
+          "required": ["secure"]
         }
       },
       "required": [
@@ -126,10 +120,8 @@
         "jaritanet-routes:bluesky",
         "jaritanet-routes:fastmail",
         "cloudflare:apiToken"
-      ],
-      "additionalProperties": false
+      ]
     }
   },
-  "required": ["config"],
-  "additionalProperties": false
+  "required": ["config"]
 }

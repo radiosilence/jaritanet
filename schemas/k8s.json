@@ -15,8 +15,7 @@
               "type": "string"
             }
           },
-          "required": ["accountId"],
-          "additionalProperties": false
+          "required": ["accountId"]
         },
         "jaritanet-k8s:services": {
           "type": "array",
@@ -49,8 +48,7 @@
                         "type": "string"
                       }
                     },
-                    "required": ["repository", "tag"],
-                    "additionalProperties": false
+                    "required": ["repository", "tag"]
                   },
                   "replicas": {
                     "default": 1,
@@ -85,9 +83,7 @@
                         "default": "64Mi",
                         "type": "string"
                       }
-                    },
-                    "required": ["cpu", "memory"],
-                    "additionalProperties": false
+                    }
                   },
                   "hostVolumes": {
                     "default": [],
@@ -122,14 +118,7 @@
                           "type": "boolean"
                         }
                       },
-                      "required": [
-                        "name",
-                        "hostPath",
-                        "hostPathType",
-                        "mountPath",
-                        "readOnly"
-                      ],
-                      "additionalProperties": false
+                      "required": ["name", "hostPath", "mountPath"]
                     }
                   },
                   "persistence": {
@@ -164,14 +153,11 @@
                       },
                       "required": [
                         "name",
-                        "storageClassName",
-                        "readOnly",
                         "storage",
                         "hostPath",
                         "mountPath",
                         "nodeAffinityHostname"
-                      ],
-                      "additionalProperties": false
+                      ]
                     }
                   },
                   "healthCheck": {
@@ -255,26 +241,10 @@
                               "type": "string"
                             }
                           },
-                          "required": ["name", "value"],
-                          "additionalProperties": false
+                          "required": ["name", "value"]
                         }
                       }
-                    },
-                    "required": [
-                      "path",
-                      "initialDelaySeconds",
-                      "periodSeconds",
-                      "timeoutSeconds",
-                      "failureThreshold",
-                      "successThreshold",
-                      "enableLiveness",
-                      "enableReadiness",
-                      "enableStartup",
-                      "expectedStatus",
-                      "followRedirects",
-                      "httpHeaders"
-                    ],
-                    "additionalProperties": false
+                    }
                   },
                   "strategy": {
                     "type": "object",
@@ -284,24 +254,13 @@
                         "type": "string",
                         "enum": ["Recreate", "RollingUpdate"]
                       }
-                    },
-                    "required": ["type"],
-                    "additionalProperties": false
+                    }
                   }
                 },
-                "required": [
-                  "image",
-                  "replicas",
-                  "env",
-                  "httpPort",
-                  "hostVolumes",
-                  "persistence"
-                ],
-                "additionalProperties": false
+                "required": ["image"]
               }
             },
-            "required": ["name", "hostname", "proxied", "args"],
-            "additionalProperties": false
+            "required": ["name", "hostname", "args"]
           }
         },
         "jaritanet-k8s:cloudflared": {
@@ -342,21 +301,16 @@
                           "default": "250m",
                           "type": "string"
                         }
-                      },
-                      "required": ["memory", "cpu"],
-                      "additionalProperties": false
+                      }
                     }
                   },
-                  "required": ["limits"],
-                  "additionalProperties": false
+                  "required": ["limits"]
                 }
               },
-              "required": ["replicas", "image", "resources"],
-              "additionalProperties": false
+              "required": ["replicas"]
             }
           },
-          "required": ["name", "args"],
-          "additionalProperties": false
+          "required": ["name", "args"]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -365,8 +319,7 @@
               "type": "string"
             }
           },
-          "required": ["secure"],
-          "additionalProperties": false
+          "required": ["secure"]
         }
       },
       "required": [
@@ -374,10 +327,8 @@
         "jaritanet-k8s:services",
         "jaritanet-k8s:cloudflared",
         "cloudflare:apiToken"
-      ],
-      "additionalProperties": false
+      ]
     }
   },
-  "required": ["config"],
-  "additionalProperties": false
+  "required": ["config"]
 }

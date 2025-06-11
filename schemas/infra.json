@@ -15,8 +15,7 @@
               "type": "string"
             }
           },
-          "required": ["accountId"],
-          "additionalProperties": false
+          "required": ["accountId"]
         },
         "jaritanet:tunnel": {
           "type": "object",
@@ -25,8 +24,7 @@
               "type": "string"
             }
           },
-          "required": ["name"],
-          "additionalProperties": false
+          "required": ["name"]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -35,18 +33,15 @@
               "type": "string"
             }
           },
-          "required": ["secure"],
-          "additionalProperties": false
+          "required": ["secure"]
         }
       },
       "required": [
         "jaritanet:cloudflare",
         "jaritanet:tunnel",
         "cloudflare:apiToken"
-      ],
-      "additionalProperties": false
+      ]
     }
   },
-  "required": ["config"],
-  "additionalProperties": false
+  "required": ["config"]
 }
