@@ -1,4 +1,4 @@
-$schema: https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json
 config:
   cloudflare:apiToken:
     secure: AAABAJee5AsdP//8cTEkQfjB8ofZqj5ftTaGkdLMz2XjDhXOQmcQJ1GWKPB9a43CSoHRN5292UuGCfvLQmnyFHHkTP5AwYLd

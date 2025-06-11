@@ -20,8 +20,8 @@ const schemas = {
       z
         .object({
           config: z.object({
-            [`${PROJECT}-infra:cloudflare`]: CloudflareConfSchema,
-            [`${PROJECT}-infra:tunnel`]: TunnelConfSchema,
+            [`${PROJECT}:cloudflare`]: CloudflareConfSchema,
+            [`${PROJECT}:tunnel`]: TunnelConfSchema,
             "cloudflare:apiToken": CloudflareSchema,
           }),
         })
