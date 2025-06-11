@@ -1,5 +1,5 @@
 import type * as pulumi from "@pulumi/pulumi";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { ServiceSchema } from "./conf.schemas.ts";
 import {
   TunnelSchema,

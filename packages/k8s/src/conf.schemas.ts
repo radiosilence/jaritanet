@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 import { CloudflaredArgsSchema } from "./templates/cloudflared.schemas.ts";
 import { ServiceArgsSchema } from "./templates/service.schemas.ts";
 
