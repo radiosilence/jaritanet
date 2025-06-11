@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "config": {
+      "type": "object",
+      "properties": {
+        "jaritanet-infra:cloudflare": {
+          "type": "object",
+          "properties": {
+            "accountId": {
+              "type": "string"
+            }
+          },
+          "required": ["accountId"],
+          "additionalProperties": false
+        },
+        "jaritanet-infra:tunnel": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "cloudflare:apiToken": {
+          "type": "object",
+          "properties": {
+            "apiToken": {
+              "type": "string"
+            }
+          },
+          "required": ["apiToken"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jaritanet-infra:cloudflare",
+        "jaritanet-infra:tunnel",
+        "cloudflare:apiToken"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["config"],
+  "additionalProperties": false
+}
