@@ -1,0 +1,60 @@
+import fs from "node:fs/promises";
+import { type ZodType, z } from "zod/v4";
+
+const PROJECT = "jaritanet";
+
+const CloudflareSchema = z.object({
+  apiToken: z.string(),
+});
+
+async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
+  await fs.writeFile(
+    `./schemas/${name}.json`,
+    JSON.stringify(z.toJSONSchema(schema), null, 2),
+  );
+}
+
+const schemas = {
+  infra: await import("../packages/infra/src/conf.schemas.ts").then(
+    ({ CloudflareConfSchema, TunnelConfSchema }) =>
+      z.object({
+        config: z.object({
+          [`${PROJECT}-infra:cloudflare`]: CloudflareConfSchema,
+          [`${PROJECT}-infra:tunnel`]: TunnelConfSchema,
+          "cloudflare:apiToken": CloudflareSchema,
+        }),
+      }),
+  ),
+  k8s: await import("../packages/k8s/src/conf.schemas.ts").then(
+    ({ CloudflareConfSchema, CloudflaredConfSchema, ServicesArraySchema }) =>
+      z.object({
+        config: z.object({
+          [`${PROJECT}-k8s:cloudflare`]: CloudflareConfSchema,
+          [`${PROJECT}-k8s:services`]: ServicesArraySchema,
+          [`${PROJECT}-k8s:cloudflared`]: CloudflaredConfSchema,
+          "cloudflare:apiToken": CloudflareSchema,
+        }),
+      }),
+  ),
+  routes: await import("../packages/routes/src/conf.schemas.ts").then(
+    ({
+      CloudflareConfSchema,
+      ServiceStacksConfSchema,
+      ZonesConfSchema,
+      BlueskyConfSchema,
+      FastmailConfSchema,
+    }) =>
+      z.object({
+        config: z.object({
+          [`${PROJECT}-routes:cloudflare`]: CloudflareConfSchema,
+          [`${PROJECT}-routes:zones`]: ZonesConfSchema,
+          [`${PROJECT}-routes:serviceStacks`]: ServiceStacksConfSchema,
+          [`${PROJECT}-routes:bluesky`]: BlueskyConfSchema,
+          [`${PROJECT}-routes:fastmail`]: FastmailConfSchema,
+          "cloudflare:apiToken": CloudflareSchema,
+        }),
+      }),
+  ),
+} as const;
+
+await Promise.all(Object.entries(schemas).map(dumpSchema));
