@@ -1,5 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
+  "title": "Infra Configuration Schema",
+  "description": "Schema for infra configuration",
   "type": "object",
   "properties": {
     "config": {
