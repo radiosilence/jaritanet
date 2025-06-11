@@ -50,7 +50,6 @@ jobs:
 
   email-tests:
     name: 📧 Run Email Integration Tests
-
     needs: routes
     uses: ./.github/workflows/email-tests.yml
     permissions:

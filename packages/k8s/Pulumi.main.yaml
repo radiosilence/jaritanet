@@ -1,3 +1,4 @@
+$schema: https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json
 config:
   jaritanet-k8s:cloudflare:
     accountId: 365e5168438376dc99d7ee2aedef4624
