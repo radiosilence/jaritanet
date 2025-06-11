@@ -3,8 +3,8 @@ import { type ZodType, z } from "zod/v4";
 
 const PROJECT = "jaritanet";
 
-const CloudflareSchema = z.object({
-  apiToken: z.string(),
+const CloudflareApiSchema = z.object({
+  secure: z.string(),
 });
 
 async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
@@ -22,7 +22,7 @@ const schemas = {
           config: z.object({
             [`${PROJECT}:cloudflare`]: CloudflareConfSchema,
             [`${PROJECT}:tunnel`]: TunnelConfSchema,
-            "cloudflare:apiToken": CloudflareSchema,
+            "cloudflare:apiToken": CloudflareApiSchema,
           }),
         })
         .meta({
@@ -39,7 +39,7 @@ const schemas = {
             [`${PROJECT}-k8s:cloudflare`]: CloudflareConfSchema,
             [`${PROJECT}-k8s:services`]: ServicesArraySchema,
             [`${PROJECT}-k8s:cloudflared`]: CloudflaredConfSchema,
-            "cloudflare:apiToken": CloudflareSchema,
+            "cloudflare:apiToken": CloudflareApiSchema,
           }),
         })
         .meta({
@@ -64,7 +64,7 @@ const schemas = {
             [`${PROJECT}-routes:serviceStacks`]: ServiceStacksConfSchema,
             [`${PROJECT}-routes:bluesky`]: BlueskyConfSchema,
             [`${PROJECT}-routes:fastmail`]: FastmailConfSchema,
-            "cloudflare:apiToken": CloudflareSchema,
+            "cloudflare:apiToken": CloudflareApiSchema,
           }),
         })
         .meta({
