@@ -17,24 +17,36 @@ async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
 const schemas = {
   infra: await import("../packages/infra/src/conf.schemas.ts").then(
     ({ CloudflareConfSchema, TunnelConfSchema }) =>
-      z.object({
-        config: z.object({
-          [`${PROJECT}-infra:cloudflare`]: CloudflareConfSchema,
-          [`${PROJECT}-infra:tunnel`]: TunnelConfSchema,
-          "cloudflare:apiToken": CloudflareSchema,
+      z
+        .object({
+          config: z.object({
+            [`${PROJECT}-infra:cloudflare`]: CloudflareConfSchema,
+            [`${PROJECT}-infra:tunnel`]: TunnelConfSchema,
+            "cloudflare:apiToken": CloudflareSchema,
+          }),
+        })
+        .meta({
+          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
+          title: "Infra Configuration Schema",
+          description: "Schema for infra configuration",
         }),
-      }),
   ),
   k8s: await import("../packages/k8s/src/conf.schemas.ts").then(
     ({ CloudflareConfSchema, CloudflaredConfSchema, ServicesArraySchema }) =>
-      z.object({
-        config: z.object({
-          [`${PROJECT}-k8s:cloudflare`]: CloudflareConfSchema,
-          [`${PROJECT}-k8s:services`]: ServicesArraySchema,
-          [`${PROJECT}-k8s:cloudflared`]: CloudflaredConfSchema,
-          "cloudflare:apiToken": CloudflareSchema,
+      z
+        .object({
+          config: z.object({
+            [`${PROJECT}-k8s:cloudflare`]: CloudflareConfSchema,
+            [`${PROJECT}-k8s:services`]: ServicesArraySchema,
+            [`${PROJECT}-k8s:cloudflared`]: CloudflaredConfSchema,
+            "cloudflare:apiToken": CloudflareSchema,
+          }),
+        })
+        .meta({
+          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
+          title: "Kubernetes Configuration Schema",
+          description: "Schema for Kubernetes configuration",
         }),
-      }),
   ),
   routes: await import("../packages/routes/src/conf.schemas.ts").then(
     ({
@@ -44,16 +56,22 @@ const schemas = {
       BlueskyConfSchema,
       FastmailConfSchema,
     }) =>
-      z.object({
-        config: z.object({
-          [`${PROJECT}-routes:cloudflare`]: CloudflareConfSchema,
-          [`${PROJECT}-routes:zones`]: ZonesConfSchema,
-          [`${PROJECT}-routes:serviceStacks`]: ServiceStacksConfSchema,
-          [`${PROJECT}-routes:bluesky`]: BlueskyConfSchema,
-          [`${PROJECT}-routes:fastmail`]: FastmailConfSchema,
-          "cloudflare:apiToken": CloudflareSchema,
+      z
+        .object({
+          config: z.object({
+            [`${PROJECT}-routes:cloudflare`]: CloudflareConfSchema,
+            [`${PROJECT}-routes:zones`]: ZonesConfSchema,
+            [`${PROJECT}-routes:serviceStacks`]: ServiceStacksConfSchema,
+            [`${PROJECT}-routes:bluesky`]: BlueskyConfSchema,
+            [`${PROJECT}-routes:fastmail`]: FastmailConfSchema,
+            "cloudflare:apiToken": CloudflareSchema,
+          }),
+        })
+        .meta({
+          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/routes.json",
+          title: "Routes Configuration Schema",
+          description: "Schema for routes configuration",
         }),
-      }),
   ),
 } as const;
 
