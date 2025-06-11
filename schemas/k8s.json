@@ -75,22 +75,18 @@
                     "maximum": 4294967295
                   },
                   "limits": {
-                    "default": {
-                      "cpu": "50m",
-                      "memory": "64Mi"
-                    },
                     "type": "object",
                     "properties": {
-                      "memory": {
-                        "default": "64Mi",
-                        "type": "string"
-                      },
                       "cpu": {
                         "default": "50m",
                         "type": "string"
+                      },
+                      "memory": {
+                        "default": "64Mi",
+                        "type": "string"
                       }
                     },
-                    "required": ["memory", "cpu"],
+                    "required": ["cpu", "memory"],
                     "additionalProperties": false
                   },
                   "hostVolumes": {
@@ -281,9 +277,6 @@
                     "additionalProperties": false
                   },
                   "strategy": {
-                    "default": {
-                      "type": "RollingUpdate"
-                    },
                     "type": "object",
                     "properties": {
                       "type": {
@@ -301,10 +294,8 @@
                   "replicas",
                   "env",
                   "httpPort",
-                  "limits",
                   "hostVolumes",
-                  "persistence",
-                  "strategy"
+                  "persistence"
                 ],
                 "additionalProperties": false
               }
