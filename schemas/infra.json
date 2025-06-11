@@ -31,11 +31,11 @@
         "cloudflare:apiToken": {
           "type": "object",
           "properties": {
-            "apiToken": {
+            "secure": {
               "type": "string"
             }
           },
-          "required": ["apiToken"],
+          "required": ["secure"],
           "additionalProperties": false
         }
       },
