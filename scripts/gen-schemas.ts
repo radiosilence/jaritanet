@@ -1,15 +1,22 @@
+#!/usr/bin/env bun
 import fs from "node:fs/promises";
 import { type ZodType, z } from "zod/v4";
 
 const PROJECT = "jaritanet";
-
+const SCHEMAS_PATH = "./schemas";
 const CloudflareApiSchema = z.object({
   secure: z.string(),
 });
 
+try {
+  await fs.lstat(SCHEMAS_PATH);
+} catch (e) {
+  await fs.mkdir(SCHEMAS_PATH);
+}
+
 async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
   await fs.writeFile(
-    `./schemas/${name}.json`,
+    `${SCHEMAS_PATH}/${name}.json`,
     JSON.stringify(
       z.toJSONSchema(schema, { reused: "ref", io: "input" }),
       null,
