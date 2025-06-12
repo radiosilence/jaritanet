@@ -42,12 +42,22 @@ jobs:
       - name: 🔍 Check for changes
         id: check-changes
         run: |
-          if [[ -n $(git status --porcelain schemas/) ]]; then
+          # Add generated files to git index
+          git add schemas/
+
+          # Check if there are actual content differences
+          if ! git diff --quiet --cached schemas/; then
             echo "changes=true" >> $GITHUB_OUTPUT
             echo "📋 Schema changes detected"
+            # Show what changed for debugging
+            git diff --cached --name-only schemas/ | while read file; do
+              echo "Modified: $file"
+            done
           else
             echo "changes=false" >> $GITHUB_OUTPUT
             echo "✅ No schema changes needed"
+            # Reset the staged changes since there are no actual differences
+            git reset HEAD schemas/
           fi
 
       - name: 🚀 Commit and Push Changes
