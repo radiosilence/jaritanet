@@ -78,7 +78,7 @@ config:
           memory: 512Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-76ff600-bun
+          tag: sha-59c51e5-bun
           pullPolicy: "Always"
         httpPort: 3000
   jaritanet-k8s:cloudflared:
