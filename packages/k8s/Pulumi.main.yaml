@@ -72,7 +72,6 @@ config:
       hostname: blit.cc
       args:
         replicas: 2
-        healthCheck: {}
         limits:
           cpu: 500m
           memory: 512Mi
