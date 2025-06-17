@@ -9,10 +9,13 @@
     state: present
     enabled: true
 
-- name: Install required system packages and update all packages to the latest version (dist-upgrade)
+- name: Update all packages to the latest version (dist-upgrade)
   ansible.builtin.apt:
     upgrade: dist
     update_cache: true
+
+- name: Install required system packages
+  ansible.builtin.apt:
     name:
       - snapd
       - python3-pip
