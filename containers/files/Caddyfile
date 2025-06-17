@@ -13,7 +13,6 @@
     file_server {
         root /srv/files
         browse
-        hide ".*"
     }
 
     # Permissive CORS configuration
