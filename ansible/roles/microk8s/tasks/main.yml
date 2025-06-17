@@ -38,6 +38,11 @@
   ansible.builtin.command: microk8s start
   when: microk8s_status.rc != 0
 
+- name: Check microk8s addon status
+  ansible.builtin.command: microk8s status --format yaml
+  register: microk8s_addon_status
+  changed_when: false
+
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"
   loop:
@@ -48,6 +53,8 @@
     - rbac
     - hostpath-storage
     - metrics-server
+  register: addon_enable_result
+  changed_when: "'is already enabled' not in addon_enable_result.stdout"
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config
@@ -141,7 +148,3 @@
   ansible.builtin.file:
     path: /tmp/github-secrets.json
     state: absent
-
-# handlers/main.yml
-- name: restart microk8s
-  ansible.builtin.command: snap restart microk8s
