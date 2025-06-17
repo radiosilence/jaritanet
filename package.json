@@ -12,21 +12,23 @@
     "prepare": "bunx lefthook install"
   },
   "devDependencies": {
-    "@biomejs/biome": "latest",
+    "@biomejs/biome": "^2.0.0",
     "@tsconfig/node-ts": "^23.6.1",
     "@tsconfig/node23": "^23.0.2",
-    "@types/node": "latest",
-    "lefthook": "latest",
-    "typescript": "latest"
+    "@types/node": "^24.0.3",
+    "lefthook": "^1.11.14",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@pulumi/cloudflare": "latest",
-    "@pulumi/kubernetes": "latest",
-    "@pulumi/pulumi": "latest",
-    "@pulumi/random": "latest",
-    "zod": "latest"
+    "@pulumi/cloudflare": "^6.3.1",
+    "@pulumi/kubernetes": "^4.23.0",
+    "@pulumi/pulumi": "^3.177.0",
+    "@pulumi/random": "^4.18.2",
+    "zod": "^3.25.67"
   },
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "keywords": [],
   "author": "James Cleveland <jc@blit.cc>",
   "license": "ISC",
