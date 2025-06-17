@@ -4,7 +4,7 @@ oldboy ansible_host=oldboy.zonkey-jazz.ts.net
 
 [tailnet]
 oldboy-local ansible_host=oldboy.local
-oldboy oldboy.zonkey-jazz.ts.net
+oldboy ansible_host=oldboy.zonkey-jazz.ts.net
 
 [all:vars]
 # Global SSH settings
