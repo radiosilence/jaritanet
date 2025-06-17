@@ -10,7 +10,7 @@ const CloudflareApiSchema = z.object({
 
 try {
   await fs.lstat(SCHEMAS_PATH);
-} catch (e) {
+} catch (_e) {
   await fs.mkdir(SCHEMAS_PATH);
 }
 

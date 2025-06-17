@@ -2,9 +2,9 @@ import type * as pulumi from "@pulumi/pulumi";
 import { z } from "zod/v4";
 import { ServiceSchema } from "./conf.schemas.ts";
 import {
-  TunnelSchema,
   outputDetails,
   outputDetailsSecret,
+  TunnelSchema,
 } from "./references.schemas.ts";
 
 export async function tunnelRef(stackRef: pulumi.StackReference) {

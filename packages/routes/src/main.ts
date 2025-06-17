@@ -2,10 +2,9 @@ import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf.ts";
 import { bluesky } from "./modules/bluesky.ts";
 import { fastmail } from "./modules/fastmail.ts";
+import { servicesRef, tunnelRef } from "./references.ts";
 import { createZone, getRecord, getServiceIngress } from "./tunnels/service.ts";
 import { createTunnelConfig } from "./tunnels/tunnel-config.ts";
-
-import { servicesRef, tunnelRef } from "./references.ts";
 
 const modules = {
   bluesky,
