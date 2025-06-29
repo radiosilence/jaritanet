@@ -11,6 +11,9 @@ shares:
   - name: files
     path: "/srv/files"
     owner: jc
+  - name: dl
+    path: "/mnt/kontent/dl"
+    owner: jc
 
 tailscale_routes:
   - 192.168.50.0/24
