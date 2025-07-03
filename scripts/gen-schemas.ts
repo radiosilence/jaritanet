@@ -35,13 +35,8 @@ function deterministicStringify(obj: unknown, indent = 2): string {
 }
 
 async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
-  console.log(`Generating schema for: ${name}`);
   const jsonSchema = z.toJSONSchema(schema, { reused: "ref", io: "input" });
-  console.log(`Schema keys for ${name}:`, Object.keys(jsonSchema).sort());
-
   const stringified = deterministicStringify(jsonSchema, 2);
-  console.log(`First 200 chars of ${name}:`, stringified.substring(0, 200));
-
   await fs.writeFile(`${SCHEMAS_PATH}/${name}.json`, stringified);
 }
 
