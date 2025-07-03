@@ -15,7 +15,7 @@
     components: [main]
     state: present
     enabled: true
-    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2C7F3F0E1B2F8B4A5D4E8C9F6A7B3E2D1C5F9A8B
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75D5B0010422CAA19FD3D40454880941B1BF7415
 
 - name: Add tomtomtom yt-dlp PPA
   ansible.builtin.deb822_repository:
@@ -26,7 +26,7 @@
     components: [main]
     state: present
     enabled: true
-    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2C7F3F0E1B2F8B4A5D4E8C9F6A7B3E2D1C5F9A8B
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xCEC312CC5ED8215A6E0EFC49B90E9186F0E836FB
 
 - name: Update package cache after adding PPAs
   ansible.builtin.apt:
