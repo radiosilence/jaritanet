@@ -27,7 +27,7 @@
     - name: Authenticate with Tailscale
       ansible.builtin.command: >
         tailscale up
-        --authkey="{{  lookup('community.general.onepassword', 'tailscale_authkey') }}"
+        --authkey="{{ lookup('env', 'TS_AUTHKEY') | default(lookup('community.general.onepassword', 'tailscale_authkey')) }}"
         --accept-routes
         --accept-dns
         --advertise-exit-node
