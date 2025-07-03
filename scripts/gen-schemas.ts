@@ -14,30 +14,15 @@ try {
   await fs.mkdir(SCHEMAS_PATH);
 }
 
-function deterministicStringify(obj: unknown, indent = 2): string {
-  const sortedStringify = (obj: unknown): unknown => {
-    if (Array.isArray(obj)) {
-      return obj.map(sortedStringify);
-    }
-    if (obj !== null && typeof obj === "object") {
-      const sorted: Record<string, unknown> = {};
-      Object.keys(obj)
-        .sort()
-        .forEach((key) => {
-          sorted[key] = sortedStringify(obj[key]);
-        });
-      return sorted;
-    }
-    return obj;
-  };
-
-  return JSON.stringify(sortedStringify(obj), null, indent);
-}
-
 async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
-  const jsonSchema = z.toJSONSchema(schema, { reused: "ref", io: "input" });
-  const stringified = deterministicStringify(jsonSchema, 2);
-  await fs.writeFile(`${SCHEMAS_PATH}/${name}.json`, stringified);
+  await fs.writeFile(
+    `${SCHEMAS_PATH}/${name}.json`,
+    JSON.stringify(
+      z.toJSONSchema(schema, { reused: "ref", io: "input" }),
+      null,
+      2,
+    ),
+  );
 }
 
 const schemas = {
