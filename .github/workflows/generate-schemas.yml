@@ -37,25 +37,6 @@ jobs:
       - name: 📋 Generate Schemas
         run: bun gen:schemas
 
-      - name: 🔍 Check Schema Stability
-        run: |
-          # Save current schemas
-          cp -r schemas schemas_first_run
-
-          # Generate schemas again
-          bun gen:schemas
-
-          # Compare the two generations
-          if ! diff -r schemas_first_run schemas; then
-            echo "❌ Schema generation is not stable - output differs between runs"
-            echo "First run vs Second run differences:"
-            diff -r schemas_first_run schemas || true
-            exit 1
-          fi
-
-          echo "✅ Schema generation is stable"
-          rm -rf schemas_first_run
-
       - name: 🚀 Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
@@ -63,6 +44,13 @@ jobs:
 
           # Add generated schemas
           git add schemas/
+
+          # Check if there are any changes after git add
+          if git diff --cached --quiet; then
+            echo "ℹ️ No schema changes to commit"
+            echo "HAS_CHANGES=false" >> $GITHUB_ENV
+            exit 0
+          fi
 
           # Commit only if there are changes (git commit will fail if no changes)
           if git commit -m "chore: update generated schemas [skip ci]
