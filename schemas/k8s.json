@@ -1,207 +1,94 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
-  "title": "Kubernetes Configuration Schema",
   "description": "Schema for Kubernetes configuration",
-  "type": "object",
+  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
   "properties": {
     "config": {
-      "type": "object",
       "properties": {
+        "cloudflare:apiToken": {
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "type": "object"
+        },
         "jaritanet-k8s:cloudflare": {
-          "type": "object",
           "properties": {
             "accountId": {
               "type": "string"
             }
           },
-          "required": ["accountId"]
+          "required": ["accountId"],
+          "type": "object"
+        },
+        "jaritanet-k8s:cloudflared": {
+          "properties": {
+            "args": {
+              "properties": {
+                "image": {
+                  "default": "cloudflare/cloudflared:latest",
+                  "type": "string"
+                },
+                "replicas": {
+                  "maximum": 4294967295,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "resources": {
+                  "default": {
+                    "limits": {
+                      "cpu": "250m",
+                      "memory": "128Mi"
+                    }
+                  },
+                  "properties": {
+                    "limits": {
+                      "properties": {
+                        "cpu": {
+                          "default": "250m",
+                          "type": "string"
+                        },
+                        "memory": {
+                          "default": "128Mi",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": ["limits"],
+                  "type": "object"
+                }
+              },
+              "required": ["replicas"],
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": ["name", "args"],
+          "type": "object"
         },
         "jaritanet-k8s:services": {
-          "type": "array",
           "items": {
-            "type": "object",
             "properties": {
-              "name": {
-                "type": "string"
-              },
-              "hostname": {
-                "type": "string"
-              },
-              "proxied": {
-                "default": true,
-                "type": "boolean"
-              },
               "args": {
-                "type": "object",
                 "properties": {
-                  "image": {
-                    "type": "object",
-                    "properties": {
-                      "repository": {
-                        "type": "string"
-                      },
-                      "tag": {
-                        "type": "string"
-                      },
-                      "pullPolicy": {
-                        "type": "string"
-                      }
-                    },
-                    "required": ["repository", "tag"]
-                  },
-                  "replicas": {
-                    "default": 1,
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 4294967295
-                  },
                   "env": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
                     "default": {},
-                    "type": "object",
                     "propertyNames": {
                       "type": "string"
                     },
-                    "additionalProperties": {
-                      "type": "string"
-                    }
-                  },
-                  "httpPort": {
-                    "default": 80,
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 4294967295
-                  },
-                  "limits": {
-                    "type": "object",
-                    "properties": {
-                      "cpu": {
-                        "default": "50m",
-                        "type": "string"
-                      },
-                      "memory": {
-                        "default": "64Mi",
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "hostVolumes": {
-                    "default": [],
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
-                          "type": "string"
-                        },
-                        "hostPath": {
-                          "type": "string"
-                        },
-                        "hostPathType": {
-                          "default": "Directory",
-                          "type": "string",
-                          "enum": [
-                            "DirectoryOrCreate",
-                            "Directory",
-                            "FileOrCreate",
-                            "File",
-                            "Socket",
-                            "CharDevice",
-                            "BlockDevice"
-                          ]
-                        },
-                        "mountPath": {
-                          "type": "string"
-                        },
-                        "readOnly": {
-                          "default": true,
-                          "type": "boolean"
-                        }
-                      },
-                      "required": ["name", "hostPath", "mountPath"]
-                    }
-                  },
-                  "persistence": {
-                    "default": [],
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
-                          "type": "string"
-                        },
-                        "storageClassName": {
-                          "default": "local-storage",
-                          "type": "string"
-                        },
-                        "readOnly": {
-                          "default": true,
-                          "type": "boolean"
-                        },
-                        "storage": {
-                          "type": "string"
-                        },
-                        "hostPath": {
-                          "type": "string"
-                        },
-                        "mountPath": {
-                          "type": "string"
-                        },
-                        "nodeAffinityHostname": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "storage",
-                        "hostPath",
-                        "mountPath",
-                        "nodeAffinityHostname"
-                      ]
-                    }
+                    "type": "object"
                   },
                   "healthCheck": {
-                    "type": "object",
                     "properties": {
-                      "path": {
-                        "default": "/_health",
-                        "type": "string"
-                      },
-                      "port": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 4294967295
-                      },
-                      "initialDelaySeconds": {
-                        "default": 30,
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 4294967295
-                      },
-                      "periodSeconds": {
-                        "default": 10,
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 4294967295
-                      },
-                      "timeoutSeconds": {
-                        "default": 5,
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 4294967295
-                      },
-                      "failureThreshold": {
-                        "default": 3,
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 4294967295
-                      },
-                      "successThreshold": {
-                        "default": 1,
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 4294967295
-                      },
                       "enableLiveness": {
                         "default": true,
                         "type": "boolean"
@@ -216,8 +103,14 @@
                       },
                       "expectedStatus": {
                         "default": "UP",
-                        "type": "string",
-                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"]
+                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"],
+                        "type": "string"
+                      },
+                      "failureThreshold": {
+                        "default": 3,
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
                       },
                       "followRedirects": {
                         "default": false,
@@ -230,9 +123,7 @@
                             "value": "k8s"
                           }
                         ],
-                        "type": "array",
                         "items": {
-                          "type": "object",
                           "properties": {
                             "name": {
                               "type": "string"
@@ -241,85 +132,191 @@
                               "type": "string"
                             }
                           },
-                          "required": ["name", "value"]
-                        }
+                          "required": ["name", "value"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "initialDelaySeconds": {
+                        "default": 30,
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "path": {
+                        "default": "/_health",
+                        "type": "string"
+                      },
+                      "periodSeconds": {
+                        "default": 10,
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "port": {
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "successThreshold": {
+                        "default": 1,
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "timeoutSeconds": {
+                        "default": 5,
+                        "maximum": 4294967295,
+                        "minimum": 0,
+                        "type": "integer"
                       }
-                    }
+                    },
+                    "type": "object"
+                  },
+                  "hostVolumes": {
+                    "default": [],
+                    "items": {
+                      "properties": {
+                        "hostPath": {
+                          "type": "string"
+                        },
+                        "hostPathType": {
+                          "default": "Directory",
+                          "enum": [
+                            "DirectoryOrCreate",
+                            "Directory",
+                            "FileOrCreate",
+                            "File",
+                            "Socket",
+                            "CharDevice",
+                            "BlockDevice"
+                          ],
+                          "type": "string"
+                        },
+                        "mountPath": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "readOnly": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["name", "hostPath", "mountPath"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "httpPort": {
+                    "default": 80,
+                    "maximum": 4294967295,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "image": {
+                    "properties": {
+                      "pullPolicy": {
+                        "type": "string"
+                      },
+                      "repository": {
+                        "type": "string"
+                      },
+                      "tag": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["repository", "tag"],
+                    "type": "object"
+                  },
+                  "limits": {
+                    "properties": {
+                      "cpu": {
+                        "default": "50m",
+                        "type": "string"
+                      },
+                      "memory": {
+                        "default": "64Mi",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "persistence": {
+                    "default": [],
+                    "items": {
+                      "properties": {
+                        "hostPath": {
+                          "type": "string"
+                        },
+                        "mountPath": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "nodeAffinityHostname": {
+                          "type": "string"
+                        },
+                        "readOnly": {
+                          "default": true,
+                          "type": "boolean"
+                        },
+                        "storage": {
+                          "type": "string"
+                        },
+                        "storageClassName": {
+                          "default": "local-storage",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "storage",
+                        "hostPath",
+                        "mountPath",
+                        "nodeAffinityHostname"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "replicas": {
+                    "default": 1,
+                    "maximum": 4294967295,
+                    "minimum": 0,
+                    "type": "integer"
                   },
                   "strategy": {
-                    "type": "object",
                     "properties": {
                       "type": {
                         "default": "RollingUpdate",
-                        "type": "string",
-                        "enum": ["Recreate", "RollingUpdate"]
+                        "enum": ["Recreate", "RollingUpdate"],
+                        "type": "string"
                       }
-                    }
+                    },
+                    "type": "object"
                   }
                 },
-                "required": ["image"]
+                "required": ["image"],
+                "type": "object"
+              },
+              "hostname": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "proxied": {
+                "default": true,
+                "type": "boolean"
               }
             },
-            "required": ["name", "hostname", "args"]
-          }
-        },
-        "jaritanet-k8s:cloudflared": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "args": {
-              "type": "object",
-              "properties": {
-                "replicas": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 4294967295
-                },
-                "image": {
-                  "default": "cloudflare/cloudflared:latest",
-                  "type": "string"
-                },
-                "resources": {
-                  "default": {
-                    "limits": {
-                      "memory": "128Mi",
-                      "cpu": "250m"
-                    }
-                  },
-                  "type": "object",
-                  "properties": {
-                    "limits": {
-                      "type": "object",
-                      "properties": {
-                        "memory": {
-                          "default": "128Mi",
-                          "type": "string"
-                        },
-                        "cpu": {
-                          "default": "250m",
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": ["limits"]
-                }
-              },
-              "required": ["replicas"]
-            }
+            "required": ["name", "hostname", "args"],
+            "type": "object"
           },
-          "required": ["name", "args"]
-        },
-        "cloudflare:apiToken": {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"]
+          "type": "array"
         }
       },
       "required": [
@@ -327,8 +324,11 @@
         "jaritanet-k8s:services",
         "jaritanet-k8s:cloudflared",
         "cloudflare:apiToken"
-      ]
+      ],
+      "type": "object"
     }
   },
-  "required": ["config"]
+  "required": ["config"],
+  "title": "Kubernetes Configuration Schema",
+  "type": "object"
 }
