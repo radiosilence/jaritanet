@@ -17,11 +17,11 @@
     - group_vars/homeservers.yml
 
   roles:
+    - downloader
     - microk8s
     - nfs
     - samba
     - syncthing
-    - downloader
 
   handlers:
     - name: restart microk8s
