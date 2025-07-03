@@ -21,6 +21,7 @@
     - nfs
     - samba
     - syncthing
+    - downloader
 
   handlers:
     - name: restart microk8s
