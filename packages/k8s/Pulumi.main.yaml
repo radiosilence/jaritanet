@@ -83,7 +83,7 @@ config:
           memory: 1024Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-3dd1baa
+          tag: sha-1e8a563
           pullPolicy: "Always"
         httpPort: 3000
     slskd:
@@ -125,8 +125,6 @@ config:
             mountPath: /dl
             readOnly: false
             nodeAffinityHostname: oldboy
-
-
   jaritanet-k8s:cloudflared:
     name: cloudflared
     args:
