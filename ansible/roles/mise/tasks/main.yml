@@ -1,0 +1,25 @@
+- name: Install required packages for Mise
+  ansible.builtin.apt:
+    name:
+      - gpg
+      - sudo
+      - wget
+      - curl
+    state: present
+
+- name: Add Mise repo using key from URL.
+  ansible.builtin.deb822_repository:
+    name: mise
+    types: [deb]
+    uris: https://mise.jdx.dev/deb
+    components: [main]
+    suites: [stable]
+    signed_by: https://mise.jdx.dev/gpg-key.pub
+    state: present
+    enabled: true
+
+- name: Install Mise
+  ansible.builtin.apt:
+    name: mise
+    update_cache: true
+    state: present

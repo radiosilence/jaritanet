@@ -1,0 +1,72 @@
+- name: Install required packages for downloader tools
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gpg
+      - software-properties-common
+    state: present
+
+- name: Add m-grant-prg utils PPA
+  ansible.builtin.deb822_repository:
+    name: m-grant-prg-utils
+    types: [deb]
+    uris: https://ppa.launchpadcontent.net/m-grant-prg/utils/ubuntu
+    suites: [noble]
+    components: [main]
+    state: present
+    enabled: true
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75D5B0010422CAA19FD3D40454880941B1BF7415
+
+- name: Add tomtomtom yt-dlp PPA
+  ansible.builtin.deb822_repository:
+    name: tomtomtom-yt-dlp
+    types: [deb]
+    uris: https://ppa.launchpadcontent.net/tomtomtom/yt-dlp/ubuntu
+    suites: [noble]
+    components: [main]
+    state: present
+    enabled: true
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xCEC312CC5ED8215A6E0EFC49B90E9186F0E836FB
+
+- name: Update package cache after adding PPAs
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install get-iplayer from PPA
+  ansible.builtin.apt:
+    name: get-iplayer
+    state: present
+
+- name: Install yt-dlp from PPA
+  ansible.builtin.apt:
+    name: yt-dlp
+    state: present
+
+- name: Install additional media tools
+  ansible.builtin.apt:
+    name:
+      - ffmpeg
+      - aria2
+    state: present
+
+- name: Verify get-iplayer installation
+  ansible.builtin.command: get_iplayer --help
+  register: get_iplayer_version
+  changed_when: false
+  failed_when: get_iplayer_version.rc != 0
+
+- name: Display get-iplayer version info
+  ansible.builtin.debug:
+    msg: "get-iplayer successfully installed"
+  when: get_iplayer_version.rc == 0
+
+- name: Verify yt-dlp installation
+  ansible.builtin.command: yt-dlp --version
+  register: youtube_dlp_version
+  changed_when: false
+  failed_when: youtube_dlp_version.rc != 0
+
+- name: Display yt-dlp version
+  ansible.builtin.debug:
+    msg: "yt-dlp version: {{ youtube_dlp_version.stdout }}"
+  when: youtube_dlp_version.rc == 0

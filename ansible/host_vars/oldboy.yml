@@ -1,0 +1,22 @@
+shares:
+  - name: music
+    path: "/mnt/kontent/music"
+    owner: jc
+  - name: movies
+    path: "/mnt/kontent/movies"
+    owner: jc
+  - name: tv
+    path: "/mnt/kontent/tv"
+    owner: jc
+  - name: files
+    path: "/srv/files"
+    owner: jc
+  - name: dl
+    path: "/mnt/kontent/dl"
+    owner: jc
+
+tailscale_routes:
+  - 192.168.50.0/24
+
+k8s:
+  service_account: github-deployer

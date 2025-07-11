@@ -1,0 +1,39 @@
+- name: Install NFS server
+  ansible.builtin.package:
+    name: nfs-kernel-server
+    state: present
+
+- name: Create share directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "0775"
+  with_items: "{{ shares }}"
+
+- name: Get UID for users
+  ansible.builtin.command: "id -u {{ item.owner }}"
+  register: user_uids
+  changed_when: false
+  with_items: "{{ shares }}"
+
+- name: Add NFS exports
+  ansible.builtin.lineinfile:
+    path: /etc/exports
+    line: "{{ item.0.path }} *(rw,sync,no_subtree_check,all_squash,anonuid={{ item.1.stdout }},anongid={{ item.1.stdout }})"
+    create: true
+  with_together:
+    - "{{ shares }}"
+    - "{{ user_uids.results }}"
+
+- name: Export NFS shares
+  ansible.builtin.command: exportfs -ra
+  changed_when: true
+
+- name: Enable and start NFS server
+  ansible.builtin.systemd:
+    name: nfs-kernel-server
+    enabled: true
+    state: started
+

@@ -1,0 +1,5 @@
+{
+  "name": "jaritanet-routes",
+  "type": "module",
+  "main": "./src/main.ts"
+}

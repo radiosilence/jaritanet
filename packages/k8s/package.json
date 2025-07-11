@@ -1,0 +1,5 @@
+{
+  "name": "jaritanet-k8s",
+  "type": "module",
+  "main": "./src/main.ts"
+}

@@ -1,0 +1,141 @@
+name: 🚀 CD
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/infra/**"
+      - "packages/k8s/**"
+      - "packages/routes/**"
+      - ".github/workflows/*-infra.yml"
+      - ".github/workflows/*-k8s.yml"
+      - ".github/workflows/*-routes.yml"
+  workflow_call:
+    secrets:
+      PULUMI_ACCESS_TOKEN:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
+        required: true
+      KUBE_HOST:
+        required: true
+      KUBE_API_PORT:
+        required: true
+      KUBE_TOKEN:
+        required: true
+      NAVIDROME_HOSTNAME:
+        required: true
+      FILES_HOSTNAME:
+        required: true
+      BLIT_HOSTNAME:
+        required: true
+      SLSKD_HOSTNAME:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+concurrency:
+  group: "cd"
+
+jobs:
+  infra:
+    name: 🏗️ Deploy Infrastructure
+    runs-on: ubuntu-24.04
+    env:
+      working-directory: ./packages/infra
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 📦 Install Dependencies
+        run: bun install
+      - name: 🚀 Deploy with Pulumi
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: radiosilence/jaritanet/main
+          work-dir: packages/infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  k8s:
+    name: ☸️ Deploy Kubernetes
+    needs: infra
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v2
+      - name: 🔌 Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 📦 Install Dependencies
+        run: bun install
+      - name: 🚀 Deploy with Pulumi
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: radiosilence/jaritanet-k8s/main
+          work-dir: packages/k8s
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          KUBE_HOST: ${{ secrets.KUBE_HOST }}
+          KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
+          KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
+          NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
+          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
+          BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
+          SLSKD_HOSTNAME: ${{ secrets.SLSKD_HOSTNAME }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  routes:
+    name: 🛣️ Deploy Routes
+    needs: k8s
+    runs-on: ubuntu-24.04
+    env:
+      working-directory: ./packages/routes
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 📦 Install Dependencies
+        run: bun install
+      - name: 🚀 Deploy with Pulumi
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: radiosilence/jaritanet-routes/main
+          work-dir: packages/routes
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  integration-tests:
+    name: 🌐 Run Integration Tests
+    needs: routes
+    uses: ./.github/workflows/service-tests.yml
+    permissions:
+      contents: read
+      issues: write
+
+  email-tests:
+    name: 📧 Run Email Integration Tests
+    needs: routes
+    uses: ./.github/workflows/email-tests.yml
+    permissions:
+      contents: read
+      issues: write

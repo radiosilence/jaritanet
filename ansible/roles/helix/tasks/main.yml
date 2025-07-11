@@ -1,0 +1,10 @@
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - snapd
+    state: present
+
+- name: Install helix via snap
+  community.general.snap:
+    name: helix
+    classic: true

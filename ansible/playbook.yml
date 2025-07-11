@@ -1,0 +1,37 @@
+- name: Ensure common configurations are applied
+  hosts: all
+  become: true
+  vars_files:
+    - group_vars/all.yml
+
+  roles:
+    - common
+    - users
+    - helix
+    - mise
+
+- name: Ensure homeserver configurations are applied
+  hosts: homeservers
+  become: true
+  vars_files:
+    - group_vars/homeservers.yml
+
+  roles:
+    - downloader
+    - microk8s
+    - nfs
+    - samba
+    - syncthing
+
+  handlers:
+    - name: restart microk8s
+      ansible.builtin.command: snap restart microk8s
+
+- name: Ensure tailnet is joined
+  hosts: tailnet
+  become: true
+  vars_files:
+    - group_vars/tailnet.yml
+
+  roles:
+    - tailscale

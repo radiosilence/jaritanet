@@ -1,0 +1,42 @@
+- name: Add SyncThing repo using key from URL.
+  ansible.builtin.deb822_repository:
+    name: syncthing
+    types: [deb]
+    uris: https://apt.syncthing.net/
+    components: [stable]
+    suites: [syncthing]
+    signed_by: https://syncthing.net/release-key.txt
+    state: present
+    enabled: true
+
+- name: Install SyncThing
+  ansible.builtin.apt:
+    name: syncthing
+    update_cache: true
+    state: present
+
+- name: Create SyncThing systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/syncthing@.service
+    content: |
+      [Unit]
+      Description=Syncthing - Open Source Continuous File Synchronization for %I
+      Documentation=man:syncthing(1)
+      After=network.target
+
+      [Service]
+      User=%i
+      ExecStart=/usr/bin/syncthing -no-browser -logflags=0
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+
+- name: Enable and start SyncThing service for user
+  ansible.builtin.systemd:
+    name: "syncthing@{{ username }}"
+    enabled: true
+    state: started
+    daemon_reload: true

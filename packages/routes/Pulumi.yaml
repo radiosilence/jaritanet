@@ -1,0 +1,8 @@
+name: jaritanet-routes
+description: Personal routes layer
+runtime:
+  name: nodejs
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: typescript

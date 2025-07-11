@@ -1,0 +1,8 @@
+name: jaritanet-k8s
+description: Personal k8s
+runtime:
+  name: nodejs
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: typescript
