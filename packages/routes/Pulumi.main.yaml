@@ -3,7 +3,7 @@ config:
   cloudflare:apiToken:
     secure: AAABAFF5ad7MgpagmxXsfd9t6moL77ldgO6s0L7p4zX3ifjvwfJiB0vHBCxJGmJQd0EdhkOc/g+8CoctsnotRzTs5HixTAKE
   jaritanet-routes:cloudflare:
-    accountId: ${CLOUDFLARE_ACCOUNT_ID}
+    accountId: ''
   jaritanet-routes:serviceStacks:
     - path: radiosilence/jaritanet-k8s
   jaritanet-routes:zones:
