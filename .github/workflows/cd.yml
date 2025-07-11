@@ -55,6 +55,13 @@ jobs:
         uses: jdx/mise-action@v2
       - name: 📦 Install Dependencies
         run: bun install
+      - name: ⚙️ Configure Pulumi from Environment
+        run: |
+          pulumi config set jaritanet:cloudflare:accountId "$CLOUDFLARE_ACCOUNT_ID"
+        working-directory: packages/infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: 🚀 Deploy with Pulumi
         uses: pulumi/actions@v6
         with:
@@ -63,7 +70,6 @@ jobs:
           work-dir: packages/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   k8s:
     name: ☸️ Deploy Kubernetes
@@ -122,6 +128,13 @@ jobs:
         uses: jdx/mise-action@v2
       - name: 📦 Install Dependencies
         run: bun install
+      - name: ⚙️ Configure Pulumi from Environment
+        run: |
+          pulumi config set jaritanet-routes:cloudflare:accountId "$CLOUDFLARE_ACCOUNT_ID"
+        working-directory: packages/routes
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: 🚀 Deploy with Pulumi
         uses: pulumi/actions@v6
         with:
@@ -130,7 +143,6 @@ jobs:
           work-dir: packages/routes
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   email-tests:
     name: 📧 Run Email Integration Tests
