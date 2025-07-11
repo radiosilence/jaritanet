@@ -18,12 +18,15 @@ export const ServiceConfSchema = z.object({
   args: ServiceArgsSchema,
 });
 
-export const ServicesArraySchema = z.array(ServiceConfSchema);
+export const ServicesMapSchema = z.record(
+  z.string(),
+  ServiceConfSchema.omit({ name: true }),
+);
 
 export const K8sConfSchema = z.object({
   cloudflare: CloudflareConfSchema,
   cloudflared: CloudflaredConfSchema,
-  services: ServicesArraySchema,
+  services: ServicesMapSchema,
   namespace: z.string().default("jaritanet"),
   infraStackPath: z.string().default("radiosilence/jaritanet"),
   managedBy: z.string().default("jaritanet"),

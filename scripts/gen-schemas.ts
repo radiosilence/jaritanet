@@ -43,12 +43,12 @@ const schemas = {
         }),
   ),
   k8s: await import("../packages/k8s/src/conf.schemas.ts").then(
-    ({ CloudflareConfSchema, CloudflaredConfSchema, ServicesArraySchema }) =>
+    ({ CloudflareConfSchema, CloudflaredConfSchema, ServicesMapSchema }) =>
       z
         .object({
           config: z.object({
             [`${PROJECT}-k8s:cloudflare`]: CloudflareConfSchema,
-            [`${PROJECT}-k8s:services`]: ServicesArraySchema,
+            [`${PROJECT}-k8s:services`]: ServicesMapSchema,
             [`${PROJECT}-k8s:cloudflared`]: CloudflaredConfSchema,
             "cloudflare:apiToken": CloudflareApiSchema,
           }),

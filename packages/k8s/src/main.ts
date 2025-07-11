@@ -58,15 +58,20 @@ const infraStackRef = new pulumi.StackReference(
 );
 
 export default async function () {
-  const services = conf.services.map(({ name, args, hostname, proxied }) => {
-    const service = createService(provider, name, args);
+  const services = Object.fromEntries(
+    Object.entries(conf.services).map(([name, { args, hostname, proxied }]) => {
+      const service = createService(provider, name, args);
 
-    return {
-      hostname,
-      proxied,
-      service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.${conf.clusterDomain}`,
-    };
-  });
+      return [
+        name,
+        {
+          hostname,
+          proxied,
+          service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.${conf.clusterDomain}`,
+        },
+      ];
+    }),
+  );
 
   const { id: tunnelId } = await tunnelRef(infraStackRef);
 
