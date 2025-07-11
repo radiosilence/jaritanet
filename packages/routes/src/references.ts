@@ -15,8 +15,8 @@ export async function tunnelRef(stackRef: pulumi.StackReference) {
 }
 
 export async function servicesRef(stackRef: pulumi.StackReference) {
-  const { value: services } = outputDetails(z.array(ServiceSchema)).parse(
-    await stackRef.getOutputDetails("services"),
-  );
+  const { value: services } = outputDetails(
+    z.record(z.string(), ServiceSchema),
+  ).parse(await stackRef.getOutputDetails("services"));
   return services;
 }

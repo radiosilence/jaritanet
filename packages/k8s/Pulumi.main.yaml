@@ -1,10 +1,8 @@
 # yaml-language-server: $schema=../../schemas/k8s.json
 config:
-  jaritanet-k8s:cloudflare:
-    accountId: ${CLOUDFLARE_ACCOUNT_ID}
   jaritanet-k8s:services:
-    - name: navidrome
-      hostname: ${NAVIDROME_HOSTNAME}
+    navidrome:
+      hostname: ''
       proxied: true
       args:
         httpPort: 4533
@@ -48,8 +46,8 @@ config:
             mountPath: /data
             readOnly: false
             nodeAffinityHostname: oldboy
-    - name: files
-      hostname: ${FILES_HOSTNAME}
+    files:
+      hostname: ''
       args:
         strategy:
           type: Recreate
@@ -69,8 +67,8 @@ config:
             hostPath: /srv/files
             mountPath: /srv/files
             nodeAffinityHostname: oldboy
-    - name: blit
-      hostname: ${BLIT_HOSTNAME}
+    blit:
+      hostname: ''
       args:
         replicas: 2
         healthCheck:
@@ -86,8 +84,8 @@ config:
           tag: sha-3dd1baa
           pullPolicy: "Always"
         httpPort: 3000
-    - name: slskd
-      hostname: ${SLSKD_HOSTNAME}
+    slskd:
+      hostname: ''
       proxied: true
       args:
         strategy:

@@ -28,3 +28,5 @@ secrets/*.yml
 mise.local.toml
 
 node_modules
+
+.claude

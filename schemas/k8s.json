@@ -18,13 +18,13 @@
           "required": ["accountId"]
         },
         "jaritanet-k8s:services": {
-          "type": "array",
-          "items": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
             "type": "object",
             "properties": {
-              "name": {
-                "type": "string"
-              },
               "hostname": {
                 "type": "string"
               },
@@ -292,7 +292,7 @@
                 "required": ["image"]
               }
             },
-            "required": ["name", "hostname", "args"]
+            "required": ["hostname", "args"]
           }
         },
         "jaritanet-k8s:cloudflared": {

@@ -29,11 +29,16 @@ export default async function () {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
     const services = await servicesRef(stackRef);
 
-    const ingresses = services.map(({ hostname, service }) =>
+    const servicesArray = Object.entries(services).map(([name, service]) => ({
+      name,
+      ...service,
+    }));
+
+    const ingresses = servicesArray.map(({ hostname, service }) =>
       getServiceIngress(hostname, service),
     );
 
-    for (const service of services) {
+    for (const service of servicesArray) {
       const { zoneName } = getRecord(service.hostname);
       const zone = conf.zones.find((z) => z.name === zoneName);
 
