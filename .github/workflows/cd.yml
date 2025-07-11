@@ -12,9 +12,6 @@ on:
       - "packages/infra/**"
       - "packages/k8s/**"
       - "packages/routes/**"
-      - ".github/workflows/*-infra.yml"
-      - ".github/workflows/*-k8s.yml"
-      - ".github/workflows/*-routes.yml"
   workflow_call:
     secrets:
       PULUMI_ACCESS_TOKEN:
