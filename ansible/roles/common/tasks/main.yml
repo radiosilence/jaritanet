@@ -1,0 +1,29 @@
+- name: Add Azlux repo using key from URL
+  ansible.builtin.deb822_repository:
+    name: azlux
+    types: [deb]
+    uris: http://packages.azlux.fr/debian/
+    components: [main]
+    suites: [stable]
+    signed_by: https://azlux.fr/repo.gpg
+    state: present
+    enabled: true
+
+- name: Update all packages to the latest version (dist-upgrade)
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: true
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - snapd
+      - python3-pip
+      - python3-kubernetes
+      - python3-k8sclient
+      - acl
+      - fish
+      - btop
+      - broot
+      - aria2
+    state: present

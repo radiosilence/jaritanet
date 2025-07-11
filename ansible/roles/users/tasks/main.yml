@@ -1,0 +1,21 @@
+- name: Create user
+  ansible.builtin.user:
+    name: "{{ username }}"
+    groups:
+      - sudo
+      - adm
+    shell: /bin/fish
+    create_home: true
+
+- name: Add SSH public key for the new user
+  ansible.builtin.authorized_key:
+    user: "{{ username }}"
+    key: "{{ ssh_public_key }}"
+
+- name: Generate ED25519 SSH key for deployment
+  community.crypto.openssh_keypair:
+    path: "/home/{{ username }}/.ssh/id_ed25519"
+    type: ed25519
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: "0600"

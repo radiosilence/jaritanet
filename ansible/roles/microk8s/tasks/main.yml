@@ -1,0 +1,150 @@
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - snapd
+    state: present
+
+- name: Install microk8s via snap
+  community.general.snap:
+    name: microk8s
+    classic: true
+    channel: stable
+
+- name: Create microk8s group
+  ansible.builtin.group:
+    name: microk8s
+    state: present
+
+- name: Add current user to microk8s group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups:
+      - microk8s
+    append: true
+
+- name: Add user to microk8s group
+  ansible.builtin.user:
+    name: "{{ username }}"
+    groups:
+      - microk8s
+    append: true
+
+- name: Check if MicroK8s is running
+  ansible.builtin.command: microk8s status --wait-ready
+  register: microk8s_status
+  failed_when: microk8s_status.rc not in [0, 1]
+
+- name: Start MicroK8s if not running
+  ansible.builtin.command: microk8s start
+  when: microk8s_status.rc != 0
+
+- name: Check microk8s addon status
+  ansible.builtin.command: microk8s status --format yaml
+  register: microk8s_addon_status
+  changed_when: false
+
+- name: Enable microk8s addons
+  ansible.builtin.command: "microk8s enable {{ item }}"
+  loop:
+    - community
+    - dns
+    - storage
+    - helm
+    - rbac
+    - hostpath-storage
+    - metrics-server
+  register: addon_enable_result
+  changed_when: "'is already enabled' not in addon_enable_result.stdout"
+  notify: restart microk8s
+
+- name: Generate kubeconf with microk8s config
+  ansible.builtin.shell:
+    cmd: |
+      mkdir -p ~/.kube
+      microk8s kubectl config view --raw > ~/.kube/config
+  register: kubeconfig
+
+- name: Create service account for GitHub deployments
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: "{{ k8s.service_account }}"
+        namespace: default
+
+- name: Create cluster role binding for deployer
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: "{{ k8s.service_account }}:admin"
+      subjects:
+        - kind: ServiceAccount
+          name: "{{ k8s.service_account }}"
+          namespace: default
+      roleRef:
+        kind: ClusterRole
+        name: cluster-admin
+        apiGroup: rbac.authorization.k8s.io
+
+- name: Create service account token
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ k8s.service_account }}-token"
+        namespace: default
+        annotations:
+          kubernetes.io/service-account.name: "{{ k8s.service_account }}"
+      type: kubernetes.io/service-account-token
+
+- name: Wait for token to be populated
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: github-deployer-token
+    namespace: default
+  register: token_secret
+  until: token_secret.resources[0].data.token is defined
+  retries: 10
+  delay: 5
+
+- name: Create secrets directory
+  ansible.builtin.file:
+    path: "{{ inventory_dir }}/secrets"
+    state: directory
+    mode: "0700"
+
+- name: Get Tailscale hostname
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+
+- name: Create temporary secrets file on remote
+  ansible.builtin.copy:
+    content: |
+      {
+        "KUBE_TOKEN": "{{ token_secret.resources[0].data.token }}",
+        "KUBE_API_PORT": "16443",
+        "KUBE_HOST": "{{ (tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
+      }
+    dest: /tmp/github-secrets.json
+    mode: "0600"
+  register: remote_secrets
+
+- name: Fetch secrets file from remote
+  become: false
+  ansible.builtin.fetch:
+    src: /tmp/github-secrets.json
+    dest: ./github-secrets.json
+    flat: true
+
+- name: Remove temporary secrets file from remote
+  ansible.builtin.file:
+    path: /tmp/github-secrets.json
+    state: absent

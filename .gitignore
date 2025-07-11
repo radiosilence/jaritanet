@@ -1,0 +1,30 @@
+# SSH Keys
+*.pem
+*.key
+id_*
+
+# Logs
+*.log
+
+# Environment files
+.env
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ansible
+*.retry
+.vault_pass
+secrets/*.yml
+!secrets/README.md
+
+mise.local.toml
+
+node_modules

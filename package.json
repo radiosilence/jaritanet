@@ -1,0 +1,42 @@
+{
+  "name": "@radiosilence/jaritanet",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
+    "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
+    "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
+    "gen:schemas": "./scripts/gen-schemas.ts",
+    "prepare": "bunx lefthook install"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.1",
+    "@tsconfig/bun": "^1.0.8",
+    "@tsconfig/node-ts": "^23.6.1",
+    "@tsconfig/node23": "^23.0.2",
+    "@types/node": "^24.0.12",
+    "lefthook": "^1.12.1",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@pulumi/cloudflare": "^6.3.1",
+    "@pulumi/kubernetes": "^4.23.0",
+    "@pulumi/pulumi": "^3.181.0",
+    "@pulumi/random": "^4.18.2",
+    "zod": "^3.25.76"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "keywords": [],
+  "author": "James Cleveland <jc@blit.cc>",
+  "license": "ISC",
+  "trustedDependencies": [
+    "@biomejs/biome",
+    "@evilmartians/lefthook",
+    "@pulumi/kubernetes",
+    "protobufjs"
+  ]
+}

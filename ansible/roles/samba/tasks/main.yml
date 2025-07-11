@@ -1,0 +1,42 @@
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - samba
+      - samba-common
+    state: present
+
+- name: Configure Samba shares
+  ansible.builtin.blockinfile:
+    path: /etc/samba/smb.conf
+    block: |
+      {% for share in shares %}
+      [{{ share.name }}]
+          path = {{ share.path }}
+          browseable = yes
+          read only = yes
+          guest ok = yes
+          write list = {{ share.owner }}
+          create mask = 0664
+          directory mask = 0775
+      {% endfor %}
+    marker: "# {mark} ANSIBLE MANAGED SAMBA SHARES"
+
+- name: Update Samba password for user
+  vars:
+    password: "{{ lookup('env','SAMBA_PASSWORD') }}"
+  ansible.builtin.command:
+    cmd: /usr/bin/smbpasswd -s -a {{ username }}
+    stdin: |
+      {{ password }}
+      {{ password }}
+  register: samba_password
+  failed_when: samba_password.rc != 0
+
+- name: Restart Samba services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  loop:
+    - smbd
+    - nmbd

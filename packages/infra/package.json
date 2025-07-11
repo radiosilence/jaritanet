@@ -1,0 +1,5 @@
+{
+  "name": "jaritanet-infra",
+  "type": "module",
+  "main": "./src/main.ts"
+}

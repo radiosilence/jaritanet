@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=../../schemas/routes.json
+config:
+  cloudflare:apiToken:
+    secure: AAABAFF5ad7MgpagmxXsfd9t6moL77ldgO6s0L7p4zX3ifjvwfJiB0vHBCxJGmJQd0EdhkOc/g+8CoctsnotRzTs5HixTAKE
+  jaritanet-routes:cloudflare:
+    accountId: ${CLOUDFLARE_ACCOUNT_ID}
+  jaritanet-routes:serviceStacks:
+    - path: radiosilence/jaritanet-k8s
+  jaritanet-routes:zones:
+    - name: "blit.cc"
+      zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
+      modules:
+        - fastmail
+        - bluesky
+    - name: radiosilence.dev
+      zoneId: 3373ad7c3dc3104e7aeab31c1176e684
+      modules:
+        - fastmail
+        - bluesky
+    - name: buttholes.live
+      zoneId: 1115a1e5006523692d61e49e672f6df0
+      modules:
+        - fastmail
+        - bluesky
+  jaritanet-routes:fastmail:
+    mxDomain: smtp.messagingengine.com
+    dkimDomain: dkim.fmhosted.com
+    dkimSubdomain: _domainkey
+    dmarcSubdomain: _dmarc
+    dmarcAggEmail: dmarc-agg@blit.cc
+    dmarcPolicy: reject
+    spfDomain: spf.messagingengine.com
+  jaritanet-routes:bluesky:
+    did: did:plc:d32vuqlfqjttwbckkxgxgbgl

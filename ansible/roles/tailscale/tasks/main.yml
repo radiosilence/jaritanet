@@ -1,0 +1,56 @@
+- name: Install required packages for Tailscale
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gpg
+    state: present
+
+- name: Add Tailscale repo using key from URL.
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: [deb]
+    uris: https://pkgs.tailscale.com/stable/ubuntu
+    suites: [noble]
+    components: [main]
+    state: present
+    enabled: true
+    signed_by: https://pkgs.tailscale.com/stable/ubuntu/noble.gpg
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    update_cache: true
+    state: present
+
+- name: Configure Tailscale authentication
+  block:
+    - name: Authenticate with Tailscale and advertise routes
+      ansible.builtin.command: >
+        tailscale up
+        --authkey="{{ lookup('env', 'TS_AUTHKEY') | default(lookup('community.general.onepassword', 'tailscale_authkey')) }}"
+        --accept-routes
+        --accept-dns
+        --advertise-exit-node
+         {% if tailscale_routes is defined %}
+        --advertise-routes="{{ tailscale_routes | join(',') }}"
+        {% endif %}
+        --advertise-tags=tag:server
+        --reset
+      register: tailscale_auth
+      changed_when: tailscale_auth.rc == 0
+      failed_when: tailscale_auth.rc != 0
+
+- name: Ensure Tailscale starts on boot
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Output Tailscale IP for reference
+  ansible.builtin.command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+
+- name: Display Tailscale IP
+  ansible.builtin.debug:
+    msg: "Tailscale IP: {{ tailscale_ip.stdout }}"

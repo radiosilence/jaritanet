@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
+  "title": "Infra Configuration Schema",
+  "description": "Schema for infra configuration",
+  "type": "object",
+  "properties": {
+    "config": {
+      "type": "object",
+      "properties": {
+        "jaritanet:cloudflare": {
+          "type": "object",
+          "properties": {
+            "accountId": {
+              "type": "string"
+            }
+          },
+          "required": ["accountId"]
+        },
+        "jaritanet:tunnel": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": ["name"]
+        },
+        "cloudflare:apiToken": {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"]
+        }
+      },
+      "required": [
+        "jaritanet:cloudflare",
+        "jaritanet:tunnel",
+        "cloudflare:apiToken"
+      ]
+    }
+  },
+  "required": ["config"]
+}

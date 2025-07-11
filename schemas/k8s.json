@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
+  "title": "Kubernetes Configuration Schema",
+  "description": "Schema for Kubernetes configuration",
+  "type": "object",
+  "properties": {
+    "config": {
+      "type": "object",
+      "properties": {
+        "jaritanet-k8s:cloudflare": {
+          "type": "object",
+          "properties": {
+            "accountId": {
+              "type": "string"
+            }
+          },
+          "required": ["accountId"]
+        },
+        "jaritanet-k8s:services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "hostname": {
+                "type": "string"
+              },
+              "proxied": {
+                "default": true,
+                "type": "boolean"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "object",
+                    "properties": {
+                      "repository": {
+                        "type": "string"
+                      },
+                      "tag": {
+                        "type": "string"
+                      },
+                      "pullPolicy": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["repository", "tag"]
+                  },
+                  "replicas": {
+                    "default": 1,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  },
+                  "env": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "httpPort": {
+                    "default": 80,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  },
+                  "ports": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "limits": {
+                    "type": "object",
+                    "properties": {
+                      "cpu": {
+                        "default": "50m",
+                        "type": "string"
+                      },
+                      "memory": {
+                        "default": "64Mi",
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "hostVolumes": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "hostPath": {
+                          "type": "string"
+                        },
+                        "hostPathType": {
+                          "default": "Directory",
+                          "type": "string",
+                          "enum": [
+                            "DirectoryOrCreate",
+                            "Directory",
+                            "FileOrCreate",
+                            "File",
+                            "Socket",
+                            "CharDevice",
+                            "BlockDevice"
+                          ]
+                        },
+                        "mountPath": {
+                          "type": "string"
+                        },
+                        "readOnly": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["name", "hostPath", "mountPath"]
+                    }
+                  },
+                  "persistence": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "storageClassName": {
+                          "default": "local-storage",
+                          "type": "string"
+                        },
+                        "readOnly": {
+                          "default": true,
+                          "type": "boolean"
+                        },
+                        "storage": {
+                          "type": "string"
+                        },
+                        "hostPath": {
+                          "type": "string"
+                        },
+                        "mountPath": {
+                          "type": "string"
+                        },
+                        "nodeAffinityHostname": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "storage",
+                        "hostPath",
+                        "mountPath",
+                        "nodeAffinityHostname"
+                      ]
+                    }
+                  },
+                  "healthCheck": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "default": "/_health",
+                        "type": "string"
+                      },
+                      "port": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "initialDelaySeconds": {
+                        "default": 30,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "periodSeconds": {
+                        "default": 10,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "timeoutSeconds": {
+                        "default": 5,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "failureThreshold": {
+                        "default": 3,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "successThreshold": {
+                        "default": 1,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "enableLiveness": {
+                        "default": true,
+                        "type": "boolean"
+                      },
+                      "enableReadiness": {
+                        "default": true,
+                        "type": "boolean"
+                      },
+                      "enableStartup": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "expectedStatus": {
+                        "default": "UP",
+                        "type": "string",
+                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"]
+                      },
+                      "followRedirects": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "httpHeaders": {
+                        "default": [
+                          {
+                            "name": "X-Health-Check",
+                            "value": "k8s"
+                          }
+                        ],
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["name", "value"]
+                        }
+                      }
+                    }
+                  },
+                  "strategy": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "default": "RollingUpdate",
+                        "type": "string",
+                        "enum": ["Recreate", "RollingUpdate"]
+                      }
+                    }
+                  },
+                  "securityContext": {
+                    "type": "object",
+                    "properties": {
+                      "runAsUser": {
+                        "default": 1000,
+                        "type": "number"
+                      },
+                      "runAsGroup": {
+                        "default": 1000,
+                        "type": "number"
+                      },
+                      "fsGroup": {
+                        "default": 1000,
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "required": ["image"]
+              }
+            },
+            "required": ["name", "hostname", "args"]
+          }
+        },
+        "jaritanet-k8s:cloudflared": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "args": {
+              "type": "object",
+              "properties": {
+                "replicas": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4294967295
+                },
+                "image": {
+                  "default": "cloudflare/cloudflared:latest",
+                  "type": "string"
+                },
+                "resources": {
+                  "default": {
+                    "limits": {
+                      "memory": "128Mi",
+                      "cpu": "250m"
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "memory": {
+                          "default": "128Mi",
+                          "type": "string"
+                        },
+                        "cpu": {
+                          "default": "250m",
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": ["limits"]
+                }
+              },
+              "required": ["replicas"]
+            }
+          },
+          "required": ["name", "args"]
+        },
+        "cloudflare:apiToken": {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"]
+        }
+      },
+      "required": [
+        "jaritanet-k8s:cloudflare",
+        "jaritanet-k8s:services",
+        "jaritanet-k8s:cloudflared",
+        "cloudflare:apiToken"
+      ]
+    }
+  },
+  "required": ["config"]
+}

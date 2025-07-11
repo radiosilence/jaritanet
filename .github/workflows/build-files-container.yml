@@ -1,0 +1,25 @@
+name: 📦 Build & Publish Files Container
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+    paths:
+      - "containers/files/**"
+      - ".github/workflows/build-files-container.yml"
+
+jobs:
+  publish:
+    name: 🚀 Build & Publish Container
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@main
+    with:
+      working-directory: "./containers/files"
+      image: "jaritanet-files"
+    secrets:
+      PASSWORD: ${{ secrets.GITHUB_TOKEN }}

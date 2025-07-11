@@ -1,0 +1,26 @@
+# Specific configuration for homeservers
+microk8s:
+  enabled: true
+  addons:
+    - dns
+    - storage
+    - traefik
+
+syncthing:
+  enabled: true
+  config_dir: "/home/{{ username }}/.config/syncthing"
+  ports:
+    - 22000
+    - 21027
+    - 8384
+
+samba:
+  enabled: true
+
+tailscale:
+  enabled: false
+
+helm:
+  enabled: true
+  local_chart_dir: "../charts/"
+  charts_dir: "/opt/helm-charts"
