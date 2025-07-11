@@ -58,7 +58,7 @@ jobs:
       - name: ⚙️ Configure Pulumi from Environment
         run: |
           pulumi stack select radiosilence/jaritanet/main
-          pulumi config set jaritanet:cloudflare:accountId "$CLOUDFLARE_ACCOUNT_ID"
+          pulumi config set --path jaritanet:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
         working-directory: packages/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
@@ -92,11 +92,11 @@ jobs:
       - name: ⚙️ Configure Pulumi from Environment
         run: |
           pulumi stack select radiosilence/jaritanet-k8s/main
-          pulumi config set jaritanet-k8s:cloudflare:accountId "$CLOUDFLARE_ACCOUNT_ID"
-          pulumi config set jaritanet-k8s:services:navidrome:hostname "$NAVIDROME_HOSTNAME"
-          pulumi config set jaritanet-k8s:services:files:hostname "$FILES_HOSTNAME"
-          pulumi config set jaritanet-k8s:services:blit:hostname "$BLIT_HOSTNAME"
-          pulumi config set jaritanet-k8s:services:slskd:hostname "$SLSKD_HOSTNAME"
+          pulumi config set --path jaritanet-k8s:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
+          pulumi config set --path jaritanet-k8s:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
+          pulumi config set --path jaritanet-k8s:services.files.hostname "$FILES_HOSTNAME"
+          pulumi config set --path jaritanet-k8s:services.blit.hostname "$BLIT_HOSTNAME"
+          pulumi config set --path jaritanet-k8s:services.slskd.hostname "$SLSKD_HOSTNAME"
         working-directory: packages/k8s
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
@@ -133,7 +133,7 @@ jobs:
       - name: ⚙️ Configure Pulumi from Environment
         run: |
           pulumi stack select radiosilence/jaritanet-routes/main
-          pulumi config set jaritanet-routes:cloudflare:accountId "$CLOUDFLARE_ACCOUNT_ID"
+          pulumi config set --path jaritanet-routes:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
         working-directory: packages/routes
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
