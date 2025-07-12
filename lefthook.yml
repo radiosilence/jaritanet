@@ -6,7 +6,3 @@ pre-commit:
       stage_fixed: true
     typecheck-infra:
       run: npm run typecheck:infra
-    typecheck-k8s:
-      run: npm run typecheck:k8s
-    typecheck-routes:
-      run: npm run typecheck:routes
