@@ -1,16 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
+import { createTunnel } from "./tunnel.ts";
 
 describe("tunnel module", () => {
   beforeAll(() => {
-    // Set up mocks first
+    // Set up mocks for resource creation
     pulumi.runtime.setMocks({
-      newResource: (
-        args: pulumi.runtime.MockResourceArgs,
-      ): {
-        id: string;
-        state: any;
-      } => ({
+      newResource: (args: pulumi.runtime.MockResourceArgs) => ({
         id: `${args.inputs.name || "test"}_id`,
         state: {
           ...args.inputs,
@@ -19,16 +15,9 @@ describe("tunnel module", () => {
       }),
       call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
     });
-
-    // Mock config values that tunnel.ts depends on
-    pulumi.runtime.setConfig(
-      "jaritanet-infra:cloudflare:accountId",
-      "test-account-id",
-    );
   });
 
   it("creates a tunnel with correct name", async () => {
-    const { createTunnel } = await import("./tunnel.ts");
     const tunnel = createTunnel({ name: "test-tunnel" });
 
     const name = await new Promise<string>((resolve) => {
@@ -39,7 +28,6 @@ describe("tunnel module", () => {
   });
 
   it("creates a tunnel with secret", async () => {
-    const { createTunnel } = await import("./tunnel.ts");
     const tunnel = createTunnel({ name: "test-tunnel" });
 
     const tunnelSecret = await new Promise<string>((resolve) => {
@@ -51,7 +39,6 @@ describe("tunnel module", () => {
   });
 
   it("tunnel has proper resource type", async () => {
-    const { createTunnel } = await import("./tunnel.ts");
     const tunnel = createTunnel({ name: "test-tunnel" });
 
     const urn = await new Promise<string>((resolve) => {
