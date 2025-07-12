@@ -1,7 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createCloudflared } from "./cloudflared.ts";
 
 describe("cloudflared template", () => {
   let mockProvider: k8s.Provider;
@@ -34,6 +33,7 @@ describe("cloudflared template", () => {
   });
 
   it("creates cloudflared deployment with basic configuration", async () => {
+    const { createCloudflared } = await import("./cloudflared.ts");
     const cloudflaredArgs = {
       replicas: 1,
       image: "cloudflare/cloudflared:latest",
@@ -64,6 +64,7 @@ describe("cloudflared template", () => {
   });
 
   it("creates cloudflared with correct command args", async () => {
+    const { createCloudflared } = await import("./cloudflared.ts");
     const cloudflaredArgs = {
       replicas: 2,
       image: "cloudflare/cloudflared:2024.1.0",
@@ -106,6 +107,7 @@ describe("cloudflared template", () => {
   });
 
   it("creates cloudflared with health probes", async () => {
+    const { createCloudflared } = await import("./cloudflared.ts");
     const cloudflaredArgs = {
       replicas: 1,
       image: "cloudflare/cloudflared:latest",

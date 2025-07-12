@@ -1,7 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createService } from "./service.ts";
 
 describe("service template", () => {
   let mockProvider: k8s.Provider;
@@ -34,6 +33,7 @@ describe("service template", () => {
   });
 
   it("creates service with basic configuration", async () => {
+    const { createService } = await import("./service.ts");
     const serviceArgs = {
       image: { repository: "nginx", tag: "latest" },
       replicas: 1,
@@ -54,6 +54,7 @@ describe("service template", () => {
   });
 
   it("creates service with environment variables", async () => {
+    const { createService } = await import("./service.ts");
     const serviceArgs = {
       image: { repository: "nginx", tag: "latest" },
       replicas: 1,
@@ -70,6 +71,7 @@ describe("service template", () => {
   });
 
   it("creates service with persistence volumes", async () => {
+    const { createService } = await import("./service.ts");
     const serviceArgs = {
       image: { repository: "postgres", tag: "14" },
       replicas: 1,
@@ -96,6 +98,7 @@ describe("service template", () => {
   });
 
   it("creates service with health checks", async () => {
+    const { createService } = await import("./service.ts");
     const serviceArgs = {
       image: { repository: "nginx", tag: "latest" },
       replicas: 1,
@@ -127,6 +130,7 @@ describe("service template", () => {
   });
 
   it("creates service with resource limits", async () => {
+    const { createService } = await import("./service.ts");
     const serviceArgs = {
       image: { repository: "nginx", tag: "latest" },
       replicas: 2,

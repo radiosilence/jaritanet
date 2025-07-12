@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createTunnel } from "./tunnel.ts";
 
 describe("tunnel module", () => {
   beforeAll(() => {
@@ -29,6 +28,7 @@ describe("tunnel module", () => {
   });
 
   it("creates a tunnel with correct name", async () => {
+    const { createTunnel } = await import("./tunnel.ts");
     const tunnel = createTunnel({ name: "test-tunnel" });
 
     const name = await new Promise<string>((resolve) => {
@@ -39,6 +39,7 @@ describe("tunnel module", () => {
   });
 
   it("creates a tunnel with secret", async () => {
+    const { createTunnel } = await import("./tunnel.ts");
     const tunnel = createTunnel({ name: "test-tunnel" });
 
     const tunnelSecret = await new Promise<string>((resolve) => {
@@ -50,6 +51,7 @@ describe("tunnel module", () => {
   });
 
   it("tunnel has proper resource type", async () => {
+    const { createTunnel } = await import("./tunnel.ts");
     const tunnel = createTunnel({ name: "test-tunnel" });
 
     const urn = await new Promise<string>((resolve) => {

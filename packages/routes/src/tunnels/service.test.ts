@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createZone, getRecord, getServiceIngress } from "./service.ts";
 
 describe("service routing utilities", () => {
   beforeAll(() => {
@@ -23,19 +22,22 @@ describe("service routing utilities", () => {
   });
 
   describe("getRecord", () => {
-    it("extracts zone and record from full hostname", () => {
+    it("extracts zone and record from full hostname", async () => {
+      const { getRecord } = await import("./service.ts");
       const result = getRecord("api.example.com");
       expect(result.zoneName).toBe("example.com");
       expect(result.recordName).toBe("api");
     });
 
-    it("handles apex domain", () => {
+    it("handles apex domain", async () => {
+      const { getRecord } = await import("./service.ts");
       const result = getRecord("example.com");
       expect(result.zoneName).toBe("example.com");
       expect(result.recordName).toBe("@");
     });
 
-    it("handles multi-level subdomains", () => {
+    it("handles multi-level subdomains", async () => {
+      const { getRecord } = await import("./service.ts");
       const result = getRecord("deep.nested.example.com");
       expect(result.zoneName).toBe("example.com");
       expect(result.recordName).toBe("deep.nested");
@@ -43,7 +45,8 @@ describe("service routing utilities", () => {
   });
 
   describe("getServiceIngress", () => {
-    it("creates ingress config with hostname and service", () => {
+    it("creates ingress config with hostname and service", async () => {
+      const { getServiceIngress } = await import("./service.ts");
       const ingress = getServiceIngress(
         "api.example.com",
         "http://api-service:80",
@@ -54,7 +57,8 @@ describe("service routing utilities", () => {
       expect((ingress.originRequest as any)?.connectTimeout).toBe(120);
     });
 
-    it("creates ingress config for internal k8s service", () => {
+    it("creates ingress config for internal k8s service", async () => {
+      const { getServiceIngress } = await import("./service.ts");
       const ingress = getServiceIngress(
         "files.example.com",
         "http://files-service.jaritanet.svc.cluster.local",
@@ -69,6 +73,7 @@ describe("service routing utilities", () => {
 
   describe("createZone", () => {
     it("creates DNS record with correct configuration", async () => {
+      const { createZone } = await import("./service.ts");
       const zoneConf = {
         zoneId: "test-zone-id",
         name: "example.com",
@@ -100,6 +105,7 @@ describe("service routing utilities", () => {
     });
 
     it("creates apex domain record", async () => {
+      const { createZone } = await import("./service.ts");
       const zoneConf = {
         zoneId: "test-zone-id",
         name: "example.com",

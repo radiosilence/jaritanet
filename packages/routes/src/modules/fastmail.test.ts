@@ -50,6 +50,7 @@ describe("fastmail module", () => {
   });
 
   it("creates fastmail DNS records", async () => {
+    // Import after mocks are set up
     const { fastmail } = await import("./fastmail.ts");
 
     const zone = {
