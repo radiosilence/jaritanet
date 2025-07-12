@@ -27,3 +27,6 @@
       - broot
       - aria2
     state: present
+
+- name: Include SSH hardening tasks
+  ansible.builtin.include_tasks: ssh_hardening.yml
