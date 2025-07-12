@@ -1,24 +1,27 @@
 import * as pulumi from "@pulumi/pulumi";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createZone, getRecord, getServiceIngress } from "./service.ts";
 
-pulumi.runtime.setMocks({
-  newResource: (
-    args: pulumi.runtime.MockResourceArgs,
-  ): {
-    id: string;
-    state: any;
-  } => ({
-    id: `${args.inputs.name || args.name || "test"}_id`,
-    state: {
-      ...args.inputs,
-      id: `${args.inputs.name || args.name || "test"}_id`,
-    },
-  }),
-  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
-});
-
 describe("service routing utilities", () => {
+  beforeAll(() => {
+    // Set up mocks first
+    pulumi.runtime.setMocks({
+      newResource: (
+        args: pulumi.runtime.MockResourceArgs,
+      ): {
+        id: string;
+        state: any;
+      } => ({
+        id: `${args.inputs.name || args.name || "test"}_id`,
+        state: {
+          ...args.inputs,
+          id: `${args.inputs.name || args.name || "test"}_id`,
+        },
+      }),
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+    });
+  });
+
   describe("getRecord", () => {
     it("extracts zone and record from full hostname", () => {
       const result = getRecord("api.example.com");

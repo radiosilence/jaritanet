@@ -16,7 +16,6 @@ const infraStackRef = new pulumi.StackReference(
 );
 
 export default async function () {
-  console.error("conf.zones", conf.zones);
   for (const zone of conf.zones) {
     for (const module of zone.modules) {
       modules[module](zone);
