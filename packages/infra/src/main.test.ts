@@ -1,16 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
+import { tunnel } from "./main.ts";
 
 describe("infrastructure main", () => {
   beforeAll(() => {
-    // Set up mocks first
+    // Set up mocks for resource creation
     pulumi.runtime.setMocks({
-      newResource: (
-        args: pulumi.runtime.MockResourceArgs,
-      ): {
-        id: string;
-        state: any;
-      } => ({
+      newResource: (args: pulumi.runtime.MockResourceArgs) => ({
         id: `${args.inputs.name || "test"}_id`,
         state: {
           ...args.inputs,
@@ -19,25 +15,9 @@ describe("infrastructure main", () => {
       }),
       call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
     });
-
-    // Set up required config
-    pulumi.runtime.setConfig(
-      "jaritanet-infra:cloudflare",
-      JSON.stringify({
-        accountId: "test-account-id",
-      }),
-    );
-    pulumi.runtime.setConfig(
-      "jaritanet-infra:tunnel",
-      JSON.stringify({
-        name: "test-tunnel",
-      }),
-    );
   });
 
   it("exports tunnel resource", async () => {
-    const { tunnel } = await import("./main.ts");
-
     expect(tunnel).toBeDefined();
 
     const urn = await new Promise<string>((resolve) => {
