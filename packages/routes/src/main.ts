@@ -11,12 +11,11 @@ const modules = {
   fastmail,
 };
 
-const infraStackRef = new pulumi.StackReference(
-  `${conf.infraStackPath}/${pulumi.getStack()}`,
-);
-
 export default async function () {
-  console.error("conf.zones", conf.zones);
+  const infraStackRef = new pulumi.StackReference(
+    `${conf.infraStackPath}/${pulumi.getStack()}`,
+  );
+
   for (const zone of conf.zones) {
     for (const module of zone.modules) {
       modules[module](zone);
