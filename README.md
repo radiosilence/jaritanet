@@ -3,7 +3,6 @@
 \*this readme and the test actions were vibecoded, the actual code was not
 
 [![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
-[![🌐 Service Tests](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 [![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
 [![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 [![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
