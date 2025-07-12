@@ -83,7 +83,7 @@ config:
           memory: 1024Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-1a45af7
+          tag: sha-8d5e544
           pullPolicy: "Always"
         httpPort: 3000
     slskd:
