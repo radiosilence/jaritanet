@@ -2,10 +2,9 @@
 
 \*this readme and the test actions were vibecoded, the actual code was not
 
+[![🧪 Tests](https://github.com/radiosilence/jaritanet/actions/workflows/test.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/test.yml)
+[![🚀 Deploy](https://github.com/radiosilence/jaritanet/actions/workflows/cd.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/cd.yml)
 [![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
-[![📧 Mail Server Status](https://img.shields.io/badge/📧_Mail_Servers-Monitored-green)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
-[![🦋 Bluesky DNS](https://img.shields.io/badge/🦋_Bluesky-Configured-blue)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
-[![🔥 Tunnel Status](https://img.shields.io/badge/🔥_Cloudflare_Tunnels-Active-orange)](https://github.com/radiosilence/jaritanet/actions/workflows/service-tests.yml)
 
 JARITANET is a comprehensive infrastructure-as-code system that provides secure access to services running on Kubernetes clusters through Cloudflare Tunnels.
 
