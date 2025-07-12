@@ -43,8 +43,27 @@ concurrency:
   group: "cd"
 
 jobs:
+  test:
+    name: 🧪 Run Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      - name: 🛠️ Setup Development Environment
+        uses: jdx/mise-action@v2
+      - name: 📦 Install Dependencies
+        run: bun install
+      - name: 🧪 Run Unit Tests
+        run: bun test
+      - name: 🔍 Type Check All Packages
+        run: |
+          bun typecheck:infra
+          bun typecheck:k8s
+          bun typecheck:routes
+
   infra:
     name: 🏗️ Deploy Infrastructure
+    needs: test
     runs-on: ubuntu-24.04
     env:
       working-directory: ./packages/infra

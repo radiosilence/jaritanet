@@ -4,7 +4,9 @@
   "type": "module",
   "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
     "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
     "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
@@ -17,8 +19,10 @@
     "@tsconfig/node-ts": "^23.6.1",
     "@tsconfig/node23": "^23.0.2",
     "@types/node": "^24.0.12",
+    "@vitest/ui": "^2.1.8",
     "lefthook": "^1.12.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "@pulumi/cloudflare": "^6.3.1",
