@@ -10,8 +10,6 @@ on:
     paths:
       - .github/workflows/cd.yml
       - "packages/infra/**"
-      - "packages/k8s/**"
-      - "packages/routes/**"
   workflow_call:
     secrets:
       PULUMI_ACCESS_TOKEN:
@@ -59,45 +57,11 @@ jobs:
         run: |
           pulumi stack select radiosilence/jaritanet/main
           pulumi config set --path jaritanet:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
+          pulumi config set --path jaritanet:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
+          pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
+          pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
+          pulumi config set --path jaritanet:services.slskd.hostname "$SLSKD_HOSTNAME"
         working-directory: packages/infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: 🚀 Deploy with Pulumi
-        uses: pulumi/actions@v6
-        with:
-          command: up
-          stack-name: radiosilence/jaritanet/main
-          work-dir: packages/infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
-  k8s:
-    name: ☸️ Deploy Kubernetes
-    needs: infra
-    runs-on: ubuntu-24.04
-    steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v2
-      - name: 🔌 Connect to Tailscale
-        uses: tailscale/github-action@v3
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-      - name: 🛠️ Setup Development Environment
-        uses: jdx/mise-action@v2
-      - name: 📦 Install Dependencies
-        run: bun install
-      - name: ⚙️ Configure Pulumi from Environment
-        run: |
-          pulumi stack select radiosilence/jaritanet-k8s/main
-          pulumi config set --path jaritanet-k8s:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
-          pulumi config set --path jaritanet-k8s:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
-          pulumi config set --path jaritanet-k8s:services.files.hostname "$FILES_HOSTNAME"
-          pulumi config set --path jaritanet-k8s:services.blit.hostname "$BLIT_HOSTNAME"
-          pulumi config set --path jaritanet-k8s:services.slskd.hostname "$SLSKD_HOSTNAME"
-        working-directory: packages/k8s
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -109,47 +73,17 @@ jobs:
         uses: pulumi/actions@v6
         with:
           command: up
-          stack-name: radiosilence/jaritanet-k8s/main
-          work-dir: packages/k8s
+          stack-name: radiosilence/jaritanet/main
+          work-dir: packages/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           KUBE_HOST: ${{ secrets.KUBE_HOST }}
           KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
 
-  routes:
-    name: 🛣️ Deploy Routes
-    needs: k8s
-    runs-on: ubuntu-24.04
-    env:
-      working-directory: ./packages/routes
-    steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
-      - name: 🛠️ Setup Development Environment
-        uses: jdx/mise-action@v2
-      - name: 📦 Install Dependencies
-        run: bun install
-      - name: ⚙️ Configure Pulumi from Environment
-        run: |
-          pulumi stack select radiosilence/jaritanet-routes/main
-          pulumi config set --path jaritanet-routes:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
-        working-directory: packages/routes
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: 🚀 Deploy with Pulumi
-        uses: pulumi/actions@v6
-        with:
-          command: up
-          stack-name: radiosilence/jaritanet-routes/main
-          work-dir: packages/routes
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
   email-tests:
     name: 📧 Run Email Integration Tests
-    needs: routes
+    needs: infra
     uses: ./.github/workflows/email-tests.yml
     permissions:
       contents: read

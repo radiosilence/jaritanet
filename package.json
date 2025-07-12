@@ -6,8 +6,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
-    "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
-    "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
     "gen:schemas": "./scripts/gen-schemas.ts",
     "prepare": "bunx lefthook install"
   },

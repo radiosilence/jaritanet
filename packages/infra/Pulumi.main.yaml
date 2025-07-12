@@ -6,3 +6,156 @@ config:
     accountId: ''
   jaritanet:tunnel:
     name: "jaritanet"
+  jaritanet:cloudflared:
+    name: cloudflared
+    args:
+      replicas: 2
+  jaritanet:services:
+    navidrome:
+      hostname: ''
+      proxied: true
+      args:
+        httpPort: 4533
+        strategy:
+          type: Recreate
+        image:
+          repository: "deluan/navidrome"
+          tag: 0.57.0
+          pullPolicy: "Always"
+        env:
+          ND_SCANSCHEDULE: 1h
+          ND_LOGLEVEL: info
+          ND_SESSIONTIMEOUT: 24h
+          ND_ENABLESHARING: "true"
+          ND_ENABLETRANSCODINGCONFIG: "true"
+          ND_TRANSCODINGCACHESIZE: 5Gi
+          ND_ENABLEGRAVATAR: "true"
+        healthCheck:
+          path: "/ping"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        limits:
+          cpu: 2000m
+          memory: 8Gi
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: music
+            storage: 2Ti
+            hostPath: /mnt/kontent/music
+            mountPath: /music
+            readOnly: true
+            nodeAffinityHostname: oldboy
+          - name: data
+            storage: 20Gi
+            hostPath: /home/navidrome/data
+            mountPath: /data
+            readOnly: false
+            nodeAffinityHostname: oldboy
+    files:
+      hostname: ''
+      args:
+        strategy:
+          type: Recreate
+        image:
+          repository: "ghcr.io/radiosilence/jaritanet-files"
+          tag: latest
+          pullPolicy: "Always"
+        replicas: 1
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: files
+            storage: 20Mi
+            hostPath: /srv/files
+            mountPath: /srv/files
+            nodeAffinityHostname: oldboy
+    blit:
+      hostname: ''
+      args:
+        replicas: 2
+        healthCheck:
+          path: "/"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        limits:
+          cpu: 1000m
+          memory: 1024Mi
+        image:
+          repository: "ghcr.io/radiosilence/blit"
+          tag: sha-1e8a563
+          pullPolicy: "Always"
+        httpPort: 3000
+    slskd:
+      hostname: ''
+      proxied: true
+      args:
+        strategy:
+          type: Recreate
+        image:
+          repository: slskd/slskd
+          tag: 0.23.1
+          pullPolicy: "Always"
+        securityContext:
+          runAsUser: 1000
+          fsGroup: 1000
+          runAsGroup: 1000
+        httpPort: 5030
+        ports:
+          - [50300, 50300]
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+        persistence:
+          - name: music
+            storage: 2Ti
+            hostPath: /mnt/kontent/music
+            mountPath: /music
+            readOnly: true
+            nodeAffinityHostname: oldboy
+          - name: data
+            storage: 20Gi
+            hostPath: /home/slskd/data
+            mountPath: /app
+            readOnly: false
+            nodeAffinityHostname: oldboy
+          - name: dl
+            storage: 1Ti
+            hostPath: /mnt/kontent/dl/slsk
+            mountPath: /dl
+            readOnly: false
+            nodeAffinityHostname: oldboy
+  jaritanet:zones:
+    - name: "blit.cc"
+      zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
+      modules:
+        - fastmail
+        - bluesky
+    - name: radiosilence.dev
+      zoneId: 3373ad7c3dc3104e7aeab31c1176e684
+      modules:
+        - fastmail
+        - bluesky
+    - name: buttholes.live
+      zoneId: 1115a1e5006523692d61e49e672f6df0
+      modules:
+        - fastmail
+        - bluesky
+  jaritanet:fastmail:
+    mxDomain: smtp.messagingengine.com
+    dkimDomain: dkim.fmhosted.com
+    dkimSubdomain: _domainkey
+    dmarcSubdomain: _dmarc
+    dmarcAggEmail: dmarc-agg@blit.cc
+    dmarcPolicy: reject
+    spfDomain: spf.messagingengine.com
+  jaritanet:bluesky:
+    did: did:plc:d32vuqlfqjttwbckkxgxgbgl
