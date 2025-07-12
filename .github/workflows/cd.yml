@@ -43,8 +43,13 @@ concurrency:
   group: "cd"
 
 jobs:
+  test:
+    name: 🧪 Run Tests
+    uses: ./.github/workflows/test.yml
+
   infra:
     name: 🏗️ Deploy Infrastructure
+    needs: test
     runs-on: ubuntu-24.04
     env:
       working-directory: ./packages/infra
