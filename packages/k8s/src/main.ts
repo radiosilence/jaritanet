@@ -1,6 +1,7 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import { conf } from "./conf.ts";
 import { env } from "./env.ts";
 import { getKubeconfig } from "./kubeconfig.ts";
 import { tunnelRef } from "./references.ts";
@@ -8,8 +9,6 @@ import { createCloudflared } from "./templates/cloudflared.ts";
 import { createService } from "./templates/service.ts";
 
 export default async function () {
-  const { conf } = await import("./conf.ts");
-
   const namespace = conf.namespace;
 
   const kubeconfig = JSON.stringify(
