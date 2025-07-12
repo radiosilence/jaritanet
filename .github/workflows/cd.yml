@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - .github/workflows/cd.yml
+      - .github/workflows/test.yml
       - "packages/infra/**"
       - "packages/k8s/**"
       - "packages/routes/**"
