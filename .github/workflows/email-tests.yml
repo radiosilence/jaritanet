@@ -2,7 +2,7 @@ name: 📧 Email Smoke Tests
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Every 5 mins
+    - cron: "0 0 * * *" # Daily at midnight
   workflow_dispatch:
   workflow_call:
 
