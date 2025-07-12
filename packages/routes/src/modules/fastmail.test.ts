@@ -1,24 +1,25 @@
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
 
-pulumi.runtime.setMocks({
-  newResource: (
-    args: pulumi.runtime.MockResourceArgs,
-  ): {
-    id: string;
-    state: any;
-  } => ({
-    id: `${args.inputs.name || args.name || "test"}_id`,
-    state: {
-      ...args.inputs,
-      id: `${args.inputs.name || args.name || "test"}_id`,
-    },
-  }),
-  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
-});
-
 describe("fastmail module", () => {
   beforeAll(() => {
+    // Set up mocks first
+    pulumi.runtime.setMocks({
+      newResource: (
+        args: pulumi.runtime.MockResourceArgs,
+      ): {
+        id: string;
+        state: any;
+      } => ({
+        id: `${args.inputs.name || args.name || "test"}_id`,
+        state: {
+          ...args.inputs,
+          id: `${args.inputs.name || args.name || "test"}_id`,
+        },
+      }),
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+    });
+
     // Set up required config for fastmail
     pulumi.runtime.setConfig(
       "jaritanet-routes:fastmail",
@@ -37,6 +38,13 @@ describe("fastmail module", () => {
       "jaritanet-routes:zones",
       JSON.stringify({
         "example.com": { zoneId: "test-zone-id", name: "example.com" },
+      }),
+    );
+
+    pulumi.runtime.setConfig(
+      "jaritanet-routes:serviceStacks",
+      JSON.stringify({
+        "k8s": "test-stack"
       }),
     );
   });

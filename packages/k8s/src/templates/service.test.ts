@@ -3,30 +3,31 @@ import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createService } from "./service.ts";
 
-pulumi.runtime.setMocks({
-  newResource: (
-    args: pulumi.runtime.MockResourceArgs,
-  ): {
-    id: string;
-    state: any;
-  } => ({
-    id: `${args.inputs.name || args.name || "test"}_id`,
-    state: {
-      ...args.inputs,
-      id: `${args.inputs.name || args.name || "test"}_id`,
-      metadata: {
-        name: args.inputs.name || args.name || "test",
-        ...args.inputs.metadata,
-      },
-    },
-  }),
-  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
-});
-
 describe("service template", () => {
   let mockProvider: k8s.Provider;
 
   beforeAll(() => {
+    // Set up mocks first
+    pulumi.runtime.setMocks({
+      newResource: (
+        args: pulumi.runtime.MockResourceArgs,
+      ): {
+        id: string;
+        state: any;
+      } => ({
+        id: `${args.inputs.name || args.name || "test"}_id`,
+        state: {
+          ...args.inputs,
+          id: `${args.inputs.name || args.name || "test"}_id`,
+          metadata: {
+            name: args.inputs.name || args.name || "test",
+            ...args.inputs.metadata,
+          },
+        },
+      }),
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+    });
+
     mockProvider = new k8s.Provider("test-provider", {
       kubeconfig: "fake-config",
     });

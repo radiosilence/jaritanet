@@ -2,24 +2,25 @@ import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTunnel } from "./tunnel.ts";
 
-pulumi.runtime.setMocks({
-  newResource: (
-    args: pulumi.runtime.MockResourceArgs,
-  ): {
-    id: string;
-    state: any;
-  } => ({
-    id: `${args.inputs.name || "test"}_id`,
-    state: {
-      ...args.inputs,
-      id: `${args.inputs.name || "test"}_id`,
-    },
-  }),
-  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
-});
-
 describe("tunnel module", () => {
   beforeAll(() => {
+    // Set up mocks first
+    pulumi.runtime.setMocks({
+      newResource: (
+        args: pulumi.runtime.MockResourceArgs,
+      ): {
+        id: string;
+        state: any;
+      } => ({
+        id: `${args.inputs.name || "test"}_id`,
+        state: {
+          ...args.inputs,
+          id: `${args.inputs.name || "test"}_id`,
+        },
+      }),
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+    });
+
     // Mock config values that tunnel.ts depends on
     pulumi.runtime.setConfig(
       "jaritanet-infra:cloudflare:accountId",
