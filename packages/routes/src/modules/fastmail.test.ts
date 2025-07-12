@@ -1,20 +1,42 @@
 import * as pulumi from "@pulumi/pulumi";
-import { describe, expect, it } from "vitest";
-import { fastmail } from "./fastmail.ts";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
-pulumi.runtime.setMocks({
-  newResource: (args: pulumi.runtime.MockResourceArgs) => ({
-    id: `${args.inputs.name || args.name || "test"}_id`,
-    state: {
-      ...args.inputs,
-      id: `${args.inputs.name || args.name || "test"}_id`,
+// Mock the conf.ts module directly
+vi.mock("../conf.ts", () => ({
+  conf: {
+    serviceStacks: { k8s: "test-k8s-stack" },
+    zones: [{ zoneId: "test-zone", name: "example.com" }],
+    cloudflare: { accountId: "test-account-id" },
+    bluesky: { handle: "test.bsky.social" },
+    fastmail: {
+      mxDomain: "messagingengine.com",
+      dkimDomain: "dkim.messagingengine.com",
+      dkimSubdomain: "_domainkey",
+      dmarcSubdomain: "_dmarc",
+      dmarcAggEmail: "test@example.com",
+      dmarcPolicy: "quarantine",
+      spfDomain: "messagingengine.com",
     },
-  }),
-  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+  },
+}));
+
+beforeAll(() => {
+  // Set runtime mocks
+  pulumi.runtime.setMocks({
+    newResource: (args: pulumi.runtime.MockResourceArgs) => ({
+      id: `${args.inputs.name || args.name || "test"}_id`,
+      state: {
+        ...args.inputs,
+        id: `${args.inputs.name || args.name || "test"}_id`,
+      },
+    }),
+    call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+  });
 });
 
 describe("fastmail module", () => {
-  it("creates fastmail DNS records", () => {
+  it("creates fastmail DNS records", async () => {
+    const { fastmail } = await import("./fastmail.ts");
     const zone = {
       zoneId: "test-zone-id",
       name: "example.com",
