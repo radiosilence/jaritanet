@@ -23,9 +23,9 @@ jobs:
       - name: 📦 Install Dependencies
         run: bun install
       - name: 🧪 Run Unit Tests
-        run: bun test
+        run: npm test
       - name: 🔍 Type Check All Packages
         run: |
-          bun typecheck:infra
-          bun typecheck:k8s
-          bun typecheck:routes
+          npm run typecheck:infra
+          npm run typecheck:k8s
+          npm run typecheck:routes
