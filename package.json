@@ -11,7 +11,7 @@
     "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
     "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
     "gen:schemas": "./scripts/gen-schemas.ts",
-    "prepare": "bunx lefthook install"
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.1",

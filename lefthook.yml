@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   commands:
     check:
-      run: bunx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+      run: npx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
       stage_fixed: true
     typecheck-infra:
       run: npm run typecheck:infra
