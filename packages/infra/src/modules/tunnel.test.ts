@@ -1,22 +1,19 @@
 import * as pulumi from "@pulumi/pulumi";
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createTunnel } from "./tunnel.ts";
 
-describe("tunnel module", () => {
-  beforeAll(() => {
-    // Set up mocks for resource creation
-    pulumi.runtime.setMocks({
-      newResource: (args: pulumi.runtime.MockResourceArgs) => ({
-        id: `${args.inputs.name || "test"}_id`,
-        state: {
-          ...args.inputs,
-          id: `${args.inputs.name || "test"}_id`,
-        },
-      }),
-      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
-    });
-  });
+pulumi.runtime.setMocks({
+  newResource: (args: pulumi.runtime.MockResourceArgs) => ({
+    id: `${args.inputs.name || "test"}_id`,
+    state: {
+      ...args.inputs,
+      id: `${args.inputs.name || "test"}_id`,
+    },
+  }),
+  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+});
 
+describe("tunnel module", () => {
   it("creates a tunnel with correct name", async () => {
     const tunnel = createTunnel({ name: "test-tunnel" });
 

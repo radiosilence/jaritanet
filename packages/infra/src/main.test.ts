@@ -1,23 +1,22 @@
 import * as pulumi from "@pulumi/pulumi";
-import { beforeAll, describe, expect, it } from "vitest";
-import { tunnel } from "./main.ts";
+import { describe, expect, it } from "vitest";
+import { createTunnel } from "./modules/tunnel.ts";
+
+pulumi.runtime.setMocks({
+  newResource: (args: pulumi.runtime.MockResourceArgs) => ({
+    id: `${args.inputs.name || "test"}_id`,
+    state: {
+      ...args.inputs,
+      id: `${args.inputs.name || "test"}_id`,
+    },
+  }),
+  call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+});
 
 describe("infrastructure main", () => {
-  beforeAll(() => {
-    // Set up mocks for resource creation
-    pulumi.runtime.setMocks({
-      newResource: (args: pulumi.runtime.MockResourceArgs) => ({
-        id: `${args.inputs.name || "test"}_id`,
-        state: {
-          ...args.inputs,
-          id: `${args.inputs.name || "test"}_id`,
-        },
-      }),
-      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
-    });
-  });
+  it("creates tunnel with config", async () => {
+    const tunnel = createTunnel({ name: "test-tunnel" });
 
-  it("exports tunnel resource", async () => {
     expect(tunnel).toBeDefined();
 
     const urn = await new Promise<string>((resolve) => {

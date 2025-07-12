@@ -1,5 +1,4 @@
 import * as pulumi from "@pulumi/pulumi";
-import { conf } from "./conf.ts";
 import { bluesky } from "./modules/bluesky.ts";
 import { fastmail } from "./modules/fastmail.ts";
 import { servicesRef, tunnelRef } from "./references.ts";
@@ -11,11 +10,13 @@ const modules = {
   fastmail,
 };
 
-const infraStackRef = new pulumi.StackReference(
-  `${conf.infraStackPath}/${pulumi.getStack()}`,
-);
-
 export default async function () {
+  const { conf } = await import("./conf.ts");
+
+  const infraStackRef = new pulumi.StackReference(
+    `${conf.infraStackPath}/${pulumi.getStack()}`,
+  );
+
   for (const zone of conf.zones) {
     for (const module of zone.modules) {
       modules[module](zone);

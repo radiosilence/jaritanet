@@ -22,34 +22,8 @@ jobs:
         uses: jdx/mise-action@v2
       - name: 📦 Install Dependencies
         run: bun install
-      - name: ⚙️ Set up Pulumi test config
-        run: |
-          # Set up test config for infra package
-          cd packages/infra
-          pulumi stack init test --non-interactive || true
-          pulumi stack select test
-          pulumi config set --path cloudflare.accountId test-account-id
-          pulumi config set --path tunnel.name test-tunnel
-          
-          # Set up test config for routes package  
-          cd ../routes
-          pulumi stack init test --non-interactive || true
-          pulumi stack select test
-          pulumi config set --path fastmail.mxDomain messagingengine.com
-          pulumi config set --path fastmail.dkimDomain messagingengine.com
-          pulumi config set --path fastmail.dkimSubdomain fm1._domainkey
-          pulumi config set --path fastmail.dmarcSubdomain _dmarc
-          pulumi config set --path fastmail.dmarcAggEmail admin@example.com
-          pulumi config set --path fastmail.dmarcPolicy reject
-          pulumi config set --path fastmail.spfDomain messagingengine.com
-          pulumi config set --path zones '{"example.com": {"zoneId": "test-zone-id", "name": "example.com", "modules": ["fastmail"]}}'
-          pulumi config set --path serviceStacks '{"k8s": "test-stack"}'
-        env:
-          PULUMI_ACCESS_TOKEN: fake-token
       - name: 🧪 Run Unit Tests
         run: npm test
-        env:
-          PULUMI_ACCESS_TOKEN: fake-token
       - name: 🔍 Type Check All Packages
         run: |
           npm run typecheck:infra

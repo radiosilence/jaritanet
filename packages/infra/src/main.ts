@@ -1,4 +1,8 @@
-import { conf } from "./conf.ts";
 import { createTunnel } from "./modules/tunnel.ts";
 
-export const tunnel = createTunnel(conf.tunnel);
+export default async () => {
+  const { conf } = await import("./conf.ts");
+  return {
+    tunnel: createTunnel(conf.tunnel),
+  };
+};
