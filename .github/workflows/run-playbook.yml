@@ -43,6 +43,17 @@ jobs:
           nslookup ${{ secrets.OLDBOY_HOST }}
           echo "Testing connectivity..."
           ping -c 3 ${{ secrets.OLDBOY_HOST }}
+      - name: 📝 Generate Runtime Variables
+        run: |
+          cat > ./ansible/runtime.yml << EOF
+          ---
+          # Runtime variables generated from GitHub Secrets
+          # This file is created at runtime and should not be committed
+          
+          oldboy_host: "${{ secrets.OLDBOY_HOST }}"
+          oldboy_user: "${{ secrets.OLDBOY_USER }}"
+          oldboy_password: "${{ secrets.OLDBOY_PASSWORD }}"
+          EOF
       - name: 🏗️ Execute Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v4
         with:
@@ -52,7 +63,7 @@ jobs:
           options: |
             --limit homeservers
             --verbose
-            --extra-vars oldboy_host=${{ secrets.OLDBOY_HOST }} oldboy_user=${{ secrets.OLDBOY_USER }} oldboy_password=${{ secrets.OLDBOY_PASSWORD }}
+            --extra-vars @runtime.yml
         env:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
