@@ -1,6 +1,6 @@
 # inventory/hosts
 [homeservers]
-oldboy ansible_host=oldboy.zonkey-jazz.ts.net
+oldboy ansible_host=oldboy.zonkey-jazz.ts.net ansible_become_password="{{ oldboy_password }}"
 
 [tailnet]
 oldboy-local ansible_host=oldboy.local
