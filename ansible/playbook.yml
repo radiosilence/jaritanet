@@ -22,6 +22,7 @@
     - nfs
     - samba
     - syncthing
+    - speedtest
 
   handlers:
     - name: restart microk8s
