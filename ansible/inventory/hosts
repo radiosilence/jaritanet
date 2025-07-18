@@ -1,6 +1,6 @@
 # inventory/hosts
 [homeservers]
-oldboy ansible_host=oldboy.zonkey-jazz.ts.net ansible_become_password="{{ oldboy_password }}"
+oldboy ansible_host="{{ oldboy_host }}" ansible_user="{{ oldboy_user }}" ansible_become_password="{{ oldboy_password }}"
 
 [tailnet]
 oldboy-local ansible_host=oldboy.local
@@ -9,5 +9,4 @@ oldboy-local ansible_host=oldboy.local
 # Global SSH settings
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ansible_python_interpreter=/usr/bin/python3
-ansible_user=jc
 ssh_public_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA+uP2y62/O3KZbRVq6M7p0a9bQOOHgFexpk5aCDYplj'
