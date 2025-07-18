@@ -1,0 +1,16 @@
+- name: Add Speedtest CLI repo using key from URL
+  ansible.builtin.deb822_repository:
+    name: ookla_speedtest-cli
+    types: [deb]
+    uris: https://packagecloud.io/ookla/speedtest-cli/ubuntu/
+    components: [main]
+    suites: ["{{ ansible_distribution_release }}"]
+    signed_by: https://packagecloud.io/ookla/speedtest-cli/gpgkey
+    state: present
+    enabled: true
+
+- name: Install Speedtest CLI
+  ansible.builtin.apt:
+    name: speedtest
+    state: present
+    update_cache: true
