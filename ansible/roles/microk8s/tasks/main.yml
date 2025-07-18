@@ -126,6 +126,7 @@
   register: tailscale_status
 
 - name: Create temporary secrets file on remote
+  become: true
   ansible.builtin.copy:
     content: |
       {
@@ -138,13 +139,14 @@
   register: remote_secrets
 
 - name: Fetch secrets file from remote
-  become: false
+  become: true
   ansible.builtin.fetch:
     src: /tmp/github-secrets.json
     dest: ./github-secrets.json
     flat: true
 
 - name: Remove temporary secrets file from remote
+  become: true
   ansible.builtin.file:
     path: /tmp/github-secrets.json
     state: absent
