@@ -37,8 +37,14 @@ jobs:
           chmod 700 ~/.ssh/
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           sudo chmod 600 ~/.ssh/*
+      - name: 🔍 Verify Host Connectivity
+        run: |
+          echo "Checking DNS resolution..."
+          nslookup oldboy.zonkey-jazz.ts.net
+          echo "Testing connectivity..."
+          ping -c 3 oldboy.zonkey-jazz.ts.net
       - name: 🏗️ Execute Ansible Playbook
-        uses: dawidd6/action-ansible-playbook@v2
+        uses: dawidd6/action-ansible-playbook@v4
         with:
           playbook: playbook.yml
           directory: ./ansible
