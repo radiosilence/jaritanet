@@ -24,6 +24,7 @@ Thumbs.db
 .vault_pass
 secrets/*.yml
 !secrets/README.md
+runtime.yml
 
 mise.local.toml
 
