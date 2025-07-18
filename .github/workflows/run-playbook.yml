@@ -40,9 +40,9 @@ jobs:
       - name: 🔍 Verify Host Connectivity
         run: |
           echo "Checking DNS resolution..."
-          nslookup oldboy.zonkey-jazz.ts.net
+          nslookup ${{ secrets.OLDBOY_HOST }}
           echo "Testing connectivity..."
-          ping -c 3 oldboy.zonkey-jazz.ts.net
+          ping -c 3 ${{ secrets.OLDBOY_HOST }}
       - name: 🏗️ Execute Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v4
         with:
@@ -52,7 +52,7 @@ jobs:
           options: |
             --limit homeservers
             --verbose
-            --extra-vars oldboy_password=${{ secrets.OLDBOY_PASSWORD }}
+            --extra-vars oldboy_host=${{ secrets.OLDBOY_HOST }} oldboy_user=${{ secrets.OLDBOY_USER }} oldboy_password=${{ secrets.OLDBOY_PASSWORD }}
         env:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
