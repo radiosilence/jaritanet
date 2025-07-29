@@ -98,10 +98,10 @@ jobs:
           echo "Update available: $CURRENT_VERSION -> $LATEST_VERSION"
 
           # Update the version in config file
-          yq eval '(.config["jaritanet-k8s:services"][] | select(.name == "'$SERVICE_NAME'") | .args.image.tag) = "'$LATEST_VERSION'"' -i "$CONFIG_PATH"
+          yq eval '.config["jaritanet-k8s:services"]."'$SERVICE_NAME'".args.image.tag = "'$LATEST_VERSION'"' -i "$CONFIG_PATH"
 
           # Verify the change was made
-          NEW_VERSION=$(yq eval '.config["jaritanet-k8s:services"][] | select(.name == "'$SERVICE_NAME'") | .args.image.tag' "$CONFIG_PATH")
+          NEW_VERSION=$(yq eval '.config["jaritanet-k8s:services"]."'$SERVICE_NAME'".args.image.tag' "$CONFIG_PATH")
 
           if [[ "$NEW_VERSION" != "$LATEST_VERSION" ]]; then
             echo "Error: Failed to update version in config file"
