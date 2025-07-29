@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { z } from "zod/v4";
+import * as z from "zod";
 import { InfraConfSchema } from "./conf.schemas.ts";
 
 const config = new pulumi.Config();

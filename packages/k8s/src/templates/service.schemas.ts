@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import * as z from "zod";
 import { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import {
   HostVolumeSchema,
