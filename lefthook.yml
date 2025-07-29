@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   commands:
     check:
-      run: npm run lint:biome:fix -- {staged_files}
+      run: npm run lint:biome:fix -- --no-errors-on-unmatched {staged_files}
       stage_fixed: true
     typecheck-infra:
       run: npm run typecheck:infra
