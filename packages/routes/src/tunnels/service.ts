@@ -1,5 +1,5 @@
 import * as cloudflare from "@pulumi/cloudflare";
-import type { z } from "zod/v4";
+import type * as z from "zod";
 import type { ServiceSchema, ZoneConfSchema } from "../conf.schemas.ts";
 
 export function getRecord(hostname: string) {

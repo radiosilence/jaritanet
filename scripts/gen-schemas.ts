@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import fs from "node:fs/promises";
-import { type ZodType, z } from "zod/v4";
+import * as z from "zod";
 
 const PROJECT = "jaritanet";
 const SCHEMAS_PATH = "./schemas";
@@ -14,7 +14,7 @@ try {
   await fs.mkdir(SCHEMAS_PATH);
 }
 
-async function dumpSchema([name, schema]: [name: string, schema: ZodType]) {
+async function dumpSchema([name, schema]: [name: string, schema: z.ZodType]) {
   await fs.writeFile(
     `${SCHEMAS_PATH}/${name}.json`,
     JSON.stringify(

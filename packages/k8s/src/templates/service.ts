@@ -1,5 +1,5 @@
 import * as k8s from "@pulumi/kubernetes";
-import type { z } from "zod/v4";
+import type * as z from "zod";
 import type { ServiceArgsSchema } from "./service.schemas.ts";
 
 const annotations = {
