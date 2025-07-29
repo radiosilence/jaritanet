@@ -2,6 +2,11 @@ name: jaritanet-k8s
 description: Personal k8s
 runtime:
   name: nodejs
+  options:
+    # Disable built-in TypeScript support
+    typescript: false
+    # Manually set arguments for the Node interpreter to use a custom loader
+    nodeargs: "--import tsx/esm"
 config:
   pulumi:tags:
     value:
