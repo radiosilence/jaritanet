@@ -30,7 +30,9 @@ graph TB
         
         subgraph "Deployed Services (packages/k8s)"
             Services --> FileServer[File Server]
-            Services --> OtherSvcs[Other Services]
+            Services --> Navidrome[Navidrome - Music Streaming]
+            Services --> Blit[Blit - Web App]
+            Services --> Slskd[slskd - Soulseek Client]
         end
     end
     
