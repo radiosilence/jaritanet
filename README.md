@@ -44,9 +44,9 @@ graph TB
                 end
             end
             
-            Services --> Tailscale[Tailscale VPN]
-            Services --> Storage[NFS/Samba Storage]
-            Services --> Sync[Syncthing]
+            Tailscale[Tailscale VPN]
+            Storage[NFS/Samba Storage]
+            Sync[Syncthing]
         end
     end
 ```
