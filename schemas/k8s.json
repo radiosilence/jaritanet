@@ -15,7 +15,9 @@
               "type": "string"
             }
           },
-          "required": ["accountId"]
+          "required": [
+            "accountId"
+          ]
         },
         "jaritanet-k8s:services": {
           "type": "object",
@@ -48,7 +50,10 @@
                         "type": "string"
                       }
                     },
-                    "required": ["repository", "tag"]
+                    "required": [
+                      "repository",
+                      "tag"
+                    ]
                   },
                   "replicas": {
                     "default": 1,
@@ -133,7 +138,11 @@
                           "type": "boolean"
                         }
                       },
-                      "required": ["name", "hostPath", "mountPath"]
+                      "required": [
+                        "name",
+                        "hostPath",
+                        "mountPath"
+                      ]
                     }
                   },
                   "persistence": {
@@ -232,7 +241,12 @@
                       "expectedStatus": {
                         "default": "UP",
                         "type": "string",
-                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"]
+                        "enum": [
+                          "UP",
+                          "DOWN",
+                          "UNKNOWN",
+                          "OUT_OF_SERVICE"
+                        ]
                       },
                       "followRedirects": {
                         "default": false,
@@ -256,7 +270,10 @@
                               "type": "string"
                             }
                           },
-                          "required": ["name", "value"]
+                          "required": [
+                            "name",
+                            "value"
+                          ]
                         }
                       }
                     }
@@ -267,7 +284,10 @@
                       "type": {
                         "default": "RollingUpdate",
                         "type": "string",
-                        "enum": ["Recreate", "RollingUpdate"]
+                        "enum": [
+                          "Recreate",
+                          "RollingUpdate"
+                        ]
                       }
                     }
                   },
@@ -289,10 +309,15 @@
                     }
                   }
                 },
-                "required": ["image"]
+                "required": [
+                  "image"
+                ]
               }
             },
-            "required": ["hostname", "args"]
+            "required": [
+              "hostname",
+              "args"
+            ]
           }
         },
         "jaritanet-k8s:cloudflared": {
@@ -336,13 +361,20 @@
                       }
                     }
                   },
-                  "required": ["limits"]
+                  "required": [
+                    "limits"
+                  ]
                 }
               },
-              "required": ["replicas"]
+              "required": [
+                "replicas"
+              ]
             }
           },
-          "required": ["name", "args"]
+          "required": [
+            "name",
+            "args"
+          ]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -351,7 +383,9 @@
               "type": "string"
             }
           },
-          "required": ["secure"]
+          "required": [
+            "secure"
+          ]
         }
       },
       "required": [
@@ -362,5 +396,7 @@
       ]
     }
   },
-  "required": ["config"]
+  "required": [
+    "config"
+  ]
 }
