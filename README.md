@@ -24,33 +24,30 @@ graph TB
         Tunnel --> TunnelConfig[Tunnel Creation]
     end
     
-    subgraph "Kubernetes Cluster"
-        TunnelConfig --> Cloudflared[Cloudflared Daemon]
-        Cloudflared --> Services[K8s Services]
-        
-        subgraph "Deployed Services (packages/k8s)"
-            Services --> FileServer[File Server]
-            Services --> Navidrome[Navidrome - Music Streaming]
-            Services --> Blit[Blit - Web App]
-            Services --> Slskd[slskd - Soulseek Client]
-        end
-    end
-    
     subgraph "DNS & Routing (packages/routes)"
         CF --> DNS[DNS Records]
         DNS --> Ingress[Service Ingress Rules]
     end
     
     subgraph "Server Infrastructure"
-        Services --> MicroK8s[MicroK8s Cluster]
-        
-        subgraph "Physical Servers"
-            MicroK8s --> Oldboy[oldboy - 2014 MacBook Pro]
+        subgraph "oldboy - 2014 MacBook Pro"
+            TunnelConfig --> Cloudflared[Cloudflared Daemon]
+            
+            subgraph "MicroK8s Cluster"
+                Cloudflared --> Services[K8s Services]
+                
+                subgraph "Deployed Services (packages/k8s)"
+                    Services --> FileServer[File Server]
+                    Services --> Navidrome[Navidrome - Music Streaming]
+                    Services --> Blit[Blit - Web App]
+                    Services --> Slskd[slskd - Soulseek Client]
+                end
+            end
+            
+            Services --> Tailscale[Tailscale VPN]
+            Services --> Storage[NFS/Samba Storage]
+            Services --> Sync[Syncthing]
         end
-        
-        Oldboy --> Tailscale[Tailscale VPN]
-        Oldboy --> Storage[NFS/Samba Storage]
-        Oldboy --> Sync[Syncthing]
     end
 ```
 
