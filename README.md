@@ -56,19 +56,19 @@ graph TB
 
 ## Package Structure
 
-**packages/infra** - Creates Cloudflare Zero Trust tunnels and authentication
-- Establishes secure tunnel endpoints
-- Configures Cloudflare access policies
+**packages/infra** - Pulumi TypeScript package for Cloudflare Zero Trust tunnels
+- Establishes secure tunnel endpoints using Cloudflare API
+- Configures Cloudflare access policies and authentication
 
-**packages/k8s** - Deploys services to Kubernetes clusters  
-- Connects to clusters via Tailscale
-- Deploys cloudflared daemon for tunnel connectivity
-- Manages service deployments and configurations
+**packages/k8s** - Pulumi TypeScript package for Kubernetes service deployment  
+- Connects to MicroK8s clusters via Tailscale VPN
+- Deploys cloudflared daemon pods for tunnel connectivity
+- Manages Kubernetes service deployments with Helm charts
 
-**packages/routes** - Configures DNS records and service routing
-- Maps external domains to internal services
-- Manages Bluesky protocol and Fastmail DNS
-- Creates tunnel ingress rules
+**packages/routes** - Pulumi TypeScript package for DNS and tunnel routing
+- Maps external domains to internal services via Cloudflare DNS
+- Manages Bluesky protocol and Fastmail DNS records
+- Creates Cloudflare tunnel ingress rules for service routing
 
 ## Deployment Flow
 
