@@ -26,7 +26,8 @@ graph TB
     
     subgraph "DNS & Routing (packages/routes)"
         CF --> DNS[DNS Records]
-        DNS --> Ingress[Service Ingress Rules]
+        Tunnel --> Ingress[Service Ingress Rules]
+        DNS --> Ingress
     end
     
     subgraph "Server Infrastructure"
