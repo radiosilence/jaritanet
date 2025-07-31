@@ -41,7 +41,14 @@ graph TB
     
     subgraph "Server Infrastructure"
         Services --> MicroK8s[MicroK8s Cluster]
-        MicroK8s --> Tailscale[Tailscale VPN]
+        
+        subgraph "Physical Servers"
+            MicroK8s --> Oldboy[oldboy - 2014 MacBook Pro]
+        end
+        
+        Oldboy --> Tailscale[Tailscale VPN]
+        Oldboy --> Storage[NFS/Samba Storage]
+        Oldboy --> Sync[Syncthing]
     end
 ```
 
