@@ -7,6 +7,7 @@ import { getKubeconfig } from "./kubeconfig.ts";
 import { tunnelRef } from "./references.ts";
 import { createCloudflared } from "./templates/cloudflared.ts";
 import { createService } from "./templates/service.ts";
+import { createSyncthing } from "./templates/syncthing.ts";
 
 export default async function () {
   const namespace = conf.namespace;
@@ -58,14 +59,17 @@ export default async function () {
     `${conf.infraStackPath}/${pulumi.getStack()}`,
   );
   const services = Object.fromEntries(
-    Object.entries(conf.services).map(([name, { args, hostname, proxied }]) => {
-      const service = createService(provider, name, args);
+    Object.entries(conf.services).map(([name, serviceConf]) => {
+      const service =
+        serviceConf.type === "syncthing"
+          ? createSyncthing(provider, name, serviceConf.args)
+          : createService(provider, name, serviceConf.args);
 
       return [
         name,
         {
-          hostname,
-          proxied,
+          hostname: serviceConf.hostname,
+          proxied: serviceConf.proxied,
           service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.${conf.clusterDomain}`,
         },
       ];

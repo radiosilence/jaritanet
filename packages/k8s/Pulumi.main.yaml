@@ -125,6 +125,47 @@ config:
             mountPath: /dl
             readOnly: false
             nodeAffinityHostname: oldboy
+    syncthing:
+      hostname: ''
+      proxied: true
+      type: syncthing
+      args:
+        httpPort: 8384
+        image:
+          repository: "lscr.io/linuxserver/syncthing"
+          tag: latest
+          pullPolicy: "Always"
+        env:
+          PUID: "1000"
+          PGID: "1000"
+          TZ: "UTC"
+        healthCheck:
+          path: "/rest/system/ping"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          enableLiveness: true
+          enableReadiness: true
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+        securityContext:
+          runAsUser: 1000
+          fsGroup: 1000
+          runAsGroup: 1000
+        persistence:
+          - name: config
+            storage: 1Gi
+            hostPath: /home/syncthing/config
+            mountPath: /config
+            readOnly: false
+            nodeAffinityHostname: oldboy
+          - name: music
+            storage: 2Ti
+            hostPath: /mnt/kontent/music
+            mountPath: /data/music
+            readOnly: false
+            nodeAffinityHostname: oldboy
   jaritanet-k8s:cloudflared:
     name: cloudflared
     args:
