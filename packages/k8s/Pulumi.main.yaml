@@ -69,6 +69,19 @@ config:
             hostPath: /srv/files
             mountPath: /srv/files
             nodeAffinityHostname: oldboy
+    blit:
+      hostname: ''
+      args:
+        replicas: 2
+        healthCheck: {}
+        limits:
+          cpu: 1000m
+          memory: 1024Mi
+        image:
+          repository: "ghcr.io/radiosilence/blit"
+          tag: sha-86c68cb
+          pullPolicy: "Always"
+        httpPort: 3000
     dotfiles:
       args:
         replicas: 1
@@ -80,13 +93,12 @@ config:
           periodSeconds: 30
           timeoutSeconds: 10
         limits:
-          cpu: 1000m
-          memory: 1024Mi
+          cpu: 500m
+          memory: 512Mi
         image:
-          repository: "ghcr.io/radiosilence/blit"
+          repository: "ghcr.io/radiosilence/dotfiles"
           tag: latest
           pullPolicy: "Always"
-        httpPort: 3000
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
