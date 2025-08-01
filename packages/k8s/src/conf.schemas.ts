@@ -13,7 +13,7 @@ export const CloudflaredConfSchema = z.object({
 
 export const ServiceConfSchema = z.object({
   name: z.string(),
-  hostname: z.string(),
+  hostname: z.string().optional(),
   proxied: z.boolean().default(true),
   args: ServiceArgsSchema,
 });

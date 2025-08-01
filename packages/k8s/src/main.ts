@@ -58,18 +58,35 @@ export default async function () {
     `${conf.infraStackPath}/${pulumi.getStack()}`,
   );
   const services = Object.fromEntries(
-    Object.entries(conf.services).map(([name, { args, hostname, proxied }]) => {
-      const service = createService(provider, name, args);
+    Object.entries(conf.services)
+      .filter(([, { hostname }]) => hostname && hostname.trim() !== "")
+      .map(([name, { args, hostname, proxied }]) => {
+        const service = createService(provider, name, args);
 
-      return [
-        name,
-        {
-          hostname,
-          proxied,
-          service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.${conf.clusterDomain}`,
-        },
-      ];
-    }),
+        if (hostname) {
+          return [
+            name,
+            {
+              hostname,
+              proxied,
+              service: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.${conf.clusterDomain}`,
+            },
+          ];
+        }
+        return undefined;
+      })
+      .filter(
+        (
+          entry,
+        ): entry is [
+          string,
+          {
+            hostname: string;
+            proxied: boolean;
+            service: pulumi.Output<string>;
+          },
+        ] => entry !== undefined,
+      ),
   );
 
   const { id: tunnelId } = await tunnelRef(infraStackRef);

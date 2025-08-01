@@ -69,10 +69,11 @@ config:
             hostPath: /srv/files
             mountPath: /srv/files
             nodeAffinityHostname: oldboy
-    blit:
-      hostname: ''
+    dotfiles:
       args:
-        replicas: 2
+        replicas: 1
+        strategy:
+          type: Recreate
         healthCheck:
           path: "/"
           initialDelaySeconds: 60
@@ -83,9 +84,21 @@ config:
           memory: 1024Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-86c68cb
+          tag: latest
           pullPolicy: "Always"
         httpPort: 3000
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: kontent
+            storage: 4Ti
+            hostPath: /mnt/kontent
+            mountPath: /mnt/kontent
+            readOnly: false
+            nodeAffinityHostname: oldboy
     slskd:
       hostname: ''
       proxied: true
