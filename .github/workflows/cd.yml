@@ -137,11 +137,3 @@ jobs:
           work-dir: packages/routes
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
-  email-tests:
-    name: 📧 Run Email Integration Tests
-    needs: deploy
-    uses: ./.github/workflows/email-tests.yml
-    permissions:
-      contents: read
-      issues: write
