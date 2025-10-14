@@ -9,9 +9,6 @@ export function createTunnelConfig(
     accountId,
     tunnelId,
     config: {
-      warpRouting: {
-        enabled: true,
-      },
       ingresses: [
         ...ingresses,
         {
