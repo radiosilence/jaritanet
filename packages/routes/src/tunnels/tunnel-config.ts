@@ -9,12 +9,10 @@ export function createTunnelConfig(
     accountId,
     tunnelId,
     config: {
-      ingresses: [
-        ...ingresses,
-        {
-          service: "http_status:404",
-        },
-      ],
+      ingresses,
+      warpRouting: {
+        enabled: false,
+      },
     },
   });
 }
