@@ -18,10 +18,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - app: "slskd"
-            repo: "slskd/slskd"
-            service_name: "slskd"
-            emoji: "🎵"
           - app: "Navidrome"
             repo: "deluan/navidrome"
             service_name: "navidrome"
