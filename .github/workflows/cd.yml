@@ -44,11 +44,11 @@ concurrency:
 
 jobs:
   test:
-    name: 🧪 Run Tests
+    name: 🧪 Test
     uses: ./.github/workflows/test.yml
 
   deploy:
-    name: 🚀 Deploy All Stacks
+    name: 🚀 Deploy
     needs: test
     runs-on: ubuntu-24.04
     steps:
