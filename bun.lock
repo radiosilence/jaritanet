@@ -4,7 +4,7 @@
     "": {
       "name": "@radiosilence/jaritanet",
       "dependencies": {
-        "@pulumi/cloudflare": "^6.10.0",
+        "@pulumi/cloudflare": "6.4.1",
         "@pulumi/kubernetes": "^4.23.0",
         "@pulumi/pulumi": "^3.202.0",
         "@pulumi/random": "^4.18.4",
@@ -200,7 +200,7 @@
 
     "@protobufjs/utf8": ["@protobufjs/utf8@1.1.0", "", {}, "sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw=="],
 
-    "@pulumi/cloudflare": ["@pulumi/cloudflare@6.10.0", "", { "dependencies": { "@pulumi/pulumi": "^3.142.0" } }, "sha512-f+yPn05Ys4ZTuukZ0S+pYE5CORYK8eiv13jq8qCUd/7XPr18EkqkeiEmmnNaWM07ksoxS8fLq+swYYOxn+VZmw=="],
+    "@pulumi/cloudflare": ["@pulumi/cloudflare@6.4.1", "", { "dependencies": { "@pulumi/pulumi": "^3.142.0" } }, "sha512-H6ao7yVdnHhGCHgucSS2nBxLg7H0mUhKAW1Urpsk2bOYGHACHjBQn6aD3nrp2ERyFBQWTX0DWhhIjEbR3IXWow=="],
 
     "@pulumi/kubernetes": ["@pulumi/kubernetes@4.23.0", "", { "dependencies": { "@pulumi/pulumi": "^3.142.0", "glob": "^10.3.10", "shell-quote": "^1.6.1" } }, "sha512-sMNV8cNx+MdvwNXCze3EiYgfRCTilJ9PMq4hqT8lOz7hgX5Un9yyDILJCkrt0wlGlB11Dgbq39mjwCeoImOEgg=="],
 
