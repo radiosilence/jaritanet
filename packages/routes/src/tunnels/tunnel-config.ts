@@ -9,7 +9,12 @@ export function createTunnelConfig(
     accountId,
     tunnelId,
     config: {
-      ingresses,
+      ingresses: [
+        ...ingresses,
+        {
+          service: "http_status:404",
+        },
+      ],
     },
   });
 }
