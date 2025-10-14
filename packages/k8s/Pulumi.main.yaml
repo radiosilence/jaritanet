@@ -111,7 +111,6 @@ config:
             mountPath: /mnt/kontent
             readOnly: false
             nodeAffinityHostname: oldboy
-
   jaritanet-k8s:cloudflared:
     name: cloudflared
     args:
