@@ -116,4 +116,4 @@ config:
     args:
       replicas: 2
   cloudflare:apiToken:
-    secure: AAABAMqg9u/8sqfZC9qSCmJwf5Rb1Px2EfzFnpRkI3uAI872vNEJE9q8XgKqcbkD+vQn/s0fwwyS02NnGMoatRNOpzxURXeP
+    secure: AAABAO3Q5Z9RUZgleETmCvoaMOr3oPcs19Qc/Cp6C8pfb1EaBASR4AUQkqfoYaTI1NN+GiQJFQlbsBhGlNaP6DBdUi4ny5zR

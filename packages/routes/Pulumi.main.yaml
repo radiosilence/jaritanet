@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../schemas/routes.json
 config:
   cloudflare:apiToken:
-    secure: AAABAFF5ad7MgpagmxXsfd9t6moL77ldgO6s0L7p4zX3ifjvwfJiB0vHBCxJGmJQd0EdhkOc/g+8CoctsnotRzTs5HixTAKE
+    secure: AAABACJPZZ5x/fXp+Q1ZNmAe0itZ74y4toWcad11qfLn3TJlYqKmQFzyEaEsYKHPvPdS6Q7dJmiZWE1ImsEuKyEU3QkRGgjT
   jaritanet-routes:cloudflare:
     accountId: ''
   jaritanet-routes:serviceStacks:

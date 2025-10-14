@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../schemas/infra.json
 config:
   cloudflare:apiToken:
-    secure: AAABAJee5AsdP//8cTEkQfjB8ofZqj5ftTaGkdLMz2XjDhXOQmcQJ1GWKPB9a43CSoHRN5292UuGCfvLQmnyFHHkTP5AwYLd
+    secure: AAABAOWC2eAnjmk8uN5AgPlXVmjLNtCAbLpQDjXdD3XfnbN71AMRMB/u0NfSg9WghDTxzc/ihRytTVZQGRe5TtLDkma5tZ19
   jaritanet:cloudflare:
     accountId: ''
   jaritanet:tunnel:
