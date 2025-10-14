@@ -10,9 +10,6 @@ export function createTunnelConfig(
     tunnelId,
     config: {
       ingresses,
-      warpRouting: {
-        enabled: false,
-      },
     },
   });
 }
