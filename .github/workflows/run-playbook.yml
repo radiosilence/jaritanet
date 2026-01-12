@@ -1,4 +1,4 @@
-name: 🏗️ Run Ansible Playbook
+name: Run Ansible Playbook
 
 permissions:
   contents: read
@@ -14,47 +14,53 @@ on:
       - ".github/workflows/run-playbook.yml"
 
 concurrency:
-  group: "ansible"
+  group: ansible
 
 jobs:
   playbook:
-    name: 🚀 Deploy Configuration
+    name: Deploy Configuration
     runs-on: ubuntu-24.04
     steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v2
-      - name: 🛠️ Setup Development Environment
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
         uses: jdx/mise-action@v2
-      - name: 🔌 Connect to Tailscale
+
+      - name: Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-      - name: 🔑 Setup SSH Key
+
+      - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh/
           chmod 700 ~/.ssh/
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           sudo chmod 600 ~/.ssh/*
-      - name: 🔍 Verify Host Connectivity
+
+      - name: Verify Host Connectivity
         run: |
           echo "Checking DNS resolution..."
           nslookup ${{ secrets.OLDBOY_HOST }}
           echo "Testing connectivity..."
           ping -c 3 ${{ secrets.OLDBOY_HOST }}
-      - name: 📝 Generate Runtime Variables
+
+      - name: Generate Runtime Variables
         run: |
           cat > ./ansible/runtime.yml << EOF
           ---
           # Runtime variables generated from GitHub Secrets
           # This file is created at runtime and should not be committed
-          
+
           oldboy_host: "${{ secrets.OLDBOY_HOST }}"
           oldboy_user: "${{ secrets.OLDBOY_USER }}"
           oldboy_password: "${{ secrets.OLDBOY_PASSWORD }}"
           EOF
-      - name: 🏗️ Execute Ansible Playbook
+
+      - name: Execute Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v4
         with:
           playbook: playbook.yml
@@ -69,7 +75,7 @@ jobs:
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
 
-      - name: 🔐 Update GitHub Secrets
+      - name: Update GitHub Secrets
         run: ./scripts/update-secrets
         env:
           GITHUB_TOKEN: ${{ secrets.SECRETS_PAT }}

@@ -15,9 +15,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "accountId"
-          ]
+          "required": ["accountId"]
         },
         "jaritanet:tunnel": {
           "type": "object",
@@ -26,9 +24,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "name"
-          ]
+          "required": ["name"]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -37,9 +33,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ]
+          "required": ["secure"]
         }
       },
       "required": [
@@ -49,7 +43,5 @@
       ]
     }
   },
-  "required": [
-    "config"
-  ]
+  "required": ["config"]
 }
