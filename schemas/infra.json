@@ -1,11 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
-  "title": "Infra Configuration Schema",
-  "description": "Schema for infra configuration",
   "type": "object",
   "properties": {
     "config": {
+      "$ref": "#/$defs/__schema0"
+    }
+  },
+  "required": [
+    "config"
+  ],
+  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
+  "title": "Infra Configuration Schema",
+  "description": "Schema for infra configuration",
+  "$defs": {
+    "__schema0": {
       "type": "object",
       "properties": {
         "jaritanet:cloudflare": {
@@ -15,7 +23,9 @@
               "type": "string"
             }
           },
-          "required": ["accountId"]
+          "required": [
+            "accountId"
+          ]
         },
         "jaritanet:tunnel": {
           "type": "object",
@@ -24,7 +34,9 @@
               "type": "string"
             }
           },
-          "required": ["name"]
+          "required": [
+            "name"
+          ]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -33,7 +45,9 @@
               "type": "string"
             }
           },
-          "required": ["secure"]
+          "required": [
+            "secure"
+          ]
         }
       },
       "required": [
@@ -42,6 +56,5 @@
         "cloudflare:apiToken"
       ]
     }
-  },
-  "required": ["config"]
+  }
 }
