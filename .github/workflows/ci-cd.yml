@@ -1,4 +1,4 @@
-name: 🚀 CD
+name: CI/CD
 
 permissions:
   contents: read
@@ -8,11 +8,15 @@ on:
     branches:
       - main
     paths:
-      - .github/workflows/cd.yml
-      - .github/workflows/test.yml
-      - "packages/infra/**"
-      - "packages/k8s/**"
-      - "packages/routes/**"
+      - .github/workflows/ci-cd.yml
+      - "packages/**"
+      - "*.config.*"
+      - package.json
+  pull_request:
+    paths:
+      - .github/workflows/ci-cd.yml
+      - "packages/**"
+      - "*.config.*"
       - package.json
   workflow_call:
     secrets:
@@ -40,40 +44,55 @@ on:
         required: true
 
 concurrency:
-  group: "cd"
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  deploy:
-    name: 🚀 Deploy
+  test:
+    name: Test
     runs-on: ubuntu-24.04
     steps:
-      - name: 📥 Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🛠️ Setup Development Environment
+      - name: Setup Environment
         uses: jdx/mise-action@v2
 
-      - name: 📦 Install Dependencies
+      - name: Install Dependencies
         run: bun install
 
-      - name: 🔍 Type Check All Packages
+      - name: Type Check
         run: |
           npm run typecheck:infra
           npm run typecheck:k8s
           npm run typecheck:routes
 
-      - name: 🧪 Run Unit Tests
+      - name: Run Tests
         run: npm test
 
-      - name: 🔌 Connect to Tailscale
+  deploy:
+    name: Deploy
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: jdx/mise-action@v2
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      # Infrastructure deployment
-      - name: ⚙️ Configure Pulumi - Infrastructure
+      - name: Configure Infrastructure
         run: |
           pulumi stack select radiosilence/jaritanet/main
           pulumi config set --path jaritanet:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
@@ -82,7 +101,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: 🏗️ Deploy Infrastructure
+      - name: Deploy Infrastructure
         uses: pulumi/actions@v6
         with:
           command: up
@@ -91,8 +110,7 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-      # Kubernetes deployment
-      - name: ⚙️ Configure Pulumi - Kubernetes
+      - name: Configure Kubernetes
         run: |
           pulumi stack select radiosilence/jaritanet-k8s/main
           pulumi config set --path jaritanet-k8s:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
@@ -107,7 +125,7 @@ jobs:
           FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
 
-      - name: ☸️ Deploy Kubernetes
+      - name: Deploy Kubernetes
         uses: pulumi/actions@v6
         with:
           command: up
@@ -119,8 +137,7 @@ jobs:
           KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
 
-      # Routes deployment
-      - name: ⚙️ Configure Pulumi - Routes
+      - name: Configure Routes
         run: |
           pulumi stack select radiosilence/jaritanet-routes/main
           pulumi config set --path jaritanet-routes:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
@@ -129,7 +146,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: 🛣️ Deploy Routes
+      - name: Deploy Routes
         uses: pulumi/actions@v6
         with:
           command: up
