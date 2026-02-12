@@ -4,7 +4,7 @@
     groups:
       - sudo
       - adm
-    shell: /bin/fish
+    shell: /bin/zsh
     create_home: true
 
 - name: Add SSH public key for the new user
