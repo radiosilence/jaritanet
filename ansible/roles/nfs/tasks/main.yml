@@ -26,14 +26,10 @@
   with_together:
     - "{{ shares }}"
     - "{{ user_uids.results }}"
-
-- name: Export NFS shares
-  ansible.builtin.command: exportfs -ra
-  changed_when: true
+  notify: reload nfs exports
 
 - name: Enable and start NFS server
   ansible.builtin.systemd:
     name: nfs-kernel-server
     enabled: true
     state: started
-

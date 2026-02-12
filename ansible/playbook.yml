@@ -22,11 +22,6 @@
     - nfs
     - samba
     - syncthing
-    - speedtest
-
-  handlers:
-    - name: restart microk8s
-      ansible.builtin.command: snap restart microk8s
 
 - name: Ensure tailnet is joined
   hosts: tailnet

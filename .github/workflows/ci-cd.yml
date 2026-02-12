@@ -64,12 +64,12 @@ jobs:
 
       - name: Type Check
         run: |
-          npm run typecheck:infra
-          npm run typecheck:k8s
-          npm run typecheck:routes
+          bun run typecheck:infra
+          bun run typecheck:k8s
+          bun run typecheck:routes
 
       - name: Run Tests
-        run: npm test
+        run: bun test
 
   deploy:
     name: Deploy
