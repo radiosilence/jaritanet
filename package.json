@@ -15,21 +15,21 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
+    "@biomejs/biome": "^2.3.15",
     "@tsconfig/bun": "^1.0.10",
-    "@tsconfig/node-ts": "^23.6.2",
-    "@tsconfig/node24": "^24.0.3",
-    "@types/node": "^25.0.6",
-    "@vitest/ui": "^4.0.17",
-    "lefthook": "^2.0.14",
+    "@tsconfig/node-ts": "^23.6.3",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^25.2.3",
+    "@vitest/ui": "^4.0.18",
+    "lefthook": "^2.1.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@pulumi/cloudflare": "6.4.1",
-    "@pulumi/kubernetes": "^4.24.1",
-    "@pulumi/pulumi": "^3.215.0",
-    "@pulumi/random": "^4.18.5",
+    "@pulumi/kubernetes": "^4.25.0",
+    "@pulumi/pulumi": "^3.220.0",
+    "@pulumi/random": "^4.19.1",
     "zod": "^4.3.5"
   },
   "workspaces": [
