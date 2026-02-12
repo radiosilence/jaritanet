@@ -11,7 +11,7 @@
     name: m-grant-prg-utils
     types: [deb]
     uris: https://ppa.launchpadcontent.net/m-grant-prg/utils/ubuntu
-    suites: [noble]
+    suites: ["{{ ansible_distribution_release }}"]
     components: [main]
     state: present
     enabled: true
@@ -22,7 +22,7 @@
     name: tomtomtom-yt-dlp
     types: [deb]
     uris: https://ppa.launchpadcontent.net/tomtomtom/yt-dlp/ubuntu
-    suites: [noble]
+    suites: ["{{ ansible_distribution_release }}"]
     components: [main]
     state: present
     enabled: true

@@ -10,11 +10,11 @@
     name: tailscale
     types: [deb]
     uris: https://pkgs.tailscale.com/stable/ubuntu
-    suites: [noble]
+    suites: ["{{ ansible_distribution_release }}"]
     components: [main]
     state: present
     enabled: true
-    signed_by: https://pkgs.tailscale.com/stable/ubuntu/noble.gpg
+    signed_by: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.gpg"
 
 - name: Install Tailscale
   ansible.builtin.apt:
