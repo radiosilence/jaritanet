@@ -17,6 +17,7 @@
     - group_vars/homeservers.yml
 
   roles:
+    - github
     - downloader
     - microk8s
     - nfs
