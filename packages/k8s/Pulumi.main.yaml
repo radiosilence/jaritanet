@@ -22,6 +22,7 @@ config:
           ND_ENABLETRANSCODINGCONFIG: "true"
           ND_TRANSCODINGCACHESIZE: 5Gi
           ND_ENABLEGRAVATAR: "true"
+          ND_SCANNER_PURGEMISSING: "always"
         healthCheck:
           path: "/ping"
           initialDelaySeconds: 60
