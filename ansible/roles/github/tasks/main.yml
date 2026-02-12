@@ -5,7 +5,6 @@
     uris: https://cli.github.com/packages
     suites: [stable]
     components: [main]
-    architectures: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
     signed_by: https://cli.github.com/packages/githubcli-archive-keyring.gpg
     state: present
     enabled: true
