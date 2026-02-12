@@ -43,6 +43,10 @@
   register: microk8s_addon_status
   changed_when: false
 
+- name: Parse enabled addons
+  ansible.builtin.set_fact:
+    enabled_addons: "{{ (microk8s_addon_status.stdout | from_yaml).addons | selectattr('status', 'equalto', 'enabled') | map(attribute='name') | list }}"
+
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"
   loop:
@@ -53,8 +57,9 @@
     - rbac
     - hostpath-storage
     - metrics-server
+  when: item not in enabled_addons
   register: addon_enable_result
-  changed_when: "'is already enabled' not in addon_enable_result.stdout"
+  changed_when: addon_enable_result is not skipped
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config
@@ -108,7 +113,7 @@
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Secret
-    name: github-deployer-token
+    name: "{{ k8s.service_account }}-token"
     namespace: default
   register: token_secret
   until: token_secret.resources[0].data.token is defined
