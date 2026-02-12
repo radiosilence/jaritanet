@@ -9,6 +9,7 @@
     - users
     - helix
     - mise
+    - github
 
 - name: Ensure homeserver configurations are applied
   hosts: homeservers
@@ -17,7 +18,6 @@
     - group_vars/homeservers.yml
 
   roles:
-    - github
     - downloader
     - microk8s
     - nfs
