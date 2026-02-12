@@ -26,7 +26,7 @@
 
       [Service]
       User=%i
-      ExecStart=/usr/bin/syncthing -no-browser -logflags=0
+      ExecStart=/usr/bin/syncthing serve --no-browser
       Restart=on-failure
       RestartSec=5
 
