@@ -23,6 +23,7 @@ config:
           ND_TRANSCODINGCACHESIZE: 5Gi
           ND_ENABLEGRAVATAR: "true"
           ND_SCANNER_PURGEMISSING: "always"
+          ND_UIWELCOMEMESSAGE: "fuck off"
         healthCheck:
           path: "/ping"
           initialDelaySeconds: 60
