@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Code should be simple, elegant, and concise. Respect the "rule of three" - only add abstractions when you see the same pattern repeated three times. Keep implementations minimal and avoid premature optimization.
 
 **Documentation:**
+
 - Use docblocks to document functions and explain the why, not just what
 - Avoid @param tags - document parameters directly in the description
 - Be concise and information-dense
@@ -66,9 +67,10 @@ The codebase is organized as three Pulumi packages with strict deployment orderi
 
 ### Configuration System
 
-All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi.*.yaml files. Schema definitions are in `*.schemas.ts` files and can be regenerated using the gen-schemas script.
+All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi._.yaml files. Schema definitions are in `_.schemas.ts` files and can be regenerated using the gen-schemas script.
 
 **Zod V4 Features:**
+
 - 14x faster string parsing, 7x faster arrays/objects
 - `z.interface()` for optional properties
 - `z.stringbool()` for "true"/"false"/"1"/"0" to boolean coercion
@@ -95,47 +97,60 @@ External traffic follows this path:
 
 The repository uses GitHub Actions for continuous deployment and monitoring:
 
-### Continuous Deployment (`cd.yml`)
-Triggered on pushes to main branch affecting package files:
+### Continuous Deployment (`ci-cd.yml`)
+
+Triggered on pushes to main branch affecting package files, or manually via workflow_dispatch:
+
 1. **Infrastructure** - Deploys Cloudflare tunnels using Pulumi
-2. **Kubernetes** - Connects to Tailscale, deploys K8s services  
+2. **Kubernetes** - Connects to Tailscale, deploys K8s services
 3. **Routes** - Configures DNS records and tunnel routing
 4. **Email Tests** - Runs integration tests after deployment
 
 ### Email Integration Tests (`email-tests.yml`)
+
 Hourly monitoring of email infrastructure:
+
 - Tests MX records for Fastmail
 - Validates SPF, DKIM (fm1-fm4), and DMARC records
 - Creates/closes GitHub issues based on test results
 
 ### Schema Generation (`generate-schemas.yml`)
+
 Daily schema updates:
+
 - Generates JSON schemas from Zod definitions
 - Commits with `[skip ci]` tag
 
 ### Ansible Deployment (`run-playbook.yml`)
+
 Triggered on Ansible changes:
+
 - Connects via Tailscale
 - Runs server provisioning playbooks
 - Updates GitHub secrets from kubeconfig
 
+### Version Updates (`update-apps.yml`)
+
+Daily scheduled workflow that checks for new versions of deployed services (e.g. Navidrome). Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
+
 ### Container Builds
+
 - `build-files-container.yml` - File server container
-- Version update workflows for services
 
 ## Ansible Infrastructure
 
 Server provisioning and configuration:
 
 ### Playbook Structure (`playbook.yml`)
+
 Three-stage deployment targeting different host groups:
 
 1. **Common Configuration** (`hosts: all`)
    - Base system setup for all servers
    - User management and SSH hardening
-   - Essential tool installation (helix, mise, fish, btop, broot)
+   - Essential tool installation (helix, mise, zsh, btop, broot)
 
-2. **Homeserver Configuration** (`hosts: homeservers`)  
+2. **Homeserver Configuration** (`hosts: homeservers`)
    - MicroK8s cluster setup with essential addons
    - NFS and Samba file sharing
    - Syncthing for file synchronization
@@ -148,12 +163,14 @@ Three-stage deployment targeting different host groups:
 ### Key Ansible Roles
 
 **`common/`** - Base system hardening and setup:
+
 - System package updates (dist-upgrade)
 - Package installation via APT and Azlux repository
 - SSH hardening configurations
 - Python Kubernetes client setup
 
 **`microk8s/`** - Kubernetes cluster management:
+
 - MicroK8s installation via snap (stable channel)
 - Essential addons: community, dns, storage, helm, rbac, hostpath-storage, metrics-server
 - User group management for K8s access
@@ -168,13 +185,16 @@ Three-stage deployment targeting different host groups:
 **`syncthing/`** - Peer-to-peer file synchronization
 
 ### Configuration Management
+
 - `group_vars/all.yml` - Global variables (username, tailscale settings)
 - `group_vars/homeservers.yml` - Homeserver-specific configuration
 - `group_vars/tailnet.yml` - Tailscale network settings
 - `inventory/hosts` - Server inventory and group definitions
 
 ### GitHub Integration
+
 MicroK8s role generates:
+
 - Service accounts for GitHub Actions
 - Cluster admin tokens
 - Tailscale hostnames for cluster access
@@ -183,6 +203,7 @@ MicroK8s role generates:
 ## Container Services
 
 Custom service definitions:
+
 - File server container using Caddy with CORS and compression
 - Dockerfile and nginx.conf for deployments
 
