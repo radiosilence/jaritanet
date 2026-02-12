@@ -1,5 +1,3 @@
-
-
 - name: Update all packages to the latest version (dist-upgrade)
   ansible.builtin.apt:
     upgrade: dist
@@ -13,7 +11,7 @@
       - python3-kubernetes
       - python3-k8sclient
       - acl
-      - fish
+      - zsh
       - btop
       - broot
       - aria2
