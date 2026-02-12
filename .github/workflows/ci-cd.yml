@@ -69,7 +69,7 @@ jobs:
           bun run typecheck:routes
 
       - name: Run Tests
-        run: bun test
+        run: bun run test
 
   deploy:
     name: Deploy
