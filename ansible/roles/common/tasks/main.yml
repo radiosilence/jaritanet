@@ -15,6 +15,7 @@
       - btop
       - broot
       - aria2
+      - ffmpeg
     state: present
 
 - name: Include SSH hardening tasks
