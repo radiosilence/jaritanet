@@ -2,9 +2,13 @@
 microk8s:
   enabled: true
   addons:
+    - community
     - dns
     - storage
-    - traefik
+    - helm
+    - rbac
+    - hostpath-storage
+    - metrics-server
 
 syncthing:
   enabled: true
@@ -19,8 +23,3 @@ samba:
 
 tailscale:
   enabled: false
-
-helm:
-  enabled: true
-  local_chart_dir: "../charts/"
-  charts_dir: "/opt/helm-charts"

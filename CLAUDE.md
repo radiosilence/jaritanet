@@ -22,10 +22,11 @@ JARITANET is an infrastructure-as-code monorepo that uses Pulumi to deploy a com
 
 ### Development
 
-- `bun typecheck:infra` - Type check infrastructure package
-- `bun typecheck:k8s` - Type check Kubernetes package
-- `bun typecheck:routes` - Type check routes package
-- `./scripts/gen-schemas.ts` - Generate TypeScript schemas from Zod definitions
+- `bun run typecheck:infra` - Type check infrastructure package
+- `bun run typecheck:k8s` - Type check Kubernetes package
+- `bun run typecheck:routes` - Type check routes package
+- `bun run test` - Run tests (uses vitest on Node - do NOT use `bun test` directly, Pulumi needs Node's v8)
+- `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
 - `bunx @biomejs/biome check --write` - Format and lint code
 
 ### Git Hooks
@@ -37,7 +38,7 @@ The project uses Lefthook for pre-commit validation:
 
 ### Package Management
 
-- Uses Bun as the runtime and package manager
+- Uses Bun as the package manager and script runner
 - Workspace-based monorepo with shared dependencies
 - Run commands from root directory
 
@@ -67,18 +68,7 @@ The codebase is organized as three Pulumi packages with strict deployment orderi
 
 ### Configuration System
 
-All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi._.yaml files. Schema definitions are in `_.schemas.ts` files and can be regenerated using the gen-schemas script.
-
-**Zod V4 Features:**
-
-- 14x faster string parsing, 7x faster arrays/objects
-- `z.interface()` for optional properties
-- `z.stringbool()` for "true"/"false"/"1"/"0" to boolean coercion
-- `z.templateLiteral()` for template literal types
-- File schemas with `.maxSize()` and `.mimeType()`
-- `.toJSONSchema()` conversion
-- `z.prettifyError()` formatting
-- `.overwrite()` method for schema merging
+All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi.*.yaml files. Schema definitions are in `*.schemas.ts` files and can be regenerated using the gen-schemas script.
 
 ### Cross-Package Dependencies
 
@@ -91,51 +81,32 @@ Packages communicate via Pulumi StackReferences:
 ### Service Flow
 
 External traffic follows this path:
-`https://hostname` → Cloudflare → Tunnel → `http://service-name.jaritanet.svc.cluster.local`
+`https://hostname` -> Cloudflare -> Tunnel -> `http://service-name.jaritanet.svc.cluster.local`
 
 ## GitHub Actions
 
-The repository uses GitHub Actions for continuous deployment and monitoring:
-
-### Continuous Deployment (`ci-cd.yml`)
+### CI/CD (`ci-cd.yml`)
 
 Triggered on pushes to main branch affecting package files, or manually via workflow_dispatch:
 
-1. **Infrastructure** - Deploys Cloudflare tunnels using Pulumi
-2. **Kubernetes** - Connects to Tailscale, deploys K8s services
-3. **Routes** - Configures DNS records and tunnel routing
-4. **Email Tests** - Runs integration tests after deployment
-
-### Email Integration Tests (`email-tests.yml`)
-
-Hourly monitoring of email infrastructure:
-
-- Tests MX records for Fastmail
-- Validates SPF, DKIM (fm1-fm4), and DMARC records
-- Creates/closes GitHub issues based on test results
+1. **Test** - Type checks all packages, runs vitest suite
+2. **Deploy** (main branch only) - Deploys infra, k8s, and routes packages in sequence via Pulumi
 
 ### Schema Generation (`generate-schemas.yml`)
 
-Daily schema updates:
+Generates JSON schemas from Zod definitions on changes or daily schedule. Commits with `[skip ci]` tag.
 
-- Generates JSON schemas from Zod definitions
-- Commits with `[skip ci]` tag
+### App Version Updates (`update-apps.yml`)
+
+Daily check for new releases of deployed services (currently Navidrome). Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
 
 ### Ansible Deployment (`run-playbook.yml`)
 
-Triggered on Ansible changes:
+Triggered on ansible/ changes. Connects via Tailscale, runs playbooks, updates GitHub secrets.
 
-- Connects via Tailscale
-- Runs server provisioning playbooks
-- Updates GitHub secrets from kubeconfig
+### Container Builds (`build-files-container.yml`)
 
-### Version Updates (`update-apps.yml`)
-
-Daily scheduled workflow that checks for new versions of deployed services (e.g. Navidrome). Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
-
-### Container Builds
-
-- `build-files-container.yml` - File server container
+Builds and publishes the file server container on changes to `containers/files/`.
 
 ## Ansible Infrastructure
 
@@ -146,82 +117,57 @@ Server provisioning and configuration:
 Three-stage deployment targeting different host groups:
 
 1. **Common Configuration** (`hosts: all`)
-   - Base system setup for all servers
-   - User management and SSH hardening
-   - Essential tool installation (helix, mise, zsh, btop, broot)
+   - Base system setup, user management, SSH hardening
+   - Tool installation (helix, mise, zsh, btop, broot)
 
 2. **Homeserver Configuration** (`hosts: homeservers`)
-   - MicroK8s cluster setup with essential addons
+   - MicroK8s cluster setup with configurable addons
    - NFS and Samba file sharing
    - Syncthing for file synchronization
-   - Downloader services
+   - Media downloader services (yt-dlp, get-iplayer)
 
 3. **Tailnet Integration** (`hosts: tailnet`)
    - Tailscale VPN connectivity
-   - Automatic network mesh joining
 
-### Key Ansible Roles
+### Ansible Roles
 
-**`common/`** - Base system hardening and setup:
+- **`common/`** - System updates, package installation, SSH hardening
+- **`microk8s/`** - K8s cluster, addons (from config), service accounts, kubeconfig generation
+- **`users/`** - User accounts and SSH key management
+- **`github/`** - GitHub CLI and authentication setup
+- **`tailscale/`** - VPN mesh network connectivity
+- **`nfs/`** - Network file system exports
+- **`samba/`** - SMB file sharing
+- **`syncthing/`** - P2P file sync service
+- **`downloader/`** - Media download tools (yt-dlp, get-iplayer, aria2)
+- **`helix/`** - Helix editor installation
+- **`mise/`** - Tool version manager installation
 
-- System package updates (dist-upgrade)
-- Package installation via APT and Azlux repository
-- SSH hardening configurations
-- Python Kubernetes client setup
-
-**`microk8s/`** - Kubernetes cluster management:
-
-- MicroK8s installation via snap (stable channel)
-- Essential addons: community, dns, storage, helm, rbac, hostpath-storage, metrics-server
-- User group management for K8s access
-- Service account creation for GitHub CI/CD
-- Kubeconfig generation and secret extraction for CI
-- Tailscale integration for secure cluster access
-
-**`users/`** - User account and access management
-**`tailscale/`** - VPN network connectivity and mesh setup
-**`nfs/`** - Network file system for shared storage
-**`samba/`** - SMB file sharing services
-**`syncthing/`** - Peer-to-peer file synchronization
-
-### Configuration Management
+### Configuration
 
 - `group_vars/all.yml` - Global variables (username, tailscale settings)
-- `group_vars/homeservers.yml` - Homeserver-specific configuration
-- `group_vars/tailnet.yml` - Tailscale network settings
-- `inventory/hosts` - Server inventory and group definitions
-
-### GitHub Integration
-
-MicroK8s role generates:
-
-- Service accounts for GitHub Actions
-- Cluster admin tokens
-- Tailscale hostnames for cluster access
-- Secrets in `github-secrets.json` for CI/CD
+- `group_vars/homeservers.yml` - MicroK8s addons, syncthing, samba config
+- `group_vars/tailnet.yml` - Tailscale settings
+- `host_vars/oldboy.yml` - Server-specific shares and K8s config
+- `inventory/hosts` - Server inventory (secrets injected at runtime via CI)
 
 ## Container Services
 
-Custom service definitions:
-
-- File server container using Caddy with CORS and compression
-- Dockerfile and nginx.conf for deployments
+- `containers/files/` - Nginx-based file server with CORS and compression
 
 ## Utility Scripts
 
-**`scripts/gen-schemas.ts`** - Converts Zod schemas to JSON Schema format, creates files in `schemas/` directory
-
-**`scripts/update-secrets`** - Updates GitHub repository secrets from `ansible/github-secrets.json`
+- **`scripts/gen-schemas.ts`** - Converts Zod schemas to JSON Schema format
+- **`scripts/update-secrets`** - Updates GitHub repository secrets from `ansible/github-secrets.json`
 
 ## Development Notes
 
 - Each package has its own `tsconfig.json` and `package.json`
-- **Use Bun instead of npm** for all tasks - commands should use `bun` prefix
-- Type checking must pass for all packages before commits via Lefthook
-- Biome handles code formatting and linting with specific style rules
-- Pre-commit hooks automatically format code and run type checks
-- The system is designed to run on minimal hardware (currently a 2014 MacBook Pro)
-- All external services are secured through Cloudflare's edge network
-- No direct firewall port exposure required due to tunnel architecture
+- **Use Bun for package management and script running**, but tests/Pulumi run on Node under the hood
+- Type checking must pass for all packages before commits (Lefthook)
+- Biome handles code formatting and linting
+- The system runs on minimal hardware (2014 MacBook Pro)
+- All external services secured through Cloudflare's edge network
+- No direct firewall port exposure - tunnel architecture only
 - Tailscale provides secure access to internal Kubernetes cluster
-- Secrets are managed through GitHub repository secrets and Pulumi configuration
+- Secrets managed through GitHub repository secrets and Pulumi configuration

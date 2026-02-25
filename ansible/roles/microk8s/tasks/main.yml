@@ -49,14 +49,7 @@
 
 - name: Enable microk8s addons
   ansible.builtin.command: "microk8s enable {{ item }}"
-  loop:
-    - community
-    - dns
-    - storage
-    - helm
-    - rbac
-    - hostpath-storage
-    - metrics-server
+  loop: "{{ microk8s.addons }}"
   when: item not in enabled_addons
   register: addon_enable_result
   changed_when: addon_enable_result is not skipped
