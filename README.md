@@ -1,8 +1,6 @@
 # JARITANET
 
-[![🧪 Tests](https://github.com/radiosilence/jaritanet/actions/workflows/test.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/test.yml)
-[![🚀 Deploy](https://github.com/radiosilence/jaritanet/actions/workflows/cd.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/cd.yml)
-[![📧 Email Tests](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/email-tests.yml)
+[![CI/CD](https://github.com/radiosilence/jaritanet/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/ci-cd.yml)
 
 Infrastructure-as-code monorepo for securely exposing Kubernetes services through Cloudflare Tunnels.
 
@@ -55,22 +53,17 @@ graph TB
 
 ## Package Structure
 
-**packages/infra** - Pulumi TypeScript package for Cloudflare Zero Trust tunnels
+**packages/infra** - Cloudflare Zero Trust tunnel infrastructure
+- Creates and manages secure tunnel endpoints via Cloudflare API
 
-- Establishes secure tunnel endpoints using Cloudflare API
-- Configures Cloudflare access policies and authentication
+**packages/k8s** - Kubernetes service deployments
+- Deploys services to MicroK8s via Tailscale VPN
+- Manages cloudflared daemon pods for tunnel connectivity
 
-**packages/k8s** - Pulumi TypeScript package for Kubernetes service deployment
-
-- Connects to MicroK8s clusters via Tailscale VPN
-- Deploys cloudflared daemon pods for tunnel connectivity
-- Manages Kubernetes service deployments with Helm charts
-
-**packages/routes** - Pulumi TypeScript package for DNS and tunnel routing
-
+**packages/routes** - DNS and tunnel routing
 - Maps external domains to internal services via Cloudflare DNS
 - Manages Bluesky protocol and Fastmail DNS records
-- Creates Cloudflare tunnel ingress rules for service routing
+- Creates tunnel ingress rules for service routing
 
 ## Deployment Flow
 
@@ -78,22 +71,27 @@ graph TB
 2. **Kubernetes** connects clusters and deploys services
 3. **Routes** configures DNS and ingress routing
 
-Traffic flows: `External Domain` → `Cloudflare` → `Tunnel` → `K8s Service`
+Traffic flows: `External Domain` -> `Cloudflare` -> `Tunnel` -> `K8s Service`
 
 ## Server Management
 
-Ansible playbooks provision and configure servers:
-
-- MicroK8s cluster setup with storage and networking
+Ansible playbooks provision and configure the homeserver:
+- MicroK8s cluster with storage and networking addons
 - Tailscale VPN for secure cluster access
-- File sharing via NFS and Samba
-- Automated service account creation for CI/CD
+- NFS and Samba file sharing
+- Syncthing for P2P file sync
+- SSH hardening and user management
+- CI/CD service account generation
 
 ## Development
 
 ```bash
-bun typecheck:infra  # Type check infrastructure
-bun typecheck:k8s    # Type check Kubernetes
-bun typecheck:routes # Type check routes
-./scripts/gen-schemas.ts  # Generate schemas
+bun install              # Install dependencies
+bun typecheck:infra      # Type check infrastructure
+bun typecheck:k8s        # Type check Kubernetes
+bun typecheck:routes     # Type check routes
+bun test                 # Run tests
+./scripts/gen-schemas.ts # Generate JSON schemas from Zod definitions
 ```
+
+Pre-commit hooks (via Lefthook) run Biome formatting/linting and type checking on all packages.
