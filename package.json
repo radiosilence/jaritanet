@@ -7,7 +7,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "lint:biome:fix": "npx @biomejs/biome check --write",
+    "lint:biome:fix": "bunx @biomejs/biome check --write",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
     "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
     "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
@@ -15,11 +15,11 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.15",
+    "@biomejs/biome": "^2.4.4",
     "@tsconfig/bun": "^1.0.10",
-    "@tsconfig/node-ts": "^23.6.3",
+    "@tsconfig/node-ts": "^23.6.4",
     "@tsconfig/node24": "^24.0.4",
-    "@types/node": "^25.2.3",
+    "@types/node": "^25.3.0",
     "@vitest/ui": "^4.0.18",
     "lefthook": "^2.1.1",
     "typescript": "^5.9.3",
@@ -27,10 +27,10 @@
   },
   "dependencies": {
     "@pulumi/cloudflare": "6.4.1",
-    "@pulumi/kubernetes": "^4.25.0",
-    "@pulumi/pulumi": "^3.220.0",
+    "@pulumi/kubernetes": "^4.26.0",
+    "@pulumi/pulumi": "^3.223.0",
     "@pulumi/random": "^4.19.1",
-    "zod": "^4.3.5"
+    "zod": "^4.3.6"
   },
   "workspaces": [
     "packages/*"
