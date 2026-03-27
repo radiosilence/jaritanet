@@ -17,7 +17,7 @@ on:
 jobs:
   publish:
     name: Build and Publish
-    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@main
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@28e962429b331f0e39905f70ae10211b1db66349 # main
     with:
       working-directory: "./containers/files"
       image: "jaritanet-files"

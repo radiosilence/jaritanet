@@ -54,10 +54,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Environment
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
 
       - name: Install Dependencies
         run: bun install
@@ -78,16 +78,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Environment
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
 
       - name: Install Dependencies
         run: bun install
 
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v3
+        uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade # v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
@@ -103,7 +103,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Infrastructure
-        uses: pulumi/actions@v6
+        uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
         with:
           command: up
           stack-name: radiosilence/jaritanet/main
@@ -127,7 +127,7 @@ jobs:
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
 
       - name: Deploy Kubernetes
-        uses: pulumi/actions@v6
+        uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
         with:
           command: up
           stack-name: radiosilence/jaritanet-k8s/main
@@ -148,7 +148,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Routes
-        uses: pulumi/actions@v6
+        uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
         with:
           command: up
           stack-name: radiosilence/jaritanet-routes/main
