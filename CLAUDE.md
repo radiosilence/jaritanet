@@ -29,8 +29,8 @@ JARITANET is an infrastructure-as-code monorepo that uses Pulumi to deploy a com
 - `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
 - `bun run lint` - Lint code with oxlint
 - `bun run lint:fix` - Lint and auto-fix with oxlint
-- `bun run format` - Format code with oxfmt
-- `bun run format:check` - Check formatting with oxfmt
+- `bun run fmt` - Format code with oxfmt
+- `bun run fmt:check` - Check formatting with oxfmt
 
 ### Git Hooks
 
@@ -72,7 +72,7 @@ The codebase is organized as three Pulumi packages with strict deployment orderi
 
 ### Configuration System
 
-All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi.*.yaml files. Schema definitions are in `*.schemas.ts` files and can be regenerated using the gen-schemas script.
+All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi._.yaml files. Schema definitions are in `_.schemas.ts` files and can be regenerated using the gen-schemas script.
 
 ### Cross-Package Dependencies
 
