@@ -8,6 +8,7 @@ describe("cloudflared template", () => {
   beforeAll(() => {
     // Set up mocks first
     pulumi.runtime.setMocks({
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
       newResource: (
         args: pulumi.runtime.MockResourceArgs,
       ): {
@@ -24,7 +25,6 @@ describe("cloudflared template", () => {
           },
         },
       }),
-      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
     });
 
     mockProvider = new k8s.Provider("test-provider", {
@@ -35,8 +35,8 @@ describe("cloudflared template", () => {
   it("creates cloudflared deployment with basic configuration", async () => {
     const { createCloudflared } = await import("./cloudflared.ts");
     const cloudflaredArgs = {
-      replicas: 1,
       image: "cloudflare/cloudflared:latest",
+      replicas: 1,
       resources: {
         limits: {
           cpu: "100m",
@@ -66,8 +66,8 @@ describe("cloudflared template", () => {
   it("creates cloudflared with correct command args", async () => {
     const { createCloudflared } = await import("./cloudflared.ts");
     const cloudflaredArgs = {
-      replicas: 2,
       image: "cloudflare/cloudflared:2024.1.0",
+      replicas: 2,
       resources: {
         limits: {
           cpu: "200m",
@@ -109,8 +109,8 @@ describe("cloudflared template", () => {
   it("creates cloudflared with health probes", async () => {
     const { createCloudflared } = await import("./cloudflared.ts");
     const cloudflaredArgs = {
-      replicas: 1,
       image: "cloudflare/cloudflared:latest",
+      replicas: 1,
       resources: {
         limits: {
           cpu: "100m",

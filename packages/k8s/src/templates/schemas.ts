@@ -1,7 +1,6 @@
 import * as z from "zod";
 
 export const HostVolumeSchema = z.object({
-  name: z.string(),
   hostPath: z.string(),
   hostPathType: z
     .enum([
@@ -15,23 +14,24 @@ export const HostVolumeSchema = z.object({
     ])
     .default("Directory"),
   mountPath: z.string(),
+  name: z.string(),
   readOnly: z.boolean().default(true),
 });
 
 export const PersistenceSchema = z.object({
-  name: z.string(),
-  storageClassName: z.string().default("local-storage"),
-  readOnly: z.boolean().default(true),
-  storage: z.string(),
   hostPath: z.string(),
   mountPath: z.string(),
+  name: z.string(),
   nodeAffinityHostname: z.string(),
+  readOnly: z.boolean().default(true),
+  storage: z.string(),
+  storageClassName: z.string().default("local-storage"),
 });
 
 export const ImageSchema = z.object({
+  pullPolicy: z.string().optional(),
   repository: z.string(),
   tag: z.string(),
-  pullPolicy: z.string().optional(),
 });
 
 export const LimitsSchema = z.object({
@@ -44,7 +44,7 @@ export const StrategySchema = z.object({
 });
 
 export const SecurityContextSchema = z.object({
-  runAsUser: z.number().default(1000),
-  runAsGroup: z.number().default(1000),
   fsGroup: z.number().default(1000),
+  runAsGroup: z.number().default(1000),
+  runAsUser: z.number().default(1000),
 });

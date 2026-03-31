@@ -7,7 +7,6 @@ export function createTunnelConfig(
 ) {
   new cloudflare.ZeroTrustTunnelCloudflaredConfig("tunnel-config", {
     accountId,
-    tunnelId,
     config: {
       ingresses: [
         ...ingresses,
@@ -16,5 +15,6 @@ export function createTunnelConfig(
         },
       ],
     },
+    tunnelId,
   });
 }

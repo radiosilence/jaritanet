@@ -6,9 +6,7 @@
       "$ref": "#/$defs/__schema0"
     }
   },
-  "required": [
-    "config"
-  ],
+  "required": ["config"],
   "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/routes.json",
   "title": "Routes Configuration Schema",
   "description": "Schema for routes configuration",
@@ -24,9 +22,7 @@
               "description": "Cloudflare account ID."
             }
           },
-          "required": [
-            "accountId"
-          ]
+          "required": ["accountId"]
         },
         "jaritanet-routes:zones": {
           "type": "array",
@@ -49,11 +45,7 @@
                 "description": "DNS modules to apply."
               }
             },
-            "required": [
-              "zoneId",
-              "name",
-              "modules"
-            ]
+            "required": ["zoneId", "name", "modules"]
           }
         },
         "jaritanet-routes:serviceStacks": {
@@ -68,9 +60,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "path"
-            ]
+            "required": ["path"]
           }
         },
         "jaritanet-routes:bluesky": {
@@ -81,9 +71,7 @@
               "description": "Bluesky requires a DID to be set in the DNS records for authentication."
             }
           },
-          "required": [
-            "did"
-          ]
+          "required": ["did"]
         },
         "jaritanet-routes:fastmail": {
           "type": "object",
@@ -127,9 +115,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ]
+          "required": ["secure"]
         }
       },
       "required": [
@@ -143,10 +129,7 @@
     },
     "__schema1": {
       "type": "string",
-      "enum": [
-        "bluesky",
-        "fastmail"
-      ]
+      "enum": ["bluesky", "fastmail"]
     }
   }
 }

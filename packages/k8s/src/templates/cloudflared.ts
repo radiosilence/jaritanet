@@ -32,6 +32,7 @@ export function createCloudflared(
           spec: {
             containers: [
               {
+                args: ["--token", token],
                 command: [
                   "cloudflared",
                   "tunnel",
@@ -40,10 +41,8 @@ export function createCloudflared(
                   "0.0.0.0:2000",
                   "run",
                 ],
-                args: ["--token", token],
                 image,
                 imagePullPolicy: "Always",
-                name: "cloudflared",
                 livenessProbe: {
                   httpGet: {
                     path: "/ready",
@@ -53,6 +52,7 @@ export function createCloudflared(
                   initialDelaySeconds: 10,
                   periodSeconds: 10,
                 },
+                name: "cloudflared",
                 resources,
               },
             ],

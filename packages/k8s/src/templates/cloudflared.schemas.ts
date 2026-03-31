@@ -1,8 +1,8 @@
 import * as z from "zod";
 
 export const CloudflaredArgsSchema = z.object({
-  replicas: z.uint32(),
   image: z.string().default("cloudflare/cloudflared:latest"),
+  replicas: z.uint32(),
   resources: z
     .object({
       limits: z.object({

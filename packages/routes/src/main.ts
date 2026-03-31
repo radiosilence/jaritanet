@@ -28,10 +28,9 @@ export default async function () {
     const stackRef = new pulumi.StackReference(`${path}/${stack}`);
     const services = await servicesRef(stackRef);
 
-    const servicesArray = Object.entries(services).map(([name, service]) => ({
-      name,
-      ...service,
-    }));
+    const servicesArray = Object.entries(services).map(([name, service]) =>
+      Object.assign({ name }, service),
+    );
 
     const ingresses = servicesArray.map(({ hostname, service }) =>
       getServiceIngress(hostname, service),

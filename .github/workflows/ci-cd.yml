@@ -62,6 +62,12 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
+      - name: Lint
+        run: bun run lint
+
+      - name: Format Check
+        run: bun run format:check
+
       - name: Type Check
         run: |
           bun run typecheck:infra

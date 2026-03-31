@@ -12,9 +12,9 @@ import { conf } from "../conf.ts";
 export function bluesky(zone: z.infer<typeof ZoneConfSchema>) {
   new cloudflare.DnsRecord(`${zone.name}-bs-did`, {
     ...zone,
-    type: "TXT",
-    name: "_atproto",
     content: `"did=${conf.bluesky.did}"`,
+    name: "_atproto",
     ttl: 1,
+    type: "TXT",
   });
 }

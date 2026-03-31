@@ -10,15 +10,15 @@ import {
 } from "./schemas.ts";
 
 export const ServiceArgsSchema = z.object({
-  image: ImageSchema,
-  replicas: z.uint32().default(1),
   env: z.record(z.string(), z.string()).default({}),
-  httpPort: z.uint32().default(80),
-  ports: z.array(z.tuple([z.number(), z.number()])).default([]),
-  limits: LimitsSchema.optional(),
-  hostVolumes: z.array(HostVolumeSchema).default([]),
-  persistence: z.array(PersistenceSchema).default([]),
   healthCheck: HealthCheckConfigSchema.optional(),
-  strategy: StrategySchema.optional(),
+  hostVolumes: z.array(HostVolumeSchema).default([]),
+  httpPort: z.uint32().default(80),
+  image: ImageSchema,
+  limits: LimitsSchema.optional(),
+  persistence: z.array(PersistenceSchema).default([]),
+  ports: z.array(z.tuple([z.number(), z.number()])).default([]),
+  replicas: z.uint32().default(1),
   securityContext: SecurityContextSchema.optional(),
+  strategy: StrategySchema.optional(),
 });

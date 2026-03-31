@@ -27,13 +27,17 @@ JARITANET is an infrastructure-as-code monorepo that uses Pulumi to deploy a com
 - `bun run typecheck:routes` - Type check routes package
 - `bun run test` - Run tests (uses vitest on Node - do NOT use `bun test` directly, Pulumi needs Node's v8)
 - `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
-- `bunx @biomejs/biome check --write` - Format and lint code
+- `bun run lint` - Lint code with oxlint
+- `bun run lint:fix` - Lint and auto-fix with oxlint
+- `bun run format` - Format code with oxfmt
+- `bun run format:check` - Check formatting with oxfmt
 
 ### Git Hooks
 
 The project uses Lefthook for pre-commit validation:
 
-- Runs Biome formatting and linting on staged files
+- Runs oxlint with auto-fix on staged files
+- Runs oxfmt formatting on staged files
 - Runs type checking on all three packages before commit
 
 ### Package Management
@@ -165,7 +169,7 @@ Three-stage deployment targeting different host groups:
 - Each package has its own `tsconfig.json` and `package.json`
 - **Use Bun for package management and script running**, but tests/Pulumi run on Node under the hood
 - Type checking must pass for all packages before commits (Lefthook)
-- Biome handles code formatting and linting
+- oxlint handles linting, oxfmt handles code formatting
 - The system runs on minimal hardware (2014 MacBook Pro)
 - All external services secured through Cloudflare's edge network
 - No direct firewall port exposure - tunnel architecture only

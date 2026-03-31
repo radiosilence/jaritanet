@@ -10,7 +10,7 @@ const CloudflareApiSchema = z.object({
 
 try {
   await fs.lstat(SCHEMAS_PATH);
-} catch (_e) {
+} catch {
   await fs.mkdir(SCHEMAS_PATH);
 }
 
@@ -18,7 +18,7 @@ async function dumpSchema([name, schema]: [name: string, schema: z.ZodType]) {
   await fs.writeFile(
     `${SCHEMAS_PATH}/${name}.json`,
     JSON.stringify(
-      z.toJSONSchema(schema, { reused: "ref", io: "input" }),
+      z.toJSONSchema(schema, { io: "input", reused: "ref" }),
       null,
       2,
     ),
@@ -37,9 +37,9 @@ const schemas = {
           }),
         })
         .meta({
+          description: "Schema for infra configuration",
           id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
           title: "Infra Configuration Schema",
-          description: "Schema for infra configuration",
         }),
   ),
   k8s: await import("../packages/k8s/src/conf.schemas.ts").then(
@@ -54,9 +54,9 @@ const schemas = {
           }),
         })
         .meta({
+          description: "Schema for Kubernetes configuration",
           id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
           title: "Kubernetes Configuration Schema",
-          description: "Schema for Kubernetes configuration",
         }),
   ),
   routes: await import("../packages/routes/src/conf.schemas.ts").then(
@@ -79,9 +79,9 @@ const schemas = {
           }),
         })
         .meta({
+          description: "Schema for routes configuration",
           id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/routes.json",
           title: "Routes Configuration Schema",
-          description: "Schema for routes configuration",
         }),
   ),
 } as const;

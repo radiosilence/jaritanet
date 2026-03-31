@@ -7,11 +7,10 @@ interface KubeConfigArgs {
 
 export const getKubeconfig = ({
   host,
-  port = 16443,
+  port = 16_443,
   token,
 }: KubeConfigArgs) => ({
   apiVersion: "v1",
-  kind: "Config",
   clusters: [
     {
       cluster: {
@@ -31,6 +30,7 @@ export const getKubeconfig = ({
     },
   ],
   "current-context": "microk8s",
+  kind: "Config",
   users: [
     {
       name: "admin",

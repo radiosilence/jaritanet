@@ -9,7 +9,7 @@ import { createCloudflared } from "./templates/cloudflared.ts";
 import { createService } from "./templates/service.ts";
 
 export default async function () {
-  const namespace = conf.namespace;
+  const { namespace } = conf;
 
   const kubeconfig = JSON.stringify(
     getKubeconfig({
@@ -31,8 +31,8 @@ export default async function () {
     {
       customTimeouts: {
         create: "5m",
-        update: "5m",
         delete: "5m",
+        update: "5m",
       },
     },
   );
@@ -41,14 +41,14 @@ export default async function () {
     namespace,
     {
       metadata: {
-        name: namespace,
+        annotations: {
+          "pulumi.com/managed-by": conf.managedBy,
+        },
         labels: {
           name: namespace,
           "kubernetes.io/metadata.name": namespace,
         },
-        annotations: {
-          "pulumi.com/managed-by": conf.managedBy,
-        },
+        name: namespace,
       },
     },
     { provider },
@@ -107,8 +107,8 @@ export default async function () {
   );
 
   return {
-    services,
-    namespace,
     cloudflaredStatus: cloudflared.status,
+    namespace,
+    services,
   };
 }
