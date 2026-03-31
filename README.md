@@ -54,13 +54,16 @@ graph TB
 ## Package Structure
 
 **packages/infra** - Cloudflare Zero Trust tunnel infrastructure
+
 - Creates and manages secure tunnel endpoints via Cloudflare API
 
 **packages/k8s** - Kubernetes service deployments
+
 - Deploys services to MicroK8s via Tailscale VPN
 - Manages cloudflared daemon pods for tunnel connectivity
 
 **packages/routes** - DNS and tunnel routing
+
 - Maps external domains to internal services via Cloudflare DNS
 - Manages Bluesky protocol and Fastmail DNS records
 - Creates tunnel ingress rules for service routing
@@ -76,6 +79,7 @@ Traffic flows: `External Domain` -> `Cloudflare` -> `Tunnel` -> `K8s Service`
 ## Server Management
 
 Ansible playbooks provision and configure the homeserver:
+
 - MicroK8s cluster with storage and networking addons
 - Tailscale VPN for secure cluster access
 - NFS and Samba file sharing
@@ -89,8 +93,8 @@ Ansible playbooks provision and configure the homeserver:
 bun install              # Install dependencies
 bun run lint             # Lint with oxlint
 bun run lint:fix         # Lint and auto-fix
-bun run format           # Format with oxfmt
-bun run format:check     # Check formatting
+bun run fmt           # Format with oxfmt
+bun run fmt:check     # Check formatting
 bun run typecheck:infra  # Type check infrastructure
 bun run typecheck:k8s    # Type check Kubernetes
 bun run typecheck:routes # Type check routes

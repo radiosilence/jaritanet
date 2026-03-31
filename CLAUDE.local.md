@@ -198,7 +198,7 @@ When your work is done, follow this checklist — **step 4 is REQUIRED**:
 
 ```
 [ ] 1. Run quality gates (ALL must pass):
-       - npm projects: npm run lint && npm run format && npm test
+       - npm projects: npm run lint && npm run fmt && npm test
        - Go projects:  go test ./... && go vet ./...
 [ ] 2. Stage changes:     git add <files>
 [ ] 3. Commit changes:    git commit -m "msg (issue-id)"
