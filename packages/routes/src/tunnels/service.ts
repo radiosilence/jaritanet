@@ -6,8 +6,8 @@ export function getRecord(hostname: string) {
   const parts = hostname.split(".");
 
   return {
-    zoneName: parts.slice(-2).join("."),
     recordName: parts.length === 2 ? "@" : parts.slice(0, -2).join("."),
+    zoneName: parts.slice(-2).join("."),
   };
 }
 
@@ -17,10 +17,10 @@ export function getServiceIngress(
 ): cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngress {
   return {
     hostname,
-    service,
     originRequest: {
       connectTimeout: 120,
     },
+    service,
   };
 }
 
@@ -32,11 +32,11 @@ export function createZone(
   const { recordName: name } = getRecord(hostname);
 
   return new cloudflare.DnsRecord(`${hostname}-tunneled-record`, {
-    zoneId,
-    name,
-    type: "CNAME",
     content,
+    name,
     proxied,
     ttl: 1,
+    type: "CNAME",
+    zoneId,
   });
 }

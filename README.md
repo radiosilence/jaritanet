@@ -87,11 +87,15 @@ Ansible playbooks provision and configure the homeserver:
 
 ```bash
 bun install              # Install dependencies
-bun typecheck:infra      # Type check infrastructure
-bun typecheck:k8s        # Type check Kubernetes
-bun typecheck:routes     # Type check routes
-bun test                 # Run tests
+bun run lint             # Lint with oxlint
+bun run lint:fix         # Lint and auto-fix
+bun run format           # Format with oxfmt
+bun run format:check     # Check formatting
+bun run typecheck:infra  # Type check infrastructure
+bun run typecheck:k8s    # Type check Kubernetes
+bun run typecheck:routes # Type check routes
+bun run test             # Run tests
 ./scripts/gen-schemas.ts # Generate JSON schemas from Zod definitions
 ```
 
-Pre-commit hooks (via Lefthook) run Biome formatting/linting and type checking on all packages.
+Pre-commit hooks (via Lefthook) run oxlint, oxfmt, and type checking on all packages.

@@ -7,15 +7,15 @@ export const CloudflareConfSchema = z.object({
 });
 
 export const CloudflaredConfSchema = z.object({
-  name: z.string(),
   args: CloudflaredArgsSchema,
+  name: z.string(),
 });
 
 export const ServiceConfSchema = z.object({
-  name: z.string(),
-  hostname: z.string().optional(),
-  proxied: z.boolean().default(true),
   args: ServiceArgsSchema,
+  hostname: z.string().optional(),
+  name: z.string(),
+  proxied: z.boolean().default(true),
 });
 
 export const ServicesMapSchema = z.record(
@@ -26,9 +26,9 @@ export const ServicesMapSchema = z.record(
 export const K8sConfSchema = z.object({
   cloudflare: CloudflareConfSchema,
   cloudflared: CloudflaredConfSchema,
-  services: ServicesMapSchema,
-  namespace: z.string().default("jaritanet"),
+  clusterDomain: z.string().default("cluster.local"),
   infraStackPath: z.string().default("radiosilence/jaritanet"),
   managedBy: z.string().default("jaritanet"),
-  clusterDomain: z.string().default("cluster.local"),
+  namespace: z.string().default("jaritanet"),
+  services: ServicesMapSchema,
 });

@@ -8,17 +8,11 @@ export const HealthStatusSchema = z.enum([
 ]);
 
 export const HealthCheckConfigSchema = z.object({
-  path: z.string().default("/_health"),
-  port: z.uint32().optional(),
-  initialDelaySeconds: z.uint32().default(30),
-  periodSeconds: z.uint32().default(10),
-  timeoutSeconds: z.uint32().default(5),
-  failureThreshold: z.uint32().default(3),
-  successThreshold: z.uint32().default(1),
   enableLiveness: z.boolean().default(true),
   enableReadiness: z.boolean().default(true),
   enableStartup: z.boolean().default(false),
   expectedStatus: HealthStatusSchema.default("UP"),
+  failureThreshold: z.uint32().default(3),
   followRedirects: z.boolean().default(false),
   httpHeaders: z
     .array(
@@ -33,4 +27,10 @@ export const HealthCheckConfigSchema = z.object({
         value: "k8s",
       },
     ]),
+  initialDelaySeconds: z.uint32().default(30),
+  path: z.string().default("/_health"),
+  periodSeconds: z.uint32().default(10),
+  port: z.uint32().optional(),
+  successThreshold: z.uint32().default(1),
+  timeoutSeconds: z.uint32().default(5),
 });

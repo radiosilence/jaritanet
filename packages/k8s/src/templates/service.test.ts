@@ -8,6 +8,7 @@ describe("service template", () => {
   beforeAll(() => {
     // Set up mocks first
     pulumi.runtime.setMocks({
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
       newResource: (
         args: pulumi.runtime.MockResourceArgs,
       ): {
@@ -24,7 +25,6 @@ describe("service template", () => {
           },
         },
       }),
-      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
     });
 
     mockProvider = new k8s.Provider("test-provider", {
@@ -35,13 +35,13 @@ describe("service template", () => {
   it("creates service with basic configuration", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = {
-      image: { repository: "nginx", tag: "latest" },
-      replicas: 1,
       env: {},
-      httpPort: 80,
-      ports: [],
       hostVolumes: [],
+      httpPort: 80,
+      image: { repository: "nginx", tag: "latest" },
       persistence: [],
+      ports: [],
+      replicas: 1,
     };
 
     const service = createService(mockProvider, "test-service", serviceArgs);
@@ -56,13 +56,13 @@ describe("service template", () => {
   it("creates service with environment variables", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = {
-      image: { repository: "nginx", tag: "latest" },
-      replicas: 1,
       env: { NODE_ENV: "production", PORT: "3000" },
-      httpPort: 3000,
-      ports: [],
       hostVolumes: [],
+      httpPort: 3000,
+      image: { repository: "nginx", tag: "latest" },
       persistence: [],
+      ports: [],
+      replicas: 1,
     };
 
     const service = createService(mockProvider, "test-app", serviceArgs);
@@ -73,12 +73,10 @@ describe("service template", () => {
   it("creates service with persistence volumes", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = {
-      image: { repository: "postgres", tag: "14" },
-      replicas: 1,
       env: {},
-      httpPort: 5432,
-      ports: [],
       hostVolumes: [],
+      httpPort: 5432,
+      image: { repository: "postgres", tag: "14" },
       persistence: [
         {
           name: "data",
@@ -90,6 +88,8 @@ describe("service template", () => {
           hostPath: "/data/postgres",
         },
       ],
+      ports: [],
+      replicas: 1,
     };
 
     const service = createService(mockProvider, "postgres", serviceArgs);
@@ -100,13 +100,7 @@ describe("service template", () => {
   it("creates service with health checks", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = {
-      image: { repository: "nginx", tag: "latest" },
-      replicas: 1,
       env: {},
-      httpPort: 80,
-      ports: [],
-      hostVolumes: [],
-      persistence: [],
       healthCheck: {
         path: "/health",
         port: 80,
@@ -122,6 +116,12 @@ describe("service template", () => {
         followRedirects: false,
         httpHeaders: [],
       },
+      hostVolumes: [],
+      httpPort: 80,
+      image: { repository: "nginx", tag: "latest" },
+      persistence: [],
+      ports: [],
+      replicas: 1,
     };
 
     const service = createService(mockProvider, "web-app", serviceArgs);
@@ -132,17 +132,17 @@ describe("service template", () => {
   it("creates service with resource limits", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = {
-      image: { repository: "nginx", tag: "latest" },
-      replicas: 2,
       env: {},
-      httpPort: 80,
-      ports: [],
       hostVolumes: [],
-      persistence: [],
+      httpPort: 80,
+      image: { repository: "nginx", tag: "latest" },
       limits: {
         cpu: "500m",
         memory: "512Mi",
       },
+      persistence: [],
+      ports: [],
+      replicas: 2,
     };
 
     const service = createService(mockProvider, "limited-app", serviceArgs);

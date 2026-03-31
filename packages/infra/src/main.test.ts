@@ -12,6 +12,7 @@ vi.mock("./conf.ts", () => ({
 beforeAll(() => {
   // Set runtime mocks
   pulumi.runtime.setMocks({
+    call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
     newResource: (args: pulumi.runtime.MockResourceArgs) => ({
       id: `${args.inputs.name || "test"}_id`,
       state: {
@@ -19,7 +20,6 @@ beforeAll(() => {
         id: `${args.inputs.name || "test"}_id`,
       },
     }),
-    call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
   });
 });
 

@@ -41,13 +41,10 @@ export function createService(
               annotations,
             },
             spec: {
+              accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
               capacity: {
                 storage,
               },
-              volumeMode: "Filesystem",
-              accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
-              persistentVolumeReclaimPolicy: "Delete",
-              storageClassName,
               local: {
                 path: hostPath,
               },
@@ -66,6 +63,9 @@ export function createService(
                   ],
                 },
               },
+              persistentVolumeReclaimPolicy: "Delete",
+              storageClassName,
+              volumeMode: "Filesystem",
             },
           },
           { provider },
@@ -86,10 +86,10 @@ export function createService(
               annotations,
             },
             spec: {
-              storageClassName,
-              volumeName: pvs[key]?.metadata.name,
               accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
               resources: { requests: { storage } },
+              storageClassName,
+              volumeName: pvs[key]?.metadata.name,
             },
           },
           { provider },
@@ -101,11 +101,10 @@ export function createService(
     `${name}-service`,
     {
       metadata: {
-        name: `${name}-service`,
         annotations,
+        name: `${name}-service`,
       },
       spec: {
-        selector: { app: name },
         ports: [
           {
             protocol: "TCP",
@@ -113,6 +112,7 @@ export function createService(
             targetPort: httpPort,
           },
         ],
+        selector: { app: name },
       },
     },
     { provider },
@@ -132,24 +132,10 @@ export function createService(
         strategy,
         template: {
           metadata: {
-            labels: { app: name },
             annotations,
+            labels: { app: name },
           },
           spec: {
-            securityContext,
-            volumes: [
-              ...hostVolumes.map(({ name, hostPath, hostPathType }) => ({
-                name,
-                hostPath: {
-                  path: hostPath,
-                  type: hostPathType,
-                },
-              })),
-              ...Object.entries(pvcs).map(([name, pvc]) => ({
-                name,
-                persistentVolumeClaim: { claimName: pvc.metadata.name },
-              })),
-            ],
             containers: [
               {
                 name,
@@ -237,11 +223,25 @@ export function createService(
                 },
               },
             ],
+            securityContext,
+            volumes: [
+              ...hostVolumes.map(({ name, hostPath, hostPathType }) => ({
+                name,
+                hostPath: {
+                  path: hostPath,
+                  type: hostPathType,
+                },
+              })),
+              ...Object.entries(pvcs).map(([name, pvc]) => ({
+                name,
+                persistentVolumeClaim: { claimName: pvc.metadata.name },
+              })),
+            ],
           },
         },
       },
     },
-    { provider, deleteBeforeReplace: persistence.length > 0 },
+    { deleteBeforeReplace: persistence.length > 0, provider },
   );
 
   return service;

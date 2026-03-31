@@ -5,6 +5,7 @@ describe("service routing utilities", () => {
   beforeAll(() => {
     // Set up mocks first
     pulumi.runtime.setMocks({
+      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
       newResource: (
         args: pulumi.runtime.MockResourceArgs,
       ): {
@@ -17,7 +18,6 @@ describe("service routing utilities", () => {
           id: `${args.inputs.name || args.name || "test"}_id`,
         },
       }),
-      call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
     });
   });
 
@@ -75,14 +75,14 @@ describe("service routing utilities", () => {
     it("creates DNS record with correct configuration", async () => {
       const { createZone } = await import("./service.ts");
       const zoneConf = {
-        zoneId: "test-zone-id",
-        name: "example.com",
         modules: [] as ("bluesky" | "fastmail")[],
+        name: "example.com",
+        zoneId: "test-zone-id",
       };
       const serviceConf = {
-        service: "http://api-service:80",
         hostname: "api.example.com",
         proxied: true,
+        service: "http://api-service:80",
       };
 
       const record = createZone("tunnel.example.com", zoneConf, serviceConf);
@@ -107,14 +107,14 @@ describe("service routing utilities", () => {
     it("creates apex domain record", async () => {
       const { createZone } = await import("./service.ts");
       const zoneConf = {
-        zoneId: "test-zone-id",
-        name: "example.com",
         modules: [] as ("bluesky" | "fastmail")[],
+        name: "example.com",
+        zoneId: "test-zone-id",
       };
       const serviceConf = {
-        service: "http://example-service:80",
         hostname: "example.com",
         proxied: false,
+        service: "http://example-service:80",
       };
 
       const record = createZone("tunnel.example.com", zoneConf, serviceConf);
