@@ -6,10 +6,12 @@
       "$ref": "#/$defs/__schema0"
     }
   },
-  "required": ["config"],
+  "required": [
+    "config"
+  ],
+  "description": "Schema for routes configuration",
   "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/routes.json",
   "title": "Routes Configuration Schema",
-  "description": "Schema for routes configuration",
   "$defs": {
     "__schema0": {
       "type": "object",
@@ -22,30 +24,36 @@
               "description": "Cloudflare account ID."
             }
           },
-          "required": ["accountId"]
+          "required": [
+            "accountId"
+          ]
         },
         "jaritanet-routes:zones": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "zoneId": {
-                "type": "string",
-                "description": "The Cloudflare ID of the zone."
-              },
-              "name": {
-                "type": "string",
-                "description": "The name of the zone."
-              },
               "modules": {
                 "type": "array",
                 "items": {
                   "$ref": "#/$defs/__schema1"
                 },
                 "description": "DNS modules to apply."
+              },
+              "name": {
+                "type": "string",
+                "description": "The name of the zone."
+              },
+              "zoneId": {
+                "type": "string",
+                "description": "The Cloudflare ID of the zone."
               }
             },
-            "required": ["zoneId", "name", "modules"]
+            "required": [
+              "modules",
+              "name",
+              "zoneId"
+            ]
           }
         },
         "jaritanet-routes:serviceStacks": {
@@ -60,7 +68,9 @@
                 "type": "string"
               }
             },
-            "required": ["path"]
+            "required": [
+              "path"
+            ]
           }
         },
         "jaritanet-routes:bluesky": {
@@ -71,21 +81,17 @@
               "description": "Bluesky requires a DID to be set in the DNS records for authentication."
             }
           },
-          "required": ["did"]
+          "required": [
+            "did"
+          ]
         },
         "jaritanet-routes:fastmail": {
           "type": "object",
           "properties": {
-            "mxDomain": {
-              "type": "string"
-            },
             "dkimDomain": {
               "type": "string"
             },
             "dkimSubdomain": {
-              "type": "string"
-            },
-            "dmarcSubdomain": {
               "type": "string"
             },
             "dmarcAggEmail": {
@@ -94,17 +100,23 @@
             "dmarcPolicy": {
               "type": "string"
             },
+            "dmarcSubdomain": {
+              "type": "string"
+            },
+            "mxDomain": {
+              "type": "string"
+            },
             "spfDomain": {
               "type": "string"
             }
           },
           "required": [
-            "mxDomain",
             "dkimDomain",
             "dkimSubdomain",
-            "dmarcSubdomain",
             "dmarcAggEmail",
             "dmarcPolicy",
+            "dmarcSubdomain",
+            "mxDomain",
             "spfDomain"
           ]
         },
@@ -115,7 +127,9 @@
               "type": "string"
             }
           },
-          "required": ["secure"]
+          "required": [
+            "secure"
+          ]
         }
       },
       "required": [
@@ -129,7 +143,10 @@
     },
     "__schema1": {
       "type": "string",
-      "enum": ["bluesky", "fastmail"]
+      "enum": [
+        "bluesky",
+        "fastmail"
+      ]
     }
   }
 }
