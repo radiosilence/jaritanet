@@ -8,7 +8,7 @@ const annotations = {
 
 export function createService(
   provider: k8s.Provider,
-  name: string,
+  serviceName: string,
   {
     env,
     healthCheck,
@@ -35,7 +35,7 @@ export function createService(
       }) => [
         key,
         new k8s.core.v1.PersistentVolume(
-          `${name}-${key}-pv`,
+          `${serviceName}-${key}-pv`,
           {
             metadata: {
               annotations,
@@ -80,7 +80,7 @@ export function createService(
       .map(({ name: key, storageClassName, readOnly, storage }) => [
         key,
         new k8s.core.v1.PersistentVolumeClaim(
-          `${name}-${key}-pvc`,
+          `${serviceName}-${key}-pvc`,
           {
             metadata: {
               annotations,
@@ -98,11 +98,11 @@ export function createService(
   );
 
   const service = new k8s.core.v1.Service(
-    `${name}-service`,
+    `${serviceName}-service`,
     {
       metadata: {
         annotations,
-        name: `${name}-service`,
+        name: `${serviceName}-service`,
       },
       spec: {
         ports: [
@@ -112,14 +112,14 @@ export function createService(
             targetPort: httpPort,
           },
         ],
-        selector: { app: name },
+        selector: { app: serviceName },
       },
     },
     { provider },
   );
 
   new k8s.apps.v1.Deployment(
-    `${name}-deployment`,
+    `${serviceName}-deployment`,
     {
       metadata: {
         annotations,
@@ -127,18 +127,18 @@ export function createService(
       spec: {
         replicas,
         selector: {
-          matchLabels: { app: name },
+          matchLabels: { app: serviceName },
         },
         strategy,
         template: {
           metadata: {
             annotations,
-            labels: { app: name },
+            labels: { app: serviceName },
           },
           spec: {
             containers: [
               {
-                name,
+                name: serviceName,
                 image: `${image.repository}:${image.tag}`,
                 imagePullPolicy: "Always",
                 ports: [
