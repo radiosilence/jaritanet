@@ -6,9 +6,7 @@
       "$ref": "#/$defs/__schema0"
     }
   },
-  "required": [
-    "config"
-  ],
+  "required": ["config"],
   "description": "Schema for Kubernetes configuration",
   "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
   "title": "Kubernetes Configuration Schema",
@@ -23,9 +21,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "accountId"
-          ]
+          "required": ["accountId"]
         },
         "jaritanet-k8s:services": {
           "type": "object",
@@ -66,12 +62,7 @@
                       "expectedStatus": {
                         "default": "UP",
                         "type": "string",
-                        "enum": [
-                          "UP",
-                          "DOWN",
-                          "UNKNOWN",
-                          "OUT_OF_SERVICE"
-                        ]
+                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"]
                       },
                       "failureThreshold": {
                         "default": 3,
@@ -101,10 +92,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "value"
-                          ]
+                          "required": ["name", "value"]
                         }
                       },
                       "initialDelaySeconds": {
@@ -175,11 +163,7 @@
                           "type": "boolean"
                         }
                       },
-                      "required": [
-                        "hostPath",
-                        "mountPath",
-                        "name"
-                      ]
+                      "required": ["hostPath", "mountPath", "name"]
                     }
                   },
                   "httpPort": {
@@ -201,10 +185,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "repository",
-                      "tag"
-                    ]
+                    "required": ["repository", "tag"]
                   },
                   "limits": {
                     "type": "object",
@@ -302,17 +283,12 @@
                       "type": {
                         "default": "RollingUpdate",
                         "type": "string",
-                        "enum": [
-                          "Recreate",
-                          "RollingUpdate"
-                        ]
+                        "enum": ["Recreate", "RollingUpdate"]
                       }
                     }
                   }
                 },
-                "required": [
-                  "image"
-                ]
+                "required": ["image"]
               },
               "hostname": {
                 "type": "string"
@@ -322,9 +298,7 @@
                 "type": "boolean"
               }
             },
-            "required": [
-              "args"
-            ]
+            "required": ["args"]
           }
         },
         "jaritanet-k8s:cloudflared": {
@@ -365,23 +339,16 @@
                       }
                     }
                   },
-                  "required": [
-                    "limits"
-                  ]
+                  "required": ["limits"]
                 }
               },
-              "required": [
-                "replicas"
-              ]
+              "required": ["replicas"]
             },
             "name": {
               "type": "string"
             }
           },
-          "required": [
-            "args",
-            "name"
-          ]
+          "required": ["args", "name"]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -390,9 +357,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ]
+          "required": ["secure"]
         }
       },
       "required": [
