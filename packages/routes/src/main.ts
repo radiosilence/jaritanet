@@ -24,10 +24,14 @@ export default async function () {
 
   const tunnel = await tunnelRef(infraStackRef);
 
-  for (const { path, stack = pulumi.getStack() } of conf.serviceStacks) {
-    const stackRef = new pulumi.StackReference(`${path}/${stack}`);
-    const services = await servicesRef(stackRef);
+  const stacks = await Promise.all(
+    conf.serviceStacks.map(async ({ path, stack = pulumi.getStack() }) => {
+      const stackRef = new pulumi.StackReference(`${path}/${stack}`);
+      return servicesRef(stackRef);
+    }),
+  );
 
+  for (const services of stacks) {
     const servicesArray = Object.entries(services).map(([name, service]) =>
       Object.assign({ name }, service),
     );
