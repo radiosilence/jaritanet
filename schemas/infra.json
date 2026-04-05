@@ -6,9 +6,7 @@
       "$ref": "#/$defs/__schema0"
     }
   },
-  "required": [
-    "config"
-  ],
+  "required": ["config"],
   "description": "Schema for infra configuration",
   "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
   "title": "Infra Configuration Schema",
@@ -23,9 +21,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "accountId"
-          ]
+          "required": ["accountId"]
         },
         "jaritanet:tunnel": {
           "type": "object",
@@ -34,9 +30,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "name"
-          ]
+          "required": ["name"]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -45,9 +39,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ]
+          "required": ["secure"]
         }
       },
       "required": [

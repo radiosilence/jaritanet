@@ -37,6 +37,9 @@ jobs:
       - name: Generate Schemas
         run: bun gen:schemas
 
+      - name: Format
+        run: bun run fmt
+
       - name: Commit Changes
         run: |
           git config --local user.email "action@github.com"
