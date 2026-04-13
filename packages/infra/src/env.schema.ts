@@ -8,5 +8,4 @@ export const EnvSchema = z.object({
   KUBE_API_PORT: z.string().min(1, "KUBE_API_PORT is required"),
   KUBE_HOST: z.string().min(1, "KUBE_HOST is required"),
   KUBE_TOKEN: z.string().min(1, "KUBE_TOKEN is required"),
-  OCI_TENANCY_OCID: z.string().optional(),
 });
