@@ -1,6 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf.ts";
+import { GatewayConfSchema } from "./conf.schemas.ts";
 import { env } from "./env.ts";
 import { getKubeconfig } from "./kubeconfig.ts";
 import {
@@ -8,6 +9,7 @@ import {
   createFastmailRecords,
   createServiceRecord,
 } from "./modules/dns.ts";
+import { createOciGateway } from "./modules/gateway-oci.ts";
 import { createGateway } from "./modules/gateway.ts";
 import {
   createIngress,
@@ -24,18 +26,24 @@ const dnsModules = {
 
 export default async function () {
   const { namespace } = conf;
+  const ratholeVersion = conf.gateway?.ratholeVersion ?? "v0.5.0";
 
-  // --- Gateway: Hetzner VPS + rathole (optional) ---
-  // If gateway config is provided, provision a VPS with rathole.
-  // If not, use externalIp for DNS and skip the tunnel entirely —
-  // traffic reaches Traefik directly (e.g. via router port forwarding).
+  // --- Gateway: auto-detect provider from available credentials ---
+  // Priority: Hetzner > OCI > externalIp > no gateway (direct hostPort)
   let dnsTarget: pulumi.Output<string> | undefined;
   let ratholeToken: pulumi.Output<string> | undefined;
+  let gatewayProvider: string | undefined;
 
-  if (conf.gateway) {
-    const gw = createGateway(conf.gateway);
+  if (env.HCLOUD_TOKEN) {
+    const gw = createGateway(conf.gateway ?? GatewayConfSchema.parse({}));
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
+    gatewayProvider = "hetzner";
+  } else if (env.OCI_TENANCY_OCID) {
+    const gw = createOciGateway(ratholeVersion);
+    dnsTarget = gw.vpsIp;
+    ratholeToken = gw.ratholeToken.result;
+    gatewayProvider = "oci";
   } else if (conf.externalIp) {
     dnsTarget = pulumi.output(conf.externalIp);
   }
@@ -89,7 +97,7 @@ export default async function () {
     { provider },
   );
 
-  // --- Ingress: Traefik (always) + rathole client (only with gateway) ---
+  // --- Ingress: Traefik always on hostPort 443 + rathole client if gateway exists ---
   createIngress(
     provider,
     namespace,
@@ -117,7 +125,6 @@ export default async function () {
     .map(([name, { args, hostname }]) => {
       const service = createService(provider, name, args);
 
-      // DNS A record -> VPS or external IP (if either is configured)
       if (dnsTarget) {
         const zoneName = hostname!.split(".").slice(-2).join(".");
         const zone = conf.zones.find((z) => z.name === zoneName);
@@ -126,13 +133,13 @@ export default async function () {
         }
       }
 
-      // Traefik IngressRoute for this service
       createIngressRoute(provider, name, hostname!, namespace);
 
       return [name, { hostname, service: service.metadata.name }] as const;
     });
 
   return {
+    ...(gatewayProvider && { gatewayProvider }),
     namespace,
     services: Object.fromEntries(services),
     ...(dnsTarget && { vpsIp: dnsTarget }),
