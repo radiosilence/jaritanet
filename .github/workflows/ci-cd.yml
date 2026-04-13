@@ -169,6 +169,13 @@ jobs:
           if [[ -n "$EXTERNAL_IP" ]]; then
             pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
           fi
+          if [[ -n "$OCI_TENANCY_OCID" ]]; then
+            pulumi config set oci:tenancyOcid "$OCI_TENANCY_OCID"
+            pulumi config set oci:userOcid "$OCI_USER_OCID"
+            pulumi config set oci:fingerprint "$OCI_FINGERPRINT"
+            pulumi config set --secret oci:privateKey "$OCI_PRIVATE_KEY"
+            pulumi config set oci:region "$OCI_REGION"
+          fi
         working-directory: packages/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
@@ -176,6 +183,11 @@ jobs:
           NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
           FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
 
       - name: Deploy
         uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
