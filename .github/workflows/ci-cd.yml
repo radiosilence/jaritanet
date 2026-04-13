@@ -19,6 +19,8 @@ on:
       - "packages/**"
       - "*.config.*"
       - package.json
+  schedule:
+    - cron: "*/30 * * * *"
   workflow_call:
     secrets:
       PULUMI_ACCESS_TOKEN:
@@ -53,6 +55,7 @@ concurrency:
 jobs:
   test:
     name: Test
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -79,7 +82,11 @@ jobs:
   deploy:
     name: Deploy
     needs: test
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    if: |
+      always() &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -98,6 +105,18 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
+      - name: Detect Server External IP
+        if: ${{ secrets.HCLOUD_TOKEN == '' }}
+        run: |
+          EXTERNAL_IP=$(kubectl \
+            --server="https://${{ secrets.KUBE_HOST }}:${{ secrets.KUBE_API_PORT }}" \
+            --token="$(echo '${{ secrets.KUBE_TOKEN }}' | base64 -d)" \
+            --insecure-skip-tls-verify \
+            run detect-ip --rm -i --restart=Never \
+            --image=curlimages/curl -- -4 -s https://api.ipify.org)
+          echo "EXTERNAL_IP=$EXTERNAL_IP" >> "$GITHUB_ENV"
+          echo "Detected server external IP: $EXTERNAL_IP"
+
       - name: Configure Stack
         run: |
           pulumi stack select radiosilence/jaritanet/main
@@ -105,6 +124,9 @@ jobs:
           pulumi config set --path jaritanet:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
           pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
           pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
+          if [[ -n "$EXTERNAL_IP" ]]; then
+            pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
+          fi
         working-directory: packages/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
