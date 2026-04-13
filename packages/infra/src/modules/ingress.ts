@@ -275,3 +275,103 @@ export function createRedirectMiddleware(
     { provider },
   );
 }
+
+/**
+ * Deploys a lightweight pod that monitors the server's external IP.
+ * When the IP changes (e.g. ISP rotation, internet restored after outage),
+ * it triggers the CI/CD workflow to update DNS records.
+ * Only deployed if a GitHub deploy token is available.
+ */
+export function createIpWatcher(
+  provider: k8s.Provider,
+  namespace: string,
+  githubToken: string,
+  githubRepo: string,
+) {
+  const script = `#!/bin/sh
+LAST_IP=""
+while true; do
+  IP=$(curl -4 -s --connect-timeout 5 https://api.ipify.org || true)
+  if [ -n "$IP" ] && [ "$IP" != "$LAST_IP" ]; then
+    if [ -n "$LAST_IP" ]; then
+      echo "$(date): IP changed $LAST_IP -> $IP, triggering deploy"
+      curl -s -X POST \\
+        -H "Authorization: token $GITHUB_TOKEN" \\
+        -H "Accept: application/vnd.github.v3+json" \\
+        "https://api.github.com/repos/$GITHUB_REPO/actions/workflows/ci-cd.yml/dispatches" \\
+        -d '{"ref":"main"}'
+    else
+      echo "$(date): Initial IP: $IP"
+    fi
+    LAST_IP="$IP"
+  fi
+  sleep 60
+done
+`;
+
+  const configMap = new k8s.core.v1.ConfigMap(
+    "ip-watcher-script",
+    {
+      metadata: { name: "ip-watcher" },
+      data: { "watch.sh": script },
+    },
+    { provider },
+  );
+
+  const secret = new k8s.core.v1.Secret(
+    "ip-watcher-github-token",
+    {
+      metadata: { name: "ip-watcher-github" },
+      stringData: { token: githubToken },
+    },
+    { provider },
+  );
+
+  new k8s.apps.v1.Deployment(
+    "ip-watcher",
+    {
+      metadata: {
+        labels: { app: "ip-watcher" },
+      },
+      spec: {
+        replicas: 1,
+        selector: { matchLabels: { app: "ip-watcher" } },
+        template: {
+          metadata: { labels: { app: "ip-watcher" } },
+          spec: {
+            containers: [
+              {
+                name: "watcher",
+                image: "curlimages/curl:latest",
+                command: ["sh", "/scripts/watch.sh"],
+                env: [
+                  {
+                    name: "GITHUB_TOKEN",
+                    valueFrom: {
+                      secretKeyRef: {
+                        name: secret.metadata.name,
+                        key: "token",
+                      },
+                    },
+                  },
+                  { name: "GITHUB_REPO", value: githubRepo },
+                ],
+                resources: {
+                  limits: { cpu: "10m", memory: "16Mi" },
+                },
+                volumeMounts: [{ name: "scripts", mountPath: "/scripts" }],
+              },
+            ],
+            volumes: [
+              {
+                name: "scripts",
+                configMap: { name: configMap.metadata.name },
+              },
+            ],
+          },
+        },
+      },
+    },
+    { provider },
+  );
+}

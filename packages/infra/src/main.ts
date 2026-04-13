@@ -12,6 +12,7 @@ import { createGateway } from "./modules/gateway.ts";
 import {
   createIngress,
   createIngressRoute,
+  createIpWatcher,
   createRedirectMiddleware,
 } from "./modules/ingress.ts";
 import { createService } from "./templates/service.ts";
@@ -99,6 +100,16 @@ export default async function () {
   );
 
   createRedirectMiddleware(provider, namespace);
+
+  // IP watcher — triggers deploy when external IP changes
+  if (env.GITHUB_DEPLOY_TOKEN) {
+    createIpWatcher(
+      provider,
+      namespace,
+      env.GITHUB_DEPLOY_TOKEN,
+      env.GITHUB_REPOSITORY,
+    );
+  }
 
   // --- Services + DNS records + ingress routes ---
   const services = Object.entries(conf.services)
