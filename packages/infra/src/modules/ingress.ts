@@ -78,6 +78,11 @@ export function createIngress(
           enabled: true,
           size: "128Mi",
         },
+        // Single node with hostPort — can't rolling update because the
+        // old pod holds the port. Kill it first, then start the new one.
+        deployment: {
+          strategy: "Recreate",
+        },
         resources: {
           limits: {
             cpu: "250m",
