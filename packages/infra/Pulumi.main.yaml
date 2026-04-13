@@ -75,6 +75,14 @@ config:
           tag: latest
           pullPolicy: "Always"
         replicas: 1
+        healthCheck:
+          path: "/"
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
+        limits:
+          cpu: 100m
+          memory: 64Mi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
@@ -82,7 +90,7 @@ config:
             - oldboy
         persistence:
           - name: files
-            storage: 20Mi
+            storage: 100Gi
             hostPath: /srv/files
             mountPath: /srv/files
             nodeAffinityHostname: oldboy
