@@ -41,18 +41,21 @@ export function createIngress(
         repo: "https://traefik.github.io/charts",
       },
       values: {
-        // Don't bind to host ports — rathole handles public traffic
         ports: {
           web: {
             expose: { default: true },
             port: 8000,
+            // Without a gateway, bind to host ports so traffic reaches Traefik
+            // directly via router port forwarding. With rathole, it forwards
+            // to the ClusterIP instead and hostPort isn't needed.
+            ...(vpsIp ? {} : { hostPort: 80 }),
           },
           websecure: {
             expose: { default: true },
             port: 8443,
+            ...(vpsIp ? {} : { hostPort: 443 }),
           },
         },
-        // Service type ClusterIP — rathole client forwards to these
         service: {
           type: "ClusterIP",
         },
