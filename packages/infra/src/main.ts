@@ -102,11 +102,11 @@ export default async function () {
   createRedirectMiddleware(provider, namespace);
 
   // IP watcher — triggers deploy when external IP changes
-  if (env.GITHUB_DEPLOY_TOKEN) {
+  if (env.DEPLOY_TOKEN) {
     createIpWatcher(
       provider,
       namespace,
-      env.GITHUB_DEPLOY_TOKEN,
+      env.DEPLOY_TOKEN,
       env.GITHUB_REPOSITORY,
     );
   }
