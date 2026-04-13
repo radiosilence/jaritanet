@@ -141,7 +141,7 @@ local_addr = "traefik.${namespace}.svc.cluster.local:8000"
               containers: [
                 {
                   args: ["--client", "/etc/rathole/client.toml"],
-                  command: ["rathole"],
+                  command: ["/app/rathole"],
                   image: "rapiz1/rathole:latest",
                   name: "rathole",
                   resources: {
