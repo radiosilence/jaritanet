@@ -45,14 +45,12 @@ export function createIngress(
           web: {
             expose: { default: true },
             port: 8000,
-            // Without a gateway, bind to host ports so traffic reaches
-            // Traefik directly. With rathole, it forwards to ClusterIP.
-            hostPort: vpsIp ? null : 80,
+            hostPort: 80,
           },
           websecure: {
             expose: { default: true },
             port: 8443,
-            hostPort: vpsIp ? null : 443,
+            hostPort: 443,
           },
         },
         service: {
