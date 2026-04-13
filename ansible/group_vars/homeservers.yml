@@ -5,7 +5,6 @@ microk8s:
     - community
     - dns
     - storage
-    - helm
     - rbac
     - hostpath-storage
     - metrics-server
@@ -20,6 +19,3 @@ syncthing:
 
 samba:
   enabled: true
-
-tailscale:
-  enabled: false
