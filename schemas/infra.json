@@ -7,9 +7,9 @@
     }
   },
   "required": ["config"],
-  "description": "Schema for infra configuration",
+  "description": "Schema for infrastructure configuration",
   "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
-  "title": "Infra Configuration Schema",
+  "title": "Infrastructure Configuration Schema",
   "$defs": {
     "__schema0": {
       "type": "object",
@@ -23,16 +23,390 @@
           },
           "required": ["accountId"]
         },
-        "jaritanet:tunnel": {
+        "jaritanet:gateway": {
           "type": "object",
           "properties": {
-            "name": {
+            "image": {
+              "default": "ubuntu-24.04",
+              "type": "string"
+            },
+            "location": {
+              "default": "nbg1",
+              "type": "string"
+            },
+            "ratholeVersion": {
+              "default": "v0.5.0",
+              "type": "string"
+            },
+            "serverType": {
+              "default": "cx22",
+              "type": "string"
+            }
+          }
+        },
+        "jaritanet:traefik": {
+          "type": "object",
+          "properties": {
+            "acmeEmail": {
+              "type": "string"
+            },
+            "chartVersion": {
+              "default": "34.3.0",
               "type": "string"
             }
           },
-          "required": ["name"]
+          "required": ["acmeEmail"]
+        },
+        "jaritanet:services": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "args": {
+                "type": "object",
+                "properties": {
+                  "env": {
+                    "default": {},
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "healthCheck": {
+                    "type": "object",
+                    "properties": {
+                      "enableLiveness": {
+                        "default": true,
+                        "type": "boolean"
+                      },
+                      "enableReadiness": {
+                        "default": true,
+                        "type": "boolean"
+                      },
+                      "enableStartup": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "expectedStatus": {
+                        "default": "UP",
+                        "type": "string",
+                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"]
+                      },
+                      "failureThreshold": {
+                        "default": 3,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "followRedirects": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "httpHeaders": {
+                        "default": [
+                          {
+                            "name": "X-Health-Check",
+                            "value": "k8s"
+                          }
+                        ],
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["name", "value"]
+                        }
+                      },
+                      "initialDelaySeconds": {
+                        "default": 30,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "path": {
+                        "default": "/_health",
+                        "type": "string"
+                      },
+                      "periodSeconds": {
+                        "default": 10,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "port": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "successThreshold": {
+                        "default": 1,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      },
+                      "timeoutSeconds": {
+                        "default": 5,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      }
+                    }
+                  },
+                  "hostVolumes": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "hostPath": {
+                          "type": "string"
+                        },
+                        "hostPathType": {
+                          "default": "Directory",
+                          "type": "string",
+                          "enum": [
+                            "DirectoryOrCreate",
+                            "Directory",
+                            "FileOrCreate",
+                            "File",
+                            "Socket",
+                            "CharDevice",
+                            "BlockDevice"
+                          ]
+                        },
+                        "mountPath": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "readOnly": {
+                          "default": true,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["hostPath", "mountPath", "name"]
+                    }
+                  },
+                  "httpPort": {
+                    "default": 80,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  },
+                  "image": {
+                    "type": "object",
+                    "properties": {
+                      "pullPolicy": {
+                        "type": "string"
+                      },
+                      "repository": {
+                        "type": "string"
+                      },
+                      "tag": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["repository", "tag"]
+                  },
+                  "limits": {
+                    "type": "object",
+                    "properties": {
+                      "cpu": {
+                        "default": "50m",
+                        "type": "string"
+                      },
+                      "memory": {
+                        "default": "64Mi",
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "persistence": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "hostPath": {
+                          "type": "string"
+                        },
+                        "mountPath": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "nodeAffinityHostname": {
+                          "type": "string"
+                        },
+                        "readOnly": {
+                          "default": true,
+                          "type": "boolean"
+                        },
+                        "storage": {
+                          "type": "string"
+                        },
+                        "storageClassName": {
+                          "default": "local-storage",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "hostPath",
+                        "mountPath",
+                        "name",
+                        "nodeAffinityHostname",
+                        "storage"
+                      ]
+                    }
+                  },
+                  "ports": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "replicas": {
+                    "default": 1,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  },
+                  "securityContext": {
+                    "type": "object",
+                    "properties": {
+                      "fsGroup": {
+                        "default": 1000,
+                        "type": "number"
+                      },
+                      "runAsGroup": {
+                        "default": 1000,
+                        "type": "number"
+                      },
+                      "runAsUser": {
+                        "default": 1000,
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "strategy": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "default": "RollingUpdate",
+                        "type": "string",
+                        "enum": ["Recreate", "RollingUpdate"]
+                      }
+                    }
+                  }
+                },
+                "required": ["image"]
+              },
+              "hostname": {
+                "type": "string"
+              }
+            },
+            "required": ["args"]
+          }
+        },
+        "jaritanet:zones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "modules": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["bluesky", "fastmail"]
+                }
+              },
+              "name": {
+                "type": "string"
+              },
+              "zoneId": {
+                "type": "string"
+              }
+            },
+            "required": ["modules", "name", "zoneId"]
+          }
+        },
+        "jaritanet:fastmail": {
+          "type": "object",
+          "properties": {
+            "dkimDomain": {
+              "type": "string"
+            },
+            "dkimSubdomain": {
+              "type": "string"
+            },
+            "dmarcAggEmail": {
+              "type": "string"
+            },
+            "dmarcPolicy": {
+              "type": "string"
+            },
+            "dmarcSubdomain": {
+              "type": "string"
+            },
+            "mxDomain": {
+              "type": "string"
+            },
+            "spfDomain": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "dkimDomain",
+            "dkimSubdomain",
+            "dmarcAggEmail",
+            "dmarcPolicy",
+            "dmarcSubdomain",
+            "mxDomain",
+            "spfDomain"
+          ]
+        },
+        "jaritanet:bluesky": {
+          "type": "object",
+          "properties": {
+            "did": {
+              "type": "string"
+            }
+          },
+          "required": ["did"]
         },
         "cloudflare:apiToken": {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"]
+        },
+        "hcloud:token": {
           "type": "object",
           "properties": {
             "secure": {
@@ -44,8 +418,14 @@
       },
       "required": [
         "jaritanet:cloudflare",
-        "jaritanet:tunnel",
-        "cloudflare:apiToken"
+        "jaritanet:gateway",
+        "jaritanet:traefik",
+        "jaritanet:services",
+        "jaritanet:zones",
+        "jaritanet:fastmail",
+        "jaritanet:bluesky",
+        "cloudflare:apiToken",
+        "hcloud:token"
       ]
     }
   }
