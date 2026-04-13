@@ -9,7 +9,6 @@ import {
   createFastmailRecords,
   createServiceRecord,
 } from "./modules/dns.ts";
-import { createOciGateway } from "./modules/gateway-oci.ts";
 import { createGateway } from "./modules/gateway.ts";
 import {
   createIngress,
@@ -26,10 +25,9 @@ const dnsModules = {
 
 export default async function () {
   const { namespace } = conf;
-  const ratholeVersion = conf.gateway?.ratholeVersion ?? "v0.5.0";
-
-  // --- Gateway: auto-detect provider from available credentials ---
-  // Priority: Hetzner > OCI > externalIp > no gateway (direct hostPort)
+  // --- Gateway: Hetzner VPS + rathole (optional) ---
+  // If HCLOUD_TOKEN is set, provision a VPS. Otherwise use externalIp
+  // for DNS or fall back to direct mode (hostPort on Traefik).
   let dnsTarget: pulumi.Output<string> | undefined;
   let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
@@ -39,11 +37,6 @@ export default async function () {
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
-  } else if (env.OCI_TENANCY_OCID) {
-    const gw = createOciGateway(ratholeVersion);
-    dnsTarget = gw.vpsIp;
-    ratholeToken = gw.ratholeToken.result;
-    gatewayProvider = "oci";
   } else if (conf.externalIp) {
     dnsTarget = pulumi.output(conf.externalIp);
   }
