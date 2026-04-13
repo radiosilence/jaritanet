@@ -98,17 +98,19 @@ export function createIngress(
   // Rathole client — only deployed when a gateway VPS exists.
   // Without it, traffic reaches Traefik directly (e.g. via port forwarding).
   if (vpsIp && ratholeToken) {
+    // Use the Helm release's generated service name and service ports (not container ports)
+    const traefikSvc = pulumi.interpolate`${traefikRelease.name}.${namespace}.svc.cluster.local`;
     const ratholeConfig = pulumi.interpolate`[client]
 remote_addr = "${vpsIp}:2333"
 default_token = "${ratholeToken}"
 
 [client.services.https]
 type = "tcp"
-local_addr = "traefik.${namespace}.svc.cluster.local:8443"
+local_addr = "${traefikSvc}:443"
 
 [client.services.http]
 type = "tcp"
-local_addr = "traefik.${namespace}.svc.cluster.local:8000"
+local_addr = "${traefikSvc}:80"
 `;
 
     const ratholeConfigMap = new k8s.core.v1.ConfigMap(
