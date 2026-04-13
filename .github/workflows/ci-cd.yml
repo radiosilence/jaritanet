@@ -53,8 +53,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    name: Test
+  lint:
+    name: Lint
     if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
@@ -70,20 +70,65 @@ jobs:
       - name: Lint
         run: bun run lint
 
+  format:
+    name: Format
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Environment
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      - name: Install Dependencies
+        run: bun install
+
       - name: Format Check
         run: bun run fmt:check
 
+  typecheck:
+    name: Type Check
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Environment
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      - name: Install Dependencies
+        run: bun install
+
       - name: Type Check
         run: bun run typecheck:infra
+
+  test:
+    name: Test
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Environment
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      - name: Install Dependencies
+        run: bun install
 
       - name: Run Tests
         run: bun run test
 
   deploy:
     name: Deploy
-    needs: test
+    needs: [lint, format, typecheck, test]
     if: |
       always() &&
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
+      (needs.format.result == 'success' || needs.format.result == 'skipped') &&
+      (needs.typecheck.result == 'success' || needs.typecheck.result == 'skipped') &&
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
       (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
