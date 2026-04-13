@@ -15,8 +15,8 @@ export function createIngress(
   provider: k8s.Provider,
   namespace: string,
   traefik: z.infer<typeof TraefikConfSchema>,
-  vpsIp: pulumi.Output<string>,
-  ratholeToken: pulumi.Output<string>,
+  vpsIp: pulumi.Output<string> | undefined,
+  ratholeToken: pulumi.Output<string> | undefined,
   cloudflareApiToken: string,
 ) {
   // Cloudflare API token for Traefik's DNS-01 ACME solver
@@ -90,8 +90,10 @@ export function createIngress(
     { provider },
   );
 
-  // Rathole client — tunnels VPS ports 80+443 to Traefik's ClusterIP
-  const ratholeConfig = pulumi.interpolate`[client]
+  // Rathole client — only deployed when a gateway VPS exists.
+  // Without it, traffic reaches Traefik directly (e.g. via port forwarding).
+  if (vpsIp && ratholeToken) {
+    const ratholeConfig = pulumi.interpolate`[client]
 remote_addr = "${vpsIp}:2333"
 default_token = "${ratholeToken}"
 
@@ -104,67 +106,68 @@ type = "tcp"
 local_addr = "traefik.${namespace}.svc.cluster.local:8000"
 `;
 
-  const ratholeConfigMap = new k8s.core.v1.ConfigMap(
-    "rathole-client-config",
-    {
-      metadata: { name: "rathole-client" },
-      data: {
-        "client.toml": ratholeConfig,
+    const ratholeConfigMap = new k8s.core.v1.ConfigMap(
+      "rathole-client-config",
+      {
+        metadata: { name: "rathole-client" },
+        data: {
+          "client.toml": ratholeConfig,
+        },
       },
-    },
-    { provider },
-  );
+      { provider },
+    );
 
-  new k8s.apps.v1.Deployment(
-    "rathole-client",
-    {
-      metadata: {
-        labels: { app: "rathole-client" },
-      },
-      spec: {
-        replicas: 1,
-        selector: {
-          matchLabels: { app: "rathole-client" },
+    new k8s.apps.v1.Deployment(
+      "rathole-client",
+      {
+        metadata: {
+          labels: { app: "rathole-client" },
         },
-        template: {
-          metadata: {
-            labels: { app: "rathole-client" },
+        spec: {
+          replicas: 1,
+          selector: {
+            matchLabels: { app: "rathole-client" },
           },
-          spec: {
-            containers: [
-              {
-                args: ["--client", "/etc/rathole/client.toml"],
-                command: ["rathole"],
-                image: "rapiz1/rathole:latest",
-                name: "rathole",
-                resources: {
-                  limits: {
-                    cpu: "100m",
-                    memory: "64Mi",
+          template: {
+            metadata: {
+              labels: { app: "rathole-client" },
+            },
+            spec: {
+              containers: [
+                {
+                  args: ["--client", "/etc/rathole/client.toml"],
+                  command: ["rathole"],
+                  image: "rapiz1/rathole:latest",
+                  name: "rathole",
+                  resources: {
+                    limits: {
+                      cpu: "100m",
+                      memory: "64Mi",
+                    },
                   },
+                  volumeMounts: [
+                    {
+                      mountPath: "/etc/rathole",
+                      name: "config",
+                    },
+                  ],
                 },
-                volumeMounts: [
-                  {
-                    mountPath: "/etc/rathole",
-                    name: "config",
+              ],
+              volumes: [
+                {
+                  configMap: {
+                    name: ratholeConfigMap.metadata.name,
                   },
-                ],
-              },
-            ],
-            volumes: [
-              {
-                configMap: {
-                  name: ratholeConfigMap.metadata.name,
+                  name: "config",
                 },
-                name: "config",
-              },
-            ],
+              ],
+            },
           },
         },
       },
-    },
-    { dependsOn: [traefikRelease], provider },
-  );
+      { dependsOn: [traefikRelease], provider },
+    );
+  }
 
   return { traefikRelease };
 }

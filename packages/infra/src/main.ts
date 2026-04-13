@@ -1,4 +1,5 @@
 import * as k8s from "@pulumi/kubernetes";
+import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf.ts";
 import { env } from "./env.ts";
 import { getKubeconfig } from "./kubeconfig.ts";
@@ -23,8 +24,20 @@ const dnsModules = {
 export default async function () {
   const { namespace } = conf;
 
-  // --- Gateway: Hetzner VPS + rathole server ---
-  const { vpsIp, ratholeToken } = createGateway(conf.gateway);
+  // --- Gateway: Hetzner VPS + rathole (optional) ---
+  // If gateway config is provided, provision a VPS with rathole.
+  // If not, use externalIp for DNS and skip the tunnel entirely —
+  // traffic reaches Traefik directly (e.g. via router port forwarding).
+  let dnsTarget: pulumi.Output<string> | undefined;
+  let ratholeToken: pulumi.Output<string> | undefined;
+
+  if (conf.gateway) {
+    const gw = createGateway(conf.gateway);
+    dnsTarget = gw.vpsIp;
+    ratholeToken = gw.ratholeToken.result;
+  } else if (conf.externalIp) {
+    dnsTarget = pulumi.output(conf.externalIp);
+  }
 
   // --- DNS: zone modules (fastmail, bluesky) ---
   for (const zone of conf.zones) {
@@ -75,13 +88,13 @@ export default async function () {
     { provider },
   );
 
-  // --- Ingress: Traefik + rathole client ---
+  // --- Ingress: Traefik (always) + rathole client (only with gateway) ---
   createIngress(
     provider,
     namespace,
     conf.traefik,
-    vpsIp,
-    ratholeToken.result,
+    dnsTarget,
+    ratholeToken,
     env.CLOUDFLARE_API_TOKEN,
   );
 
@@ -93,11 +106,13 @@ export default async function () {
     .map(([name, { args, hostname }]) => {
       const service = createService(provider, name, args);
 
-      // DNS A record -> gateway VPS
-      const zoneName = hostname!.split(".").slice(-2).join(".");
-      const zone = conf.zones.find((z) => z.name === zoneName);
-      if (zone) {
-        createServiceRecord(vpsIp, zone, hostname!);
+      // DNS A record -> VPS or external IP (if either is configured)
+      if (dnsTarget) {
+        const zoneName = hostname!.split(".").slice(-2).join(".");
+        const zone = conf.zones.find((z) => z.name === zoneName);
+        if (zone) {
+          createServiceRecord(dnsTarget, zone, hostname!);
+        }
       }
 
       // Traefik IngressRoute for this service
@@ -109,6 +124,6 @@ export default async function () {
   return {
     namespace,
     services: Object.fromEntries(services),
-    vpsIp,
+    ...(dnsTarget && { vpsIp: dnsTarget }),
   };
 }

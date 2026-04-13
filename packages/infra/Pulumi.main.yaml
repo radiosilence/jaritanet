@@ -2,15 +2,19 @@
 config:
   cloudflare:apiToken:
     secure: AAABAO3Q5Z9RUZgleETmCvoaMOr3oPcs19Qc/Cp6C8pfb1EaBASR4AUQkqfoYaTI1NN+GiQJFQlbsBhGlNaP6DBdUi4ny5zR
-  hcloud:token:
-    secure: REPLACE_ME
+  # Uncomment to enable Hetzner VPS gateway with rathole:
+  # hcloud:token:
+  #   secure: REPLACE_ME
+  # jaritanet:gateway:
+  #   serverType: cx22
+  #   location: nbg1
+  #   image: ubuntu-24.04
+  #   ratholeVersion: v0.5.0
+  #
+  # Without gateway, set externalIp to your home IP for DNS A records:
+  # jaritanet:externalIp: '203.0.113.1'
   jaritanet:cloudflare:
     accountId: ''
-  jaritanet:gateway:
-    serverType: cx22
-    location: nbg1
-    image: ubuntu-24.04
-    ratholeVersion: v0.5.0
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
     chartVersion: "34.3.0"

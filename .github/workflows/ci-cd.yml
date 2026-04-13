@@ -28,7 +28,7 @@ on:
       CLOUDFLARE_ACCOUNT_ID:
         required: true
       HCLOUD_TOKEN:
-        required: true
+        required: false
       TS_OAUTH_CLIENT_ID:
         required: true
       TS_OAUTH_SECRET:

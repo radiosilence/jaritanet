@@ -7,8 +7,9 @@ const config = new pulumi.Config();
 const { data, error } = ConfSchema.safeParse({
   bluesky: config.requireObject("bluesky"),
   cloudflare: config.requireObject("cloudflare"),
+  externalIp: config.get("externalIp"),
   fastmail: config.requireObject("fastmail"),
-  gateway: config.requireObject("gateway"),
+  gateway: config.getObject("gateway"),
   services: config.requireObject("services"),
   traefik: config.requireObject("traefik"),
   zones: config.requireObject("zones"),
