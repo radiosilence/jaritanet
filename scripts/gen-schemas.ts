@@ -7,6 +7,9 @@ const SCHEMAS_PATH = "./schemas";
 const CloudflareApiSchema = z.object({
   secure: z.string(),
 });
+const HcloudTokenSchema = z.object({
+  secure: z.string(),
+});
 
 try {
   await fs.lstat(SCHEMAS_PATH);
@@ -27,61 +30,33 @@ async function dumpSchema([name, schema]: [name: string, schema: z.ZodType]) {
 
 const schemas = {
   infra: await import("../packages/infra/src/conf.schemas.ts").then(
-    ({ CloudflareConfSchema, TunnelConfSchema }) =>
-      z
-        .object({
-          config: z.object({
-            [`${PROJECT}:cloudflare`]: CloudflareConfSchema,
-            [`${PROJECT}:tunnel`]: TunnelConfSchema,
-            "cloudflare:apiToken": CloudflareApiSchema,
-          }),
-        })
-        .meta({
-          description: "Schema for infra configuration",
-          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
-          title: "Infra Configuration Schema",
-        }),
-  ),
-  k8s: await import("../packages/k8s/src/conf.schemas.ts").then(
-    ({ CloudflareConfSchema, CloudflaredConfSchema, ServicesMapSchema }) =>
-      z
-        .object({
-          config: z.object({
-            [`${PROJECT}-k8s:cloudflare`]: CloudflareConfSchema,
-            [`${PROJECT}-k8s:services`]: ServicesMapSchema,
-            [`${PROJECT}-k8s:cloudflared`]: CloudflaredConfSchema,
-            "cloudflare:apiToken": CloudflareApiSchema,
-          }),
-        })
-        .meta({
-          description: "Schema for Kubernetes configuration",
-          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/k8s.json",
-          title: "Kubernetes Configuration Schema",
-        }),
-  ),
-  routes: await import("../packages/routes/src/conf.schemas.ts").then(
     ({
       CloudflareConfSchema,
-      ServiceStacksConfSchema,
+      GatewayConfSchema,
+      TraefikConfSchema,
+      ServicesMapSchema,
       ZonesConfSchema,
-      BlueskyConfSchema,
       FastmailConfSchema,
+      BlueskyConfSchema,
     }) =>
       z
         .object({
           config: z.object({
-            [`${PROJECT}-routes:cloudflare`]: CloudflareConfSchema,
-            [`${PROJECT}-routes:zones`]: ZonesConfSchema,
-            [`${PROJECT}-routes:serviceStacks`]: ServiceStacksConfSchema,
-            [`${PROJECT}-routes:bluesky`]: BlueskyConfSchema,
-            [`${PROJECT}-routes:fastmail`]: FastmailConfSchema,
+            [`${PROJECT}:cloudflare`]: CloudflareConfSchema,
+            [`${PROJECT}:gateway`]: GatewayConfSchema,
+            [`${PROJECT}:traefik`]: TraefikConfSchema,
+            [`${PROJECT}:services`]: ServicesMapSchema,
+            [`${PROJECT}:zones`]: ZonesConfSchema,
+            [`${PROJECT}:fastmail`]: FastmailConfSchema,
+            [`${PROJECT}:bluesky`]: BlueskyConfSchema,
             "cloudflare:apiToken": CloudflareApiSchema,
+            "hcloud:token": HcloudTokenSchema,
           }),
         })
         .meta({
-          description: "Schema for routes configuration",
-          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/routes.json",
-          title: "Routes Configuration Schema",
+          description: "Schema for infrastructure configuration",
+          id: "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
+          title: "Infrastructure Configuration Schema",
         }),
   ),
 } as const;

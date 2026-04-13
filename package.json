@@ -18,16 +18,17 @@
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
-    "typecheck:k8s": "tsc -p ./packages/k8s/tsconfig.json",
-    "typecheck:routes": "tsc -p ./packages/routes/tsconfig.json",
     "gen:schemas": "./scripts/gen-schemas.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {
     "@pulumi/cloudflare": "6.4.1",
+    "@pulumi/command": "^1.2.1",
+    "@pulumi/hcloud": "^1.32.1",
     "@pulumi/kubernetes": "4.26.0",
     "@pulumi/pulumi": "3.223.0",
     "@pulumi/random": "4.19.1",
+    "@pulumi/tls": "^5.3.1",
     "zod": "4.3.6"
   },
   "devDependencies": {

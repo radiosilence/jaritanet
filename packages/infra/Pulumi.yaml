@@ -1,5 +1,5 @@
 name: jaritanet
-description: Personal infra
+description: Unified personal infrastructure — Hetzner gateway, K8s services, Cloudflare DNS
 runtime:
   name: nodejs
   options:

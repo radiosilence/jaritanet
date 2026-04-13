@@ -16,15 +16,13 @@ Code should be simple, elegant, and concise. Respect the "rule of three" - only 
 
 ## Overview
 
-JARITANET is an infrastructure-as-code monorepo that uses Pulumi to deploy a complete system for securely exposing Kubernetes services through Cloudflare Tunnels. The system consists of three main packages that deploy in sequence: infrastructure (Cloudflare tunnels), Kubernetes (services), and routes (DNS configuration).
+JARITANET is an infrastructure-as-code monorepo using Pulumi to expose Kubernetes services via a Hetzner VPS gateway. Rathole tunnels TCP from the VPS to an in-cluster Traefik instance that handles TLS termination (Let's Encrypt via DNS-01) and hostname routing. Cloudflare provides DNS only (no proxy/tunnel).
 
 ## Common Commands
 
 ### Development
 
 - `bun run typecheck:infra` - Type check infrastructure package
-- `bun run typecheck:k8s` - Type check Kubernetes package
-- `bun run typecheck:routes` - Type check routes package
 - `bun run test` - Run tests (uses vitest on Node - do NOT use `bun test` directly, Pulumi needs Node's v8)
 - `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
 - `bun run lint` - Lint code with oxlint
@@ -38,7 +36,7 @@ The project uses Lefthook for pre-commit validation:
 
 - Runs oxlint with auto-fix on staged files
 - Runs oxfmt formatting on staged files
-- Runs type checking on all three packages before commit
+- Runs type checking before commit
 
 ### Package Management
 
@@ -48,44 +46,31 @@ The project uses Lefthook for pre-commit validation:
 
 ## Architecture
 
-### Package Structure
+### Single Pulumi Stack
 
-The codebase is organized as three Pulumi packages with strict deployment ordering:
+Everything deploys in one `pulumi up` from `packages/infra/`:
 
-1. **packages/infra/** - Creates Cloudflare Zero Trust tunnels
-   - `src/main.ts` - Entry point
-   - `src/modules/tunnel.ts` - Tunnel creation logic
-   - `src/conf.ts` - Configuration with Zod validation
-
-2. **packages/k8s/** - Deploys services to Kubernetes clusters
-   - `src/main.ts` - Main deployment orchestration
-   - `src/templates/service.ts` - Generic K8s service templates
-   - `src/templates/cloudflared.ts` - Cloudflared daemon deployment
-   - `src/kubeconfig.ts` - Cluster authentication
-   - `src/references.ts` - Cross-stack resource references
-
-3. **packages/routes/** - Configures DNS records and tunnel routing
-   - `src/main.ts` - Main routing configuration
-   - `src/tunnels/service.ts` - Service ingress and DNS management
-   - `src/modules/bluesky.ts` - Bluesky protocol DNS
-   - `src/modules/fastmail.ts` - Fastmail service DNS
+- **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server provisioning
+- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs
+- **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
+- **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
+- **`src/main.ts`** — Orchestrates all modules
+- **`src/conf.ts`** / **`src/conf.schemas.ts`** — Unified Zod config schema
 
 ### Configuration System
 
-All packages use Zod V4 schemas for runtime type validation. Configuration files are located in each package's Pulumi._.yaml files. Schema definitions are in `_.schemas.ts` files and can be regenerated using the gen-schemas script.
-
-### Cross-Package Dependencies
-
-Packages communicate via Pulumi StackReferences:
-
-- K8s package references tunnel outputs from infra package
-- Routes package references both tunnel and service outputs
-- Reference schemas are defined in `references.schemas.ts` files
+All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. Schema definitions in `*.schemas.ts` files, regenerated via gen-schemas script.
 
 ### Service Flow
 
 External traffic follows this path:
-`https://hostname` -> Cloudflare -> Tunnel -> `http://service-name.jaritanet.svc.cluster.local`
+`https://hostname` -> Hetzner VPS (Rathole) -> K8s cluster (Rathole client) -> Traefik (TLS + routing) -> `http://service-name.jaritanet.svc.cluster.local`
+
+### Key Components
+
+- **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
+- **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare.
+- **Cloudflare** — DNS only. A records pointing at VPS IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 
 ## GitHub Actions
 
@@ -93,8 +78,8 @@ External traffic follows this path:
 
 Triggered on pushes to main branch affecting package files, or manually via workflow_dispatch:
 
-1. **Test** - Type checks all packages, runs vitest suite
-2. **Deploy** (main branch only) - Deploys infra, k8s, and routes packages in sequence via Pulumi
+1. **Test** - Type checks, lints, runs vitest suite
+2. **Deploy** (main branch only) - Single `pulumi up` deploying everything
 
 ### Schema Generation (`generate-schemas.yml`)
 
@@ -166,12 +151,11 @@ Three-stage deployment targeting different host groups:
 
 ## Development Notes
 
-- Each package has its own `tsconfig.json` and `package.json`
+- Single package at `packages/infra/` with its own `tsconfig.json` and `package.json`
 - **Use Bun for package management and script running**, but tests/Pulumi run on Node under the hood
-- Type checking must pass for all packages before commits (Lefthook)
+- Type checking must pass before commits (Lefthook)
 - oxlint handles linting, oxfmt handles code formatting
 - The system runs on minimal hardware (2014 MacBook Pro)
-- All external services secured through Cloudflare's edge network
-- No direct firewall port exposure - tunnel architecture only
-- Tailscale provides secure access to internal Kubernetes cluster
+- No direct firewall port exposure on home network — Rathole client connects outbound
+- Tailscale provides secure access to internal Kubernetes cluster for CI/CD
 - Secrets managed through GitHub repository secrets and Pulumi configuration
