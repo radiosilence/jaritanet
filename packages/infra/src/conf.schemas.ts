@@ -9,7 +9,7 @@ export const GatewayConfSchema = z.object({
   image: z.string().default("ubuntu-24.04"),
   location: z.string().default("nbg1"),
   ratholeVersion: z.string().default("v0.5.0"),
-  serverType: z.string().default("cx22"),
+  serverType: z.string().default("cpx11"),
 });
 
 export const TraefikConfSchema = z.object({
