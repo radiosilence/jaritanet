@@ -159,8 +159,8 @@ jobs:
             --server="https://${{ secrets.KUBE_HOST }}:${{ secrets.KUBE_API_PORT }}" \
             --token="$(echo '${{ secrets.KUBE_TOKEN }}' | base64 -d)" \
             --insecure-skip-tls-verify \
-            run detect-ip --rm -i --restart=Never \
-            --image=curlimages/curl -- -4 -s https://api.ipify.org)
+            run detect-ip --rm -i --restart=Never --quiet \
+            --image=curlimages/curl -- -4 -s https://api.ipify.org 2>/dev/null | head -1 | tr -d '[:space:]')
           echo "EXTERNAL_IP=$EXTERNAL_IP" >> "$GITHUB_ENV"
           echo "Detected server external IP: $EXTERNAL_IP"
 

@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../schemas/infra.json
+# cloudflare:apiToken and hcloud:token are set via env vars in CI
+# (CLOUDFLARE_API_TOKEN and HCLOUD_TOKEN). No need to encrypt them here.
 config:
-  cloudflare:apiToken:
-    secure: AAABAO3Q5Z9RUZgleETmCvoaMOr3oPcs19Qc/Cp6C8pfb1EaBASR4AUQkqfoYaTI1NN+GiQJFQlbsBhGlNaP6DBdUi4ny5zR
   # Uncomment to enable Hetzner VPS gateway with rathole:
   # hcloud:token:
   #   secure: REPLACE_ME
