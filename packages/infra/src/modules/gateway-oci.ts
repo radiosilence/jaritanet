@@ -5,9 +5,9 @@ import * as random from "@pulumi/random";
 import * as tls from "@pulumi/tls";
 
 /**
- * Provisions an Oracle Cloud free-tier ARM instance running rathole.
- * Uses the Always Free VM.Standard.A1.Flex shape (1 OCPU, 6GB RAM)
- * which is absurd overkill for a TCP relay, but it's free forever.
+ * Provisions an Oracle Cloud free-tier AMD instance running rathole.
+ * Uses the Always Free VM.Standard.E2.1.Micro shape (1 OCPU, 1GB RAM).
+ * x86, so rathole binary works directly — no Docker needed.
  *
  * Credentials read from Pulumi config (oci:tenancyOcid, etc.) and
  * the private key from OCI_PRIVATE_KEY env var (PEM with newlines
@@ -48,13 +48,15 @@ export function createOciGateway(ratholeVersion: string) {
     .getAvailabilityDomainsOutput({ compartmentId: tenancyOcid }, opts)
     .apply((ads) => ads.availabilityDomains[0]!.name!);
 
+  const shape = "VM.Standard.E2.1.Micro";
+
   const ubuntuImage = oci.core
     .getImagesOutput(
       {
         compartmentId: tenancyOcid,
         operatingSystem: "Canonical Ubuntu",
         operatingSystemVersion: "24.04",
-        shape: "VM.Standard.A1.Flex",
+        shape,
         sortBy: "TIMECREATED",
         sortOrder: "DESC",
       },
@@ -149,28 +151,29 @@ export function createOciGateway(ratholeVersion: string) {
     opts,
   );
 
-  // ARM instance — rathole via Docker (no ARM binary published)
+  // x86 instance — rathole binary directly, no Docker needed
   const cloudInit = `#!/bin/bash
 set -euo pipefail
-apt-get update && apt-get install -y docker.io
-systemctl enable docker && systemctl start docker
+curl -fsSL "https://github.com/rapiz1/rathole/releases/download/${ratholeVersion}/rathole-x86_64-unknown-linux-gnu.zip" -o /tmp/rathole.zip
+apt-get update && apt-get install -y unzip
+unzip /tmp/rathole.zip -d /usr/local/bin/
+chmod +x /usr/local/bin/rathole
+rm /tmp/rathole.zip
 mkdir -p /etc/rathole
 
 cat > /etc/systemd/system/rathole.service << 'UNIT'
 [Unit]
 Description=Rathole Server
-After=docker.service
-Requires=docker.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStartPre=-/usr/bin/docker stop rathole
-ExecStartPre=-/usr/bin/docker rm rathole
-ExecStart=/usr/bin/docker run --name rathole --net=host -v /etc/rathole:/etc/rathole rapiz1/rathole:${ratholeVersion} --server /etc/rathole/server.toml
+ExecStart=/usr/local/bin/rathole --server /etc/rathole/server.toml
 Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-layer.target
 UNIT
 
 systemctl daemon-reload
@@ -191,11 +194,7 @@ systemctl enable rathole
         ssh_authorized_keys: sshKey.publicKeyOpenssh,
         user_data: Buffer.from(cloudInit).toString("base64"),
       },
-      shape: "VM.Standard.A1.Flex",
-      shapeConfig: {
-        memoryInGbs: 6,
-        ocpus: 1,
-      },
+      shape,
       sourceDetails: {
         sourceId: ubuntuImage,
         sourceType: "image",
