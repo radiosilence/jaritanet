@@ -39,7 +39,7 @@
               "type": "string"
             },
             "serverType": {
-              "default": "cpx11",
+              "default": "cx23",
               "type": "string"
             }
           }
