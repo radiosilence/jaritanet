@@ -90,7 +90,7 @@ config:
             - oldboy
         persistence:
           - name: files
-            storage: 100Gi
+            storage: 20Mi
             hostPath: /srv/files
             mountPath: /srv/files
             nodeAffinityHostname: oldboy
