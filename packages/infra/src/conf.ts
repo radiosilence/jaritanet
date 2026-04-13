@@ -1,12 +1,17 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as z from "zod";
-import { InfraConfSchema } from "./conf.schemas.ts";
+import { ConfSchema } from "./conf.schemas.ts";
 
 const config = new pulumi.Config();
 
-const { data, error } = InfraConfSchema.safeParse({
+const { data, error } = ConfSchema.safeParse({
+  bluesky: config.requireObject("bluesky"),
   cloudflare: config.requireObject("cloudflare"),
-  tunnel: config.requireObject("tunnel"),
+  fastmail: config.requireObject("fastmail"),
+  gateway: config.requireObject("gateway"),
+  services: config.requireObject("services"),
+  traefik: config.requireObject("traefik"),
+  zones: config.requireObject("zones"),
 });
 
 if (error) {
