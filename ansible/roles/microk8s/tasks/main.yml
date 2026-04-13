@@ -15,13 +15,6 @@
     name: microk8s
     state: present
 
-- name: Add current user to microk8s group
-  ansible.builtin.user:
-    name: "{{ ansible_user }}"
-    groups:
-      - microk8s
-    append: true
-
 - name: Add user to microk8s group
   ansible.builtin.user:
     name: "{{ username }}"
@@ -53,6 +46,13 @@
   when: item not in enabled_addons
   register: addon_enable_result
   changed_when: addon_enable_result is not skipped
+  notify: restart microk8s
+
+- name: Disable unmanaged addons
+  ansible.builtin.command: "microk8s disable {{ item }}"
+  loop: "{{ enabled_addons | difference(microk8s.addons) | difference(microk8s_addon_allowlist | default([])) }}"
+  register: addon_disable_result
+  changed_when: addon_disable_result is not skipped
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config
