@@ -5,11 +5,26 @@
       - aria2
     state: present
 
-- name: Install yt-dlp and get-iplayer via mise
+- name: Install yt-dlp via mise
   ansible.builtin.shell:
-    cmd: |
-      mise use --global yt-dlp@latest
-      mise use --global get-iplayer@latest
+    cmd: mise use --global yt-dlp@latest
   become: true
   become_user: "{{ username }}"
   changed_when: false
+
+- name: Add get-iplayer PPA
+  ansible.builtin.deb822_repository:
+    name: m-grant-prg-utils
+    types: [deb]
+    uris: https://ppa.launchpadcontent.net/m-grant-prg/utils/ubuntu
+    suites: ["{{ ansible_distribution_release }}"]
+    components: [main]
+    state: present
+    enabled: true
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x75D5B0010422CAA19FD3D40454880941B1BF7415
+
+- name: Install get-iplayer from PPA
+  ansible.builtin.apt:
+    name: get-iplayer
+    state: present
+    update_cache: true
