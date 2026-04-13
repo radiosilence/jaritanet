@@ -19,8 +19,15 @@ jobs:
       matrix:
         include:
           - app: "Navidrome"
+            type: "docker"
             repo: "deluan/navidrome"
-            service_name: "navidrome"
+            config_key: "navidrome"
+            config_field: "args.image.tag"
+          - app: "Traefik"
+            type: "helm"
+            repo: "traefik/traefik-helm-chart"
+            config_key: "traefik"
+            config_field: "chartVersion"
 
     steps:
       - name: Generate App Token
@@ -46,63 +53,66 @@ jobs:
 
           CONFIG_PATH="packages/infra/Pulumi.main.yaml"
           REPO="${{ matrix.repo }}"
-          SERVICE_NAME="${{ matrix.service_name }}"
+          TYPE="${{ matrix.type }}"
+          CONFIG_KEY="${{ matrix.config_key }}"
+          CONFIG_FIELD="${{ matrix.config_field }}"
 
-          echo "Checking for updates to $REPO for service $SERVICE_NAME"
+          echo "Checking for updates to $REPO ($TYPE)"
 
-          echo "Fetching latest release from GitHub..."
-          LATEST_RELEASE=$(curl -s -L \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$REPO/releases/latest")
-
-          LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+          if [[ "$TYPE" == "docker" ]]; then
+            # GitHub releases -> Docker image tag
+            LATEST_RELEASE=$(curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/releases/latest")
+            LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+            LATEST_VERSION="${LATEST_VERSION#v}"
+          elif [[ "$TYPE" == "helm" ]]; then
+            # Helm chart repo -> chart version
+            LATEST_RELEASE=$(curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/releases/latest")
+            LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+            # Traefik chart tags are like "traefik-34.5.0"
+            LATEST_VERSION="${LATEST_VERSION#traefik-}"
+            LATEST_VERSION="${LATEST_VERSION#v}"
+          fi
 
           if [[ -z "$LATEST_VERSION" || "$LATEST_VERSION" == "null" ]]; then
-            echo "Error: Could not fetch latest version from GitHub API"
-            echo "Response: $LATEST_RELEASE"
+            echo "Error: Could not fetch latest version"
             exit 1
           fi
 
-          GITHUB_VERSION="$LATEST_VERSION"
-          LATEST_VERSION="${LATEST_VERSION#v}"
+          echo "Latest version: $LATEST_VERSION"
 
-          echo "Latest GitHub version: $GITHUB_VERSION"
-          echo "Latest Docker version: $LATEST_VERSION"
-
-          if [[ ! -f "$CONFIG_PATH" ]]; then
-            echo "Error: Config file $CONFIG_PATH not found"
-            exit 1
+          # Determine yq path based on config key type
+          if [[ "$CONFIG_KEY" == "traefik" ]]; then
+            YQ_PATH='.config["jaritanet:'$CONFIG_KEY'"]["'$CONFIG_FIELD'"]'
+          else
+            YQ_PATH='.config["jaritanet:services"]["'$CONFIG_KEY'"].'$CONFIG_FIELD
           fi
 
-          CURRENT_VERSION=$(yq eval '.config["jaritanet:services"]["'$SERVICE_NAME'"].args.image.tag' "$CONFIG_PATH")
+          CURRENT_VERSION=$(yq eval "$YQ_PATH" "$CONFIG_PATH")
 
           if [[ -z "$CURRENT_VERSION" ]]; then
-            echo "Error: Could not find current version for service $SERVICE_NAME in $CONFIG_PATH"
+            echo "Error: Could not find current version at $YQ_PATH"
             exit 1
           fi
 
           echo "Current version: $CURRENT_VERSION"
 
           if [[ "$CURRENT_VERSION" == "$LATEST_VERSION" ]]; then
-            echo "Already up to date. No changes needed."
+            echo "Already up to date."
             exit 0
           fi
 
           echo "Update available: $CURRENT_VERSION -> $LATEST_VERSION"
 
-          yq eval '.config["jaritanet:services"]["'$SERVICE_NAME'"].args.image.tag = "'$LATEST_VERSION'"' -i "$CONFIG_PATH"
-
-          NEW_VERSION=$(yq eval '.config["jaritanet:services"]["'$SERVICE_NAME'"].args.image.tag' "$CONFIG_PATH")
-
-          if [[ "$NEW_VERSION" != "$LATEST_VERSION" ]]; then
-            echo "Error: Failed to update version in config file"
-            exit 1
-          fi
+          yq eval "$YQ_PATH = \"$LATEST_VERSION\"" -i "$CONFIG_PATH"
 
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
-          echo "GITHUB_VERSION=$GITHUB_VERSION" >> $GITHUB_ENV
           echo "VERSION_UPDATED=true" >> $GITHUB_ENV
 
       - name: Commit Changes
@@ -112,7 +122,7 @@ jobs:
           git config --local user.name "GitHub Action"
 
           git add packages/infra/Pulumi.main.yaml
-          git commit -m "chore: update ${{ matrix.service_name }} from ${{ env.CURRENT_VERSION }} to ${{ env.LATEST_VERSION }}"
+          git commit -m "chore: update ${{ matrix.app }} from ${{ env.CURRENT_VERSION }} to ${{ env.LATEST_VERSION }}"
 
           git push
 
@@ -126,7 +136,6 @@ jobs:
           **Details:**
           - Previous: \`${{ env.CURRENT_VERSION }}\`
           - New: \`${{ env.LATEST_VERSION }}\`
-          - GitHub release: \`${{ env.GITHUB_VERSION }}\`
           - Repository: ${{ matrix.repo }}
           - Updated at: $(date -u)
 
