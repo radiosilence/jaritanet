@@ -9,12 +9,32 @@ import * as tls from "@pulumi/tls";
  * Uses the Always Free VM.Standard.A1.Flex shape (1 OCPU, 6GB RAM)
  * which is absurd overkill for a TCP relay, but it's free forever.
  *
- * OCI provider credentials are read from env vars:
- * OCI_TENANCY_OCID, OCI_USER_OCID, OCI_FINGERPRINT, OCI_PRIVATE_KEY, OCI_REGION
+ * Credentials read from Pulumi config (oci:tenancyOcid, etc.) and
+ * the private key from OCI_PRIVATE_KEY env var (PEM with newlines
+ * is too painful to pass through pulumi config set).
  */
 export function createOciGateway(ratholeVersion: string) {
   const ociConfig = new pulumi.Config("oci");
-  const compartmentId = ociConfig.require("tenancyOcid");
+  const tenancyOcid = ociConfig.require("tenancyOcid");
+  const userOcid = ociConfig.require("userOcid");
+  const fingerprint = ociConfig.require("fingerprint");
+  const region = ociConfig.require("region");
+  const privateKey = process.env.OCI_PRIVATE_KEY;
+
+  if (!privateKey) {
+    throw new Error("OCI_PRIVATE_KEY env var is required for OCI gateway");
+  }
+
+  // Explicit provider so we can pass the private key from env
+  const ociProvider = new oci.Provider("oci", {
+    fingerprint,
+    privateKey,
+    region,
+    tenancyOcid,
+    userOcid,
+  });
+
+  const opts = { provider: ociProvider };
 
   const ratholeToken = new random.RandomPassword("rathole-token", {
     length: 64,
@@ -25,87 +45,109 @@ export function createOciGateway(ratholeVersion: string) {
   });
 
   const ad = oci.identity
-    .getAvailabilityDomains({ compartmentId })
-    .then((ads) => ads.availabilityDomains[0]!.name!);
+    .getAvailabilityDomainsOutput({ compartmentId: tenancyOcid }, opts)
+    .apply((ads) => ads.availabilityDomains[0]!.name!);
 
   const ubuntuImage = oci.core
-    .getImages({
-      compartmentId,
-      operatingSystem: "Canonical Ubuntu",
-      operatingSystemVersion: "24.04",
-      shape: "VM.Standard.A1.Flex",
-      sortBy: "TIMECREATED",
-      sortOrder: "DESC",
-    })
-    .then((images) => images.images[0]!.id!);
-
-  // VCN + networking
-  const vcn = new oci.core.Vcn("gateway-vcn", {
-    compartmentId,
-    cidrBlocks: ["10.0.0.0/16"],
-    displayName: "jaritanet-gateway",
-  });
-
-  const internetGateway = new oci.core.InternetGateway("gateway-igw", {
-    compartmentId,
-    displayName: "jaritanet-igw",
-    vcnId: vcn.id,
-  });
-
-  const routeTable = new oci.core.RouteTable("gateway-routes", {
-    compartmentId,
-    displayName: "jaritanet-routes",
-    routeRules: [
+    .getImagesOutput(
       {
-        destination: "0.0.0.0/0",
-        destinationType: "CIDR_BLOCK",
-        networkEntityId: internetGateway.id,
+        compartmentId: tenancyOcid,
+        operatingSystem: "Canonical Ubuntu",
+        operatingSystemVersion: "24.04",
+        shape: "VM.Standard.A1.Flex",
+        sortBy: "TIMECREATED",
+        sortOrder: "DESC",
       },
-    ],
-    vcnId: vcn.id,
-  });
+      opts,
+    )
+    .apply((images) => images.images[0]!.id!);
 
-  const securityList = new oci.core.SecurityList("gateway-seclist", {
-    compartmentId,
-    displayName: "jaritanet-seclist",
-    egressSecurityRules: [{ destination: "0.0.0.0/0", protocol: "all" }],
-    ingressSecurityRules: [
-      {
-        description: "SSH",
-        protocol: "6",
-        source: "0.0.0.0/0",
-        tcpOptions: { min: 22, max: 22 },
-      },
-      {
-        description: "HTTP",
-        protocol: "6",
-        source: "0.0.0.0/0",
-        tcpOptions: { min: 80, max: 80 },
-      },
-      {
-        description: "HTTPS",
-        protocol: "6",
-        source: "0.0.0.0/0",
-        tcpOptions: { min: 443, max: 443 },
-      },
-      {
-        description: "Rathole control",
-        protocol: "6",
-        source: "0.0.0.0/0",
-        tcpOptions: { min: 2333, max: 2333 },
-      },
-    ],
-    vcnId: vcn.id,
-  });
+  const vcn = new oci.core.Vcn(
+    "gateway-vcn",
+    {
+      compartmentId: tenancyOcid,
+      cidrBlocks: ["10.0.0.0/16"],
+      displayName: "jaritanet-gateway",
+    },
+    opts,
+  );
 
-  const subnet = new oci.core.Subnet("gateway-subnet", {
-    cidrBlock: "10.0.1.0/24",
-    compartmentId,
-    displayName: "jaritanet-subnet",
-    routeTableId: routeTable.id,
-    securityListIds: [securityList.id],
-    vcnId: vcn.id,
-  });
+  const internetGateway = new oci.core.InternetGateway(
+    "gateway-igw",
+    {
+      compartmentId: tenancyOcid,
+      displayName: "jaritanet-igw",
+      vcnId: vcn.id,
+    },
+    opts,
+  );
+
+  const routeTable = new oci.core.RouteTable(
+    "gateway-routes",
+    {
+      compartmentId: tenancyOcid,
+      displayName: "jaritanet-routes",
+      routeRules: [
+        {
+          destination: "0.0.0.0/0",
+          destinationType: "CIDR_BLOCK",
+          networkEntityId: internetGateway.id,
+        },
+      ],
+      vcnId: vcn.id,
+    },
+    opts,
+  );
+
+  const securityList = new oci.core.SecurityList(
+    "gateway-seclist",
+    {
+      compartmentId: tenancyOcid,
+      displayName: "jaritanet-seclist",
+      egressSecurityRules: [{ destination: "0.0.0.0/0", protocol: "all" }],
+      ingressSecurityRules: [
+        {
+          description: "SSH",
+          protocol: "6",
+          source: "0.0.0.0/0",
+          tcpOptions: { min: 22, max: 22 },
+        },
+        {
+          description: "HTTP",
+          protocol: "6",
+          source: "0.0.0.0/0",
+          tcpOptions: { min: 80, max: 80 },
+        },
+        {
+          description: "HTTPS",
+          protocol: "6",
+          source: "0.0.0.0/0",
+          tcpOptions: { min: 443, max: 443 },
+        },
+        {
+          description: "Rathole control",
+          protocol: "6",
+          source: "0.0.0.0/0",
+          tcpOptions: { min: 2333, max: 2333 },
+        },
+      ],
+      vcnId: vcn.id,
+    },
+    opts,
+  );
+
+  const subnet = new oci.core.Subnet(
+    "gateway-subnet",
+    {
+      cidrBlock: "10.0.1.0/24",
+      compartmentId: tenancyOcid,
+      displayName: "jaritanet-subnet",
+      routeTableId: routeTable.id,
+      securityListIds: [securityList.id],
+      vcnId: vcn.id,
+    },
+    opts,
+  );
 
   // ARM instance — rathole via Docker (no ARM binary published)
   const cloudInit = `#!/bin/bash
@@ -135,28 +177,32 @@ systemctl daemon-reload
 systemctl enable rathole
 `;
 
-  const instance = new oci.core.Instance("gateway", {
-    availabilityDomain: ad,
-    compartmentId,
-    createVnicDetails: {
-      assignPublicIp: "true",
-      subnetId: subnet.id,
+  const instance = new oci.core.Instance(
+    "gateway",
+    {
+      availabilityDomain: ad,
+      compartmentId: tenancyOcid,
+      createVnicDetails: {
+        assignPublicIp: "true",
+        subnetId: subnet.id,
+      },
+      displayName: "jaritanet-gateway",
+      metadata: {
+        ssh_authorized_keys: sshKey.publicKeyOpenssh,
+        user_data: Buffer.from(cloudInit).toString("base64"),
+      },
+      shape: "VM.Standard.A1.Flex",
+      shapeConfig: {
+        memoryInGbs: 6,
+        ocpus: 1,
+      },
+      sourceDetails: {
+        sourceId: ubuntuImage,
+        sourceType: "image",
+      },
     },
-    displayName: "jaritanet-gateway",
-    metadata: {
-      ssh_authorized_keys: sshKey.publicKeyOpenssh,
-      user_data: Buffer.from(cloudInit).toString("base64"),
-    },
-    shape: "VM.Standard.A1.Flex",
-    shapeConfig: {
-      memoryInGbs: 6,
-      ocpus: 1,
-    },
-    sourceDetails: {
-      sourceId: ubuntuImage,
-      sourceType: "image",
-    },
-  });
+    opts,
+  );
 
   const vpsIp = instance.publicIp;
 

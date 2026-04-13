@@ -173,7 +173,6 @@ jobs:
             pulumi config set oci:tenancyOcid "$OCI_TENANCY_OCID"
             pulumi config set oci:userOcid "$OCI_USER_OCID"
             pulumi config set oci:fingerprint "$OCI_FINGERPRINT"
-            pulumi config set --secret oci:privateKey "$OCI_PRIVATE_KEY"
             pulumi config set oci:region "$OCI_REGION"
           fi
         working-directory: packages/infra
