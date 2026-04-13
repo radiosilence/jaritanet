@@ -40,12 +40,20 @@ graph TB
     end
 ```
 
-### Optional: Hetzner VPS Gateway
+### Optional: VPS Gateway
 
-When a Hetzner token is configured, a VPS running Rathole acts as a stateless TCP relay. Your home IP disappears from DNS and all traffic routes through the VPS.
+When gateway credentials are configured, a VPS running Rathole acts as a stateless TCP relay. Your home IP disappears from DNS and all traffic routes through the VPS. Traefik keeps hostPort 443 as a fallback regardless — if the relay dies, port-forwarding still works.
+
+The gateway provider is auto-detected from available credentials:
+
+| Priority | Provider | Trigger | Cost |
+|---|---|---|---|
+| 1 | Hetzner | `HCLOUD_TOKEN` set | ~EUR3.85/mo (CX22) |
+| 2 | Oracle Cloud | `OCI_TENANCY_OCID` set | Free forever (ARM A1.Flex) |
+| 3 | Direct | Neither set | Free (uses detected external IP) |
 
 ```
-User -> Hetzner VPS:443 -> Rathole tunnel -> Traefik -> Service
+User -> VPS:443 -> Rathole tunnel -> Traefik -> Service
 ```
 
 ## How It Works
@@ -59,7 +67,8 @@ User -> Hetzner VPS:443 -> Rathole tunnel -> Traefik -> Service
 
 Everything lives in a single Pulumi package at `packages/infra/`:
 
-- **`src/modules/gateway.ts`** — Hetzner VPS, firewall, Rathole server (optional)
+- **`src/modules/gateway.ts`** — Hetzner VPS gateway (optional)
+- **`src/modules/gateway-oci.ts`** — Oracle Cloud ARM gateway (optional)
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoutes, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
@@ -82,17 +91,35 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 | `FILES_HOSTNAME` | Yes | Public hostname for file server |
 | `BLIT_HOSTNAME` | Yes | Public hostname for Blit |
 | `DEPLOY_TOKEN` | No | GitHub PAT (Actions:write) — enables IP watcher pod |
-| `HCLOUD_TOKEN` | No | Hetzner Cloud API token — enables VPS gateway |
+| `HCLOUD_TOKEN` | No | Hetzner Cloud API token — enables Hetzner gateway |
+| `OCI_TENANCY_OCID` | No | Oracle Cloud tenancy — enables OCI gateway |
+| `OCI_USER_OCID` | No | Oracle Cloud user OCID |
+| `OCI_FINGERPRINT` | No | Oracle Cloud API key fingerprint |
+| `OCI_PRIVATE_KEY` | No | Oracle Cloud API key (PEM contents) |
+| `OCI_REGION` | No | Oracle Cloud region (e.g. `eu-amsterdam-1`) |
 
-### Enabling the VPS Gateway
+### Enabling a Gateway
 
+Set credentials for one provider — the deploy auto-detects which to use.
+
+**Hetzner** (~EUR3.85/mo):
 ```bash
-# Add the Hetzner token
+# console.hetzner.cloud > Project > Security > API Tokens
 gh secret set HCLOUD_TOKEN
-
-# Uncomment the gateway section in Pulumi.main.yaml
-# Push — CI provisions VPS, deploys rathole, DNS flips to VPS IP
 ```
+
+**Oracle Cloud** (free forever):
+```bash
+# cloud.oracle.com > Profile > My profile > API keys > Add API key
+# The console shows tenancy/user OCIDs and generates the key+fingerprint
+gh secret set OCI_TENANCY_OCID   # Profile > Tenancy: <ocid shown at top>
+gh secret set OCI_USER_OCID      # Profile > My profile: <ocid under user info>
+gh secret set OCI_FINGERPRINT    # Shown after adding the API key
+gh secret set OCI_PRIVATE_KEY    # Paste the downloaded PEM private key
+gh secret set OCI_REGION         # e.g. eu-amsterdam-1, uk-london-1
+```
+
+Next deploy provisions the VPS, deploys rathole, and flips DNS to the VPS IP. To switch back to direct mode, remove the secrets.
 
 ## Development
 

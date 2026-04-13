@@ -51,7 +51,8 @@ The project uses Lefthook for pre-commit validation:
 Everything deploys in one `pulumi up` from `packages/infra/`:
 
 - **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server provisioning
-- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs
+- **`src/modules/gateway-oci.ts`** — Oracle Cloud ARM instance + VCN + Rathole via Docker
+- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
 - **`src/main.ts`** — Orchestrates all modules
@@ -64,13 +65,17 @@ All config uses Zod V4 schemas for runtime validation. Configuration lives in `P
 ### Service Flow
 
 External traffic follows this path:
-`https://hostname` -> Hetzner VPS (Rathole) -> K8s cluster (Rathole client) -> Traefik (TLS + routing) -> `http://service-name.jaritanet.svc.cluster.local`
+`https://hostname` -> Gateway VPS (Rathole) -> K8s cluster (Rathole client) -> Traefik (TLS + routing) -> service
+
+Without a gateway, Traefik serves directly via hostPort 443 and DNS points at the server's detected external IP.
 
 ### Key Components
 
 - **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
-- **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare.
-- **Cloudflare** — DNS only. A records pointing at VPS IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
+- **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
+- **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
+- **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
+- **Gateway auto-detection** — Hetzner (HCLOUD_TOKEN) > Oracle Cloud (OCI_TENANCY_OCID) > direct mode.
 
 ## GitHub Actions
 
