@@ -296,7 +296,7 @@ export function createIpWatcher(
   const script = `#!/bin/sh
 LAST_IP=""
 while true; do
-  IP=$(curl -4 -s --connect-timeout 5 https://api.ipify.org || true)
+  IP=$(curl -4 -s --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace 2>/dev/null | grep '^ip=' | cut -d= -f2)
   if [ -n "$IP" ] && [ "$IP" != "$LAST_IP" ]; then
     if [ -n "$LAST_IP" ]; then
       echo "$(date): IP changed $LAST_IP -> $IP, triggering deploy"
