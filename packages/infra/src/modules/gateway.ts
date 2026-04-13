@@ -28,16 +28,23 @@ export function createGateway(gateway: z.infer<typeof GatewayConfSchema>) {
   const firewall = new hcloud.Firewall("gateway", {
     rules: [
       {
-        description: "HTTPS",
+        description: "SSH",
         direction: "in",
-        port: "443",
+        port: "22",
         protocol: "tcp",
         sourceIps: ["0.0.0.0/0", "::/0"],
       },
       {
-        description: "HTTP (ACME challenges)",
+        description: "HTTP",
         direction: "in",
         port: "80",
+        protocol: "tcp",
+        sourceIps: ["0.0.0.0/0", "::/0"],
+      },
+      {
+        description: "HTTPS",
+        direction: "in",
+        port: "443",
         protocol: "tcp",
         sourceIps: ["0.0.0.0/0", "::/0"],
       },
