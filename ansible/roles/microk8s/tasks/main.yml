@@ -49,10 +49,11 @@
   notify: restart microk8s
 
 - name: Disable unmanaged addons
-  ansible.builtin.command: "microk8s disable {{ item }}"
+  ansible.builtin.command: "microk8s disable {{ item }} --force"
   loop: "{{ enabled_addons | difference(microk8s.addons) | difference(microk8s_addon_allowlist | default([])) }}"
   register: addon_disable_result
-  changed_when: addon_disable_result is not skipped
+  changed_when: addon_disable_result.rc == 0
+  failed_when: false
   notify: restart microk8s
 
 - name: Generate kubeconf with microk8s config
