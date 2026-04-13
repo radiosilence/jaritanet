@@ -44,7 +44,7 @@ jobs:
         run: |
           set -e
 
-          CONFIG_PATH="packages/k8s/Pulumi.main.yaml"
+          CONFIG_PATH="packages/infra/Pulumi.main.yaml"
           REPO="${{ matrix.repo }}"
           SERVICE_NAME="${{ matrix.service_name }}"
 
@@ -75,7 +75,7 @@ jobs:
             exit 1
           fi
 
-          CURRENT_VERSION=$(yq eval '.config["jaritanet-k8s:services"]["'$SERVICE_NAME'"].args.image.tag' "$CONFIG_PATH")
+          CURRENT_VERSION=$(yq eval '.config["jaritanet:services"]["'$SERVICE_NAME'"].args.image.tag' "$CONFIG_PATH")
 
           if [[ -z "$CURRENT_VERSION" ]]; then
             echo "Error: Could not find current version for service $SERVICE_NAME in $CONFIG_PATH"
@@ -91,9 +91,9 @@ jobs:
 
           echo "Update available: $CURRENT_VERSION -> $LATEST_VERSION"
 
-          yq eval '.config["jaritanet-k8s:services"]["'$SERVICE_NAME'"].args.image.tag = "'$LATEST_VERSION'"' -i "$CONFIG_PATH"
+          yq eval '.config["jaritanet:services"]["'$SERVICE_NAME'"].args.image.tag = "'$LATEST_VERSION'"' -i "$CONFIG_PATH"
 
-          NEW_VERSION=$(yq eval '.config["jaritanet-k8s:services"]["'$SERVICE_NAME'"].args.image.tag' "$CONFIG_PATH")
+          NEW_VERSION=$(yq eval '.config["jaritanet:services"]["'$SERVICE_NAME'"].args.image.tag' "$CONFIG_PATH")
 
           if [[ "$NEW_VERSION" != "$LATEST_VERSION" ]]; then
             echo "Error: Failed to update version in config file"
@@ -111,7 +111,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          git add packages/k8s/Pulumi.main.yaml
+          git add packages/infra/Pulumi.main.yaml
           git commit -m "chore: update ${{ matrix.service_name }} from ${{ env.CURRENT_VERSION }} to ${{ env.LATEST_VERSION }}"
 
           git push

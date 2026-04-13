@@ -213,7 +213,7 @@ export function createService(
                       failureThreshold: Math.max(
                         healthCheck.failureThreshold * 3,
                         30,
-                      ), // Higher threshold for startup
+                      ),
                       successThreshold: healthCheck.successThreshold,
                     },
                   }),

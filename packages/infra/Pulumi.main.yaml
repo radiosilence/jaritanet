@@ -1,8 +1,156 @@
 # yaml-language-server: $schema=../../schemas/infra.json
 config:
   cloudflare:apiToken:
-    secure: AAABAOWC2eAnjmk8uN5AgPlXVmjLNtCAbLpQDjXdD3XfnbN71AMRMB/u0NfSg9WghDTxzc/ihRytTVZQGRe5TtLDkma5tZ19
+    secure: AAABAO3Q5Z9RUZgleETmCvoaMOr3oPcs19Qc/Cp6C8pfb1EaBASR4AUQkqfoYaTI1NN+GiQJFQlbsBhGlNaP6DBdUi4ny5zR
+  # Uncomment to enable Hetzner VPS gateway with rathole:
+  # hcloud:token:
+  #   secure: REPLACE_ME
+  # jaritanet:gateway:
+  #   serverType: cx22
+  #   location: nbg1
+  #   image: ubuntu-24.04
+  #   ratholeVersion: v0.5.0
+  #
+  # Without gateway, set externalIp to your home IP for DNS A records:
+  # jaritanet:externalIp: '203.0.113.1'
   jaritanet:cloudflare:
     accountId: ''
-  jaritanet:tunnel:
-    name: "jaritanet"
+  jaritanet:traefik:
+    acmeEmail: jc@blit.cc
+    chartVersion: "34.3.0"
+  jaritanet:services:
+    navidrome:
+      hostname: ''
+      args:
+        httpPort: 4533
+        strategy:
+          type: Recreate
+        image:
+          repository: "deluan/navidrome"
+          tag: 0.61.2
+          pullPolicy: "Always"
+        env:
+          ND_SCANSCHEDULE: 1h
+          ND_LOGLEVEL: info
+          ND_SESSIONTIMEOUT: 24h
+          ND_ENABLESHARING: "true"
+          ND_ENABLETRANSCODINGCONFIG: "true"
+          ND_TRANSCODINGCACHESIZE: 5Gi
+          ND_ENABLEGRAVATAR: "true"
+          ND_SCANNER_PURGEMISSING: "always"
+          ND_UIWELCOMEMESSAGE: "fuck off"
+        healthCheck:
+          path: "/ping"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        limits:
+          cpu: 2000m
+          memory: 8Gi
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: music
+            storage: 2Ti
+            hostPath: /mnt/kontent/music
+            mountPath: /music
+            readOnly: true
+            nodeAffinityHostname: oldboy
+          - name: data
+            storage: 20Gi
+            hostPath: /home/navidrome/data
+            mountPath: /data
+            readOnly: false
+            nodeAffinityHostname: oldboy
+    files:
+      hostname: ''
+      args:
+        strategy:
+          type: Recreate
+        image:
+          repository: "ghcr.io/radiosilence/jaritanet-files"
+          tag: latest
+          pullPolicy: "Always"
+        replicas: 1
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: files
+            storage: 20Mi
+            hostPath: /srv/files
+            mountPath: /srv/files
+            nodeAffinityHostname: oldboy
+    blit:
+      hostname: ''
+      args:
+        replicas: 2
+        healthCheck: {}
+        limits:
+          cpu: 1000m
+          memory: 1024Mi
+        image:
+          repository: "ghcr.io/radiosilence/blit"
+          tag: sha-022b6d6
+          pullPolicy: "Always"
+        httpPort: 3000
+    dotfiles:
+      args:
+        replicas: 1
+        strategy:
+          type: Recreate
+        healthCheck:
+          path: "/"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        image:
+          repository: "ghcr.io/radiosilence/dotfiles"
+          tag: latest
+          pullPolicy: "Always"
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: kontent
+            storage: 4Ti
+            hostPath: /mnt/kontent
+            mountPath: /mnt/kontent
+            readOnly: false
+            nodeAffinityHostname: oldboy
+  jaritanet:zones:
+    - name: "blit.cc"
+      zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
+      modules:
+        - fastmail
+        - bluesky
+    - name: radiosilence.dev
+      zoneId: 3373ad7c3dc3104e7aeab31c1176e684
+      modules:
+        - fastmail
+        - bluesky
+    - name: buttholes.live
+      zoneId: 1115a1e5006523692d61e49e672f6df0
+      modules:
+        - fastmail
+        - bluesky
+  jaritanet:fastmail:
+    mxDomain: smtp.messagingengine.com
+    dkimDomain: dkim.fmhosted.com
+    dkimSubdomain: _domainkey
+    dmarcSubdomain: _dmarc
+    dmarcAggEmail: dmarc-agg@blit.cc
+    dmarcPolicy: reject
+    spfDomain: spf.messagingengine.com
+  jaritanet:bluesky:
+    did: did:plc:d32vuqlfqjttwbckkxgxgbgl
