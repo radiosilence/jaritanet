@@ -189,4 +189,4 @@ jobs:
           KUBE_HOST: ${{ secrets.KUBE_HOST }}
           KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
-          GITHUB_DEPLOY_TOKEN: ${{ secrets.GITHUB_DEPLOY_TOKEN }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
