@@ -17,7 +17,7 @@ config:
     accountId: ''
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
-    chartVersion: "39.0.9"
+    chartVersion: "40.0.0"
   jaritanet:services:
     navidrome:
       hostname: ''
