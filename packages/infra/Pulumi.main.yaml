@@ -17,7 +17,7 @@ config:
     accountId: ''
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
-    chartVersion: "39.0.7"
+    chartVersion: "40.0.0"
   jaritanet:services:
     navidrome:
       hostname: ''
@@ -162,3 +162,9 @@ config:
     spfDomain: spf.messagingengine.com
   jaritanet:bluesky:
     did: did:plc:d32vuqlfqjttwbckkxgxgbgl
+  jaritanet-k8s:services:
+    blit:
+      args:
+        image:
+          tag: sha-1e56375
+        httpPort: 3000
