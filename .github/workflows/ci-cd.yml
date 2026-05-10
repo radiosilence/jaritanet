@@ -19,8 +19,6 @@ on:
       - "packages/**"
       - "*.config.*"
       - package.json
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_call:
     secrets:
       PULUMI_ACCESS_TOKEN:
