@@ -166,5 +166,5 @@ config:
     blit:
       args:
         image:
-          tag: sha-97a22a0
+          tag: sha-e377763
         httpPort: 3000
