@@ -162,3 +162,9 @@ config:
     spfDomain: spf.messagingengine.com
   jaritanet:bluesky:
     did: did:plc:d32vuqlfqjttwbckkxgxgbgl
+  jaritanet-k8s:services:
+    blit:
+      args:
+        image:
+          tag: sha-1e56375
+        httpPort: 3000
