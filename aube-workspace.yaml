@@ -1,0 +1,30 @@
+# aube workspace config — security-focused defaults.
+# Docs: https://aube.en.dev/security.html
+
+# Minutes between a package being published and aube being willing to install
+# it. 7 days (10080 min) buys us a window for the registry / community to
+# catch and yank malicious releases before they reach our lockfile.
+# Default is 1440 (1 day).
+minimumReleaseAge: 10080
+
+# Refuse to install a version whose trust evidence is weaker than an earlier
+# release (eg. lost provenance, dropped signature). Mitigates downgrade
+# attacks where an attacker republishes a "patched" version with weaker
+# verifiability.
+trustPolicy: no-downgrade
+
+# Reject git/file/tarball transitive deps — only registry packages allowed
+# below the top level. Default is true; pinned here so it stays that way.
+blockExoticSubdeps: true
+
+# Lifecycle scripts that may run during install. Moved from
+# package.json#trustedDependencies (bun) — aube's equivalent.
+allowBuilds:
+  "@pulumi/command": true
+  "@pulumi/kubernetes": true
+  lefthook: true
+  protobufjs: true
+
+enableGlobalVirtualStore: false
+
+jailBuilds: true
