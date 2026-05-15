@@ -1,4 +1,4 @@
 [tools]
-bun = "latest"
+aube = "1"
 node = "24"
 yq = "latest"

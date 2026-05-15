@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env -S node --experimental-strip-types --no-warnings
 import fs from "node:fs/promises";
 import * as z from "zod";
 

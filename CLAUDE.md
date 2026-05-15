@@ -22,13 +22,13 @@ JARITANET is an infrastructure-as-code monorepo using Pulumi to expose Kubernete
 
 ### Development
 
-- `bun run typecheck:infra` - Type check infrastructure package
-- `bun run test` - Run tests (uses vitest on Node - do NOT use `bun test` directly, Pulumi needs Node's v8)
+- `aube run typecheck:infra` - Type check infrastructure package
+- `aube run test` - Run tests (vitest on Node — Pulumi needs Node's v8)
 - `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
-- `bun run lint` - Lint code with oxlint
-- `bun run lint:fix` - Lint and auto-fix with oxlint
-- `bun run fmt` - Format code with oxfmt
-- `bun run fmt:check` - Check formatting with oxfmt
+- `aube run lint` - Lint code with oxlint
+- `aube run lint:fix` - Lint and auto-fix with oxlint
+- `aube run fmt` - Format code with oxfmt
+- `aube run fmt:check` - Check formatting with oxfmt
 
 ### Git Hooks
 
@@ -40,9 +40,10 @@ The project uses Lefthook for pre-commit validation:
 
 ### Package Management
 
-- Uses Bun as the package manager and script runner
+- Uses [aube](https://aube.en.dev) as the package manager and script runner (pnpm-style isolated `node_modules`, reads `aube-lock.yaml`)
 - Workspace-based monorepo with shared dependencies
 - Run commands from root directory
+- Build-script allowlist and supply-chain defaults live in `aube-workspace.yaml`
 
 ## Architecture
 
@@ -157,7 +158,7 @@ Three-stage deployment targeting different host groups:
 ## Development Notes
 
 - Single package at `packages/infra/` with its own `tsconfig.json` and `package.json`
-- **Use Bun for package management and script running**, but tests/Pulumi run on Node under the hood
+- **Use aube for package management and script running** — node 24 provides the runtime
 - Type checking must pass before commits (Lefthook)
 - oxlint handles linting, oxfmt handles code formatting
 - The system runs on minimal hardware (2014 MacBook Pro)

@@ -32,13 +32,17 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Install Dependencies
-        run: bun install
+        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        with:
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
 
       - name: Generate Schemas
-        run: bun gen:schemas
+        run: aube run gen:schemas
 
       - name: Format
-        run: bun run fmt
+        run: aube run fmt
 
       - name: Commit Changes
         run: |

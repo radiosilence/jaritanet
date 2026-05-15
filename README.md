@@ -124,14 +124,14 @@ Next deploy provisions the VPS, deploys rathole, and flips DNS to the VPS IP. To
 ## Development
 
 ```bash
-bun install              # Install dependencies
-bun run lint             # Lint with oxlint
-bun run lint:fix         # Lint and auto-fix
-bun run fmt              # Format with oxfmt
-bun run fmt:check        # Check formatting
-bun run typecheck:infra  # Type check
-bun run test             # Run tests
-./scripts/gen-schemas.ts # Generate JSON schemas
+aube install              # Install dependencies
+aube run lint             # Lint with oxlint
+aube run lint:fix         # Lint and auto-fix
+aube run fmt              # Format with oxfmt
+aube run fmt:check        # Check formatting
+aube run typecheck:infra  # Type check
+aube run test             # Run tests
+./scripts/gen-schemas.ts  # Generate JSON schemas
 ```
 
 Pre-commit hooks (via Lefthook) run oxlint, oxfmt, and type checking.

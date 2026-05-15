@@ -63,10 +63,14 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Install Dependencies
-        run: bun install
+        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        with:
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
 
       - name: Lint
-        run: bun run lint
+        run: aube run lint
 
   format:
     name: Format
@@ -80,10 +84,14 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Install Dependencies
-        run: bun install
+        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        with:
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
 
       - name: Format Check
-        run: bun run fmt:check
+        run: aube run fmt:check
 
   typecheck:
     name: Type Check
@@ -97,10 +105,14 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Install Dependencies
-        run: bun install
+        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        with:
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
 
       - name: Type Check
-        run: bun run typecheck:infra
+        run: aube run typecheck:infra
 
   test:
     name: Test
@@ -114,10 +126,14 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Install Dependencies
-        run: bun install
+        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        with:
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
 
       - name: Run Tests
-        run: bun run test
+        run: aube run test
 
   deploy:
     name: Deploy
@@ -135,7 +151,11 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Install Dependencies
-        run: bun install
+        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        with:
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
 
       - name: Connect to Tailscale
         uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
