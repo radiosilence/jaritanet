@@ -22,14 +22,14 @@
     "prepare": "lefthook install"
   },
   "dependencies": {
-    "@pulumi/cloudflare": "6.14.0",
+    "@pulumi/cloudflare": "6.15.0",
     "@pulumi/command": "1.2.1",
-    "@pulumi/hcloud": "1.32.1",
-    "@pulumi/kubernetes": "4.28.0",
-    "@pulumi/pulumi": "3.229.0",
-    "@pulumi/random": "4.19.2",
-    "@pulumi/tls": "5.3.1",
-    "zod": "4.3.6"
+    "@pulumi/hcloud": "1.35.0",
+    "@pulumi/kubernetes": "4.30.0",
+    "@pulumi/pulumi": "3.239.0",
+    "@pulumi/random": "4.20.0",
+    "@pulumi/tls": "5.4.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tsconfig/node-ts": "23.6.4",
