@@ -49,13 +49,14 @@ time:
   '@oxlint/binding-win32-arm64-msvc@1.64.0': 2026-05-11T18:48:38.476Z
   '@oxlint/binding-win32-x64-msvc@1.64.0': 2026-05-11T18:49:49.714Z
   '@polka/url@1.0.0-next.29': 2025-04-09T18:41:21.389Z
-  '@pulumi/cloudflare@6.14.0': 2026-04-02T19:13:17.609Z
+  '@pulumi/cloudflare@6.15.0': 2026-05-02T02:18:38.550Z
   '@pulumi/command@1.2.1': 2026-03-04T00:23:22.954Z
-  '@pulumi/hcloud@1.32.1': 2026-02-17T04:19:15.889Z
-  '@pulumi/kubernetes@4.28.0': 2026-03-12T18:19:45.819Z
+  '@pulumi/hcloud@1.35.0': 2026-05-13T04:53:39.701Z
+  '@pulumi/kubernetes@4.30.0': 2026-04-25T00:05:24.413Z
   '@pulumi/pulumi@3.229.0': 2026-04-02T16:15:00.363Z
-  '@pulumi/random@4.19.2': 2026-03-30T17:34:47.374Z
-  '@pulumi/tls@5.3.1': 2026-03-30T17:41:24.401Z
+  '@pulumi/pulumi@3.239.0': 2026-05-14T12:57:00.775Z
+  '@pulumi/random@4.20.0': 2026-05-14T04:58:49.970Z
+  '@pulumi/tls@5.4.0': 2026-05-14T05:03:16.230Z
   '@sigstore/bundle@4.0.0': 2025-07-29T23:16:47.771Z
   '@sigstore/core@3.2.0': 2026-03-18T19:52:09.396Z
   '@sigstore/protobuf-specs@0.5.1': 2026-04-06T21:26:33.792Z
@@ -154,6 +155,7 @@ time:
   why-is-node-running@2.3.0: 2024-07-08T12:57:23.951Z
   yallist@4.0.0: 2019-09-30T20:08:08.970Z
   yallist@5.0.0: 2024-04-09T19:21:44.844Z
+  zod@4.4.3: 2026-05-04T07:06:40.819Z
 
 importers:
 
@@ -163,32 +165,32 @@ importers:
         specifier: ^1.9.0
         version: 1.9.1
       '@pulumi/cloudflare':
-        specifier: 6.14.0
-        version: 6.14.0(typescript@6.0.3)
+        specifier: 6.15.0
+        version: 6.15.0(typescript@6.0.3)
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@6.0.3)
       '@pulumi/hcloud':
-        specifier: 1.32.1
-        version: 1.32.1(typescript@6.0.3)
+        specifier: 1.35.0
+        version: 1.35.0(typescript@6.0.3)
       '@pulumi/kubernetes':
-        specifier: 4.28.0
-        version: 4.28.0(typescript@6.0.3)
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi':
-        specifier: 3.229.0
-        version: 3.229.0(typescript@6.0.3)
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
       '@pulumi/random':
-        specifier: 4.19.2
-        version: 4.19.2(typescript@6.0.3)
+        specifier: 4.20.0
+        version: 4.20.0(typescript@6.0.3)
       '@pulumi/tls':
-        specifier: 5.3.1
-        version: 5.3.1(typescript@6.0.3)
+        specifier: 5.4.0
+        version: 5.4.0(typescript@6.0.3)
       vite:
         specifier: ^6.0.0 || ^7.0.0 || ^8.0.0
         version: 8.0.13(@types/node@25.8.0)
       zod:
-        specifier: 4.3.6
-        version: 4.3.6
+        specifier: 4.4.3
+        version: 4.4.3
     devDependencies:
       '@tsconfig/node-ts':
         specifier: 23.6.4
@@ -586,17 +588,17 @@ packages:
   '@protobufjs/utf8@1.1.1':
     resolution: {integrity: sha512-oOAWABowe8EAbMyWKM0tYDKi8Yaox52D+HWZhAIJqQXbqe0xI/GV7FhLWqlEKreMkfDjshR5FKgi3mnle0h6Eg==}
 
-  '@pulumi/cloudflare@6.14.0':
-    resolution: {integrity: sha512-YKH9x7UsNg5iI92g9hVL893MzF8VS4W7nANFvr1TN99mQczPKNi0Z1abTBxyZ4DcB/JWi5zq+va7rJuKkuVr6Q==}
+  '@pulumi/cloudflare@6.15.0':
+    resolution: {integrity: sha512-I2C1UA//YbkuGUV5O9skIMUu94StNSE4hiAU57GFtyL7WEqAMJLvV8Vpcu1192rI1/ZwFIJeR4MbAZfiYlPFqA==}
 
   '@pulumi/command@1.2.1':
     resolution: {integrity: sha512-mutNDIUYP67yCBYOVIidQyxuTwZDY9v/sx9EGbgIv4PXfyfolOKGgGLeoHEbI1lxRwaw2wbTZ3VNIynDnA5VKA==}
 
-  '@pulumi/hcloud@1.32.1':
-    resolution: {integrity: sha512-BpsKKQ83Mt7l+0m07S97gSACT0p9dzehtJUyLvTwuOfFY8JKcG8hgfwt7IMjFqR3HfK4+EX12Qpb8H9gNkM/Kg==}
+  '@pulumi/hcloud@1.35.0':
+    resolution: {integrity: sha512-h8JZfAeP65iCraNLmdztBn9qX7poXJc9zPN7hH2I829PNiovVdYeMi5WCF2MB8ptc1pKoP6jG86zn8IqLW8onQ==}
 
-  '@pulumi/kubernetes@4.28.0':
-    resolution: {integrity: sha512-tdoUN7blJv1rrwr+2Pc55CP/+L1sMkH3z5Y7DI2yfNiGgdeaOHYia+hYsnLgR4HtBSfIfuBVWxGkZwGWOgUmOQ==}
+  '@pulumi/kubernetes@4.30.0':
+    resolution: {integrity: sha512-ZCS4HwBvcxfdPDw44L1/SCqoIttCVugx/FZzqRFRq+leKRIfigAYt4sILXlqulNtX6XjlWVzZO8zva3Ygk7hGA==}
 
   '@pulumi/pulumi@3.229.0':
     resolution: {integrity: sha512-SoGAonHOrGP/NQQivq3gMz0nlebVUYOf6TgpsPHqvFARsHz4JIR+/fpFm/8JW+Ev5o6tvb6g04a+STmpdxoaOg==}
@@ -610,11 +612,23 @@ packages:
       typescript:
         optional: true
 
-  '@pulumi/random@4.19.2':
-    resolution: {integrity: sha512-ee77eUIfPMekYi9x7/3iDVIhqUcZrvXQpC8YNTRN8XKfRDuuWio4xu2CvoHeEBDOov84FumMafFqn+xSf+XlDQ==}
+  '@pulumi/pulumi@3.239.0':
+    resolution: {integrity: sha512-3OqN4x1OYgan3LvkiYCQYapm9phYnZzcu3usvovAXcQA3x5N5izHi9lmx0N/NLRsQQswE021ZvTTC2HZrYcqTg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      ts-node: '>= 7.0.1 < 12'
+      typescript: '>= 3.8.3 < 7'
+    peerDependenciesMeta:
+      ts-node:
+        optional: true
+      typescript:
+        optional: true
 
-  '@pulumi/tls@5.3.1':
-    resolution: {integrity: sha512-cirkgzVjCCWabKALHw3QCW67UCFkcEhdTqJIuniivbOyuk2jitLCHfLOcyGh/QoS0p5cC+eRMlNZ+Z1+gu/p+Q==}
+  '@pulumi/random@4.20.0':
+    resolution: {integrity: sha512-2jBPt+lR6XI6p87ALtznasNKU7Da247nW2g2MPCjd1JHKJwvtjyNrD2c4Wd3jgQ+kdKyvtUfiguTPi06m8JKpQ==}
+
+  '@pulumi/tls@5.4.0':
+    resolution: {integrity: sha512-onLIie8deuZJHV8JkuDnY7nilIgGTr8HNyatg1FbgHikqo/HxU9yOwPM5Q7J0EAKtfHXuI9wkhnc4NReWIUfNg==}
 
   '@rolldown/binding-darwin-arm64@1.0.1':
     resolution: {integrity: sha512-cKnAhWEsV7TPcA/5EAteDp6KcJZBQ2G+BqE7zayMMi7kMvwRsbv7WT9aOnn0WNl4SKEIf43vjS31iUPu80nzXg==}
@@ -1827,8 +1841,8 @@ packages:
     resolution: {integrity: sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==}
     engines: {node: '>=12'}
 
-  zod@4.3.6:
-    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -2150,21 +2164,21 @@ snapshots:
 
   '@protobufjs/utf8@1.1.1': {}
 
-  '@pulumi/cloudflare@6.14.0(typescript@6.0.3)':
+  '@pulumi/cloudflare@6.15.0(typescript@6.0.3)':
     dependencies:
-      '@pulumi/pulumi': 3.229.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
 
   '@pulumi/command@1.2.1(typescript@6.0.3)':
     dependencies:
       '@pulumi/pulumi': 3.229.0(typescript@6.0.3)
 
-  '@pulumi/hcloud@1.32.1(typescript@6.0.3)':
+  '@pulumi/hcloud@1.35.0(typescript@6.0.3)':
     dependencies:
-      '@pulumi/pulumi': 3.229.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
 
-  '@pulumi/kubernetes@4.28.0(typescript@6.0.3)':
+  '@pulumi/kubernetes@4.30.0(typescript@6.0.3)':
     dependencies:
-      '@pulumi/pulumi': 3.229.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
       glob: 12.0.0
       shell-quote: 1.8.3
 
@@ -2201,13 +2215,44 @@ snapshots:
       typescript: 6.0.3
       upath: 1.2.0
 
-  '@pulumi/random@4.19.2(typescript@6.0.3)':
+  '@pulumi/pulumi@3.239.0(typescript@6.0.3)':
     dependencies:
-      '@pulumi/pulumi': 3.229.0(typescript@6.0.3)
+      '@grpc/grpc-js': 1.14.3
+      '@logdna/tail-file': 2.2.0
+      '@npmcli/arborist': 9.5.0(picomatch@4.0.4)
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/exporter-trace-otlp-grpc': 0.57.2(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-zipkin': 1.30.1(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation': 0.57.2(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-grpc': 0.57.2(@opentelemetry/api@1.9.1)
+      '@opentelemetry/resources': 1.30.1(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-base': 1.30.1(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-node': 1.30.1(@opentelemetry/api@1.9.1)
+      '@types/google-protobuf': 3.15.12
+      '@types/semver': 7.7.1
+      '@types/tmp': 0.2.6
+      execa: 5.1.1
+      fdir: 6.5.0(picomatch@4.0.4)
+      google-protobuf: 3.21.4
+      ini: 2.0.0
+      js-yaml: 3.14.2
+      minimist: 1.2.8
+      normalize-package-data: 6.0.2
+      picomatch: 4.0.4
+      require-from-string: 2.0.2
+      semver: 7.7.4
+      source-map-support: 0.5.21
+      tmp: 0.2.5
+      typescript: 6.0.3
+      upath: 1.2.0
 
-  '@pulumi/tls@5.3.1(typescript@6.0.3)':
+  '@pulumi/random@4.20.0(typescript@6.0.3)':
     dependencies:
-      '@pulumi/pulumi': 3.229.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
+
+  '@pulumi/tls@5.4.0(typescript@6.0.3)':
+    dependencies:
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
 
   '@rolldown/binding-darwin-arm64@1.0.1': {}
 
@@ -3261,4 +3306,4 @@ snapshots:
       y18n: 5.0.8
       yargs-parser: 21.1.1
 
-  zod@4.3.6: {}
+  zod@4.4.3: {}
