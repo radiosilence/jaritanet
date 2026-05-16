@@ -8,7 +8,6 @@
   },
   "required": ["config"],
   "description": "Schema for infrastructure configuration",
-  "id": "https://raw.githubusercontent.com/radiosilence/jaritanet/main/schemas/infra.json",
   "title": "Infrastructure Configuration Schema",
   "$defs": {
     "__schema0": {
