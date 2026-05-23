@@ -169,10 +169,15 @@ jobs:
 
       - name: Detect Server External IP
         if: env.HCLOUD_TOKEN == ''
+        env:
+          KUBE_HOST: ${{ secrets.KUBE_HOST }}
+          KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
+          KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
         run: |
+          DECODED_TOKEN=$(printf '%s' "$KUBE_TOKEN" | base64 -d)
           EXTERNAL_IP=$(kubectl \
-            --server="https://${{ secrets.KUBE_HOST }}:${{ secrets.KUBE_API_PORT }}" \
-            --token="$(echo '${{ secrets.KUBE_TOKEN }}' | base64 -d)" \
+            --server="https://$KUBE_HOST:$KUBE_API_PORT" \
+            --token="$DECODED_TOKEN" \
             --insecure-skip-tls-verify \
             run detect-ip --rm -i --restart=Never --quiet \
             --image=curlimages/curl -- -4 -s https://1.1.1.1/cdn-cgi/trace 2>/dev/null | grep '^ip=' | cut -d= -f2 | tr -d '[:space:]')
