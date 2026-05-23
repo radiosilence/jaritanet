@@ -108,7 +108,7 @@ config:
             - oldboy
         persistence:
           - name: files
-            storage: 1Tb
+            storage: 1.5Ti
             hostPath: /srv/tv
             mountPath: /srv/tv
             nodeAffinityHostname: oldboy
