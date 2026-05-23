@@ -110,8 +110,8 @@ config:
         persistence:
           - name: tv
             storage: 1Ti
-            hostPath: /srv/tv
-            mountPath: /srv/tv
+            hostPath: /mnt/kontent/tv
+            mountPath: /mnt/kontent/tv
             readOnly: true
             nodeAffinityHostname: oldboy
     blit:
@@ -127,35 +127,6 @@ config:
           tag: sha-5cf197c
           pullPolicy: "Always"
         httpPort: 3000
-    dotfiles:
-      args:
-        replicas: 1
-        strategy:
-          type: Recreate
-        healthCheck:
-          path: "/"
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          timeoutSeconds: 10
-        limits:
-          cpu: 500m
-          memory: 512Mi
-        image:
-          repository: "ghcr.io/radiosilence/dotfiles"
-          tag: latest
-          pullPolicy: "Always"
-        nodeSelector:
-          key: kubernetes.io/hostname
-          operator: In
-          values:
-            - oldboy
-        persistence:
-          - name: kontent
-            storage: 4Ti
-            hostPath: /mnt/kontent
-            mountPath: /mnt/kontent
-            readOnly: false
-            nodeAffinityHostname: oldboy
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
