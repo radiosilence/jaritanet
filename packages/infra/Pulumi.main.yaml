@@ -82,6 +82,7 @@ config:
             storage: 20Mi
             hostPath: /srv/files
             mountPath: /srv/files
+            readOnly: true
             nodeAffinityHostname: oldboy
     tv:
       hostname: ''
@@ -107,10 +108,11 @@ config:
           values:
             - oldboy
         persistence:
-          - name: files
-            storage: 1.5Ti
+          - name: tv
+            storage: 1Ti
             hostPath: /srv/tv
             mountPath: /srv/tv
+            readOnly: true
             nodeAffinityHostname: oldboy
     blit:
       hostname: ''
