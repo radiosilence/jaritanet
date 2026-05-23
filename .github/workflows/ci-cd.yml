@@ -139,6 +139,7 @@ jobs:
 
   deploy:
     name: Deploy
+    needs: [test, lint, format, typecheck]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
       (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
