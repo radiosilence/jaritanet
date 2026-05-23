@@ -2,17 +2,6 @@
 # cloudflare:apiToken and hcloud:token are set via env vars in CI
 # (CLOUDFLARE_API_TOKEN and HCLOUD_TOKEN). No need to encrypt them here.
 config:
-  # Uncomment to enable Hetzner VPS gateway with rathole:
-  # hcloud:token:
-  #   secure: REPLACE_ME
-  # jaritanet:gateway:
-  #   serverType: cx22
-  #   location: nbg1
-  #   image: ubuntu-24.04
-  #   ratholeVersion: v0.5.0
-  #
-  # Without gateway, set externalIp to your home IP for DNS A records:
-  # jaritanet:externalIp: '203.0.113.1'
   jaritanet:cloudflare:
     accountId: ''
   jaritanet:traefik:
@@ -93,6 +82,35 @@ config:
             storage: 20Mi
             hostPath: /srv/files
             mountPath: /srv/files
+            nodeAffinityHostname: oldboy
+    tv:
+      hostname: ''
+      args:
+        strategy:
+          type: Recreate
+        image:
+          repository: "ghcr.io/radiosilence/jaritanet-files"
+          tag: latest
+          pullPolicy: "Always"
+        replicas: 1
+        healthCheck:
+          path: "/"
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
+        limits:
+          cpu: 100m
+          memory: 64Mi
+        nodeSelector:
+          key: kubernetes.io/hostname
+          operator: In
+          values:
+            - oldboy
+        persistence:
+          - name: files
+            storage: 1Tb
+            hostPath: /srv/tv
+            mountPath: /srv/tv
             nodeAffinityHostname: oldboy
     blit:
       hostname: ''

@@ -25,9 +25,6 @@ const dnsModules = {
 
 export default async function () {
   const { namespace } = conf;
-  // --- Gateway: Hetzner VPS + rathole (optional) ---
-  // If HCLOUD_TOKEN is set, provision a VPS. Otherwise use externalIp
-  // for DNS or fall back to direct mode (hostPort on Traefik).
   let dnsTarget: pulumi.Output<string> | undefined;
   let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
