@@ -84,36 +84,6 @@ config:
             mountPath: /srv/files
             readOnly: true
             nodeAffinityHostname: oldboy
-    tv:
-      hostname: ''
-      args:
-        strategy:
-          type: Recreate
-        image:
-          repository: "ghcr.io/radiosilence/jaritanet-files"
-          tag: latest
-          pullPolicy: "Always"
-        replicas: 1
-        healthCheck:
-          path: "/"
-          initialDelaySeconds: 5
-          periodSeconds: 30
-          timeoutSeconds: 5
-        limits:
-          cpu: 100m
-          memory: 64Mi
-        nodeSelector:
-          key: kubernetes.io/hostname
-          operator: In
-          values:
-            - oldboy
-        persistence:
-          - name: tv
-            storage: 1Ti
-            hostPath: /mnt/kontent/tv
-            mountPath: /srv/files
-            readOnly: true
-            nodeAffinityHostname: oldboy
     blit:
       hostname: ''
       args:
