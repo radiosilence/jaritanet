@@ -111,7 +111,7 @@ config:
           - name: tv
             storage: 1Ti
             hostPath: /mnt/kontent/tv
-            mountPath: /mnt/kontent/tv
+            mountPath: /srv/files
             readOnly: true
             nodeAffinityHostname: oldboy
     blit:
