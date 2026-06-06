@@ -43,8 +43,6 @@ on:
         required: true
       FILES_HOSTNAME:
         required: true
-      TV_HOSTNAME:
-        required: true
       BLIT_HOSTNAME:
         required: true
 
@@ -191,7 +189,6 @@ jobs:
           pulumi config set --path jaritanet:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
           pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
           pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
-          pulumi config set --path jaritanet:services.tv.hostname "$TV_HOSTNAME"
           if [[ -n "$EXTERNAL_IP" ]]; then
             pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
           fi
@@ -202,7 +199,6 @@ jobs:
           NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
           FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
-          TV_HOSTNAME: ${{ secrets.TV_HOSTNAME }}
 
       - name: Deploy
         uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
