@@ -1,0 +1,6 @@
+# Filled client configs carry live credentials — never commit them.
+# Only the sanitised template + docs belong in the repo.
+*
+!.gitignore
+!README.md
+!*.template.json

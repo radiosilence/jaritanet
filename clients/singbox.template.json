@@ -1,0 +1,89 @@
+{
+  "log": { "level": "info", "timestamp": true },
+  "dns": {
+    "servers": [
+      { "type": "https", "tag": "cf-doh", "server": "1.1.1.1" },
+      { "type": "tailscale", "tag": "ts-dns", "endpoint": "ts" }
+    ],
+    "rules": [
+      { "domain_suffix": ["<TAILNET_MAGICDNS_SUFFIX>"], "server": "ts-dns" }
+    ],
+    "final": "cf-doh",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+      "mtu": 1400,
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "system"
+    }
+  ],
+  "endpoints": [
+    {
+      "type": "tailscale",
+      "tag": "ts",
+      "auth_key": "<TAILSCALE_AUTH_KEY>",
+      "ephemeral": true,
+      "accept_routes": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "hysteria2",
+      "tag": "hy2",
+      "server": "<VPS_IP>",
+      "server_port": 443,
+      "password": "<HYSTERIA_AUTH_PASSWORD>",
+      "obfs": { "type": "salamander", "password": "<HYSTERIA_OBFS_PASSWORD>" },
+      "tls": {
+        "enabled": true,
+        "server_name": "www.bing.com",
+        "insecure": true
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "reality",
+      "server": "<VPS_IP>",
+      "server_port": 443,
+      "uuid": "<XRAY_UUID>",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "<XRAY_SERVER_NAME>",
+        "utls": { "enabled": true, "fingerprint": "chrome" },
+        "reality": {
+          "enabled": true,
+          "public_key": "<XRAY_PUBLIC_KEY>",
+          "short_id": "<XRAY_SHORT_ID>"
+        }
+      }
+    },
+    {
+      "type": "urltest",
+      "tag": "auto",
+      "outbounds": ["hy2", "reality"],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "3m",
+      "tolerance": 100
+    },
+    {
+      "type": "selector",
+      "tag": "select",
+      "outbounds": ["auto", "hy2", "reality"],
+      "default": "auto"
+    }
+  ],
+  "route": {
+    "default_domain_resolver": "cf-doh",
+    "rules": [
+      { "ip_cidr": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"], "outbound": "ts" }
+    ],
+    "final": "select",
+    "auto_detect_interface": true
+  }
+}
