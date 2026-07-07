@@ -40,6 +40,23 @@
             "serverType": {
               "default": "cx23",
               "type": "string"
+            },
+            "xray": {
+              "type": "object",
+              "properties": {
+                "dest": {
+                  "default": "127.0.0.1:8443",
+                  "type": "string"
+                },
+                "serverName": {
+                  "type": "string"
+                },
+                "version": {
+                  "default": "v1.8.24",
+                  "type": "string"
+                }
+              },
+              "required": ["serverName"]
             }
           }
         },

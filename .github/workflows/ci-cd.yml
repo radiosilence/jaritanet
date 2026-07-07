@@ -186,9 +186,12 @@ jobs:
         run: |
           pulumi stack select radiosilence/jaritanet/main
           pulumi config set --path jaritanet:cloudflare.accountId "$CLOUDFLARE_ACCOUNT_ID"
+          pulumi config set --path jaritanet:traefik.acmeEmail "$ACME_EMAIL"
           pulumi config set --path jaritanet:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
           pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
           pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
+          # Reality decoy is the blit CV site, so reuse its hostname secret
+          pulumi config set --path jaritanet:gateway.xray.serverName "$BLIT_HOSTNAME"
           if [[ -n "$EXTERNAL_IP" ]]; then
             pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
           fi
@@ -196,6 +199,7 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
           FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
