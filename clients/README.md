@@ -13,6 +13,18 @@ config for the gateway. It carries two transports behind a selector:
 Tailnet traffic (`100.64.0.0/10`) is split off through an embedded Tailscale
 endpoint, so tailnet access and censorship-resistant egress coexist in one tunnel
 — no second VPN app, and it works on iOS where only one VPN can run at a time.
+MagicDNS (`*.<tailnet>.ts.net`) resolves locally from tsnet's netmap via `ts-dns`.
+
+Two settings are load-bearing — do not drop them:
+
+- **`route.rules` has `sniff` + `hijack-dns`.** Without the `hijack-dns` rule,
+  sing-box routes port-53 queries out the tunnel as raw packets to its own dead
+  internal DNS address; nothing resolves (only cached lookups work) and clients
+  appear to "lose connection." With it, queries are answered via `cf-doh`
+  (DoH → 1.1.1.1, routed over the tunnel — encrypted and unleakable).
+- **`accept_routes: false` on the Tailscale endpoint.** With `true`, a tailnet
+  node advertising routes gets accepted and swallows the whole default route →
+  total blackout. Tailnet stays reachable via the `100.64.0.0/10` route rule.
 
 ## Filling it in
 
