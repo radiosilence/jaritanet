@@ -5,6 +5,7 @@ import * as random from "@pulumi/random";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { GatewayConfSchema } from "../conf.schemas.ts";
+import { createXray } from "./xray.ts";
 
 /**
  * Provisions a Hetzner VPS running rathole as a TCP relay.
@@ -106,6 +107,10 @@ systemctl enable rathole
     user: "root",
   };
 
+  // When Xray is enabled it owns the public :443 and uses rathole as its
+  // decoy backend, so rathole's https bind moves to a local-only port.
+  const httpsBind = gateway.xray ? "127.0.0.1:8443" : "0.0.0.0:443";
+
   // Write rathole config via SSH (supports updates without replacing the server)
   const ratholeConfig = pulumi.interpolate`[server]
 bind_addr = "0.0.0.0:2333"
@@ -113,7 +118,7 @@ default_token = "${ratholeToken.result}"
 
 [server.services.https]
 type = "tcp"
-bind_addr = "0.0.0.0:443"
+bind_addr = "${httpsBind}"
 
 [server.services.http]
 type = "tcp"
@@ -127,7 +132,7 @@ bind_addr = "0.0.0.0:80"
       create: pulumi.interpolate`cat > /etc/rathole/server.toml << 'RATHOLE_EOF'
 ${ratholeConfig}
 RATHOLE_EOF`,
-      triggers: [ratholeToken.result],
+      triggers: [ratholeToken.result, httpsBind],
     },
     { dependsOn: [server] },
   );
@@ -142,10 +147,15 @@ RATHOLE_EOF`,
     { dependsOn: [configUpload] },
   );
 
+  const xray = gateway.xray
+    ? createXray(connection, server, gateway.xray)
+    : undefined;
+
   return {
     ratholeToken,
     server,
     sshKey,
     vpsIp: server.ipv4Address,
+    xray,
   };
 }

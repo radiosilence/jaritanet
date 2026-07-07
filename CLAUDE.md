@@ -53,6 +53,7 @@ Everything deploys in one `pulumi up` from `packages/infra/`:
 
 - **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server provisioning
 - **`src/modules/gateway-oci.ts`** — Oracle Cloud ARM instance + VCN + Rathole via Docker
+- **`src/modules/xray.ts`** — optional Xray VLESS-REALITY VPN sharing :443 with the gateway
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
@@ -73,6 +74,7 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 ### Key Components
 
 - **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
+- **Xray (optional)** — When `gateway.xray` is set, Xray-core owns the VPS `:443` running VLESS-Vision-REALITY and rathole's https bind moves to local `:8443`. Unauthenticated traffic (probes, browsers) is relayed to `dest` (rathole → Traefik) so the box looks like an ordinary TLS site; authenticated clients are proxied out as a censorship-resistant VPN. The REALITY keypair is minted on-box and never leaves it; the client `vless://` URL is a stack output (`xrayShareUrl`). `serverName` must be a hostname Traefik serves a real cert for.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
