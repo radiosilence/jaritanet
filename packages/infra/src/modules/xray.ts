@@ -38,38 +38,20 @@ export function createXray(
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
-curl -fsSL "https://github.com/XTLS/Xray-core/releases/download/${xray.version}/Xray-linux-64.zip" -o /tmp/xray.zip
-apt-get update && apt-get install -y unzip
-unzip -o /tmp/xray.zip -d /usr/local/bin/ xray
-chmod +x /usr/local/bin/xray
-rm /tmp/xray.zip
-mkdir -p /etc/xray
+export DEBIAN_FRONTEND=noninteractive
+XRAY_VERSION=$(printf '%s' "${xray.version}" | sed 's/^v//')
+
+# Official XTLS installer: sets up the systemd unit, a dedicated user,
+# CAP_NET_BIND_SERVICE for :443, plus geodata and log dirs.
+bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version "$XRAY_VERSION"
 
 # Mint the REALITY keypair once; the private key never leaves the box.
-if [ ! -f /etc/xray/private.key ]; then
-  /usr/local/bin/xray x25519 > /etc/xray/keypair.txt
-  sed -n '1p' /etc/xray/keypair.txt | awk '{print $NF}' > /etc/xray/private.key
-  sed -n '2p' /etc/xray/keypair.txt | awk '{print $NF}' > /etc/xray/public.key
-  rm /etc/xray/keypair.txt
-fi
-
-cat > /etc/systemd/system/xray.service << 'UNIT'
-[Unit]
-Description=Xray
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-ExecStart=/usr/local/bin/xray run -c /etc/xray/config.json
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-systemctl daemon-reload
-systemctl enable xray`,
+if [ ! -f /usr/local/etc/xray/private.key ]; then
+  /usr/local/bin/xray x25519 > /tmp/xray-keypair.txt
+  sed -n '1p' /tmp/xray-keypair.txt | awk '{print $NF}' > /usr/local/etc/xray/private.key
+  sed -n '2p' /tmp/xray-keypair.txt | awk '{print $NF}' > /usr/local/etc/xray/public.key
+  rm -f /tmp/xray-keypair.txt
+fi`,
       triggers: [xray.version],
     },
     { dependsOn: [server] },
@@ -80,7 +62,7 @@ systemctl enable xray`,
     "xray-public-key",
     {
       connection,
-      create: "cat /etc/xray/public.key",
+      create: "cat /usr/local/etc/xray/public.key",
       triggers: [install.id],
     },
     { dependsOn: [install] },
@@ -93,8 +75,8 @@ systemctl enable xray`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
-PRIV=$(cat /etc/xray/private.key)
-cat > /etc/xray/config.json << XRAY_EOF
+PRIV=$(cat /usr/local/etc/xray/private.key)
+cat > /usr/local/etc/xray/config.json << XRAY_EOF
 {
   "log": { "loglevel": "warning" },
   "inbounds": [

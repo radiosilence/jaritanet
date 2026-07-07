@@ -5,14 +5,17 @@ config:
   jaritanet:cloudflare:
     accountId: ''
   jaritanet:traefik:
-    acmeEmail: jc@blit.cc
+    # acmeEmail injected from the ACME_EMAIL secret in CI (see ci-cd.yml)
+    acmeEmail: ''
     chartVersion: "41.0.2"
   jaritanet:gateway:
     # Xray VLESS-Vision-REALITY on :443. Unauthenticated traffic is relayed
     # to the local rathole https port (dest) so the box just looks like the
-    # blit.cc CV site; authenticated clients get proxied out as a VPN.
+    # decoy site; authenticated clients get proxied out as a VPN.
+    # serverName injected from the BLIT_HOSTNAME secret in CI (the decoy IS
+    # the blit CV site), so it never sits in plain config.
     xray:
-      serverName: blit.cc
+      serverName: ''
       dest: 127.0.0.1:8443
   jaritanet:services:
     navidrome:
@@ -92,7 +95,7 @@ config:
             readOnly: true
             nodeAffinityHostname: oldboy
     blit:
-      hostname: 'blit.cc'
+      hostname: ''
       args:
         replicas: 2
         healthCheck: {}
