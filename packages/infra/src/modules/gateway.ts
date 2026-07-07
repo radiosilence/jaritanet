@@ -107,6 +107,24 @@ systemctl enable rathole
     user: "root",
   };
 
+  // Enable BBR congestion control + fq qdisc. Default (cubic) collapses
+  // throughput on packet loss; BBR holds the pipe open across lossy links,
+  // which is what the relayed traffic rides over. Applied over SSH so the
+  // server is never rebuilt.
+  new command.remote.Command(
+    "gateway-network-tuning",
+    {
+      connection,
+      create: `cat > /etc/sysctl.d/99-network-tuning.conf << 'EOF'
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+EOF
+sysctl --system`,
+      triggers: ["bbr-fq-v1"],
+    },
+    { dependsOn: [server] },
+  );
+
   // When Xray is enabled it owns the public :443 and uses rathole as its
   // decoy backend, so rathole's https bind moves to a local-only port.
   const httpsBind = gateway.xray ? "127.0.0.1:8443" : "0.0.0.0:443";
