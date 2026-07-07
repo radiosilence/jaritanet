@@ -5,6 +5,7 @@ import * as random from "@pulumi/random";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { GatewayConfSchema } from "../conf.schemas.ts";
+import { createHysteria } from "./hysteria.ts";
 import { createXray } from "./xray.ts";
 
 /**
@@ -56,6 +57,17 @@ export function createGateway(gateway: z.infer<typeof GatewayConfSchema>) {
         protocol: "tcp",
         sourceIps: ["0.0.0.0/0", "::/0"],
       },
+      ...(gateway.hysteria
+        ? [
+            {
+              description: "Hysteria2 QUIC",
+              direction: "in",
+              port: String(gateway.hysteria.port),
+              protocol: "udp",
+              sourceIps: ["0.0.0.0/0", "::/0"],
+            },
+          ]
+        : []),
     ],
   });
 
@@ -169,7 +181,12 @@ RATHOLE_EOF`,
     ? createXray(connection, server, gateway.xray)
     : undefined;
 
+  const hysteria = gateway.hysteria
+    ? createHysteria(connection, server, gateway.hysteria)
+    : undefined;
+
   return {
+    hysteria,
     ratholeToken,
     server,
     sshKey,
