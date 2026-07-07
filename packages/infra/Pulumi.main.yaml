@@ -6,7 +6,7 @@ config:
     accountId: ''
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
-    chartVersion: "40.2.0"
+    chartVersion: "41.0.2"
   jaritanet:gateway:
     # Xray VLESS-Vision-REALITY on :443. Unauthenticated traffic is relayed
     # to the local rathole https port (dest) so the box just looks like the
@@ -23,7 +23,7 @@ config:
           type: Recreate
         image:
           repository: "deluan/navidrome"
-          tag: 0.61.2
+          tag: 0.62.0
           pullPolicy: "Always"
         env:
           ND_SCANSCHEDULE: 1h
