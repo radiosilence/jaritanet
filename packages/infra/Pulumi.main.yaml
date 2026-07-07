@@ -9,11 +9,9 @@ config:
     acmeEmail: ''
     chartVersion: "41.0.2"
   jaritanet:gateway:
-    # Xray VLESS-Vision-REALITY on :443. Unauthenticated traffic is relayed
-    # to the local rathole https port (dest) so the box just looks like the
-    # decoy site; authenticated clients get proxied out as a VPN.
-    # serverName injected from the BLIT_HOSTNAME secret in CI (the decoy IS
-    # the blit CV site), so it never sits in plain config.
+    # xray shares :443; traffic that doesn't match a client falls back to
+    # dest (local rathole https). serverName is injected from BLIT_HOSTNAME
+    # in CI, so it stays out of plain config.
     xray:
       serverName: ''
       dest: 127.0.0.1:8443

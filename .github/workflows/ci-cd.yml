@@ -190,7 +190,6 @@ jobs:
           pulumi config set --path jaritanet:services.navidrome.hostname "$NAVIDROME_HOSTNAME"
           pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
           pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
-          # Reality decoy is the blit CV site, so reuse its hostname secret
           pulumi config set --path jaritanet:gateway.xray.serverName "$BLIT_HOSTNAME"
           if [[ -n "$EXTERNAL_IP" ]]; then
             pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
