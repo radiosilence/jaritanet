@@ -25,6 +25,19 @@
         "jaritanet:gateway": {
           "type": "object",
           "properties": {
+            "hysteria": {
+              "type": "object",
+              "properties": {
+                "port": {
+                  "default": 443,
+                  "type": "number"
+                },
+                "sni": {
+                  "default": "www.bing.com",
+                  "type": "string"
+                }
+              }
+            },
             "image": {
               "default": "ubuntu-24.04",
               "type": "string"

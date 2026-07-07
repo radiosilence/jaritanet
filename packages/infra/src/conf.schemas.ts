@@ -20,7 +20,19 @@ export const XrayConfSchema = z.object({
   version: z.string().default("v1.8.24"),
 });
 
+/**
+ * Hysteria2 (QUIC/UDP) on the gateway VPS. Loss-tolerant congestion
+ * control keeps it smooth on lossy/jittery links where the TCP-based
+ * Reality path melts down; Salamander obfuscation hides the QUIC from DPI.
+ * `sni` is cosmetic (clients trust the self-signed cert via insecure).
+ */
+export const HysteriaConfSchema = z.object({
+  port: z.number().default(443),
+  sni: z.string().default("www.bing.com"),
+});
+
 export const GatewayConfSchema = z.object({
+  hysteria: HysteriaConfSchema.optional(),
   image: z.string().default("ubuntu-24.04"),
   location: z.string().default("nbg1"),
   ratholeVersion: z.string().default("v0.5.0"),

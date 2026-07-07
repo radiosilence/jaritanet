@@ -29,6 +29,7 @@ export default async function () {
   let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
   let xray: ReturnType<typeof createGateway>["xray"];
+  let hysteria: ReturnType<typeof createGateway>["hysteria"];
 
   if (env.HCLOUD_TOKEN) {
     const gw = createGateway(conf.gateway ?? GatewayConfSchema.parse({}));
@@ -36,6 +37,7 @@ export default async function () {
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     xray = gw.xray;
+    hysteria = gw.hysteria;
   } else if (conf.externalIp) {
     dnsTarget = pulumi.output(conf.externalIp);
   }
@@ -141,6 +143,9 @@ export default async function () {
       xrayShareUrl: xray.shareUrl,
       xrayShortId: xray.shortId,
       xrayUuid: xray.uuid,
+    }),
+    ...(hysteria && {
+      hysteriaShareUrl: hysteria.shareUrl,
     }),
   };
 }
