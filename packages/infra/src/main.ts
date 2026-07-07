@@ -28,12 +28,14 @@ export default async function () {
   let dnsTarget: pulumi.Output<string> | undefined;
   let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
+  let xray: ReturnType<typeof createGateway>["xray"];
 
   if (env.HCLOUD_TOKEN) {
     const gw = createGateway(conf.gateway ?? GatewayConfSchema.parse({}));
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
+    xray = gw.xray;
   } else if (conf.externalIp) {
     dnsTarget = pulumi.output(conf.externalIp);
   }
@@ -133,5 +135,12 @@ export default async function () {
     namespace,
     services: Object.fromEntries(services),
     ...(dnsTarget && { vpsIp: dnsTarget }),
+    ...(xray && {
+      xrayPublicKey: xray.publicKey,
+      xrayServerName: conf.gateway?.xray?.serverName,
+      xrayShareUrl: xray.shareUrl,
+      xrayShortId: xray.shortId,
+      xrayUuid: xray.uuid,
+    }),
   };
 }

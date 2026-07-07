@@ -5,11 +5,29 @@ export const CloudflareConfSchema = z.object({
   accountId: z.string(),
 });
 
+/**
+ * Xray-core with VLESS-Vision-REALITY on the gateway VPS, sharing :443
+ * with rathole. Unauthenticated connections (probes, browsers) are relayed
+ * to `dest` so the box looks like an ordinary TLS site; authenticated
+ * clients get proxied out to the internet as a censorship-resistant VPN.
+ *
+ * `serverName` is the SNI clients present and the domain the decoy pretends
+ * to be — it must match the cert served at `dest`. `dest` defaults to the
+ * local rathole https port (so the decoy is your own Traefik); point it at
+ * an external site (e.g. "www.microsoft.com:443") to borrow someone else's.
+ */
+export const XrayConfSchema = z.object({
+  dest: z.string().default("127.0.0.1:8443"),
+  serverName: z.string(),
+  version: z.string().default("v1.8.24"),
+});
+
 export const GatewayConfSchema = z.object({
   image: z.string().default("ubuntu-24.04"),
   location: z.string().default("nbg1"),
   ratholeVersion: z.string().default("v0.5.0"),
   serverType: z.string().default("cx23"),
+  xray: XrayConfSchema.optional(),
 });
 
 export const TraefikConfSchema = z.object({
