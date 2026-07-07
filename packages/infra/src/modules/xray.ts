@@ -12,18 +12,13 @@ type Connection = {
 };
 
 /**
- * Provisions Xray-core with VLESS-Vision-REALITY on the gateway VPS.
+ * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
  *
- * Xray owns :443 and impersonates a real TLS site. Unauthenticated
- * connections (active probes, browsers) are relayed byte-for-byte to
- * `dest` — the local rathole https port that tunnels to in-cluster
- * Traefik — so an observer sees the genuine site and its real cert.
- * Authenticated VLESS clients are proxied straight out to the internet,
- * giving a censorship-resistant VPN over what looks like plain HTTPS.
- *
- * Keys are minted on first boot and never leave the box: the x25519
- * private key stays in /etc/xray, and the UUID + shortId are Pulumi
- * secrets. A ready-to-paste vless:// share URL is returned for clients.
+ * Xray takes :443; traffic that doesn't match a client is relayed to `dest`
+ * (the local rathole https port → in-cluster Traefik), matched clients are
+ * proxied out. Keys are minted on first boot and never leave the box: the
+ * x25519 private key stays in /usr/local/etc/xray and the UUID + shortId
+ * are Pulumi secrets. Returns a vless:// share URL for client import.
  */
 export function createXray(
   connection: Connection,
@@ -117,7 +112,7 @@ systemctl restart xray`,
     { dependsOn: [publicKey] },
   );
 
-  // vless:// URL that Shadowrocket / sing-box / v2box import directly.
+  // vless:// share URL for client import.
   const shareUrl = pulumi.interpolate`vless://${uuid.result}@${connection.host}:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${xray.serverName}&fp=chrome&pbk=${publicKey.stdout}&sid=${shortId.hex}&type=tcp#jaritanet`;
 
   return {
