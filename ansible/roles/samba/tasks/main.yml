@@ -5,6 +5,19 @@
       - samba-common
     state: present
 
+# Anonymous, read-only access — no logins. Unknown users map to guest (which
+# runs as the media owner so reads succeed), and connections are restricted to
+# the tailnet + LAN so the open shares aren't reachable from anywhere else.
+- name: Configure Samba global settings for anonymous tailnet access
+  ansible.builtin.blockinfile:
+    path: /etc/samba/smb.conf
+    insertafter: '^\[global\]'
+    block: |
+      map to guest = Bad User
+      guest account = {{ username }}
+      hosts allow = 100.64.0.0/10 192.168.0.0/16 127.0.0.1
+    marker: "# {mark} ANSIBLE MANAGED SAMBA GLOBALS"
+
 - name: Configure Samba shares
   ansible.builtin.blockinfile:
     path: /etc/samba/smb.conf
@@ -15,22 +28,11 @@
           browseable = yes
           read only = yes
           guest ok = yes
-          write list = {{ share.owner }}
+          guest only = yes
           create mask = 0664
           directory mask = 0775
       {% endfor %}
     marker: "# {mark} ANSIBLE MANAGED SAMBA SHARES"
-
-- name: Update Samba password for user
-  vars:
-    password: "{{ lookup('env','SAMBA_PASSWORD') }}"
-  ansible.builtin.command:
-    cmd: /usr/bin/smbpasswd -s -a {{ username }}
-    stdin: |
-      {{ password }}
-      {{ password }}
-  register: samba_password
-  failed_when: samba_password.rc != 0
 
 - name: Restart Samba services
   ansible.builtin.systemd:
