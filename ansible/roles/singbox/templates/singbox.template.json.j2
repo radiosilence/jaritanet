@@ -1,3 +1,85 @@
+{#-
+  Renders a sing-box profile from `singbox_nodes` (primary gateway + edges).
+
+  The outbound groups expand with node count:
+    - 1 node  → flat: main (selector) over [auto, hy2, reality]
+    - N nodes → nested: main → auto-all | per-host selectors, each holding
+                that host's auto + hy2 + reality
+
+  Routing always points at `main`, so the rest of the config is count-agnostic.
+-#}
+{%- macro ob_hy2(node) -%}
+{
+  "type": "hysteria2",
+  "tag": "hy2-{{ node.name }}",
+  "server": "{{ node.server }}",
+  "server_port": {{ node.hysteria.port }},
+  "password": "{{ node.hysteria.authPassword }}",
+  "obfs": { "type": "salamander", "password": "{{ node.hysteria.obfsPassword }}" },
+  "tls": { "enabled": true, "server_name": "{{ node.hysteria.sni }}", "insecure": true }
+}
+{%- endmacro -%}
+{%- macro ob_reality(node) -%}
+{
+  "type": "vless",
+  "tag": "reality-{{ node.name }}",
+  "server": "{{ node.server }}",
+  "server_port": 443,
+  "uuid": "{{ node.reality.uuid }}",
+  "flow": "xtls-rprx-vision",
+  "tls": {
+    "enabled": true,
+    "server_name": "{{ node.reality.serverName }}",
+    "utls": { "enabled": true, "fingerprint": "chrome" },
+    "reality": { "enabled": true, "public_key": "{{ node.reality.publicKey }}", "short_id": "{{ node.reality.shortId }}" }
+  }
+}
+{%- endmacro -%}
+{%- macro ob_urltest(tag, members) -%}
+{
+  "type": "urltest",
+  "tag": "{{ tag }}",
+  "outbounds": [{{ members | map('tojson') | join(', ') }}],
+  "url": "https://www.gstatic.com/generate_204",
+  "interval": "3m",
+  "tolerance": 100
+}
+{%- endmacro -%}
+{%- macro ob_selector(tag, members, default) -%}
+{
+  "type": "selector",
+  "tag": "{{ tag }}",
+  "outbounds": [{{ members | map('tojson') | join(', ') }}],
+  "default": "{{ default }}"
+}
+{%- endmacro -%}
+{#- Build the outbounds list, then join with commas for valid JSON. -#}
+{%- set items = [] -%}
+{%- for node in singbox_nodes -%}
+  {%- set _ = items.append(ob_hy2(node)) -%}
+  {%- set _ = items.append(ob_reality(node)) -%}
+{%- endfor -%}
+{%- if singbox_nodes | length == 1 -%}
+  {%- set n = singbox_nodes[0].name -%}
+  {%- set _ = items.append(ob_urltest('auto', ['hy2-' ~ n, 'reality-' ~ n])) -%}
+  {%- set _ = items.append(ob_selector('main', ['auto', 'hy2-' ~ n, 'reality-' ~ n], 'auto')) -%}
+{%- else -%}
+  {%- for node in singbox_nodes -%}
+    {%- set _ = items.append(ob_urltest('auto-' ~ node.name, ['hy2-' ~ node.name, 'reality-' ~ node.name])) -%}
+    {%- set _ = items.append(ob_selector(node.name, ['auto-' ~ node.name, 'hy2-' ~ node.name, 'reality-' ~ node.name], 'auto-' ~ node.name)) -%}
+  {%- endfor -%}
+  {%- set all_members = [] -%}
+  {%- for node in singbox_nodes -%}
+    {%- set _ = all_members.append('hy2-' ~ node.name) -%}
+    {%- set _ = all_members.append('reality-' ~ node.name) -%}
+  {%- endfor -%}
+  {%- set _ = items.append(ob_urltest('auto-all', all_members)) -%}
+  {%- set main_members = ['auto-all'] -%}
+  {%- for node in singbox_nodes -%}
+    {%- set _ = main_members.append(node.name) -%}
+  {%- endfor -%}
+  {%- set _ = items.append(ob_selector('main', main_members, 'auto-all')) -%}
+{%- endif -%}
 {
   "log": { "level": "info", "timestamp": true },
   "dns": {
@@ -23,59 +105,7 @@
     }
   ],
   "outbounds": [
-{% for node in singbox_nodes %}
-    {
-      "type": "hysteria2",
-      "tag": "hy2-{{ node.name }}",
-      "server": "{{ node.server }}",
-      "server_port": {{ node.hysteria.port }},
-      "password": "{{ node.hysteria.authPassword }}",
-      "obfs": { "type": "salamander", "password": "{{ node.hysteria.obfsPassword }}" },
-      "tls": { "enabled": true, "server_name": "{{ node.hysteria.sni }}", "insecure": true }
-    },
-    {
-      "type": "vless",
-      "tag": "reality-{{ node.name }}",
-      "server": "{{ node.server }}",
-      "server_port": 443,
-      "uuid": "{{ node.reality.uuid }}",
-      "flow": "xtls-rprx-vision",
-      "tls": {
-        "enabled": true,
-        "server_name": "{{ node.reality.serverName }}",
-        "utls": { "enabled": true, "fingerprint": "chrome" },
-        "reality": { "enabled": true, "public_key": "{{ node.reality.publicKey }}", "short_id": "{{ node.reality.shortId }}" }
-      }
-    },
-    {
-      "type": "urltest",
-      "tag": "auto-{{ node.name }}",
-      "outbounds": ["hy2-{{ node.name }}", "reality-{{ node.name }}"],
-      "url": "https://www.gstatic.com/generate_204",
-      "interval": "3m",
-      "tolerance": 100
-    },
-    {
-      "type": "selector",
-      "tag": "{{ node.name }}",
-      "outbounds": ["auto-{{ node.name }}", "hy2-{{ node.name }}", "reality-{{ node.name }}"],
-      "default": "auto-{{ node.name }}"
-    },
-{% endfor %}
-    {
-      "type": "urltest",
-      "tag": "auto-all",
-      "outbounds": [{% for node in singbox_nodes %}"hy2-{{ node.name }}", "reality-{{ node.name }}"{% if not loop.last %}, {% endif %}{% endfor %}],
-      "url": "https://www.gstatic.com/generate_204",
-      "interval": "3m",
-      "tolerance": 100
-    },
-    {
-      "type": "selector",
-      "tag": "main",
-      "outbounds": ["auto-all"{% for node in singbox_nodes %}, "{{ node.name }}"{% endfor %}],
-      "default": "auto-all"
-    }
+    {{ items | join(',\n    ') }}
   ],
   "route": {
     "default_domain_resolver": "cf-doh",

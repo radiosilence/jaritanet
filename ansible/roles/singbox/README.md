@@ -13,17 +13,24 @@ Per node there are two transports:
 
 ## The picker
 
-- **`main`** (top selector) — pick `auto-all` (fastest transport across every
-  node) or a specific host group. This is what routing points at.
-- **`<host>`** (per-node selector, e.g. `helsinki`, `primary`) — pick that
-  node's `auto-<host>`, or force `hy2-<host>` / `reality-<host>` for field
-  experimentation.
-- **`auto-<host>`** / **`auto-all`** — urltest groups that pick the live/fastest
-  transport automatically.
+The group structure **expands with node count**, so a single-node profile
+stays simple and the nesting only appears when it earns its keep:
 
+- **One node** → flat: `main` (selector) over `[auto, hy2-<host>, reality-<host>]`,
+  defaulting to `auto`. Two groups in the app — obvious.
+- **Two+ nodes** → nested:
+  - **`main`** (top selector) — `auto-all` (fastest transport across every node)
+    or a specific host group.
+  - **`<host>`** (per-node selector, e.g. `helsinki`) — that node's `auto-<host>`,
+    or force `hy2-<host>` / `reality-<host>` for field experimentation.
+  - **`auto-<host>`** / **`auto-all`** — urltest groups that auto-pick the
+    live/fastest transport.
+
+Routing always points at `main`, so the rest of the config is count-agnostic.
 Leaf outbound tags are prefixed per host (`hy2-helsinki`, …) because sing-box
 tags must be globally unique; the selectors are what you navigate in the app's
-Groups tab.
+Groups tab. These are *choices*, not a chain — traffic flows through exactly one
+resolved transport, not through every group in sequence.
 
 Tailnet traffic (`100.64.0.0/10`) routes through `main` too, so it rides
 hy2/reality to whichever node is selected — each node is a tailnet member and
