@@ -53,13 +53,14 @@ type ResolvedExit = {
   password: string;
 };
 
-// hy2's "fun/fast" personality: setting bandwidth switches Hysteria2 from BBR
-// to the Brutal congestion control, which paces to a fixed rate and ignores
-// loss — it stomps through lossy/censored links where BBR backs off. Set to the
-// gigabit line; Brutal will use up to this and no more. The only footgun is a
-// client network genuinely slower than this (blasting a slow link wastes it on
-// loss), but on real broadband it's the fastest option we've got. Tune down if
-// you're routinely on a capped link.
+// Brutal is opt-in, not the default. Setting bandwidth switches Hysteria2 from
+// adaptive BBR to the Brutal congestion control, which paces to a fixed rate and
+// ignores loss — it stomps through lossy/censored *fat* links where BBR backs
+// off, but on a genuinely slow or metered link (mid-tier LTE, hotel wifi) it
+// blasts loss into a small pipe and feels *worse*. So the daily driver (`hy2-*`,
+// and `auto`) stays adaptive and safe on every link; a separate `hy2b-*` variant
+// carries these bandwidth hints and lives in the selector for manual use when
+// you know you're on a fat hostile pipe. Tune to your actual line.
 // (Reality has no such knob — it stays adaptive TCP; its speed comes from MTU.)
 const HY2_UP_MBPS = 1000;
 const HY2_DOWN_MBPS = 1000;
@@ -78,11 +79,16 @@ const hy2 = (n: ResolvedNode) => ({
   tag: `hy2-${n.name}`,
   server: n.server,
   server_port: n.hysteria.port,
-  up_mbps: HY2_UP_MBPS,
-  down_mbps: HY2_DOWN_MBPS,
   password: n.hysteria.authPassword,
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
   tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
+});
+// Same endpoint, but with bandwidth hints → Brutal. Manual-pick only.
+const hy2Brutal = (n: ResolvedNode) => ({
+  ...hy2(n),
+  tag: `hy2b-${n.name}`,
+  up_mbps: HY2_UP_MBPS,
+  down_mbps: HY2_DOWN_MBPS,
 });
 const reality = (n: ResolvedNode) => ({
   type: "vless",
@@ -107,7 +113,7 @@ const urltest = (tag: string, outbounds: string[]) => ({
   tag,
   outbounds,
   url: "https://www.gstatic.com/generate_204",
-  interval: "3m",
+  interval: "1m",
   tolerance: 100,
 });
 const selector = (tag: string, outbounds: string[], def: string) => ({
@@ -143,13 +149,17 @@ export function buildProfile(
 ) {
   const outbounds: Record<string, unknown>[] = [];
   for (const n of nodes) {
-    outbounds.push(hy2(n), reality(n));
+    outbounds.push(hy2(n), reality(n), hy2Brutal(n));
   }
   if (nodes.length === 1) {
     const t = nodes[0].name;
     outbounds.push(urltest("auto", [`hy2-${t}`, `reality-${t}`]));
     outbounds.push(
-      selector("entry-select", ["auto", `hy2-${t}`, `reality-${t}`], "auto"),
+      selector(
+        "entry-select",
+        ["auto", `hy2-${t}`, `hy2b-${t}`, `reality-${t}`],
+        "auto",
+      ),
     );
   } else {
     for (const n of nodes) {
@@ -159,7 +169,12 @@ export function buildProfile(
       outbounds.push(
         selector(
           n.name,
-          [`auto-${n.name}`, `hy2-${n.name}`, `reality-${n.name}`],
+          [
+            `auto-${n.name}`,
+            `hy2-${n.name}`,
+            `hy2b-${n.name}`,
+            `reality-${n.name}`,
+          ],
           `auto-${n.name}`,
         ),
       );
@@ -221,9 +236,36 @@ export function buildProfile(
 
   return {
     log: { level: "info", timestamp: true },
+    experimental: {
+      // Persist the DNS cache across restarts: a cold app start resolves
+      // recently-seen names from disk (~0ms) instead of paying a tunnel round
+      // trip. This is what makes "1ms DNS" real for the common (warm) case.
+      cache_file: { enabled: true, store_rdrc: true },
+    },
     dns: {
+      // Every resolver is pinned to entry-select (detour) so DNS egresses at the
+      // gateway and NEVER inherits an exit hop, even when exit-select points at
+      // an exit. default_domain_resolver (route) is set to match.
       servers: [
-        { type: "https", tag: "cf-doh", server: "1.1.1.1" },
+        // Primary: the gateway's own unbound cache, reached by dialing
+        // 127.0.0.1:53 *at the gateway end* through the tunnel. Prefetch +
+        // serve-expired keep the hot set warm, so even a client-cache miss is
+        // answered from a Germany-local cache in one tunnel RTT — not a fresh
+        // recursion from the client's location.
+        {
+          type: "udp",
+          tag: "gw-cache",
+          server: "127.0.0.1",
+          detour: "entry-select",
+        },
+        // Manual-revert fallback: flip `final` to this if the gateway cache is
+        // ever unreachable (sing-box does not auto-failover between servers).
+        {
+          type: "https",
+          tag: "cf-doh",
+          server: "1.1.1.1",
+          detour: "entry-select",
+        },
         {
           type: "udp",
           tag: "ts-dns",
@@ -232,7 +274,7 @@ export function buildProfile(
         },
       ],
       rules: [{ domain_suffix: [magicdnsSuffix], server: "ts-dns" }],
-      final: "cf-doh",
+      final: "gw-cache",
       strategy: "ipv4_only",
     },
     inbounds: [
@@ -248,7 +290,7 @@ export function buildProfile(
     ],
     outbounds,
     route: {
-      default_domain_resolver: "cf-doh",
+      default_domain_resolver: "gw-cache",
       rules: [
         { action: "sniff" },
         { protocol: "dns", action: "hijack-dns" },

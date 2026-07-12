@@ -142,6 +142,54 @@ sysctl --system`,
     { dependsOn: [server] },
   );
 
+  // Caching DNS forwarder on loopback. Clients dial 127.0.0.1:53 *at this box*
+  // through the tunnel (a DNS server with detour=entry-select), so unbound has
+  // zero public attack surface — reachable only from inside the tunnel. It
+  // forwards upstream to Cloudflare over DoT (:853), so there is no cleartext
+  // DNS anywhere in the chain: client→gateway is the encrypted tunnel, and
+  // gateway→resolver is TLS. Prefetch + serve-expired keep the hot set warm, so
+  // a client-cache miss is answered from this Germany-local cache in one tunnel
+  // RTT instead of a round trip to the upstream from the client's location.
+  new command.remote.Command(
+    "gateway-unbound",
+    {
+      connection,
+      create: `set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update && apt-get install -y unbound ca-certificates
+cat > /etc/unbound/unbound.conf.d/jaritanet.conf << 'EOF'
+server:
+  interface: 127.0.0.1
+  port: 53
+  do-ip6: no
+  access-control: 127.0.0.0/8 allow
+  prefetch: yes
+  prefetch-key: yes
+  serve-expired: yes
+  serve-expired-ttl: 86400
+  cache-min-ttl: 120
+  cache-max-ttl: 86400
+  msg-cache-size: 64m
+  rrset-cache-size: 128m
+  num-threads: 2
+  so-reuseport: yes
+  qname-minimisation: yes
+  hide-identity: yes
+  hide-version: yes
+  tls-cert-bundle: "/etc/ssl/certs/ca-certificates.crt"
+forward-zone:
+  name: "."
+  forward-tls-upstream: yes
+  forward-addr: 1.1.1.1@853#cloudflare-dns.com
+  forward-addr: 1.0.0.1@853#cloudflare-dns.com
+EOF
+systemctl enable unbound
+systemctl restart unbound`,
+      triggers: ["unbound-v2"],
+    },
+    { dependsOn: [server] },
+  );
+
   // When Xray is enabled it owns the public :443 and uses rathole as its
   // decoy backend, so rathole's https bind moves to a local-only port.
   const httpsBind = gateway.xray ? "127.0.0.1:8443" : "0.0.0.0:443";
