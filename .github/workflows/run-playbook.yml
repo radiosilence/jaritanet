@@ -83,6 +83,18 @@ jobs:
       - name: Install qrencode
         run: sudo apt-get update && sudo apt-get install -y qrencode
 
+      # Mitogen replaces Ansible's per-task interpreter spawn with one long-lived
+      # remote process — typically 1.5-3x faster. Wired via env only, so
+      # ansible.cfg stays default and local runs are unaffected.
+      - name: Enable Mitogen strategy
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user mitogen
+          DIR="$(python3 -c 'import os, ansible_mitogen; print(os.path.join(os.path.dirname(ansible_mitogen.__file__), "plugins", "strategy"))')"
+          echo "using strategy plugins: $DIR"
+          echo "ANSIBLE_STRATEGY_PLUGINS=$DIR" >> "$GITHUB_ENV"
+          echo "ANSIBLE_STRATEGY=mitogen_linear" >> "$GITHUB_ENV"
+
       - name: Execute Ansible Playbook
         uses: dawidd6/action-ansible-playbook@93764e7048f4dd16117d134dadb4b36e8ee73227 # v4
         with:
