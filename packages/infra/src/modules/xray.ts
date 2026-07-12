@@ -15,7 +15,7 @@ type Connection = {
  * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
  *
  * Xray takes :443; traffic that doesn't match a client is relayed to `dest`
- * (the local rathole https port → in-cluster Traefik), matched clients are
+ * (the local frps https proxy → in-cluster Traefik), matched clients are
  * proxied out. Keys are minted on first boot and never leave the box: the
  * x25519 private key stays in /usr/local/etc/xray and the UUID + shortId
  * are Pulumi secrets. Returns a vless:// share URL for client import.
