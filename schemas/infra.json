@@ -99,7 +99,7 @@
                 "enum": ["k8s"]
               }
             },
-            "required": ["name", "port"]
+            "required": ["name"]
           }
         },
         "jaritanet:gateway": {
