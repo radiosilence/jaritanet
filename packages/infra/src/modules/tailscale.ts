@@ -22,8 +22,9 @@ type Connection = {
  *
  * `accept-routes=false` is load-bearing: a peer advertising an exit node or
  * routes must not be able to swallow the VPS default route, or the relay
- * (and every service riding it) goes dark. `--ssh` exposes Tailscale SSH so
- * the box is reachable over the tailnet without the public :22.
+ * (and every service riding it) goes dark. `--ssh=false` is explicit: the
+ * gateway is managed purely by config and exposes no human SSH over the
+ * tailnet (explicit rather than omitted so a re-run definitely clears it).
  *
  * `authKey` is an OAuth client secret (`tskey-client-...`, auth_keys scope +
  * the tag), used directly as the auth key — those don't hit the 90-day
@@ -50,11 +51,11 @@ tailscale up \
   --hostname="${tailnet.hostname}" \
   --advertise-tags="${tailnet.tag}" \
   --accept-routes=false \
-  --ssh`,
+  --ssh=false`,
       // Not keyed on authKey: the node persists after first auth, so
-      // re-running only matters when hostname/tag change. Bump the version
-      // to force a re-auth after rotating the key.
-      triggers: ["tailscale-v1", tailnet.hostname, tailnet.tag],
+      // re-running only matters when the command changes. Bump the version
+      // to force a re-run (e.g. after rotating the key or changing flags).
+      triggers: ["tailscale-v2", tailnet.hostname, tailnet.tag],
     },
     { dependsOn: [server] },
   );
