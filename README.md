@@ -8,6 +8,8 @@ Infrastructure-as-code monorepo for exposing Kubernetes services via Traefik wit
 
 A single Pulumi stack deploys everything: Traefik handles TLS termination (Let's Encrypt via DNS-01) and hostname routing inside the K8s cluster. An IP watcher pod monitors the server's external IP and triggers DNS updates when it changes — DIY dynamic DNS powered by Cloudflare.
 
+The gateway also doubles as a censorship-resistant VPN (Hysteria2 + VLESS-REALITY, sharing :443 with the reverse proxy). See [`docs/architecture.md`](docs/architecture.md) for the full topology, transport choices, and the port-multiplexing trick.
+
 ```mermaid
 graph TB
     subgraph "External Access"
