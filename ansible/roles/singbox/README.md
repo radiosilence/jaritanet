@@ -1,7 +1,7 @@
 # sing-box client
 
-`singbox.template.json` is a [sing-box](https://sing-box.sagernet.org/) client
-config for the gateway. It carries two transports behind a selector:
+`files/singbox.template.json` is a [sing-box](https://sing-box.sagernet.org/)
+client config for the gateway. It carries two transports behind a selector:
 
 - **`hy2`** (Hysteria2 / QUIC-UDP) — daily driver. Loss-tolerant, so it stays
   smooth on lossy links where TCP melts down. Salamander obfs hides it from DPI.

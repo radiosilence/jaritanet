@@ -19,7 +19,7 @@ singbox_telegram_chat_id: "{{ lookup('env', 'TELEGRAM_CHAT_ID') }}"
 # Force a notification even when the rendered config is unchanged (onboarding).
 singbox_force_notify: "{{ lookup('env', 'SINGBOX_FORCE_NOTIFY') | default('', true) }}"
 
-# Canonical template is the repo's clients/ copy — single source of truth.
-singbox_template_path: "{{ playbook_dir }}/../clients/singbox.template.json"
+# Canonical template, colocated in the role — single source of truth.
+singbox_template_path: "{{ role_path }}/files/singbox.template.json"
 singbox_dest_dir: /srv/files/.sfm
 singbox_qr_path: /tmp/singbox-qr.png

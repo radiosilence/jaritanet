@@ -10,6 +10,12 @@ on:
     paths:
       - "ansible/**"
       - ".github/workflows/run-playbook.yml"
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Role tags to run (comma-separated, e.g. singbox,nfs). Blank = all."
+        required: false
+        default: ""
 
 concurrency:
   group: ansible
@@ -21,6 +27,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0 # need history to diff which roles changed
+
+      # Runs only the roles whose files changed, so an unrelated tweak doesn't
+      # sit through microk8s et al. Shared files (playbook, vars, inventory) or a
+      # manual dispatch with no tags run everything ("all").
+      - name: Determine scope
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            T="${{ github.event.inputs.tags }}"
+            echo "tags=${T:-all}" >> "$GITHUB_OUTPUT"
+            echo "scope: ${T:-all} (manual)"; exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "tags=all" >> "$GITHUB_OUTPUT"; echo "scope: all (no base commit)"; exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "${{ github.sha }}")"
+          echo "changed files:"; echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(ansible/(playbook\.yml|ansible\.cfg|requirements\.yml|group_vars/|host_vars/|inventory/)|\.github/workflows/run-playbook\.yml)'; then
+            echo "tags=all" >> "$GITHUB_OUTPUT"; echo "scope: all (shared change)"; exit 0
+          fi
+          TAGS="$(echo "$CHANGED" | sed -nE 's#^ansible/roles/([^/]+)/.*#\1#p' | sort -u | paste -sd, -)"
+          echo "tags=${TAGS:-all}" >> "$GITHUB_OUTPUT"
+          echo "scope: ${TAGS:-all}"
 
       - name: Setup Environment
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
@@ -46,7 +79,7 @@ jobs:
           echo "Testing connectivity..."
           ping -c 3 ${{ secrets.OLDBOY_HOST }}
 
-      # qrencode runs on the controller to build the QR attached to the profile email
+      # qrencode runs on the controller to build the QR pushed to Telegram (singbox role)
       - name: Install qrencode
         run: sudo apt-get update && sudo apt-get install -y qrencode
 
@@ -59,6 +92,7 @@ jobs:
           options: |
             --limit homeservers
             --verbose
+            --tags ${{ steps.scope.outputs.tags }}
             --extra-vars "oldboy_host=${{ secrets.OLDBOY_HOST }} oldboy_user=${{ secrets.OLDBOY_USER }} oldboy_password=${{ secrets.OLDBOY_PASSWORD }}"
         env:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
@@ -78,7 +112,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+      # Only meaningful when microk8s ran — that role generates the kubeconfig
+      # secrets this pushes.
       - name: Update GitHub Secrets
+        if: ${{ steps.scope.outputs.tags == 'all' || contains(steps.scope.outputs.tags, 'microk8s') }}
         run: ./scripts/update-secrets
         env:
           GITHUB_TOKEN: ${{ secrets.SECRETS_PAT }}
