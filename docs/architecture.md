@@ -181,7 +181,7 @@ flowchart TD
     DNSQ -->|yes| HIJACK["hijack-dns"]
     HIJACK --> RES{"*.ts.net?"}
     RES -->|yes| TSDNS["ts-dns → 100.100.100.100<br/>(detour entry-select)"]
-    RES -->|no| DOH["cf-doh → 1.1.1.1"]
+    RES -->|no| GW["gw-cache → gateway unbound<br/>(127.0.0.1:53, detour entry-select)"]
     DNSQ -->|no| TN{"100.x tailnet?"}
     TN -->|yes| ENTRY["entry-select<br/>gateway → tailscale relay"]
     TN -->|no| EXIT["exit-select"]
@@ -194,8 +194,26 @@ gateway, never via an exit), and everything else → `final: exit-select`.
 `hijack-dns` (after `sniff`) is load-bearing: without it, sing-box flings
 port-53 queries out the tunnel as raw packets to a dead internal resolver;
 nothing resolves and the client looks offline. With it, `*.ts.net` resolves via
-`ts-dns` (the gateway's tailnet resolver) and everything else via DoH to
-1.1.1.1 — both tunnelled.
+`ts-dns` (the gateway's tailnet resolver) and everything else via `gw-cache`.
+
+**DNS is built for latency, not just leak-safety.** Every resolver is pinned to
+`entry-select`, so DNS egresses at the gateway and never inherits an exit hop —
+even when `exit-select` points at an exit box. `gw-cache` is a plain-UDP server
+at `127.0.0.1:53`; the client dials that loopback *at the gateway end* through
+the tunnel, hitting an unbound caching forwarder on the gateway with prefetch +
+serve-expired. So a client-cache miss is answered from a Germany-local, already-
+warm cache in one tunnel RTT rather than a round trip to the upstream from
+wherever the client happens to be. On top of that, sing-box's `cache_file`
+persists the DNS cache across restarts, so a cold app launch resolves recently-
+seen names from disk (~0ms).
+
+**No cleartext DNS anywhere in the chain.** The client↔gateway leg is plain UDP
+but rides the encrypted tunnel (DoH's per-query TLS/HTTP2 framing would be
+redundant there), and unbound forwards upstream to Cloudflare over DoT (:853), so
+the gateway's own egress is encrypted too — Hetzner never sees a domain in the
+clear. `cf-doh` (DoH → 1.1.1.1) stays in the profile as the manual-revert
+resolver: sing-box does not auto-fail between DNS servers, so if the gateway
+cache is ever down, flip `final` to it (also leak-safe, just no local cache).
 
 ## Tailnet over the tunnel (censorship-resistant `100.x`)
 
@@ -351,5 +369,10 @@ Live tradeoffs worth knowing, not necessarily bugs:
   gating SSH would shrink the attack surface but adds lockout risk on a box
   whose whole job is being reachable, so it's left open by choice. 2333 must
   stay open regardless: the home client dials in from a dynamic NATed IP.
-- **No hy2 bandwidth hints** in the client, so it runs default congestion
-  control rather than Brutal — usually the friendlier choice on variable links.
+- **hy2 defaults to adaptive congestion control (BBR), with Brutal opt-in.**
+  The daily-driver `hy2-*` outbound (and the `auto` urltest) carry no bandwidth
+  hints, so they stay adaptive and friendly on variable/metered links. A
+  separate `hy2b-*` variant carries 1G/1G hints → Brutal (fixed-rate, ignores
+  loss) and sits in the selector for manual use on a known-fat hostile pipe.
+  Brutal is deliberately *not* the default: on a slow link it blasts loss into a
+  small pipe and feels worse. Reality has no such knob — its speed is all MTU.
