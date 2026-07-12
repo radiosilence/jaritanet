@@ -99,7 +99,7 @@ Daily check for new releases of deployed services (currently Navidrome). Uses a 
 
 ### Ansible Deployment (`run-playbook.yml`)
 
-Triggered on ansible/ changes. Connects via Tailscale, runs playbooks, updates GitHub secrets.
+Triggered on ansible/ changes. Connects via Tailscale, runs playbooks, updates GitHub secrets. Roles are tagged with their own name; the workflow diffs the push and runs only the changed roles (`--tags`), falling back to a full run on shared-file changes. `workflow_dispatch` takes a `tags` input for targeted manual runs. CI runs use the Mitogen strategy (env-only) for speed.
 
 ### Container Builds (`build-files-container.yml`)
 
