@@ -65,6 +65,35 @@ User -> VPS:443 -> Rathole tunnel -> Traefik -> Service
 3. **IP watcher** (direct mode only) — a pod checks the external IP every 60s via Cloudflare's `1.1.1.1/cdn-cgi/trace` and, on change, dispatches a deploy to refresh the A records. With a gateway, DNS points at the VPS's static IP, so the watcher is a dormant fallback (gated behind `DEPLOY_TOKEN`).
 4. **Deploys** trigger on push to `main` (package changes) or manual `workflow_dispatch` — there is no scheduled/cron reconcile.
 
+## Topology configuration
+
+The VPN topology is three config lists in `packages/infra/Pulumi.main.yaml`.
+
+**`gateway`** — the single entry hub (a Hetzner VPS). Runs Xray (VLESS-REALITY,
+`:443/tcp`), Hysteria2 (`:443/udp`), rathole, and the tailnet relay. This is
+what clients connect *through*; `entry-select` picks the protocol.
+
+**`exits`** — where the gateway *egresses* your traffic (`exit-select`). An exit
+is just `ss-rust + rathole`, reached over the gateway's rathole tunnel.
+
+```yaml
+jaritanet:exits:
+  - name: oldboy      # picker tag `exit-oldboy`; the name is just a label
+```
+
+- **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
+- **`substrate`** decides *where it runs* (and thus which IP it egresses),
+  **not** the name:
+  - `k8s` (default) → the home MicroK8s cluster (the only one) → home IP.
+  - `vps` → provisions a dedicated box in `location` → that box's IP. *(Not
+    implemented yet — k8s only for now.)*
+- **`port`** (the gateway loopback port) is auto-derived from the name; only set
+  it to resolve a rare name-hash collision.
+
+**`edges`** — optional *additional* entry gateways (hy2 + REALITY), appearing in
+`entry-select`. Not needed with a single gateway; see
+[`docs/architecture.md`](docs/architecture.md).
+
 ## Package Structure
 
 Everything lives in a single Pulumi package at `packages/infra/`:
