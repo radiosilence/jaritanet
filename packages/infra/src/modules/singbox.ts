@@ -38,6 +38,21 @@ type ResolvedNode = {
   };
 };
 
+/** A selectable egress exit — a Shadowsocks proxy reached via the entry gateway. */
+export type Exit = {
+  name: string;
+  port: number;
+  method: string;
+  password: pulumi.Input<string>;
+};
+
+type ResolvedExit = {
+  name: string;
+  port: number;
+  method: string;
+  password: string;
+};
+
 const hy2 = (n: ResolvedNode) => ({
   type: "hysteria2",
   tag: `hy2-${n.name}`,
@@ -86,12 +101,24 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  * We build an object and `JSON.stringify` it rather than templating a JSON
  * string — that can't emit invalid JSON, and the group layout is just data.
  *
- * The groups expand with node count: one node → flat `main` selector over
- * [auto, hy2, reality]; N nodes → nested `main` → auto-all | per-host
- * selectors, each holding that host's auto + hy2 + reality. Routing always
- * targets `main`, so the DNS/route sections are count-agnostic.
+ * Two independent axes:
+ *   - `entry-select` — which gateway/transport you enter through. Expands with
+ *     node count: one node → [auto, hy2, reality]; N → auto-all | per-host.
+ *   - `exit-select` — where you egress: `entry-select` (direct, at the gateway)
+ *     or an `exit-<name>` (a Shadowsocks proxy on that exit, dialled via the
+ *     entry gateway). Route `final` points here; tailnet + DNS stay on
+ *     `entry-select` so they egress at the gateway, never via an exit.
+ *
+ * Each exit outbound targets `127.0.0.1:<port>` and detours through the
+ * **primary** gateway (the only rathole node) — the inner address resolves at
+ * the primary end, hitting that exit's rathole loopback. Exits therefore always
+ * transit the primary, regardless of the `entry-select` pick for direct egress.
  */
-export function buildProfile(nodes: ResolvedNode[], magicdnsSuffix: string) {
+export function buildProfile(
+  nodes: ResolvedNode[],
+  magicdnsSuffix: string,
+  exits: ResolvedExit[] = [],
+) {
   const outbounds: Record<string, unknown>[] = [];
   for (const n of nodes) {
     outbounds.push(hy2(n), reality(n));
@@ -100,7 +127,7 @@ export function buildProfile(nodes: ResolvedNode[], magicdnsSuffix: string) {
     const t = nodes[0].name;
     outbounds.push(urltest("auto", [`hy2-${t}`, `reality-${t}`]));
     outbounds.push(
-      selector("main", ["auto", `hy2-${t}`, `reality-${t}`], "auto"),
+      selector("entry-select", ["auto", `hy2-${t}`, `reality-${t}`], "auto"),
     );
   } else {
     for (const n of nodes) {
@@ -122,9 +149,45 @@ export function buildProfile(nodes: ResolvedNode[], magicdnsSuffix: string) {
       ),
     );
     outbounds.push(
-      selector("main", ["auto-all", ...nodes.map((n) => n.name)], "auto-all"),
+      selector(
+        "entry-select",
+        ["auto-all", ...nodes.map((n) => n.name)],
+        "auto-all",
+      ),
     );
   }
+
+  // Exits are pinned to the PRIMARY gateway (nodes[0]) — it's the only node
+  // that runs rathole, so it's the only one exposing the exit loopbacks. Edges
+  // (also in entry-select) run hy2/reality only; detouring an exit through an
+  // edge would dial 127.0.0.1:<port> where nothing listens. So the exit detour
+  // targets the primary specifically, not entry-select — entry-select governs
+  // *direct* egress; exits always transit the primary.
+  const ratholeEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
+
+  // Each exit: a Shadowsocks outbound dialled through the primary gateway. The
+  // 127.0.0.1:<port> resolves at the primary → its rathole loopback for this
+  // exit → the exit's ss-rust → egress at the exit's own IP.
+  for (const e of exits) {
+    outbounds.push({
+      type: "shadowsocks",
+      tag: `exit-${e.name}`,
+      server: "127.0.0.1",
+      server_port: e.port,
+      method: e.method,
+      password: e.password,
+      detour: ratholeEntry,
+    });
+  }
+
+  // The exit axis: direct (egress at the gateway) or one of the exits.
+  outbounds.push(
+    selector(
+      "exit-select",
+      ["entry-select", ...exits.map((e) => `exit-${e.name}`)],
+      "entry-select",
+    ),
+  );
 
   return {
     log: { level: "info", timestamp: true },
@@ -135,7 +198,7 @@ export function buildProfile(nodes: ResolvedNode[], magicdnsSuffix: string) {
           type: "udp",
           tag: "ts-dns",
           server: "100.100.100.100",
-          detour: "main",
+          detour: "entry-select",
         },
       ],
       rules: [{ domain_suffix: [magicdnsSuffix], server: "ts-dns" }],
@@ -160,11 +223,12 @@ export function buildProfile(nodes: ResolvedNode[], magicdnsSuffix: string) {
         { action: "sniff" },
         { protocol: "dns", action: "hijack-dns" },
         {
+          // Tailnet egresses at the gateway (into the mesh), never via an exit.
           ip_cidr: ["100.64.0.0/10", "fd7a:115c:a1e0::/48"],
-          outbound: "main",
+          outbound: "entry-select",
         },
       ],
-      final: "main",
+      final: "exit-select",
       auto_detect_interface: true,
     },
   };
@@ -176,6 +240,7 @@ type DeliveryOpts = {
   magicdnsSuffix: string;
   oldboy: { host: string; user: string; privateKey: pulumi.Output<string> };
   telegram?: { botToken: pulumi.Output<string>; chatId: string };
+  exits?: Exit[];
 };
 
 /**
@@ -191,10 +256,14 @@ export function createSingboxDelivery(
   opts: DeliveryOpts,
 ) {
   const profileJson = pulumi
-    .output(nodes)
-    .apply((resolved) =>
+    .all([pulumi.output(nodes), pulumi.output(opts.exits ?? [])])
+    .apply(([resolvedNodes, resolvedExits]) =>
       JSON.stringify(
-        buildProfile(resolved as ResolvedNode[], opts.magicdnsSuffix),
+        buildProfile(
+          resolvedNodes as ResolvedNode[],
+          opts.magicdnsSuffix,
+          resolvedExits as ResolvedExit[],
+        ),
         null,
         2,
       ),

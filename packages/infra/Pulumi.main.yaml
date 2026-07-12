@@ -21,6 +21,12 @@ config:
     # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
     # no-op until the secret exists.
     tailnet: {}
+  # Egress exit nodes — ss-rust in the home cluster, reached via the rathole
+  # tunnel, egressing the home residential IP. Selectable in the client as
+  # exit-<name>; exits transit the primary gateway.
+  jaritanet:exits:
+    - name: home
+      port: 9000
   jaritanet:services:
     navidrome:
       hostname: ''

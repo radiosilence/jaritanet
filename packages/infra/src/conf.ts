@@ -8,6 +8,7 @@ const { data, error } = ConfSchema.safeParse({
   bluesky: config.requireObject("bluesky"),
   cloudflare: config.requireObject("cloudflare"),
   edges: config.getObject("edges"),
+  exits: config.getObject("exits"),
   externalIp: config.get("externalIp"),
   fastmail: config.requireObject("fastmail"),
   gateway: config.getObject("gateway"),
