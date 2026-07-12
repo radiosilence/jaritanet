@@ -178,8 +178,8 @@ through the tunnel, so the VPS resolves `*.ts.net` on the client's behalf. If a
 sing-box version doesn't honour `detour` on a DNS server, fall back to raw
 `100.x` IPs — and the native client covers names on open networks anyway.
 
-See [`clients/README.md`](../clients/README.md) for the fill-in template and how
-the profile is delivered to devices.
+See [`ansible/roles/singbox/README.md`](../ansible/roles/singbox/README.md) for
+the template and how the profile is generated and delivered to devices.
 
 ## Hardening notes
 

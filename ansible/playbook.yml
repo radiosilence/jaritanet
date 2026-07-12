@@ -1,3 +1,5 @@
+# Roles are tagged with their own name so CI can run only what changed
+# (see .github/workflows/run-playbook.yml). A bare run (no --tags) runs everything.
 - name: Ensure common configurations are applied
   hosts: all
   become: true
@@ -5,11 +7,11 @@
     - group_vars/all.yml
 
   roles:
-    - common
-    - users
-    - helix
-    - mise
-    - github
+    - { role: common, tags: [common] }
+    - { role: users, tags: [users] }
+    - { role: helix, tags: [helix] }
+    - { role: mise, tags: [mise] }
+    - { role: github, tags: [github] }
 
 - name: Ensure homeserver configurations are applied
   hosts: homeservers
@@ -18,12 +20,12 @@
     - group_vars/homeservers.yml
 
   roles:
-    - downloader
-    - microk8s
-    - nfs
-    - samba
-    - syncthing
-    - singbox
+    - { role: downloader, tags: [downloader] }
+    - { role: microk8s, tags: [microk8s] }
+    - { role: nfs, tags: [nfs] }
+    - { role: samba, tags: [samba] }
+    - { role: syncthing, tags: [syncthing] }
+    - { role: singbox, tags: [singbox] }
 
 - name: Ensure tailnet is joined
   hosts: tailnet
@@ -32,4 +34,4 @@
     - group_vars/tailnet.yml
 
   roles:
-    - tailscale
+    - { role: tailscale, tags: [tailscale] }
