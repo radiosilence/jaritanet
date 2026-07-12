@@ -13,59 +13,47 @@ Every moving part and how a flow travels through it — client selection, the tw
 entry transports, the gateway's shared `:443`, the rathole reverse-tunnel, the
 in-cluster exit, tailnet relay, and home services.
 
+The gateway is the **hub**. The client picks how it *enters* (`entry-select` —
+a protocol today, a gateway once there's more than one) and where the gateway
+*egresses* it (`exit-select` — direct, or forwarded to an exit box). Everything
+transits the gateway; exits are just `ss-rust + rathole` boxes it forwards to.
+
 ```mermaid
 flowchart LR
-  subgraph CLIENT["Client · sing-box (tun + hijack-dns)"]
-    ENTRY["entry-select<br/>which gateway"]
-    EXIT["exit-select<br/>where to egress"]
+  CLIENT["Client · sing-box<br/>entry-select × exit-select"]
+
+  subgraph GW["Primary gateway · Hetzner VPS — the entry hub"]
+    IN["Xray REALITY (tcp) + Hysteria2 (udp)<br/>shared :443"]
+    FR["freedom · direct egress"]
+    RS["rathole server"]
+    TSG["tailscale"]
   end
 
-  subgraph GW["Primary gateway · Hetzner VPS"]
-    XRAY["Xray · VLESS-Vision-REALITY<br/>:443/tcp"]
-    HYST["Hysteria2 · QUIC + Salamander<br/>:443/udp"]
-    RHS["rathole server"]
-    FGW["freedom · direct egress"]
+  subgraph EX["Exit box · ss-rust + rathole<br/>(oldboy home-k8s, or a Hetzner VPS)"]
+    RC["rathole client"]
+    SS["ss-rust"]
+    TSH["tailscale"]
+    SV["Traefik + home services (oldboy)"]
   end
 
-  subgraph EDGE["Edge VPSes · optional"]
-    EHR["hy2 + REALITY"]
-    FED["freedom · direct egress"]
-  end
+  NET(("Internet · gateway IP"))
+  EIP(("Exit IP · e.g. home"))
 
-  subgraph HOME["oldboy · home MicroK8s · NAT, no inbound"]
-    RHC["rathole client"]
-    TRA["Traefik · TLS / ACME"]
-    SRV["services<br/>blit · navidrome · files"]
-    SS["ss-rust exit"]
-    TSC["tailscale"]
-  end
-
-  WEB((Internet))
-  RES((Home residential IP))
-
-  ENTRY -->|obfuscated| XRAY
-  ENTRY -->|obfuscated| HYST
-  ENTRY -.->|alt entry| EHR
-
-  EXIT -->|direct| ENTRY
-  EXIT -->|"exit-home · ss, detour primary"| XRAY
-
-  XRAY --> FGW --> WEB
-  HYST --> FGW
-  EHR --> FED --> WEB
-
-  XRAY -.->|"non-client → decoy dest"| RHS
-  RHS <==>|"rathole :2333"| RHC
-  RHC --> TRA --> SRV
-  RHS -->|"127.0.0.1:exit-port"| RHC
-  RHC --> SS --> RES
-
-  ENTRY -.->|"100.x tailnet"| XRAY
-  XRAY -.-> TSC
-  RHC -.-> TSC
+  CLIENT ==>|"entry: hy2 or reality"| IN
+  IN -->|"exit = direct"| FR ==> NET
+  IN -->|"exit = a named exit → 127.0.0.1:port"| RS
+  RS <==>|"rathole tunnel"| RC --> SS ==> EIP
+  RS -.->|"home services"| RC
+  RC -.-> SV
+  IN -.->|"tailnet 100.x · any protocol"| TSG <-.-> TSH
 ```
 
-The sections below zoom into each part.
+Reading it: the client always reaches the **gateway** first (via the chosen
+protocol). Then `exit-select` decides what the gateway does — egress directly
+(gateway's own IP), or dial `127.0.0.1:<port>`, which is that exit's rathole
+loopback → the exit box's ss-rust → egress at *its* IP (e.g. the home link).
+Tailnet `100.x` and DNS ride the gateway's tailscale regardless of protocol. The
+sections below zoom into each part.
 
 ## The two data planes
 

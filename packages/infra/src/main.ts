@@ -10,7 +10,7 @@ import {
   createServiceRecord,
 } from "./modules/dns.ts";
 import { createEdge } from "./modules/edge.ts";
-import { createExit } from "./modules/exit.ts";
+import { createExit, deriveExitPort } from "./modules/exit.ts";
 import { createGateway } from "./modules/gateway.ts";
 import {
   createIngress,
@@ -38,10 +38,26 @@ export default async function () {
   // profile from these and delivers it to the file server (see the end).
   const nodes: SingboxNode[] = [];
 
+  // Resolve each exit's loopback port once (derived from the name unless set),
+  // so the identical port is used at the gateway bind, ss server, rathole
+  // client, and client outbound. Assert uniqueness — a clash means the user
+  // should set an explicit `port` on one of the exits.
+  const resolvedExits = conf.exits.map((e) => ({
+    image: e.image,
+    method: e.method,
+    name: e.name,
+    port: e.port ?? deriveExitPort(e.name),
+  }));
+  if (new Set(resolvedExits.map((e) => e.port)).size !== resolvedExits.length) {
+    throw new Error(
+      "exit loopback port collision — set an explicit `port` on the clashing exit",
+    );
+  }
+
   if (env.HCLOUD_TOKEN) {
     const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
-    // Exits (config values) surface on the gateway's rathole loopback.
-    const gw = createGateway(gatewayConf, conf.exits);
+    // Exits surface on the gateway's rathole loopback (name + port).
+    const gw = createGateway(gatewayConf, resolvedExits);
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
@@ -153,7 +169,7 @@ export default async function () {
 
   // Egress exit nodes: ss-rust in-cluster. The rathole client (in createIngress)
   // punches each one's port out to the gateway loopback.
-  const exits = conf.exits.map((e) => createExit(provider, namespace, e));
+  const exits = resolvedExits.map((e) => createExit(provider, namespace, e));
 
   // --- Ingress: Traefik always on hostPort 443 + rathole client if gateway exists ---
   createIngress(
@@ -163,7 +179,7 @@ export default async function () {
     dnsTarget,
     ratholeToken,
     env.CLOUDFLARE_API_TOKEN,
-    conf.exits,
+    resolvedExits,
   );
 
   createRedirectMiddleware(provider, namespace);

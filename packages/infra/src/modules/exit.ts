@@ -2,8 +2,25 @@ import * as crypto from "node:crypto";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import type * as z from "zod";
-import type { ExitConfSchema } from "../conf.schemas.ts";
+
+/** An exit with its loopback port resolved (see deriveExitPort). */
+export type ResolvedExit = {
+  name: string;
+  port: number;
+  method: string;
+  image: string;
+};
+
+/**
+ * Deterministic loopback port from the exit name (djb2 → 20000–29999), so you
+ * never hand-pick plumbing. Stable per name and order-independent; a config
+ * `port` override wins, and main asserts the resolved set is collision-free.
+ */
+export function deriveExitPort(name: string): number {
+  let h = 5381;
+  for (const ch of name) h = ((h << 5) + h + ch.charCodeAt(0)) >>> 0;
+  return 20000 + (h % 10000);
+}
 
 /**
  * A k8s egress exit: ss-rust in the home cluster. Traffic reaches it through
@@ -12,14 +29,14 @@ import type { ExitConfSchema } from "../conf.schemas.ts";
  * egress — which the CNI SNATs to the node IP, i.e. the home link. No
  * `hostNetwork`, no kernel forwarding: ss-rust owns both ends of each flow.
  *
- * The ss password is a single Pulumi secret consumed here (server ConfigMap)
- * and by the client outbound (see singbox) — one source, no drift. Returns the
+ * The ss password is a single Pulumi secret consumed here (server Secret) and
+ * by the client outbound (see singbox) — one source, no drift. Returns the
  * exit's coordinates for the rathole entries and the client profile.
  */
 export function createExit(
   provider: k8s.Provider,
   namespace: string,
-  exit: z.infer<typeof ExitConfSchema>,
+  exit: ResolvedExit,
 ) {
   const name = `exit-${exit.name}`;
   const password = new random.RandomPassword(`${name}-ss`, {

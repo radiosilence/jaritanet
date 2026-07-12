@@ -157,37 +157,45 @@ export function buildProfile(
     );
   }
 
-  // Exits are pinned to the PRIMARY gateway (nodes[0]) — it's the only node
-  // that runs rathole, so it's the only one exposing the exit loopbacks. Edges
-  // (also in entry-select) run hy2/reality only; detouring an exit through an
-  // edge would dial 127.0.0.1:<port> where nothing listens. So the exit detour
-  // targets the primary specifically, not entry-select — entry-select governs
-  // *direct* egress; exits always transit the primary.
-  const ratholeEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
+  // The exit axis only exists when there are exits — otherwise routing points
+  // straight at entry-select (direct egress, no extra groups).
+  if (exits.length) {
+    // Exits pin to the PRIMARY gateway (nodes[0]) — the only node running
+    // rathole, so the only one exposing the exit loopbacks. Edges (also in
+    // entry-select) run hy2/reality only; detouring an exit through an edge
+    // would dial 127.0.0.1:<port> where nothing listens.
+    const ratholeEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
 
-  // Each exit: a Shadowsocks outbound dialled through the primary gateway. The
-  // 127.0.0.1:<port> resolves at the primary → its rathole loopback for this
-  // exit → the exit's ss-rust → egress at the exit's own IP.
-  for (const e of exits) {
-    outbounds.push({
-      type: "shadowsocks",
-      tag: `exit-${e.name}`,
-      server: "127.0.0.1",
-      server_port: e.port,
-      method: e.method,
-      password: e.password,
-      detour: ratholeEntry,
-    });
+    // Each exit: a Shadowsocks outbound dialled through the primary. The
+    // 127.0.0.1:<port> resolves at the primary → its rathole loopback → the
+    // exit's ss-rust → egress at the exit's own IP.
+    for (const e of exits) {
+      outbounds.push({
+        type: "shadowsocks",
+        tag: `exit-${e.name}`,
+        server: "127.0.0.1",
+        server_port: e.port,
+        method: e.method,
+        password: e.password,
+        detour: ratholeEntry,
+      });
+    }
+
+    // exit-direct = egress at your entry gateway (no exit hop). A thin alias
+    // for entry-select so the exit picker reads as egress locations
+    // (`exit-direct`, `exit-home`, …) rather than showing "entry-select".
+    // Not tagged `direct` — sing-box reserves that for its bypass outbound.
+    outbounds.push(selector("exit-direct", ["entry-select"], "entry-select"));
+    outbounds.push(
+      selector(
+        "exit-select",
+        ["exit-direct", ...exits.map((e) => `exit-${e.name}`)],
+        "exit-direct",
+      ),
+    );
   }
 
-  // The exit axis: direct (egress at the gateway) or one of the exits.
-  outbounds.push(
-    selector(
-      "exit-select",
-      ["entry-select", ...exits.map((e) => `exit-${e.name}`)],
-      "entry-select",
-    ),
-  );
+  const finalOutbound = exits.length ? "exit-select" : "entry-select";
 
   return {
     log: { level: "info", timestamp: true },
@@ -228,7 +236,7 @@ export function buildProfile(
           outbound: "entry-select",
         },
       ],
-      final: "exit-select",
+      final: finalOutbound,
       auto_detect_interface: true,
     },
   };

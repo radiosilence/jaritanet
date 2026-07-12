@@ -24,9 +24,18 @@ config:
   # Egress exit nodes — ss-rust in the home cluster, reached via the rathole
   # tunnel, egressing the home residential IP. Selectable in the client as
   # exit-<name>; exits transit the primary gateway.
+  # Egress exit nodes — where the gateway forwards your traffic out. Each is
+  # just ss-rust + rathole; the gateway reaches it over the rathole tunnel.
+  # `name` is all you set (drives the picker tag exit-<name> + resource names);
+  # the loopback port is auto-derived from the name.
   jaritanet:exits:
-    - name: home
-      port: 9000
+    # oldboy — the home k8s cluster. Egresses your home residential IP.
+    - name: oldboy
+    # A Hetzner (or any) VPS exit is the same two daemons via cloud-init.
+    # NOT WIRED YET — substrate `vps` is unimplemented (k8s only for now):
+    # - name: fin
+    #   substrate: vps
+    #   location: hel1
   jaritanet:services:
     navidrome:
       hostname: ''

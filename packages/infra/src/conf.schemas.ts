@@ -98,12 +98,17 @@ export const EdgeConfSchema = z.object({
  * to the primary, independent of which entry `entry-select` picks for direct
  * traffic. When more rathole-running gateways exist, `port` must be identical
  * across them so one exit outbound works via any of them.
+ *
+ * `name` is the only field you normally set — it drives the picker tag
+ * (`exit-<name>`) and the resource names. `port` is the gateway loopback port
+ * (pure plumbing); leave it unset and it's derived deterministically from the
+ * name at deploy time. Only set it to resolve a rare name-hash collision.
  */
 export const ExitConfSchema = z.object({
   image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:v1.24.0"),
   method: z.string().default("aes-256-gcm"),
   name: z.string(),
-  port: z.number(),
+  port: z.number().optional(),
   substrate: z.enum(["k8s"]).default("k8s"),
 });
 
