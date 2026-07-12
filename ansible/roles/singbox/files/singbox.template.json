@@ -7,7 +7,7 @@
         "type": "udp",
         "tag": "ts-dns",
         "server": "100.100.100.100",
-        "detour": "select"
+        "detour": "main"
       }
     ],
     "rules": [
@@ -69,7 +69,7 @@
     },
     {
       "type": "selector",
-      "tag": "select",
+      "tag": "main",
       "outbounds": ["auto", "hy2", "reality"],
       "default": "auto"
     }
@@ -81,10 +81,10 @@
       { "protocol": "dns", "action": "hijack-dns" },
       {
         "ip_cidr": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"],
-        "outbound": "select"
+        "outbound": "main"
       }
     ],
-    "final": "select",
+    "final": "main",
     "auto_detect_interface": true
   }
 }
