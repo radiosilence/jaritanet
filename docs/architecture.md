@@ -10,13 +10,13 @@ and secrets see the [README](../README.md).
 ## The whole system, end to end
 
 Every moving part and how a flow travels through it — client selection, the two
-entry transports, the gateway's shared `:443`, the frp reverse-tunnel, the
+entry transports, the gateway's shared `:443`, the rathole reverse-tunnel, the
 in-cluster exit, tailnet relay, and home services.
 
 The gateway is the **hub**. The client picks how it *enters* (`entry-select` —
 a protocol today, a gateway once there's more than one) and where the gateway
 *egresses* it (`exit-select` — direct, or forwarded to an exit box). Everything
-transits the gateway; exits are just `ss-rust + frpc` boxes it forwards to.
+transits the gateway; exits are just `ss-rust + rathole` boxes it forwards to.
 
 ```mermaid
 flowchart LR
@@ -25,12 +25,12 @@ flowchart LR
   subgraph GW["Primary gateway · Hetzner VPS — the entry hub"]
     IN["Xray REALITY (tcp) + Hysteria2 (udp)<br/>shared :443"]
     FR["freedom · direct egress"]
-    RS["frp server (frps)"]
+    RS["rathole server"]
     TSG["tailscale"]
   end
 
   subgraph EX["oldboy · home MicroK8s (behind NAT)"]
-    RC["frp client (frpc)"]
+    RC["rathole client"]
     SS["ss-rust exit"]
     TSH["tailscale"]
     SV["Traefik + home services"]
@@ -42,7 +42,7 @@ flowchart LR
   CLIENT ==>|"entry: hy2 or reality"| IN
   IN -->|"exit = direct"| FR ==> NET
   IN -->|"exit = a named exit → 127.0.0.1:port"| RS
-  RS <==>|"frp tunnel · tcp+udp"| RC --> SS ==> EIP
+  RS <==>|"rathole tunnel"| RC --> SS ==> EIP
   RS -.->|"home services"| RC
   RC -.-> SV
   IN -.->|"tailnet 100.x · any protocol"| TSG <-.-> TSH
@@ -50,12 +50,12 @@ flowchart LR
 
 Reading it: the client always reaches the **gateway** first (via the chosen
 protocol). Then `exit-select` decides what the gateway does — egress directly
-(gateway's own IP), or dial `127.0.0.1:<port>`, which is that exit's frps
+(gateway's own IP), or dial `127.0.0.1:<port>`, which is that exit's rathole
 loopback → the exit's ss-rust → egress at *its* IP (here, the home link).
 Tailnet `100.x` and DNS ride the gateway's tailscale regardless of protocol.
 
 The exit shown is oldboy (which also hosts the reverse-proxied home services),
-but an exit is just `ss-rust + frpc` — a future Hetzner VPS exit is the same
+but an exit is just `ss-rust + rathole` — a future Hetzner VPS exit is the same
 two daemons via cloud-init, minus the services/tailnet-home roles. The sections
 below zoom into each part.
 
@@ -65,8 +65,8 @@ The VPS wears two hats at once:
 
 1. **Reverse proxy** for public home-hosted services (`blit.cc`, Navidrome,
    files). Public visitors hit the VPS; their traffic is tunnelled down to the
-   home cluster over frp. The home IP never appears in DNS and no home port
-   is ever opened — the frp client dials *out*.
+   home cluster over rathole. The home IP never appears in DNS and no home port
+   is ever opened — the rathole client dials *out*.
 2. **Censorship-resistant VPN egress** for the owner's devices. sing-box
    clients connect over Hysteria2 or VLESS-REALITY and egress to the open
    internet directly from the VPS.
@@ -89,12 +89,12 @@ flowchart LR
     subgraph vps["Hetzner VPS gateway"]
         XR["Xray VLESS-REALITY<br/>TCP 443"]
         HY["Hysteria2 + Salamander<br/>UDP 443"]
-        RH["frp server (frps)<br/>ctrl 7000 · proxies: http 80, https 127.0.0.1:8443"]
+        RH["rathole server<br/>ctrl 2333 / http 80 / https 127.0.0.1:8443"]
         FREE["freedom outbound<br/>direct egress"]
     end
 
     subgraph home["oldboy — home, behind NAT"]
-        RHC["frp client (frpc)<br/>dials out, declares proxies"]
+        RHC["rathole client<br/>dials out"]
         TR["Traefik<br/>TLS termination + routing"]
         SVC["Navidrome · Blit · files"]
     end
@@ -114,12 +114,6 @@ flowchart LR
     RH --> RHC --> TR --> SVC
 ```
 
-frps is deliberately dumb — a bind port (7000) and a shared token, nothing else.
-Every proxy (home Traefik's 80/443, each exit's loopback) is declared by the
-*client* (frpc), so the server needs no per-service config and a new exit needs
-no gateway change. frp carries UDP as well as TCP, so exits egress QUIC/HTTP3
-end-to-end rather than falling back to TCP.
-
 ## How `:443` is multiplexed
 
 TCP and UDP `:443` are independent, so Hysteria2 (UDP) and Xray (TCP) never
@@ -134,7 +128,7 @@ flowchart TD
     XR --> MATCH{"valid VLESS<br/>uuid + shortId?"}
     MATCH -->|yes| OUT
     MATCH -->|"no / active probe"| DEST["dest = 127.0.0.1:8443"]
-    DEST --> RH["frps https proxy"] --> TUN["tunnel to home"] --> TR["Traefik TLS + route"] --> SVC["service"]
+    DEST --> RH["rathole https"] --> TUN["tunnel to home"] --> TR["Traefik TLS + route"] --> SVC["service"]
 ```
 
 A censor's active probe lands in the `no` branch: it gets a real TLS session to
@@ -254,7 +248,7 @@ and notifies Telegram. Ansible is not involved; it only provisions the boxes.
 
 Beyond the primary gateway, `edges` in config spins up standalone VPN boxes in
 other locations — each a Hetzner VPS running hy2 + REALITY + a tailnet relay,
-and nothing else (no frp, no reverse proxy). Adding one is a config change:
+and nothing else (no rathole, no reverse proxy). Adding one is a config change:
 
 ```yaml
 jaritanet:edges:
@@ -297,10 +291,9 @@ through (`entry-select`). Egress = where your traffic leaves the internet
 (`exit-select`): either **direct** (at the gateway) or via an **exit node** that
 NATs out its own IP — e.g. the home cluster, egressing the residential IP.
 
-An exit is a substrate-agnostic unit — **frpc + ss-rust** — as a k8s
-Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. ss runs in
-`tcp_and_udp` mode and frp carries both, so the exit egresses UDP (QUIC/HTTP3)
-as well as TCP. Add one via the `exits` config list:
+An exit is a substrate-agnostic unit — **rathole client + ss-rust** — as a k8s
+Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. Add one via the
+`exits` config list:
 
 ```yaml
 jaritanet:exits:
@@ -308,23 +301,23 @@ jaritanet:exits:
     port: 9000
 ```
 
-It's reached through the **existing frp tunnel**, not the tailnet. Each
+It's reached through the **existing rathole tunnel**, not the tailnet. Each
 exit's ss-rust port is surfaced on the **primary gateway's loopback**
-(`127.0.0.1:<port>`) via a pair of frpc proxies (tcp + udp) — the same pattern
-as the Reality decoy `dest`:
+(`127.0.0.1:<port>`) via a rathole service entry — the same pattern as the
+Reality decoy `dest`:
 
 ```mermaid
 flowchart LR
     DEV["device"] -->|"detour: primary (hy2/reality)"| GW["primary gateway"]
-    GW -->|"127.0.0.1:<port> → frp"| SS["ss-rust exit (k8s)"]
+    GW -->|"127.0.0.1:<port> → rathole"| SS["ss-rust exit (k8s)"]
     SS -->|"pod egress, CNI SNAT → node IP"| INET(("Internet"))
 ```
 
 The client's `exit-<name>` outbound is Shadowsocks to `127.0.0.1:<port>`,
 detouring through the **primary** gateway. In a detour chain the inner address
-resolves at the gateway end, so `127.0.0.1:<port>` means "this exit's frps
+resolves at the gateway end, so `127.0.0.1:<port>` means "this exit's rathole
 loopback on the primary." Exits pin to the primary because **it's the only node
-running frp** — edges (also in `entry-select`) serve hy2/reality only, so
+running rathole** — edges (also in `entry-select`) serve hy2/reality only, so
 routing an exit through an edge would dial a dead loopback. `entry-select` still
 governs *direct* egress across all gateways; exits transit the primary.
 
@@ -333,8 +326,8 @@ No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
 remote box. The exit pod egresses normally; microk8s' CNI SNATs to the node IP,
 which is the home link. Topology is a pure function of the config lists,
 expanded at `pulumi up`. (Making exits reachable via *any* gateway — the full
-entry × exit cross-product — needs edges to also run frp; deferred. When
-multiple frp gateways exist, `port` must be identical across them.)
+entry × exit cross-product — needs edges to also run rathole; deferred. When
+multiple rathole gateways exist, `port` must be identical across them.)
 
 ## Hardening notes
 
@@ -353,13 +346,10 @@ Live tradeoffs worth knowing, not necessarily bugs:
 - **hy2 uses `insecure=1` + a self-signed cert.** Fine in practice — Salamander
   wraps the whole handshake so the cert never appears on the wire, and the obfs
   password gates access — but there's no cert pinning.
-- **SSH (22) and frp control (7000) are open to the world.** Both are
-  authenticated (SSH is key-only ED25519; frp is a 64-char token). Tailnet-
+- **SSH (22) and rathole control (2333) are open to the world.** Both are
+  authenticated (SSH is key-only ED25519; rathole is 64-char token). Tailnet-
   gating SSH would shrink the attack surface but adds lockout risk on a box
-  whose whole job is being reachable, so it's left open by choice. 7000 must
-  stay open regardless: the home client dials in from a dynamic NATed IP. The
-  proxy remotePorts (8443, exit loopbacks) bind `0.0.0.0` but the firewall
-  admits only 22/80/443/7000 + the hy2 port, so they're reachable only via the
-  gateway's own loopback (Xray/detour), never the public internet.
+  whose whole job is being reachable, so it's left open by choice. 2333 must
+  stay open regardless: the home client dials in from a dynamic NATed IP.
 - **No hy2 bandwidth hints** in the client, so it runs default congestion
   control rather than Brutal — usually the friendlier choice on variable links.

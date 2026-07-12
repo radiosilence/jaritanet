@@ -11,19 +11,18 @@ import { createTailscale } from "./tailscale.ts";
 import { createXray } from "./xray.ts";
 
 /**
- * Provisions a Hetzner VPS running frp (fatedier/frp) as the relay server.
- *
- * frps is deliberately dumb — just a bind port + auth token. Every proxy (home
- * Traefik, the exit loopbacks) is declared by the *clients* (frpc), so the
- * server needs no per-service config and a new exit needs no gateway change.
- * frp carries UDP as well as TCP, so exits are no longer TCP-only.
- *
- * frps is installed over SSH (not cloud-init) so it can land on the *existing*
- * box; `userData` is ignored to keep a config change from replacing the VPS
- * (which would lose the on-box REALITY keys and rotate the IP).
+ * Provisions a Hetzner VPS running rathole as a TCP relay.
+ * The VPS is completely stateless — no certs, no proxy config.
+ * It just tunnels ports 80/443 from the public internet to
+ * the rathole client running inside the K8s cluster.
  */
-export function createGateway(gateway: z.infer<typeof GatewayConfSchema>) {
-  const frpToken = new random.RandomPassword("frp-token", { length: 64 });
+export function createGateway(
+  gateway: z.infer<typeof GatewayConfSchema>,
+  exits: { name: string; port: number }[] = [],
+) {
+  const ratholeToken = new random.RandomPassword("rathole-token", {
+    length: 64,
+  });
 
   const sshKey = new tls.PrivateKey("gateway-ssh-key", {
     algorithm: "ED25519",
@@ -57,9 +56,9 @@ export function createGateway(gateway: z.infer<typeof GatewayConfSchema>) {
         sourceIps: ["0.0.0.0/0", "::/0"],
       },
       {
-        description: "frp control channel",
+        description: "Rathole control channel",
         direction: "in",
-        port: "7000",
+        port: "2333",
         protocol: "tcp",
         sourceIps: ["0.0.0.0/0", "::/0"],
       },
@@ -77,27 +76,47 @@ export function createGateway(gateway: z.infer<typeof GatewayConfSchema>) {
     ],
   });
 
-  // Base image only — frp is installed over SSH below, so a change here never
-  // needs to rebuild the box (see ignoreChanges).
-  const serverConfig = `#!/bin/bash
+  const serverConfig = pulumi.interpolate`#!/bin/bash
 set -euo pipefail
-apt-get update -y || true
+
+# Install rathole
+curl -fsSL "https://github.com/rapiz1/rathole/releases/download/${gateway.ratholeVersion}/rathole-x86_64-unknown-linux-gnu.zip" -o /tmp/rathole.zip
+apt-get update && apt-get install -y unzip
+unzip /tmp/rathole.zip -d /usr/local/bin/
+chmod +x /usr/local/bin/rathole
+rm /tmp/rathole.zip
+
+# Write config (token will be updated via remote command)
+mkdir -p /etc/rathole
+
+# Systemd unit
+cat > /etc/systemd/system/rathole.service << 'UNIT'
+[Unit]
+Description=Rathole Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/rathole --server /etc/rathole/server.toml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable rathole
 `;
 
-  const server = new hcloud.Server(
-    "gateway",
-    {
-      firewallIds: [firewall.id.apply((id) => Number(id))],
-      image: gateway.image,
-      location: gateway.location,
-      serverType: gateway.serverType,
-      sshKeys: [hcloudSshKey.id.apply((id) => id.toString())],
-      userData: serverConfig,
-    },
-    // userData only runs at first boot; keep changes to it from replacing the
-    // live VPS (which holds the on-box REALITY private key).
-    { ignoreChanges: ["userData"] },
-  );
+  const server = new hcloud.Server("gateway", {
+    firewallIds: [firewall.id.apply((id) => Number(id))],
+    image: gateway.image,
+    location: gateway.location,
+    serverType: gateway.serverType,
+    sshKeys: [hcloudSshKey.id.apply((id) => id.toString())],
+    userData: serverConfig,
+  });
 
   const connection = {
     host: server.ipv4Address,
@@ -106,7 +125,9 @@ apt-get update -y || true
   };
 
   // Enable BBR congestion control + fq qdisc. Default (cubic) collapses
-  // throughput on packet loss; BBR holds the pipe open across lossy links.
+  // throughput on packet loss; BBR holds the pipe open across lossy links,
+  // which is what the relayed traffic rides over. Applied over SSH so the
+  // server is never rebuilt.
   new command.remote.Command(
     "gateway-network-tuning",
     {
@@ -121,60 +142,54 @@ sysctl --system`,
     { dependsOn: [server] },
   );
 
-  // Install frps over SSH (idempotent) so it lands on the existing box, and
-  // retire the old rathole unit. Keyed on the version.
-  const frpVer = gateway.frpVersion.replace(/^v/, "");
-  const install = new command.remote.Command(
-    "frp-install",
+  // When Xray is enabled it owns the public :443 and uses rathole as its
+  // decoy backend, so rathole's https bind moves to a local-only port.
+  const httpsBind = gateway.xray ? "127.0.0.1:8443" : "0.0.0.0:443";
+
+  // Each exit's ss-rust port, surfaced on this gateway's loopback via rathole —
+  // same pattern as the Reality decoy dest. The port is stable + identical
+  // across gateways, so one client ss outbound reaches this exit via any entry.
+  const exitServices = exits
+    .map(
+      (e) =>
+        `\n[server.services.exit-${e.name}]\ntype = "tcp"\nbind_addr = "127.0.0.1:${e.port}"\n`,
+    )
+    .join("");
+
+  // Write rathole config via SSH (supports updates without replacing the server)
+  const ratholeConfig = pulumi.interpolate`[server]
+bind_addr = "0.0.0.0:2333"
+default_token = "${ratholeToken.result}"
+
+[server.services.https]
+type = "tcp"
+bind_addr = "${httpsBind}"
+
+[server.services.http]
+type = "tcp"
+bind_addr = "0.0.0.0:80"
+${exitServices}`;
+
+  const configUpload = new command.remote.Command(
+    "rathole-config",
     {
       connection,
-      create: pulumi.interpolate`set -euo pipefail
-export DEBIAN_FRONTEND=noninteractive
-FRP_VER="${frpVer}"
-if ! /usr/local/bin/frps --version 2>/dev/null | grep -q "$FRP_VER"; then
-  curl -fsSL "https://github.com/fatedier/frp/releases/download/v$FRP_VER/frp_${"$"}{FRP_VER}_linux_amd64.tar.gz" -o /tmp/frp.tgz
-  tar -xzf /tmp/frp.tgz -C /tmp
-  install -m 0755 "/tmp/frp_${"$"}{FRP_VER}_linux_amd64/frps" /usr/local/bin/frps
-  rm -rf /tmp/frp.tgz "/tmp/frp_${"$"}{FRP_VER}_linux_amd64"
-fi
-mkdir -p /etc/frp
-cat > /etc/systemd/system/frps.service << 'UNIT'
-[Unit]
-Description=frp server
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-systemctl daemon-reload
-systemctl enable frps
-# retire rathole (migrated to frp)
-systemctl disable --now rathole 2>/dev/null || true`,
-      triggers: [frpVer],
+      create: pulumi.interpolate`cat > /etc/rathole/server.toml << 'RATHOLE_EOF'
+${ratholeConfig}
+RATHOLE_EOF`,
+      triggers: [ratholeToken.result, httpsBind, exitServices],
     },
     { dependsOn: [server] },
   );
 
-  // frps config: just bind port + token. All proxies are client-declared.
-  const configUpload = new command.remote.Command(
-    "frp-config",
+  new command.remote.Command(
+    "rathole-restart",
     {
       connection,
-      create: pulumi.interpolate`cat > /etc/frp/frps.toml << 'FRP_EOF'
-bindPort = 7000
-auth.method = "token"
-auth.token = "${frpToken.result}"
-FRP_EOF
-systemctl restart frps`,
-      triggers: [frpToken.result],
+      create: "systemctl restart rathole",
+      triggers: [configUpload.id],
     },
-    { dependsOn: [install] },
+    { dependsOn: [configUpload] },
   );
 
   const xray = gateway.xray
@@ -198,9 +213,8 @@ systemctl restart frps`,
       : undefined;
 
   return {
-    configUpload,
-    frpToken,
     hysteria,
+    ratholeToken,
     server,
     sshKey,
     tailscale,

@@ -24,14 +24,14 @@ export function deriveExitPort(name: string): number {
 
 /**
  * A k8s egress exit: ss-rust in the home cluster. Traffic reaches it through
- * the frp tunnel (a frpc proxy punches its port out to the gateway — see
- * ingress + gateway), and it NATs out via the pod's normal egress — which the
- * CNI SNATs to the node IP, i.e. the home link. No `hostNetwork`, no kernel
- * forwarding: ss-rust owns both ends of each flow.
+ * the rathole tunnel (a rathole client entry punches its port out to the
+ * gateways — see ingress + gateway), and it NATs out via the pod's normal
+ * egress — which the CNI SNATs to the node IP, i.e. the home link. No
+ * `hostNetwork`, no kernel forwarding: ss-rust owns both ends of each flow.
  *
  * The ss password is a single Pulumi secret consumed here (server Secret) and
  * by the client outbound (see singbox) — one source, no drift. Returns the
- * exit's coordinates for the frp proxies and the client profile.
+ * exit's coordinates for the rathole entries and the client profile.
  */
 export function createExit(
   provider: k8s.Provider,
@@ -50,9 +50,9 @@ export function createExit(
       server_port: exit.port,
       method: exit.method,
       password: pw,
-      // frp carries UDP as well as TCP, so ss UDP associations traverse the
-      // exit path — QUIC/HTTP3 and the like egress at the exit, not direct.
-      mode: "tcp_and_udp",
+      // TCP only: the rathole tunnel that reaches this server is TCP, so UDP
+      // associations can't traverse the exit path (UDP goes direct instead).
+      mode: "tcp_only",
     }),
   );
   const configHash = config.apply((c) =>
@@ -114,10 +114,7 @@ export function createExit(
       metadata: { name, namespace },
       spec: {
         selector: { app: name },
-        ports: [
-          { name: "ss-tcp", port: exit.port, protocol: "TCP" },
-          { name: "ss-udp", port: exit.port, protocol: "UDP" },
-        ],
+        ports: [{ name: "ss-tcp", port: exit.port, protocol: "TCP" }],
       },
     },
     { provider },
