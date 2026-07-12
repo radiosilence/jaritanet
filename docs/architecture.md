@@ -29,11 +29,11 @@ flowchart LR
     TSG["tailscale"]
   end
 
-  subgraph EX["Exit box · ss-rust + rathole<br/>(oldboy home-k8s, or a Hetzner VPS)"]
+  subgraph EX["oldboy · home MicroK8s (behind NAT)"]
     RC["rathole client"]
-    SS["ss-rust"]
+    SS["ss-rust exit"]
     TSH["tailscale"]
-    SV["Traefik + home services (oldboy)"]
+    SV["Traefik + home services"]
   end
 
   NET(("Internet · gateway IP"))
@@ -51,9 +51,13 @@ flowchart LR
 Reading it: the client always reaches the **gateway** first (via the chosen
 protocol). Then `exit-select` decides what the gateway does — egress directly
 (gateway's own IP), or dial `127.0.0.1:<port>`, which is that exit's rathole
-loopback → the exit box's ss-rust → egress at *its* IP (e.g. the home link).
-Tailnet `100.x` and DNS ride the gateway's tailscale regardless of protocol. The
-sections below zoom into each part.
+loopback → the exit's ss-rust → egress at *its* IP (here, the home link).
+Tailnet `100.x` and DNS ride the gateway's tailscale regardless of protocol.
+
+The exit shown is oldboy (which also hosts the reverse-proxied home services),
+but an exit is just `ss-rust + rathole` — a future Hetzner VPS exit is the same
+two daemons via cloud-init, minus the services/tailnet-home roles. The sections
+below zoom into each part.
 
 ## The two data planes
 
@@ -165,27 +169,33 @@ intervention.
 
 ## Client routing (sing-box)
 
-One combined profile carries both transports and DNS handling. Everything —
-including tailnet `100.x` — rides the `main`/`auto` groups, so all traffic
-crosses the hostile network as obfuscated hy2/reality. The client runs **no
-WireGuard**; the tailnet hop happens on the VPS (see below).
+One combined profile carries both transports and DNS handling, behind the two
+selectors: **`entry-select`** (how you reach the gateway) and **`exit-select`**
+(where the gateway egresses you). The client runs **no WireGuard**; the tailnet
+hop happens on the gateway (see below).
 
 ```mermaid
 flowchart TD
     APP["app traffic"] --> SNIFF["sniff"]
     SNIFF --> DNSQ{"port 53?"}
     DNSQ -->|yes| HIJACK["hijack-dns"]
-    HIJACK --> RESOLVE{"tailnet suffix?"}
-    RESOLVE -->|yes| TSDNS["ts-dns<br/>udp 100.100.100.100, detour main"]
-    RESOLVE -->|no| DOH["cf-doh<br/>DoH 1.1.1.1 over tunnel"]
-    DNSQ -->|no| SEL["main -> auto<br/>urltest(hy2, reality)"]
-    SEL --> VPS["VPS egress / tailnet relay"]
+    HIJACK --> RES{"*.ts.net?"}
+    RES -->|yes| TSDNS["ts-dns → 100.100.100.100<br/>(detour entry-select)"]
+    RES -->|no| DOH["cf-doh → 1.1.1.1"]
+    DNSQ -->|no| TN{"100.x tailnet?"}
+    TN -->|yes| ENTRY["entry-select<br/>gateway → tailscale relay"]
+    TN -->|no| EXIT["exit-select"]
+    EXIT --> ED["exit-direct → entry-select<br/>(egress at the gateway)"]
+    EXIT --> EN["exit-oldboy, …<br/>(egress at an exit box)"]
 ```
 
-`hijack-dns` (after `sniff` in `route.rules`) is load-bearing: without it,
-sing-box flings port-53 queries out the tunnel as raw packets to a dead internal
-resolver; nothing resolves except cached names and the client looks offline.
-With it, queries are answered via DoH to 1.1.1.1 — encrypted and tunnelled.
+Two route rules do the work: `100.x` → `entry-select` (tailnet egresses at the
+gateway, never via an exit), and everything else → `final: exit-select`.
+`hijack-dns` (after `sniff`) is load-bearing: without it, sing-box flings
+port-53 queries out the tunnel as raw packets to a dead internal resolver;
+nothing resolves and the client looks offline. With it, `*.ts.net` resolves via
+`ts-dns` (the gateway's tailnet resolver) and everything else via DoH to
+1.1.1.1 — both tunnelled.
 
 ## Tailnet over the tunnel (censorship-resistant `100.x`)
 
@@ -256,12 +266,13 @@ tailnet as `jaritanet-<name>`. Every node — primary + edges — feeds Pulumi's
 writes it to the file server (change-detected by content hash) and pushes the
 updated URL/QR to Telegram. So: edit config, push, get a working URL.
 
-The picker is nested: the top `main` selector chooses `auto-all` (fastest node
-anywhere) or a per-host group. Each host is its own selector (`helsinki`,
-`primary`, …) holding that node's `auto-<name>` + `hy2-<name>` + `reality-<name>`,
-so you pick a location and can drill in to force a transport. Leaf outbound tags
-are prefixed per host (tags must be globally unique); the grouping is what you
-navigate.
+With multiple gateways, `entry-select` becomes nested: it chooses `auto-all`
+(fastest node anywhere) or a per-host group. Each host is its own selector
+(`helsinki`, `primary`, …) holding that node's `auto-<name>` + `hy2-<name>` +
+`reality-<name>`, so you pick a location and can drill in to force a transport.
+Leaf outbound tags are prefixed per host (tags must be globally unique); the
+grouping is what you navigate. (`exit-select` — the egress axis — is separate;
+see below.)
 
 **Why edges can use an external REALITY decoy** (unlike the primary): an edge
 fronts no site of its own, so there's no own-domain to break by forwarding
@@ -322,17 +333,16 @@ multiple rathole gateways exist, `port` must be identical across them.)
 
 Live tradeoffs worth knowing, not necessarily bugs:
 
-- **The REALITY decoy is our own domain, and that's load-bearing — not a
-  weakness to "fix."** REALITY has a single `dest` fallback, and every non-proxy
-  TCP/443 connection (i.e. every real public visitor to the site) is forwarded
-  there. Because `dest` is the home Traefik backend, visitors get the genuine
-  site. Repointing `dest` at an external site (`www.microsoft.com` etc.) to
-  borrow bigger crowd cover would serve *that* site to real visitors and break
-  public access — you cannot both reverse-proxy your own domain on :443 and
-  mimic someone else's. The cover is fine as-is: a real LE cert, real organic
-  traffic, an unremarkable small HTTPS site. The only threat it doesn't beat is
-  allowlist-style censorship (block everything except known-good domains), which
-  is rare and extreme.
+- **The primary's REALITY decoy is our own domain, and that's load-bearing —
+  not a weakness to "fix."** REALITY has a single `dest` fallback, and every
+  non-proxy TCP/443 connection (i.e. every real public visitor to the site) is
+  forwarded there. Because the primary's `dest` is the home Traefik backend,
+  visitors get the genuine site. Repointing it at an external site would serve
+  *that* site to real visitors and break public access — the primary cannot both
+  reverse-proxy its own domain on :443 and mimic someone else's. The cover is
+  fine as-is: a real LE cert, real organic traffic, an unremarkable HTTPS site.
+  (Edges are different — they front no site, so they *do* use an external decoy;
+  see Edge nodes. The only threat neither beats is allowlist-style censorship.)
 - **hy2 uses `insecure=1` + a self-signed cert.** Fine in practice — Salamander
   wraps the whole handshake so the cert never appears on the wire, and the obfs
   password gates access — but there's no cert pinning.
