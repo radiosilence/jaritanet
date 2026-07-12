@@ -25,18 +25,22 @@ export function createHysteria(
   connection: Connection,
   server: hcloud.Server,
   hysteria: z.infer<typeof HysteriaConfSchema>,
+  name = "",
 ) {
-  const authPassword = new random.RandomPassword("hysteria-auth", {
+  // Empty name = the primary gateway, keeping its original resource names so
+  // Pulumi doesn't replace the live box. Edges pass a name → prefixed names.
+  const p = name ? `${name}-` : "";
+  const authPassword = new random.RandomPassword(`${p}hysteria-auth`, {
     length: 32,
     special: false,
   });
-  const obfsPassword = new random.RandomPassword("hysteria-obfs", {
+  const obfsPassword = new random.RandomPassword(`${p}hysteria-obfs`, {
     length: 32,
     special: false,
   });
 
   const install = new command.remote.Command(
-    "hysteria-install",
+    `${p}hysteria-install`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
@@ -58,7 +62,7 @@ fi`,
   );
 
   const config = new command.remote.Command(
-    "hysteria-config",
+    `${p}hysteria-config`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail

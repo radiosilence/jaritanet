@@ -36,9 +36,13 @@ export function createTailscale(
   server: hcloud.Server,
   tailnet: z.infer<typeof TailnetConfSchema>,
   authKey: pulumi.Output<string>,
+  name = "",
 ) {
+  // Empty name = the primary gateway, keeping its original resource name so
+  // Pulumi doesn't replace the live box. Edges pass a name → prefixed name.
+  const p = name ? `${name}-` : "";
   return new command.remote.Command(
-    "tailscale-up",
+    `${p}tailscale-up`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail

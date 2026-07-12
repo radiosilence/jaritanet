@@ -110,19 +110,9 @@ jobs:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
-          # sing-box profile generation (roles/singbox)
-          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
-          SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
-          SINGBOX_VPS_IP: ${{ secrets.SINGBOX_VPS_IP }}
-          SINGBOX_XRAY_UUID: ${{ secrets.SINGBOX_XRAY_UUID }}
-          SINGBOX_XRAY_PUBLIC_KEY: ${{ secrets.SINGBOX_XRAY_PUBLIC_KEY }}
-          SINGBOX_XRAY_SHORT_ID: ${{ secrets.SINGBOX_XRAY_SHORT_ID }}
-          SINGBOX_XRAY_SERVER_NAME: ${{ secrets.SINGBOX_XRAY_SERVER_NAME }}
-          SINGBOX_HYSTERIA_AUTH_PASSWORD: ${{ secrets.SINGBOX_HYSTERIA_AUTH_PASSWORD }}
-          SINGBOX_HYSTERIA_OBFS_PASSWORD: ${{ secrets.SINGBOX_HYSTERIA_OBFS_PASSWORD }}
-          SINGBOX_TAILNET_MAGICDNS_SUFFIX: ${{ secrets.SINGBOX_TAILNET_MAGICDNS_SUFFIX }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # The sing-box profile renders in ci-cd (the deploy), fed by the
+          # singboxNodes Pulumi output — this run has no node data, so the
+          # singbox role no-ops here. Template-only changes land on next deploy.
 
       # Only meaningful when microk8s ran — that role generates the kubeconfig
       # secrets this pushes.

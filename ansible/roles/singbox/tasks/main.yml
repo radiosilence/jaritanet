@@ -1,45 +1,18 @@
-# Renders the sing-box client profile from the canonical template, writes it to
-# the file server's unguessable path, and emails the URL + a QR when it changes.
-# No-ops entirely when SINGBOX_SLUG is unset (e.g. local runs without secrets).
+# Renders the multi-node sing-box client profile from the Jinja2 template
+# (one hy2 + reality pair per node, behind a location-picker selector), writes
+# it to the file server's unguessable path, and pushes the URL + a QR to
+# Telegram when it changes. No-ops when there are no nodes (e.g. local runs, or
+# a deploy without the singboxNodes output).
 - name: Render and distribute the sing-box client profile
-  when: singbox_slug | length > 0
+  when: singbox_slug | length > 0 and singbox_nodes | length > 0
   block:
-    - name: Assert all injected config values are present
+    - name: Assert required config present
       ansible.builtin.assert:
         that:
           - singbox_files_hostname | length > 0
-          - singbox_vps_ip | length > 0
-          - singbox_xray_uuid | length > 0
-          - singbox_xray_public_key | length > 0
-          - singbox_xray_short_id | length > 0
-          - singbox_xray_server_name | length > 0
-          - singbox_hysteria_auth_password | length > 0
-          - singbox_hysteria_obfs_password | length > 0
           - singbox_tailnet_magicdns_suffix | length > 0
-        fail_msg: "sing-box secrets missing — set the SINGBOX_* GitHub Actions secrets"
-        quiet: true
-
-    - name: Substitute placeholders in the canonical template
-      ansible.builtin.set_fact:
-        singbox_config: >-
-          {{ (singbox_config | default(lookup('file', singbox_template_path)))
-             | replace(item.token, item.value) }}
-      loop: "{{ singbox_placeholders }}"
-      loop_control:
-        label: "{{ item.token }}"
-      no_log: true
-
-    - name: Assert no placeholder survived (template may have gained tokens)
-      ansible.builtin.assert:
-        that:
-          - not (singbox_config is search('<[A-Z_]+>'))
-        fail_msg: "Template has placeholders the singbox role does not map — update roles/singbox/vars/main.yml"
-        quiet: true
-
-    - name: Assert rendered profile is valid JSON
-      ansible.builtin.assert:
-        that:
-          - singbox_config | from_json is mapping
+          - singbox_nodes | length > 0
+        fail_msg: "sing-box: SINGBOX_NODES / FILES_HOSTNAME / magicdns suffix missing"
         quiet: true
 
     - name: Ensure the hosted profile directory exists
@@ -50,15 +23,18 @@
         group: "{{ username }}"
         mode: "0755"
 
-    - name: Write the rendered profile
-      ansible.builtin.copy:
-        content: "{{ singbox_config }}"
+    # template validates the rendered JSON before placing it, so a broken render
+    # never overwrites a working profile. Registers changed → drives the notify.
+    - name: Render the multi-node profile
+      ansible.builtin.template:
+        src: singbox.template.json.j2
         dest: "{{ singbox_dest_dir }}/{{ singbox_slug }}.json"
         owner: "{{ username }}"
         group: "{{ username }}"
         mode: "0644"
-      no_log: true
+        validate: "python3 -c \"import json; json.load(open('%s'))\""
       register: singbox_written
+      no_log: true
 
     - name: Build the profile URL
       ansible.builtin.set_fact:
@@ -67,13 +43,13 @@
     - name: Build the notification caption
       ansible.builtin.set_fact:
         singbox_caption: |-
-          sing-box profile updated
+          sing-box profile updated ({{ singbox_nodes | length }} node{{ 's' if singbox_nodes | length != 1 else '' }})
 
           {{ singbox_url }}
 
           Add as a Remote profile (auto-refreshes every device on "Update").
-          Scan the QR to onboard a phone. Keep this URL secret — the unguessable
-          path is the only thing guarding it.
+          Pick a location in the app's Groups tab. Scan the QR to onboard a
+          phone. Keep this URL secret — the unguessable path guards it.
 
     # Delivery runs on the controller (localhost) — it needs the QR tool and
     # egress to Telegram, not the target. Only fires when the profile changed,
