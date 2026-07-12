@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       tags:
-        description: "Role tags to run (comma-separated, e.g. singbox,nfs). Blank = all."
+        description: "Role tags to run (comma-separated, e.g. nfs,samba). Blank = all."
         required: false
         default: ""
 
@@ -79,10 +79,6 @@ jobs:
           echo "Testing connectivity..."
           ping -c 3 ${{ secrets.OLDBOY_HOST }}
 
-      # qrencode runs on the controller to build the QR pushed to Telegram (singbox role)
-      - name: Install qrencode
-        run: sudo apt-get update && sudo apt-get install -y qrencode
-
       # Mitogen replaces Ansible's per-task interpreter spawn with one long-lived
       # remote process — typically 1.5-3x faster. Wired via env only, so
       # ansible.cfg stays default and local runs are unaffected.
@@ -110,9 +106,6 @@ jobs:
           SAMBA_PASSWORD: ${{ secrets.SAMBA_PASSWORD }}
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
-          # The sing-box profile renders in ci-cd (the deploy), fed by the
-          # singboxNodes Pulumi output — this run has no node data, so the
-          # singbox role no-ops here. Template-only changes land on next deploy.
 
       # Only meaningful when microk8s ran — that role generates the kubeconfig
       # secrets this pushes.

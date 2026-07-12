@@ -137,7 +137,6 @@ Three-stage deployment targeting different host groups:
 - **`samba/`** - SMB file sharing
 - **`syncthing/`** - P2P file sync service
 - **`downloader/`** - Media download tools (yt-dlp, get-iplayer, aria2)
-- **`singbox/`** - Renders the sing-box client profile from its colocated `files/singbox.template.json`, writes it to the file server's unguessable path, and pushes the URL + QR to Telegram on change
 - **`helix/`** - Helix editor installation
 - **`mise/`** - Tool version manager installation
 
