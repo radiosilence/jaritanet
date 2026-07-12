@@ -31,12 +31,26 @@ export const HysteriaConfSchema = z.object({
   sni: z.string().default("www.bing.com"),
 });
 
+/**
+ * Joins the gateway VPS to the tailnet so it can relay client traffic into
+ * the mesh. Clients route 100.64.0.0/10 through the hy2/reality tunnel and
+ * the VPS dials those addresses locally over tailscale0 — no IP forwarding
+ * or subnet routing, the box just has to be a member. Enabled only when a
+ * TS_AUTHKEY is also present. `tag` disables key expiry and drives ACLs;
+ * reuse `tag:server` so existing tagOwners/grants apply.
+ */
+export const TailnetConfSchema = z.object({
+  hostname: z.string().default("jaritanet-gw"),
+  tag: z.string().default("tag:server"),
+});
+
 export const GatewayConfSchema = z.object({
   hysteria: HysteriaConfSchema.optional(),
   image: z.string().default("ubuntu-24.04"),
   location: z.string().default("nbg1"),
   ratholeVersion: z.string().default("v0.5.0"),
   serverType: z.string().default("cx23"),
+  tailnet: TailnetConfSchema.optional(),
   xray: XrayConfSchema.optional(),
 });
 

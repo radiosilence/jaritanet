@@ -5,7 +5,9 @@ import * as random from "@pulumi/random";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { GatewayConfSchema } from "../conf.schemas.ts";
+import { env } from "../env.ts";
 import { createHysteria } from "./hysteria.ts";
+import { createTailscale } from "./tailscale.ts";
 import { createXray } from "./xray.ts";
 
 /**
@@ -185,11 +187,24 @@ RATHOLE_EOF`,
     ? createHysteria(connection, server, gateway.hysteria)
     : undefined;
 
+  // Tailnet relay: only when configured and an auth key is present, so
+  // enabling `tailnet` in config before the secret is set is a safe no-op.
+  const tailscale =
+    gateway.tailnet && env.TS_AUTHKEY
+      ? createTailscale(
+          connection,
+          server,
+          gateway.tailnet,
+          pulumi.secret(env.TS_AUTHKEY),
+        )
+      : undefined;
+
   return {
     hysteria,
     ratholeToken,
     server,
     sshKey,
+    tailscale,
     vpsIp: server.ipv4Address,
     xray,
   };

@@ -45,6 +45,8 @@ on:
         required: true
       BLIT_HOSTNAME:
         required: true
+      TS_AUTHKEY:
+        required: false
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -218,3 +220,4 @@ jobs:
           KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
