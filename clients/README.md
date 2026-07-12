@@ -10,26 +10,33 @@ config for the gateway. It carries two transports behind a selector:
 - **`auto`** (urltest) picks the working/faster of the two; **`select`** lets you
   pin one manually (sing-box "Groups" tab shows the live pick + latency).
 
-Tailnet traffic (`100.64.0.0/10`) is split off through an embedded Tailscale
-endpoint, so tailnet access and censorship-resistant egress coexist in one tunnel
-— no second VPN app, and it works on iOS where only one VPN can run at a time.
-MagicDNS (`*.<tailnet>.ts.net`) resolves locally from tsnet's netmap via `ts-dns`.
+Tailnet traffic (`100.64.0.0/10`) is routed through the same `select` group, so
+it rides hy2/reality to the gateway VPS — which is itself a tailnet member and
+dials the destination over the mesh. This is the censorship-resistant tailnet
+path: on a network that blocks Tailscale (control plane + DERP), `100.x` still
+works because the only leg crossing the hostile network is the obfuscated
+tunnel. It's slower (traffic relays through the VPS) and there's no WireGuard on
+the client at all — for fast, direct tailnet on an open network, just use the
+native Tailscale app instead. One VPN slot on iOS: native for speed, this
+profile for survival.
 
-Two settings are load-bearing — do not drop them:
+MagicDNS (`*.<tailnet>.ts.net`) resolves via `ts-dns`, a plain resolver pointed
+at the tailnet's `100.100.100.100` and detoured through the tunnel so the VPS
+answers on the client's behalf. If that misbehaves on your sing-box version, use
+raw `100.x` IPs — they always route.
+
+One setting is load-bearing — do not drop it:
 
 - **`route.rules` has `sniff` + `hijack-dns`.** Without the `hijack-dns` rule,
   sing-box routes port-53 queries out the tunnel as raw packets to its own dead
   internal DNS address; nothing resolves (only cached lookups work) and clients
   appear to "lose connection." With it, queries are answered via `cf-doh`
   (DoH → 1.1.1.1, routed over the tunnel — encrypted and unleakable).
-- **`accept_routes: false` on the Tailscale endpoint.** With `true`, a tailnet
-  node advertising routes gets accepted and swallows the whole default route →
-  total blackout. Tailnet stays reachable via the `100.64.0.0/10` route rule.
 
 ## Filling it in
 
-Replace the `<PLACEHOLDER>` tokens. Everything but the Tailscale key and MagicDNS
-suffix comes from Pulumi stack outputs (run in `packages/infra/`):
+Replace the `<PLACEHOLDER>` tokens. Everything but the MagicDNS suffix comes
+from Pulumi stack outputs (run in `packages/infra/`):
 
 | Placeholder | Source |
 | --- | --- |
@@ -40,8 +47,10 @@ suffix comes from Pulumi stack outputs (run in `packages/infra/`):
 | `<XRAY_SERVER_NAME>` | `pulumi stack output xrayServerName` |
 | `<HYSTERIA_AUTH_PASSWORD>` | from `pulumi stack output hysteriaShareUrl --show-secrets` (the `user@` part) |
 | `<HYSTERIA_OBFS_PASSWORD>` | from the same URL (`obfs-password=`) |
-| `<TAILSCALE_AUTH_KEY>` | Tailscale admin → Settings → Keys → generate (reusable + ephemeral) |
 | `<TAILNET_MAGICDNS_SUFFIX>` | `tailscale status --json \| jq -r .MagicDNSSuffix` (e.g. `foo-bar.ts.net`) |
+
+The tailnet relay's own auth key is a deploy-side secret (`TS_AUTHKEY`), not a
+client value — see `docs/architecture.md`.
 
 The `xrayShareUrl` and `hysteriaShareUrl` outputs are complete `vless://` /
 `hysteria2://` URLs if you'd rather import a single transport directly instead of
