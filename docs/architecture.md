@@ -115,10 +115,10 @@ intervention.
 
 ## Client routing (sing-box)
 
-One combined profile carries both transports, an embedded Tailscale endpoint,
-and DNS handling. Egress rides the `select`/`auto` groups; tailnet IPs split off
-to the Tailscale endpoint so tailnet access and censorship egress coexist in a
-single tunnel — which also means it works on iOS, where only one VPN can run.
+One combined profile carries both transports and DNS handling. Everything —
+including tailnet `100.x` — rides the `select`/`auto` groups, so all traffic
+crosses the hostile network as obfuscated hy2/reality. The client runs **no
+WireGuard**; the tailnet hop happens on the VPS (see below).
 
 ```mermaid
 flowchart TD
@@ -126,24 +126,52 @@ flowchart TD
     SNIFF --> DNSQ{"port 53?"}
     DNSQ -->|yes| HIJACK["hijack-dns"]
     HIJACK --> RESOLVE{"tailnet suffix?"}
-    RESOLVE -->|yes| TSDNS["ts-dns<br/>MagicDNS from tsnet netmap"]
+    RESOLVE -->|yes| TSDNS["ts-dns<br/>udp 100.100.100.100, detour select"]
     RESOLVE -->|no| DOH["cf-doh<br/>DoH 1.1.1.1 over tunnel"]
-    DNSQ -->|no| DEST{"dest IP in<br/>100.64.0.0/10?"}
-    DEST -->|yes| TS["Tailscale endpoint<br/>accept_routes false"]
-    DEST -->|no| SEL["select -> auto<br/>urltest(hy2, reality)"]
-    SEL --> VPS["VPS egress"]
+    DNSQ -->|no| SEL["select -> auto<br/>urltest(hy2, reality)"]
+    SEL --> VPS["VPS egress / tailnet relay"]
 ```
 
-Two client settings are load-bearing and must not be dropped:
+`hijack-dns` (after `sniff` in `route.rules`) is load-bearing: without it,
+sing-box flings port-53 queries out the tunnel as raw packets to a dead internal
+resolver; nothing resolves except cached names and the client looks offline.
+With it, queries are answered via DoH to 1.1.1.1 — encrypted and tunnelled.
 
-- **`hijack-dns`** (after `sniff` in `route.rules`). Without it, sing-box flings
-  port-53 queries out the tunnel as raw packets to a dead internal resolver;
-  nothing resolves except cached names and the client looks offline. With it,
-  queries are answered via DoH to 1.1.1.1 — encrypted and tunnelled, no leak.
-- **`accept_routes: false`** on the Tailscale endpoint. With `true`, a tailnet
-  node advertising routes gets its routes accepted and swallows the default
-  route → total blackout. Tailnet stays reachable via the explicit
-  `100.64.0.0/10` route rule instead.
+## Tailnet over the tunnel (censorship-resistant `100.x`)
+
+The gateway VPS is itself a tailnet member. Because hy2/reality are
+connection-level proxies (not raw IP tunnels), a client flow to `100.x` arrives
+at the VPS and the VPS *dials that address locally* — the OS routes it out
+`tailscale0` to the home nodes over the mesh. So the VPS needs nothing but
+membership: **no IP forwarding, no NAT, no subnet-router advertisement.**
+
+```mermaid
+flowchart LR
+    DEV["device<br/>(hostile net)"] -->|"100.x over hy2/reality"| VPS["VPS<br/>tailscale member"]
+    VPS -->|"dials 100.x over tailscale0"| HOME["oldboy & peers<br/>(tailnet mesh)"]
+```
+
+Why this beats a Tailscale-hostile censor: the only leg crossing the hostile
+network is the obfuscated tunnel. The VPS↔tailnet leg (WireGuard + DERP + the
+Tailscale control plane) happens from Germany, where none of it is blocked — the
+censor never sees a Tailscale handshake.
+
+Two profiles, one VPN slot (matters on iOS):
+
+- **Native Tailscale app** — fast, direct peer-to-peer, full MagicDNS. Use on
+  open networks. Dies where Tailscale is blocked.
+- **This sing-box profile** — tailnet relayed through the VPS, obfuscated,
+  survives censorship. Slower (relay hop + geography). Use when the native
+  client can't connect.
+
+Load-bearing on the VPS side: `tailscale up --accept-routes=false`. With routes
+accepted, a peer advertising an exit node or routes swallows the VPS default
+route → the relay and every service riding it go dark.
+
+MagicDNS is best-effort here: `ts-dns` points at `100.100.100.100` detoured
+through the tunnel, so the VPS resolves `*.ts.net` on the client's behalf. If a
+sing-box version doesn't honour `detour` on a DNS server, fall back to raw
+`100.x` IPs — and the native client covers names on open networks anyway.
 
 See [`clients/README.md`](../clients/README.md) for the fill-in template and how
 the profile is delivered to devices.

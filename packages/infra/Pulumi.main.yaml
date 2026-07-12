@@ -17,6 +17,10 @@ config:
       dest: 127.0.0.1:8443
     # Hysteria2 (QUIC/UDP) on 443/udp — fast, loss-tolerant daily driver
     hysteria: {}
+    # Tailnet relay: joins the VPS to the tailnet so clients can reach 100.x
+    # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
+    # no-op until the secret exists.
+    tailnet: {}
   jaritanet:services:
     navidrome:
       hostname: ''
