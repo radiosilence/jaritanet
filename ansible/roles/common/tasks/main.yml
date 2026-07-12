@@ -18,5 +18,23 @@
       - ffmpeg
     state: present
 
+- name: Enable BBR congestion control + fq qdisc
+  # Matches the gateway VPS. Default cubic collapses on loss; BBR holds the pipe
+  # open — helps the rathole client→gateway leg and the exit's own egress.
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-network-tuning.conf
+    content: |
+      net.core.default_qdisc = fq
+      net.ipv4.tcp_congestion_control = bbr
+    owner: root
+    group: root
+    mode: "0644"
+  register: bbr_sysctl
+
+- name: Apply sysctl settings
+  ansible.builtin.command: sysctl --system
+  when: bbr_sysctl.changed
+  changed_when: true
+
 - name: Include SSH hardening tasks
   ansible.builtin.include_tasks: ssh_hardening.yml

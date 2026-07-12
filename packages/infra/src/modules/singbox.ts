@@ -53,11 +53,33 @@ type ResolvedExit = {
   password: string;
 };
 
+// hy2's "fun/fast" personality: setting bandwidth switches Hysteria2 from BBR
+// to the Brutal congestion control, which paces to a fixed rate and ignores
+// loss — it stomps through lossy/censored links where BBR backs off. Set to the
+// gigabit line; Brutal will use up to this and no more. The only footgun is a
+// client network genuinely slower than this (blasting a slow link wastes it on
+// loss), but on real broadband it's the fastest option we've got. Tune down if
+// you're routinely on a capped link.
+// (Reality has no such knob — it stays adaptive TCP; its speed comes from MTU.)
+const HY2_UP_MBPS = 1000;
+const HY2_DOWN_MBPS = 1000;
+
+// Innermost tun MTU for the whole chain. Sized so a packet survives the worst
+// entry path — hy2 (QUIC/UDP) over a reduced-MTU hostile/mobile net (~1400):
+// IPv4 20 + UDP 8 + QUIC/AEAD/Salamander ~70 of overhead, so inner ≤ ~1330.
+// 1280 (the IPv6 floor, and QUIC's no-fragment floor) sits safely under that
+// and never fragments on a roaming link; Reality's TCP MSS clamps to 1240.
+// Fragmentation stalls cost far more throughput than 1280's slightly smaller
+// packets, so on unknown networks this maximises *real* throughput + latency.
+const TUN_MTU = 1280;
+
 const hy2 = (n: ResolvedNode) => ({
   type: "hysteria2",
   tag: `hy2-${n.name}`,
   server: n.server,
   server_port: n.hysteria.port,
+  up_mbps: HY2_UP_MBPS,
+  down_mbps: HY2_DOWN_MBPS,
   password: n.hysteria.authPassword,
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
   tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
@@ -218,7 +240,7 @@ export function buildProfile(
         type: "tun",
         tag: "tun-in",
         address: ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
-        mtu: 1400,
+        mtu: TUN_MTU,
         auto_route: true,
         strict_route: true,
         stack: "system",
