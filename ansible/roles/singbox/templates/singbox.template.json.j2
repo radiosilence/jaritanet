@@ -3,7 +3,7 @@
   "dns": {
     "servers": [
       { "type": "https", "tag": "cf-doh", "server": "1.1.1.1" },
-      { "type": "udp", "tag": "ts-dns", "server": "100.100.100.100", "detour": "select" }
+      { "type": "udp", "tag": "ts-dns", "server": "100.100.100.100", "detour": "main" }
     ],
     "rules": [
       { "domain_suffix": ["{{ singbox_tailnet_magicdns_suffix }}"], "server": "ts-dns" }
@@ -55,6 +55,12 @@
       "interval": "3m",
       "tolerance": 100
     },
+    {
+      "type": "selector",
+      "tag": "{{ node.name }}",
+      "outbounds": ["auto-{{ node.name }}", "hy2-{{ node.name }}", "reality-{{ node.name }}"],
+      "default": "auto-{{ node.name }}"
+    },
 {% endfor %}
     {
       "type": "urltest",
@@ -66,8 +72,8 @@
     },
     {
       "type": "selector",
-      "tag": "select",
-      "outbounds": ["auto-all"{% for node in singbox_nodes %}, "auto-{{ node.name }}"{% endfor %}],
+      "tag": "main",
+      "outbounds": ["auto-all"{% for node in singbox_nodes %}, "{{ node.name }}"{% endfor %}],
       "default": "auto-all"
     }
   ],
@@ -76,9 +82,9 @@
     "rules": [
       { "action": "sniff" },
       { "protocol": "dns", "action": "hijack-dns" },
-      { "ip_cidr": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"], "outbound": "select" }
+      { "ip_cidr": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"], "outbound": "main" }
     ],
-    "final": "select",
+    "final": "main",
     "auto_detect_interface": true
   }
 }

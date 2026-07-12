@@ -116,7 +116,7 @@ intervention.
 ## Client routing (sing-box)
 
 One combined profile carries both transports and DNS handling. Everything —
-including tailnet `100.x` — rides the `select`/`auto` groups, so all traffic
+including tailnet `100.x` — rides the `main`/`auto` groups, so all traffic
 crosses the hostile network as obfuscated hy2/reality. The client runs **no
 WireGuard**; the tailnet hop happens on the VPS (see below).
 
@@ -126,9 +126,9 @@ flowchart TD
     SNIFF --> DNSQ{"port 53?"}
     DNSQ -->|yes| HIJACK["hijack-dns"]
     HIJACK --> RESOLVE{"tailnet suffix?"}
-    RESOLVE -->|yes| TSDNS["ts-dns<br/>udp 100.100.100.100, detour select"]
+    RESOLVE -->|yes| TSDNS["ts-dns<br/>udp 100.100.100.100, detour main"]
     RESOLVE -->|no| DOH["cf-doh<br/>DoH 1.1.1.1 over tunnel"]
-    DNSQ -->|no| SEL["select -> auto<br/>urltest(hy2, reality)"]
+    DNSQ -->|no| SEL["main -> auto<br/>urltest(hy2, reality)"]
     SEL --> VPS["VPS egress / tailnet relay"]
 ```
 
@@ -200,9 +200,15 @@ On the next deploy each edge gets a server, a firewall (22 + 443 only), a
 `<name>.<zone>` A record (default zone `radiosilence.dev`), and joins the
 tailnet as `jaritanet-<name>`. Every node — primary + edges — is emitted as the
 secret `singboxNodes` stack output; the deploy pipes that into the singbox
-ansible role, which renders one profile with a **location picker** (`select`
-group: `auto-all` = fastest anywhere, plus a per-node `auto-<name>`) and pushes
+ansible role, which renders one profile with a **location picker** and pushes
 the updated URL/QR to Telegram. So: edit config, push, get a working URL.
+
+The picker is nested: the top `main` selector chooses `auto-all` (fastest node
+anywhere) or a per-host group. Each host is its own selector (`helsinki`,
+`primary`, …) holding that node's `auto-<name>` + `hy2-<name>` + `reality-<name>`,
+so you pick a location and can drill in to force a transport. Leaf outbound tags
+are prefixed per host (tags must be globally unique); the grouping is what you
+navigate.
 
 **Why edges can use an external REALITY decoy** (unlike the primary): an edge
 fronts no site of its own, so there's no own-domain to break by forwarding

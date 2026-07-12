@@ -71,6 +71,7 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 
 - **`src/modules/gateway.ts`** — Hetzner VPS gateway (optional)
 - **`src/modules/gateway-oci.ts`** — Oracle Cloud ARM gateway (optional)
+- **`src/modules/edge.ts`** — standalone VPN edge boxes in other locations (hy2 + REALITY + tailnet relay); add via `edges` in config. See [`docs/architecture.md`](docs/architecture.md#edge-nodes-multi-location)
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoutes, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
