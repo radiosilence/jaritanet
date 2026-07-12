@@ -16,7 +16,7 @@ Code should be simple, elegant, and concise. Respect the "rule of three" - only 
 
 ## Overview
 
-JARITANET is an infrastructure-as-code monorepo using Pulumi to expose Kubernetes services via a Hetzner VPS gateway. Rathole tunnels TCP from the VPS to an in-cluster Traefik instance that handles TLS termination (Let's Encrypt via DNS-01) and hostname routing. Cloudflare provides DNS only (no proxy/tunnel).
+JARITANET is an infrastructure-as-code monorepo using Pulumi to expose Kubernetes services via a Hetzner VPS gateway. frp (fatedier/frp) tunnels traffic from the VPS to an in-cluster Traefik instance that handles TLS termination (Let's Encrypt via DNS-01) and hostname routing. Cloudflare provides DNS only (no proxy/tunnel).
 
 ## Common Commands
 
@@ -51,9 +51,9 @@ The project uses Lefthook for pre-commit validation:
 
 Everything deploys in one `pulumi up` from `packages/infra/`:
 
-- **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server provisioning
+- **`src/modules/gateway.ts`** — Hetzner VPS + firewall + frp server (frps) provisioning
 - **`src/modules/xray.ts`** — optional Xray VLESS-REALITY proxy sharing :443 with the gateway
-- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
+- **`src/modules/ingress.ts`** — Traefik Helm chart, frp client (frpc), IngressRoute CRDs, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
 - **`src/main.ts`** — Orchestrates all modules
@@ -66,14 +66,14 @@ All config uses Zod V4 schemas for runtime validation. Configuration lives in `P
 ### Service Flow
 
 External traffic follows this path:
-`https://hostname` -> Gateway VPS (Rathole) -> K8s cluster (Rathole client) -> Traefik (TLS + routing) -> service
+`https://hostname` -> Gateway VPS (frps) -> K8s cluster (frpc) -> Traefik (TLS + routing) -> service
 
 Without a gateway, Traefik serves directly via hostPort 443 and DNS points at the server's detected external IP.
 
 ### Key Components
 
-- **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
-- **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and rathole's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (rathole → Traefik); matched clients are proxied out. The keypair is minted on-box and never leaves it; the client `vless://` URL is a stack output (`xrayShareUrl`). `serverName` must be a hostname Traefik serves a real cert for.
+- **frp** — reverse tunnel carrying TCP + UDP. frps on the VPS (dumb: bind port + token), frpc in K8s (declares every proxy). Stateless relay, no TLS/routing knowledge.
+- **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and frp's https proxy moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (frps → Traefik); matched clients are proxied out. The keypair is minted on-box and never leaves it; the client `vless://` URL is a stack output (`xrayShareUrl`). `serverName` must be a hostname Traefik serves a real cert for.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
@@ -163,6 +163,6 @@ Three-stage deployment targeting different host groups:
 - Type checking must pass before commits (Lefthook)
 - oxlint handles linting, oxfmt handles code formatting
 - The system runs on minimal hardware (2014 MacBook Pro)
-- No direct firewall port exposure on home network — Rathole client connects outbound
+- No direct firewall port exposure on home network — frp client (frpc) connects outbound
 - Tailscale provides secure access to internal Kubernetes cluster for CI/CD
 - Secrets managed through GitHub repository secrets and Pulumi configuration

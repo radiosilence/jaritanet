@@ -10,7 +10,7 @@ config:
     chartVersion: "41.0.2"
   jaritanet:gateway:
     # xray shares :443; traffic that doesn't match a client falls back to
-    # dest (local rathole https). serverName is injected from BLIT_HOSTNAME
+    # dest (local frps https proxy). serverName is injected from BLIT_HOSTNAME
     # in CI, so it stays out of plain config.
     xray:
       serverName: ''
@@ -21,11 +21,9 @@ config:
     # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
     # no-op until the secret exists.
     tailnet: {}
-  # Egress exit nodes — ss-rust in the home cluster, reached via the rathole
-  # tunnel, egressing the home residential IP. Selectable in the client as
-  # exit-<name>; exits transit the primary gateway.
   # Egress exit nodes — where the gateway forwards your traffic out. Each is
-  # just ss-rust + rathole; the gateway reaches it over the rathole tunnel.
+  # just ss-rust + frpc; the gateway reaches it over the frp tunnel (tcp+udp).
+  # Selectable in the client as exit-<name>; exits transit the primary gateway.
   # `name` is all you set (drives the picker tag exit-<name> + resource names);
   # the loopback port is auto-derived from the name.
   jaritanet:exits:

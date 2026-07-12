@@ -7,17 +7,21 @@ import type { TraefikConfSchema } from "../conf.schemas.ts";
 /**
  * Deploys the ingress stack into the K8s cluster:
  * - Traefik as the ingress controller with built-in ACME (Let's Encrypt via DNS-01)
- * - Rathole client connecting back to the Hetzner gateway VPS
+ * - frp client (frpc) connecting back to the Hetzner gateway VPS
  *
- * Traefik handles TLS termination and hostname routing. Rathole tunnels
+ * Traefik handles TLS termination and hostname routing. frpc tunnels
  * ports 80+443 from the VPS to Traefik's service. No certs on the VPS.
+ *
+ * `httpsRemotePort` is where the gateway surfaces Traefik's 443: 8443 when Xray
+ * owns the public :443 and uses frp as its decoy backend, else 443 directly.
  */
 export function createIngress(
   provider: k8s.Provider,
   namespace: string,
   traefik: z.infer<typeof TraefikConfSchema>,
   vpsIp: pulumi.Output<string> | undefined,
-  ratholeToken: pulumi.Output<string> | undefined,
+  frpToken: pulumi.Output<string> | undefined,
+  httpsRemotePort: number,
   cloudflareApiToken: string,
   exits: { name: string; port: number }[] = [],
 ) {
@@ -97,75 +101,94 @@ export function createIngress(
     { provider },
   );
 
-  // Rathole client — only deployed when a gateway VPS exists.
+  // frp client — only deployed when a gateway VPS exists.
   // Without it, traffic reaches Traefik directly (e.g. via port forwarding).
-  if (vpsIp && ratholeToken) {
+  if (vpsIp && frpToken) {
     // Use the Helm release's generated service name and service ports (not container ports)
     const traefikSvc = pulumi.interpolate`${traefikRelease.name}.${namespace}.svc.cluster.local`;
 
-    // Punch each k8s exit's ss-rust port out to the gateway (matched by name to
-    // the gateway's [server.services.exit-*] loopback bind). Same rathole tunnel
-    // that already carries Traefik — an exit is just another service on it.
-    const exitClientEntries = exits
-      .map(
-        (e) =>
-          `\n[client.services.exit-${e.name}]\ntype = "tcp"\nlocal_addr = "exit-${e.name}.${namespace}.svc.cluster.local:${e.port}"\n`,
-      )
+    // Punch each k8s exit's ss-rust port out to the gateway loopback (frps binds
+    // remotePort; xray/detour reaches it at 127.0.0.1:<port>). Both tcp and udp
+    // so the exit carries QUIC/HTTP3 — the whole point of frp over rathole.
+    const exitProxies = exits
+      .map((e) => {
+        const addr = `exit-${e.name}.${namespace}.svc.cluster.local`;
+        return ["tcp", "udp"]
+          .map(
+            (proto) => `
+[[proxies]]
+name = "exit-${e.name}-${proto}"
+type = "${proto}"
+localIP = "${addr}"
+localPort = ${e.port}
+remotePort = ${e.port}
+`,
+          )
+          .join("");
+      })
       .join("");
 
-    const ratholeConfig = pulumi.interpolate`[client]
-remote_addr = "${vpsIp}:2333"
-default_token = "${ratholeToken}"
+    const frpcConfig = pulumi.interpolate`serverAddr = "${vpsIp}"
+serverPort = 7000
+auth.method = "token"
+auth.token = "${frpToken}"
 
-[client.services.https]
+[[proxies]]
+name = "https"
 type = "tcp"
-local_addr = "${traefikSvc}:443"
+localIP = "${traefikSvc}"
+localPort = 443
+remotePort = ${httpsRemotePort}
 
-[client.services.http]
+[[proxies]]
+name = "http"
 type = "tcp"
-local_addr = "${traefikSvc}:80"
-${exitClientEntries}`;
+localIP = "${traefikSvc}"
+localPort = 80
+remotePort = 80
+${exitProxies}`;
 
-    const ratholeConfigHash = ratholeConfig.apply((c) =>
+    const frpcConfigHash = frpcConfig.apply((c) =>
       crypto.createHash("sha256").update(c).digest("hex"),
     );
 
-    const ratholeConfigMap = new k8s.core.v1.ConfigMap(
-      "rathole-client-config",
+    const frpcConfigMap = new k8s.core.v1.ConfigMap(
+      "frpc-config",
       {
-        metadata: { name: "rathole-client" },
+        metadata: { name: "frpc" },
         data: {
-          "client.toml": ratholeConfig,
+          "frpc.toml": frpcConfig,
         },
       },
       { provider },
     );
 
     new k8s.apps.v1.Deployment(
-      "rathole-client",
+      "frpc",
       {
         metadata: {
-          labels: { app: "rathole-client" },
+          labels: { app: "frpc" },
         },
         spec: {
           replicas: 1,
           selector: {
-            matchLabels: { app: "rathole-client" },
+            matchLabels: { app: "frpc" },
           },
           template: {
             metadata: {
               // Roll the client when the config changes (new/removed exit) —
-              // mounted ConfigMaps don't restart rathole on their own.
-              annotations: { "jaritanet/config-hash": ratholeConfigHash },
-              labels: { app: "rathole-client" },
+              // mounted ConfigMaps don't restart frpc on their own.
+              annotations: { "jaritanet/config-hash": frpcConfigHash },
+              labels: { app: "frpc" },
             },
             spec: {
               containers: [
                 {
-                  args: ["--client", "/etc/rathole/client.toml"],
-                  command: ["/app/rathole"],
-                  image: "rapiz1/rathole:latest",
-                  name: "rathole",
+                  // Official upstream image (ENTRYPOINT frpc, no default CMD).
+                  // Keep the tag in lockstep with gateway `frpVersion`.
+                  args: ["-c", "/etc/frp/frpc.toml"],
+                  image: "fatedier/frpc:v0.70.0",
+                  name: "frpc",
                   resources: {
                     limits: {
                       cpu: "100m",
@@ -174,7 +197,7 @@ ${exitClientEntries}`;
                   },
                   volumeMounts: [
                     {
-                      mountPath: "/etc/rathole",
+                      mountPath: "/etc/frp",
                       name: "config",
                     },
                   ],
@@ -183,7 +206,7 @@ ${exitClientEntries}`;
               volumes: [
                 {
                   configMap: {
-                    name: ratholeConfigMap.metadata.name,
+                    name: frpcConfigMap.metadata.name,
                   },
                   name: "config",
                 },
