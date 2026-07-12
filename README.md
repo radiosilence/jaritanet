@@ -2,7 +2,7 @@
 
 [![CI/CD](https://github.com/radiosilence/jaritanet/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/ci-cd.yml)
 
-Infrastructure-as-code monorepo for exposing Kubernetes services via Traefik with automatic TLS. Optionally fronted by a Hetzner VPS gateway with frp tunnelling.
+Infrastructure-as-code monorepo for exposing Kubernetes services via Traefik with automatic TLS. Optionally fronted by a Hetzner VPS gateway with Rathole tunnelling.
 
 ## Architecture
 
@@ -44,7 +44,7 @@ graph TB
 
 ### Optional: VPS Gateway
 
-When gateway credentials are configured, a VPS running frp acts as a stateless relay (TCP + UDP). Your home IP disappears from DNS and all traffic routes through the VPS. Traefik keeps hostPort 443 as a fallback regardless — if the relay dies, port-forwarding still works.
+When gateway credentials are configured, a VPS running Rathole acts as a stateless TCP relay. Your home IP disappears from DNS and all traffic routes through the VPS. Traefik keeps hostPort 443 as a fallback regardless — if the relay dies, port-forwarding still works.
 
 Set `HCLOUD_TOKEN` and the deploy provisions a Hetzner VPS gateway; leave it
 unset for direct mode (DNS points at the home IP, Traefik serves on hostPort
@@ -57,7 +57,7 @@ unset for direct mode (DNS points at the home IP, Traefik serves on hostPort
 | Direct | unset | free (home IP) |
 
 ```
-User -> VPS:443 -> frp tunnel -> Traefik -> Service
+User -> VPS:443 -> Rathole tunnel -> Traefik -> Service
 ```
 
 ## How It Works
@@ -72,11 +72,11 @@ User -> VPS:443 -> frp tunnel -> Traefik -> Service
 The VPN topology is three config lists in `packages/infra/Pulumi.main.yaml`.
 
 **`gateway`** — the single entry hub (a Hetzner VPS). Runs Xray (VLESS-REALITY,
-`:443/tcp`), Hysteria2 (`:443/udp`), frp, and the tailnet relay. This is
+`:443/tcp`), Hysteria2 (`:443/udp`), rathole, and the tailnet relay. This is
 what clients connect *through*; `entry-select` picks the protocol.
 
 **`exits`** — where the gateway *egresses* your traffic (`exit-select`). An exit
-is just `ss-rust + frpc`, reached over the gateway's frp tunnel (TCP + UDP).
+is just `ss-rust + rathole`, reached over the gateway's rathole tunnel.
 
 ```yaml
 jaritanet:exits:
@@ -100,12 +100,12 @@ jaritanet:exits:
 
 Everything lives in a single Pulumi package at `packages/infra/`:
 
-- **`src/modules/gateway.ts`** — Hetzner VPS gateway: Xray/Hysteria2 entry + frp server + tailnet relay (optional)
+- **`src/modules/gateway.ts`** — Hetzner VPS gateway: Xray/Hysteria2 entry + rathole + tailnet relay (optional)
 - **`src/modules/edge.ts`** — standalone VPN edge boxes in other locations (hy2 + REALITY + tailnet relay); add via `edges` in config. See [`docs/architecture.md`](docs/architecture.md#edge-nodes-multi-location)
-- **`src/modules/ingress.ts`** — Traefik Helm chart, frp client (frpc), IngressRoutes, IP watcher
+- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoutes, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/modules/singbox.ts`** — builds the sing-box client profile from the nodes and delivers it to the file server over SSH (change-detected, Telegram notify)
-- **`src/modules/exit.ts`** — selectable egress exit node (ss-rust in-cluster), reached via the frp tunnel, egressing its own IP. Add via `exits` in config
+- **`src/modules/exit.ts`** — selectable egress exit node (ss-rust in-cluster), reached via the rathole tunnel, egressing its own IP. Add via `exits` in config
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
 
 ## Secrets
@@ -168,7 +168,7 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 gh secret set HCLOUD_TOKEN
 ```
 
-Next deploy provisions the VPS, deploys frp, and flips DNS to the VPS IP. Remove the secret to fall back to direct mode.
+Next deploy provisions the VPS, deploys rathole, and flips DNS to the VPS IP. Remove the secret to fall back to direct mode.
 
 ## Development
 
