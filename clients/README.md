@@ -33,10 +33,32 @@ One setting is load-bearing — do not drop it:
   appear to "lose connection." With it, queries are answered via `cf-doh`
   (DoH → 1.1.1.1, routed over the tunnel — encrypted and unleakable).
 
-## Filling it in
+## Generating it (automated)
 
-Replace the `<PLACEHOLDER>` tokens. Everything but the MagicDNS suffix comes
-from Pulumi stack outputs (run in `packages/infra/`):
+The `singbox` ansible role renders this template into the hosted profile on
+every `ansible/**` deploy — no manual filling. It substitutes the `SINGBOX_*`
+GitHub Actions secrets for the `<PLACEHOLDER>` tokens, writes the result to the
+file server's unguessable path, and pushes the URL + a QR to Telegram whenever
+the profile actually changes.
+
+- **Seed the secrets** from an existing hosted profile (values are piped
+  straight to `gh`, never printed):
+  `./scripts/set-singbox-secrets https://<host>/.sfm/<slug>.json`
+  It also prompts for a Telegram bot token and auto-detects your chat id.
+- **Rotate** by changing `SINGBOX_SLUG` (new path) or any transport secret and
+  re-running the playbook.
+- **Onboard a new device** without a config change by re-running with
+  `SINGBOX_FORCE_NOTIFY=1` to re-push the QR.
+
+This template is the single source of truth — the role reads it directly, so a
+new `<PLACEHOLDER>` here just needs a matching entry in
+`ansible/roles/singbox/vars/main.yml` (the render fails loudly if one is
+unmapped).
+
+## Filling it in (manual)
+
+To build one by hand, replace the `<PLACEHOLDER>` tokens. Everything but the
+MagicDNS suffix comes from Pulumi stack outputs (run in `packages/infra/`):
 
 | Placeholder | Source |
 | --- | --- |
@@ -58,10 +80,11 @@ this combined config.
 
 ## Delivering it to clients
 
-Host the filled config at an unguessable path on the file server and add it in
-sing-box as a **Remote** profile (URL). sing-box only accepts a JSON config there,
-not a `vless://`/`hysteria2://` share link. Remote profiles auto-refresh, so
-editing the hosted file and re-pushing updates every device on "Update".
+Add it in sing-box as a **Remote** profile (the URL Telegram pushed you).
+sing-box only accepts a JSON config there, not a `vless://`/`hysteria2://` share
+link. Remote profiles auto-refresh, so a re-render updates every device on
+"Update" — one edit, all devices. The unguessable path is the only thing
+guarding the profile, so treat the URL as a secret.
 
-The filled config contains live credentials — do not commit it; only this
-template belongs in the repo.
+The rendered config contains live credentials — it lives only on the file
+server (`/srv/files/.sfm/`), never in the repo; only this template belongs here.
