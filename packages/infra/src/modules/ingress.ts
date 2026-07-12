@@ -107,10 +107,13 @@ export function createIngress(
     // the gateway's [server.services.exit-*] loopback bind). Same rathole tunnel
     // that already carries Traefik — an exit is just another service on it.
     const exitClientEntries = exits
-      .map(
-        (e) =>
-          `\n[client.services.exit-${e.name}]\ntype = "tcp"\nlocal_addr = "exit-${e.name}.${namespace}.svc.cluster.local:${e.port}"\n`,
-      )
+      .flatMap((e) => {
+        const addr = `exit-${e.name}.${namespace}.svc.cluster.local:${e.port}`;
+        return ["tcp", "udp"].map(
+          (proto) =>
+            `\n[client.services.exit-${e.name}-${proto}]\ntype = "${proto}"\nlocal_addr = "${addr}"\n`,
+        );
+      })
       .join("");
 
     const ratholeConfig = pulumi.interpolate`[client]

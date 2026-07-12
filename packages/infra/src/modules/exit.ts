@@ -50,9 +50,9 @@ export function createExit(
       server_port: exit.port,
       method: exit.method,
       password: pw,
-      // TCP only: the rathole tunnel that reaches this server is TCP, so UDP
-      // associations can't traverse the exit path (UDP goes direct instead).
-      mode: "tcp_only",
+      // TCP + UDP: rathole forwards both (a udp service per exit), so ss UDP
+      // associations traverse the exit — QUIC/HTTP3 egress at the exit, not direct.
+      mode: "tcp_and_udp",
     }),
   );
   const configHash = config.apply((c) =>
@@ -114,7 +114,10 @@ export function createExit(
       metadata: { name, namespace },
       spec: {
         selector: { app: name },
-        ports: [{ name: "ss-tcp", port: exit.port, protocol: "TCP" }],
+        ports: [
+          { name: "ss-tcp", port: exit.port, protocol: "TCP" },
+          { name: "ss-udp", port: exit.port, protocol: "UDP" },
+        ],
       },
     },
     { provider },
