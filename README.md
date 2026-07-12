@@ -62,8 +62,8 @@ User -> VPS:443 -> Rathole tunnel -> Traefik -> Service
 
 1. **Traefik** terminates TLS using Let's Encrypt certs (DNS-01 via Cloudflare API) and routes by hostname.
 2. **Cloudflare DNS** A records point service hostnames at the server's external IP.
-3. **IP watcher** pod checks the external IP every 60s via Cloudflare's `1.1.1.1/cdn-cgi/trace`. On change, triggers a CI/CD deploy to update DNS.
-4. **CI/CD cron** (every 30 min) runs `pulumi up` as a safety net — mostly noops unless the IP changed.
+3. **IP watcher** (direct mode only) — a pod checks the external IP every 60s via Cloudflare's `1.1.1.1/cdn-cgi/trace` and, on change, dispatches a deploy to refresh the A records. With a gateway, DNS points at the VPS's static IP, so the watcher is a dormant fallback (gated behind `DEPLOY_TOKEN`).
+4. **Deploys** trigger on push to `main` (package changes) or manual `workflow_dispatch` — there is no scheduled/cron reconcile.
 
 ## Package Structure
 
