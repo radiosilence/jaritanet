@@ -110,8 +110,8 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  *     `entry-select` so they egress at the gateway, never via an exit.
  *
  * Each exit outbound targets `127.0.0.1:<port>` and detours through the
- * **primary** gateway (the only rathole node) — the inner address resolves at
- * the primary end, hitting that exit's rathole loopback. Exits therefore always
+ * **primary** gateway (the only frp node) — the inner address resolves at
+ * the primary end, hitting that exit's frps loopback. Exits therefore always
  * transit the primary, regardless of the `entry-select` pick for direct egress.
  */
 export function buildProfile(
@@ -161,13 +161,13 @@ export function buildProfile(
   // straight at entry-select (direct egress, no extra groups).
   if (exits.length) {
     // Exits pin to the PRIMARY gateway (nodes[0]) — the only node running
-    // rathole, so the only one exposing the exit loopbacks. Edges (also in
+    // frp, so the only one exposing the exit loopbacks. Edges (also in
     // entry-select) run hy2/reality only; detouring an exit through an edge
     // would dial 127.0.0.1:<port> where nothing listens.
-    const ratholeEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
+    const frpEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
 
     // Each exit: a Shadowsocks outbound dialled through the primary. The
-    // 127.0.0.1:<port> resolves at the primary → its rathole loopback → the
+    // 127.0.0.1:<port> resolves at the primary → its frps loopback → the
     // exit's ss-rust → egress at the exit's own IP.
     for (const e of exits) {
       outbounds.push({
@@ -177,7 +177,7 @@ export function buildProfile(
         server_port: e.port,
         method: e.method,
         password: e.password,
-        detour: ratholeEntry,
+        detour: frpEntry,
       });
     }
 

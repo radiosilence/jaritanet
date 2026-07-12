@@ -112,12 +112,12 @@
               "default": "ubuntu-24.04",
               "type": "string"
             },
-            "location": {
-              "default": "nbg1",
+            "frpVersion": {
+              "default": "v0.70.0",
               "type": "string"
             },
-            "ratholeVersion": {
-              "default": "v0.5.0",
+            "location": {
+              "default": "nbg1",
               "type": "string"
             },
             "serverType": {

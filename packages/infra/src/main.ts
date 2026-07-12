@@ -29,7 +29,10 @@ const dnsModules = {
 export default async function () {
   const { namespace } = conf;
   let dnsTarget: pulumi.Output<string> | undefined;
-  let ratholeToken: pulumi.Output<string> | undefined;
+  let frpToken: pulumi.Output<string> | undefined;
+  // Where the gateway surfaces Traefik's 443: behind Xray it's a loopback decoy
+  // backend (8443), else the public 443. Unused without a gateway.
+  let httpsRemotePort = 443;
   let gatewayProvider: string | undefined;
   let xray: ReturnType<typeof createGateway>["xray"];
   let hysteria: ReturnType<typeof createGateway>["hysteria"];
@@ -39,7 +42,7 @@ export default async function () {
   const nodes: SingboxNode[] = [];
 
   // Resolve each exit's loopback port once (derived from the name unless set),
-  // so the identical port is used at the gateway bind, ss server, rathole
+  // so the identical port is used at the gateway loopback, ss server, frp
   // client, and client outbound. Assert uniqueness — a clash means the user
   // should set an explicit `port` on one of the exits.
   const resolvedExits = conf.exits.map((e) => ({
@@ -56,10 +59,11 @@ export default async function () {
 
   if (env.HCLOUD_TOKEN) {
     const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
-    // Exits surface on the gateway's rathole loopback (name + port).
-    const gw = createGateway(gatewayConf, resolvedExits);
+    // frps is dumb (bind port + token only); every proxy is client-declared.
+    const gw = createGateway(gatewayConf);
     dnsTarget = gw.vpsIp;
-    ratholeToken = gw.ratholeToken.result;
+    frpToken = gw.frpToken.result;
+    httpsRemotePort = gatewayConf.xray ? 8443 : 443;
     gatewayProvider = "hetzner";
     xray = gw.xray;
     hysteria = gw.hysteria;
@@ -167,17 +171,18 @@ export default async function () {
     { provider },
   );
 
-  // Egress exit nodes: ss-rust in-cluster. The rathole client (in createIngress)
+  // Egress exit nodes: ss-rust in-cluster. The frp client (in createIngress)
   // punches each one's port out to the gateway loopback.
   const exits = resolvedExits.map((e) => createExit(provider, namespace, e));
 
-  // --- Ingress: Traefik always on hostPort 443 + rathole client if gateway exists ---
+  // --- Ingress: Traefik always on hostPort 443 + frp client if gateway exists ---
   createIngress(
     provider,
     namespace,
     conf.traefik,
     dnsTarget,
-    ratholeToken,
+    frpToken,
+    httpsRemotePort,
     env.CLOUDFLARE_API_TOKEN,
     resolvedExits,
   );
