@@ -16,7 +16,10 @@ import { createXray } from "./xray.ts";
  * It just tunnels ports 80/443 from the public internet to
  * the rathole client running inside the K8s cluster.
  */
-export function createGateway(gateway: z.infer<typeof GatewayConfSchema>) {
+export function createGateway(
+  gateway: z.infer<typeof GatewayConfSchema>,
+  exits: { name: string; port: number }[] = [],
+) {
   const ratholeToken = new random.RandomPassword("rathole-token", {
     length: 64,
   });
@@ -143,6 +146,16 @@ sysctl --system`,
   // decoy backend, so rathole's https bind moves to a local-only port.
   const httpsBind = gateway.xray ? "127.0.0.1:8443" : "0.0.0.0:443";
 
+  // Each exit's ss-rust port, surfaced on this gateway's loopback via rathole —
+  // same pattern as the Reality decoy dest. The port is stable + identical
+  // across gateways, so one client ss outbound reaches this exit via any entry.
+  const exitServices = exits
+    .map(
+      (e) =>
+        `\n[server.services.exit-${e.name}]\ntype = "tcp"\nbind_addr = "127.0.0.1:${e.port}"\n`,
+    )
+    .join("");
+
   // Write rathole config via SSH (supports updates without replacing the server)
   const ratholeConfig = pulumi.interpolate`[server]
 bind_addr = "0.0.0.0:2333"
@@ -155,7 +168,7 @@ bind_addr = "${httpsBind}"
 [server.services.http]
 type = "tcp"
 bind_addr = "0.0.0.0:80"
-`;
+${exitServices}`;
 
   const configUpload = new command.remote.Command(
     "rathole-config",
@@ -164,7 +177,7 @@ bind_addr = "0.0.0.0:80"
       create: pulumi.interpolate`cat > /etc/rathole/server.toml << 'RATHOLE_EOF'
 ${ratholeConfig}
 RATHOLE_EOF`,
-      triggers: [ratholeToken.result, httpsBind],
+      triggers: [ratholeToken.result, httpsBind, exitServices],
     },
     { dependsOn: [server] },
   );

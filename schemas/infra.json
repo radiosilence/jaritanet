@@ -74,6 +74,34 @@
             "required": ["name"]
           }
         },
+        "jaritanet:exits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "image": {
+                "default": "ghcr.io/shadowsocks/ssserver-rust:latest",
+                "type": "string"
+              },
+              "method": {
+                "default": "aes-256-gcm",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "port": {
+                "type": "number"
+              },
+              "substrate": {
+                "default": "k8s",
+                "type": "string",
+                "enum": ["k8s"]
+              }
+            },
+            "required": ["name", "port"]
+          }
+        },
         "jaritanet:gateway": {
           "type": "object",
           "properties": {

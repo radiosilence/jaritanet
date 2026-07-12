@@ -221,8 +221,50 @@ its own-domain decoy because it must serve real visitors on the same `:443`.
 
 Every edge is also a tailnet member, so any of them relays `100.x` into the
 mesh — the same censorship-resistant tailnet path works whichever location you
-pick. (This is the foundation for a future home-exit node: oldboy becomes just
-another entry in the picker, exiting via the residential IP.)
+pick.
+
+## Egress exit nodes (selectable egress location)
+
+Entry and egress are **independent axes**. Entry = which gateway you connect
+through (`entry-select`). Egress = where your traffic leaves the internet
+(`exit-select`): either **direct** (at the gateway) or via an **exit node** that
+NATs out its own IP — e.g. the home cluster, egressing the residential IP.
+
+An exit is a substrate-agnostic unit — **rathole client + ss-rust** — as a k8s
+Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. Add one via the
+`exits` config list:
+
+```yaml
+jaritanet:exits:
+  - name: home
+    port: 9000
+```
+
+It's reached through the **existing rathole tunnel**, not the tailnet. Each
+exit's ss-rust port is surfaced on **every gateway's loopback** (`127.0.0.1:<port>`)
+via a rathole service entry — the same pattern as the Reality decoy `dest`:
+
+```mermaid
+flowchart LR
+    DEV["device"] -->|"entry-select (hy2/reality)"| GW["gateway"]
+    GW -->|"127.0.0.1:<port> → rathole"| SS["ss-rust exit (k8s)"]
+    SS -->|"pod egress, CNI SNAT → node IP"| INET(("Internet"))
+```
+
+The client's `exit-<name>` outbound is Shadowsocks to `127.0.0.1:<port>` with
+`detour: entry-select`. In a detour chain the inner address resolves at the
+gateway end of the outer tunnel, so `127.0.0.1:<port>` means "this exit's rathole
+loopback on whichever gateway `entry-select` currently points at." **That's why
+the port must be identical across all gateways** — it lets one exit outbound work
+via any entry. Enforced in generation: the port is a single declared value used
+for the gateway bind, the rathole client target, and the client outbound.
+
+No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
+(connection-level), so there's no return-path routing to misconfigure on a
+remote box. The exit pod egresses normally; microk8s' CNI SNATs to the node IP,
+which is the home link. Adding a gateway ⇒ it inherits every exit; adding an
+exit ⇒ it's exposed on every gateway. Pure function of the two config lists,
+expanded at `pulumi up`.
 
 ## Hardening notes
 

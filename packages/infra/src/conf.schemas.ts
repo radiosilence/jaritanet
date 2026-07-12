@@ -81,6 +81,27 @@ export const EdgeConfSchema = z.object({
   zone: z.string().default("radiosilence.dev"),
 });
 
+/**
+ * A selectable egress exit node: rathole client + ss-rust, substrate-agnostic
+ * (k8s in the home cluster now; a cloud-init VPS later). Traffic egresses via
+ * the exit's own IP.
+ *
+ * Reached through the EXISTING rathole tunnel, not the tailnet: the exit's
+ * ss-rust port is surfaced on every gateway's loopback (`127.0.0.1:<port>`) via
+ * a rathole service entry, exactly like the Reality decoy `dest`. The client's
+ * ss outbound dials `127.0.0.1:<port>` through the entry gateway (detour), and
+ * because a detour resolves the inner address at the gateway end, that hits the
+ * gateway's rathole loopback for this exit. `port` MUST be identical across all
+ * gateways — that invariant is what lets one exit outbound work via any entry.
+ */
+export const ExitConfSchema = z.object({
+  image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:latest"),
+  method: z.string().default("aes-256-gcm"),
+  name: z.string(),
+  port: z.number(),
+  substrate: z.enum(["k8s"]).default("k8s"),
+});
+
 export const TraefikConfSchema = z.object({
   acmeEmail: z.string(),
   chartVersion: z.string().default("41.0.2"),
@@ -122,6 +143,7 @@ export const ConfSchema = z.object({
   cloudflare: CloudflareConfSchema,
   clusterDomain: z.string().default("cluster.local"),
   edges: z.array(EdgeConfSchema).default([]),
+  exits: z.array(ExitConfSchema).default([]),
   externalIp: z.string().optional(),
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
