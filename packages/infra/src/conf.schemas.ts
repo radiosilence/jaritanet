@@ -17,7 +17,7 @@ export const CloudflareConfSchema = z.object({
 export const XrayConfSchema = z.object({
   dest: z.string().default("127.0.0.1:8443"),
   serverName: z.string(),
-  version: z.string().default("v1.8.24"),
+  version: z.string().default("v26.3.27"),
 });
 
 /**
@@ -42,7 +42,7 @@ export const GatewayConfSchema = z.object({
 
 export const TraefikConfSchema = z.object({
   acmeEmail: z.string(),
-  chartVersion: z.string().default("34.3.0"),
+  chartVersion: z.string().default("41.0.2"),
 });
 
 export const ServiceConfSchema = z.object({
