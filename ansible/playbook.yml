@@ -23,6 +23,7 @@
     - nfs
     - samba
     - syncthing
+    - singbox
 
 - name: Ensure tailnet is joined
   hosts: tailnet
