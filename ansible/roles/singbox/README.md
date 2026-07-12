@@ -7,10 +7,12 @@ client config for the gateway. It carries two transports behind a selector:
   smooth on lossy links where TCP melts down. Salamander obfs hides it from DPI.
 - **`reality`** (VLESS-Vision-REALITY / TCP) — fallback for UDP-hostile networks
   (some state censors throttle/block UDP). Slower, but survives where QUIC can't.
-- **`auto`** (urltest) picks the working/faster of the two; **`select`** lets you
-  pin one manually (sing-box "Groups" tab shows the live pick + latency).
+- **`auto`** (urltest) picks the working/faster of the two; **`main`** (selector)
+  is the group you tap in the app's "Groups" tab to pin one manually (it shows
+  the live pick + latency). `main` is `route.final` — all traffic enters here,
+  defaulting to `auto`.
 
-Tailnet traffic (`100.64.0.0/10`) is routed through the same `select` group, so
+Tailnet traffic (`100.64.0.0/10`) is routed through the same `main` group, so
 it rides hy2/reality to the gateway VPS — which is itself a tailnet member and
 dials the destination over the mesh. This is the censorship-resistant tailnet
 path: on a network that blocks Tailscale (control plane + DERP), `100.x` still

@@ -116,7 +116,7 @@ intervention.
 ## Client routing (sing-box)
 
 One combined profile carries both transports and DNS handling. Everything —
-including tailnet `100.x` — rides the `select`/`auto` groups, so all traffic
+including tailnet `100.x` — rides the `main`/`auto` groups, so all traffic
 crosses the hostile network as obfuscated hy2/reality. The client runs **no
 WireGuard**; the tailnet hop happens on the VPS (see below).
 
@@ -126,9 +126,9 @@ flowchart TD
     SNIFF --> DNSQ{"port 53?"}
     DNSQ -->|yes| HIJACK["hijack-dns"]
     HIJACK --> RESOLVE{"tailnet suffix?"}
-    RESOLVE -->|yes| TSDNS["ts-dns<br/>udp 100.100.100.100, detour select"]
+    RESOLVE -->|yes| TSDNS["ts-dns<br/>udp 100.100.100.100, detour main"]
     RESOLVE -->|no| DOH["cf-doh<br/>DoH 1.1.1.1 over tunnel"]
-    DNSQ -->|no| SEL["select -> auto<br/>urltest(hy2, reality)"]
+    DNSQ -->|no| SEL["main -> auto<br/>urltest(hy2, reality)"]
     SEL --> VPS["VPS egress / tailnet relay"]
 ```
 
