@@ -33,6 +33,7 @@ const schemas = {
     ({
       CloudflareConfSchema,
       EdgeConfSchema,
+      ExitConfSchema,
       GatewayConfSchema,
       TraefikConfSchema,
       ServicesMapSchema,
@@ -45,6 +46,7 @@ const schemas = {
           config: z.object({
             [`${PROJECT}:cloudflare`]: CloudflareConfSchema,
             [`${PROJECT}:edges`]: z.array(EdgeConfSchema).optional(),
+            [`${PROJECT}:exits`]: z.array(ExitConfSchema).optional(),
             [`${PROJECT}:gateway`]: GatewayConfSchema,
             [`${PROJECT}:traefik`]: TraefikConfSchema,
             [`${PROJECT}:services`]: ServicesMapSchema,

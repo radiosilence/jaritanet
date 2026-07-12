@@ -75,6 +75,7 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoutes, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/modules/singbox.ts`** — builds the sing-box client profile from the nodes and delivers it to the file server over SSH (change-detected, Telegram notify)
+- **`src/modules/exit.ts`** — selectable egress exit node (ss-rust in-cluster), reached via the rathole tunnel, egressing its own IP. Add via `exits` in config
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
 
 ## Secrets

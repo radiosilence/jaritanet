@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
@@ -18,6 +19,7 @@ export function createIngress(
   vpsIp: pulumi.Output<string> | undefined,
   ratholeToken: pulumi.Output<string> | undefined,
   cloudflareApiToken: string,
+  exits: { name: string; port: number }[] = [],
 ) {
   // Cloudflare API token for Traefik's DNS-01 ACME solver
   const cfSecret = new k8s.core.v1.Secret(
@@ -100,6 +102,17 @@ export function createIngress(
   if (vpsIp && ratholeToken) {
     // Use the Helm release's generated service name and service ports (not container ports)
     const traefikSvc = pulumi.interpolate`${traefikRelease.name}.${namespace}.svc.cluster.local`;
+
+    // Punch each k8s exit's ss-rust port out to the gateway (matched by name to
+    // the gateway's [server.services.exit-*] loopback bind). Same rathole tunnel
+    // that already carries Traefik — an exit is just another service on it.
+    const exitClientEntries = exits
+      .map(
+        (e) =>
+          `\n[client.services.exit-${e.name}]\ntype = "tcp"\nlocal_addr = "exit-${e.name}.${namespace}.svc.cluster.local:${e.port}"\n`,
+      )
+      .join("");
+
     const ratholeConfig = pulumi.interpolate`[client]
 remote_addr = "${vpsIp}:2333"
 default_token = "${ratholeToken}"
@@ -111,7 +124,11 @@ local_addr = "${traefikSvc}:443"
 [client.services.http]
 type = "tcp"
 local_addr = "${traefikSvc}:80"
-`;
+${exitClientEntries}`;
+
+    const ratholeConfigHash = ratholeConfig.apply((c) =>
+      crypto.createHash("sha256").update(c).digest("hex"),
+    );
 
     const ratholeConfigMap = new k8s.core.v1.ConfigMap(
       "rathole-client-config",
@@ -137,6 +154,9 @@ local_addr = "${traefikSvc}:80"
           },
           template: {
             metadata: {
+              // Roll the client when the config changes (new/removed exit) —
+              // mounted ConfigMaps don't restart rathole on their own.
+              annotations: { "jaritanet/config-hash": ratholeConfigHash },
               labels: { app: "rathole-client" },
             },
             spec: {

@@ -1,9 +1,71 @@
 # Architecture
 
-JARITANET runs one Hetzner VPS that does two unrelated jobs on the same
-`:443`, plus a home box behind NAT that never exposes a port. This doc covers
-the network topology and the transport/proxy layer; for the Pulumi package
-layout and secrets see the [README](../README.md).
+JARITANET is a personal anti-censorship + egress stack. A sing-box client picks
+**how it enters** (which gateway/transport) and **where it egresses**
+(direct, or via an exit node), all coordinated by one Pulumi program. Gateways
+are disposable VPSes; the home box sits behind NAT and never exposes a port.
+This doc covers the topology and transport layer; for the Pulumi package layout
+and secrets see the [README](../README.md).
+
+## The whole system, end to end
+
+Every moving part and how a flow travels through it — client selection, the two
+entry transports, the gateway's shared `:443`, the rathole reverse-tunnel, the
+in-cluster exit, tailnet relay, and home services.
+
+```mermaid
+flowchart LR
+  subgraph CLIENT["Client · sing-box (tun + hijack-dns)"]
+    ENTRY["entry-select<br/>which gateway"]
+    EXIT["exit-select<br/>where to egress"]
+  end
+
+  subgraph GW["Primary gateway · Hetzner VPS"]
+    XRAY["Xray · VLESS-Vision-REALITY<br/>:443/tcp"]
+    HYST["Hysteria2 · QUIC + Salamander<br/>:443/udp"]
+    RHS["rathole server"]
+    FGW["freedom · direct egress"]
+  end
+
+  subgraph EDGE["Edge VPSes · optional"]
+    EHR["hy2 + REALITY"]
+    FED["freedom · direct egress"]
+  end
+
+  subgraph HOME["oldboy · home MicroK8s · NAT, no inbound"]
+    RHC["rathole client"]
+    TRA["Traefik · TLS / ACME"]
+    SRV["services<br/>blit · navidrome · files"]
+    SS["ss-rust exit"]
+    TSC["tailscale"]
+  end
+
+  WEB((Internet))
+  RES((Home residential IP))
+
+  ENTRY -->|obfuscated| XRAY
+  ENTRY -->|obfuscated| HYST
+  ENTRY -.->|alt entry| EHR
+
+  EXIT -->|direct| ENTRY
+  EXIT -->|"exit-home · ss, detour primary"| XRAY
+
+  XRAY --> FGW --> WEB
+  HYST --> FGW
+  EHR --> FED --> WEB
+
+  XRAY -.->|"non-client → decoy dest"| RHS
+  RHS <==>|"rathole :2333"| RHC
+  RHC --> TRA --> SRV
+  RHS -->|"127.0.0.1:exit-port"| RHC
+  RHC --> SS --> RES
+
+  ENTRY -.->|"100.x tailnet"| XRAY
+  XRAY -.-> TSC
+  RHC -.-> TSC
+```
+
+The sections below zoom into each part.
 
 ## The two data planes
 
@@ -221,8 +283,52 @@ its own-domain decoy because it must serve real visitors on the same `:443`.
 
 Every edge is also a tailnet member, so any of them relays `100.x` into the
 mesh — the same censorship-resistant tailnet path works whichever location you
-pick. (This is the foundation for a future home-exit node: oldboy becomes just
-another entry in the picker, exiting via the residential IP.)
+pick.
+
+## Egress exit nodes (selectable egress location)
+
+Entry and egress are **independent axes**. Entry = which gateway you connect
+through (`entry-select`). Egress = where your traffic leaves the internet
+(`exit-select`): either **direct** (at the gateway) or via an **exit node** that
+NATs out its own IP — e.g. the home cluster, egressing the residential IP.
+
+An exit is a substrate-agnostic unit — **rathole client + ss-rust** — as a k8s
+Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. Add one via the
+`exits` config list:
+
+```yaml
+jaritanet:exits:
+  - name: home
+    port: 9000
+```
+
+It's reached through the **existing rathole tunnel**, not the tailnet. Each
+exit's ss-rust port is surfaced on the **primary gateway's loopback**
+(`127.0.0.1:<port>`) via a rathole service entry — the same pattern as the
+Reality decoy `dest`:
+
+```mermaid
+flowchart LR
+    DEV["device"] -->|"detour: primary (hy2/reality)"| GW["primary gateway"]
+    GW -->|"127.0.0.1:<port> → rathole"| SS["ss-rust exit (k8s)"]
+    SS -->|"pod egress, CNI SNAT → node IP"| INET(("Internet"))
+```
+
+The client's `exit-<name>` outbound is Shadowsocks to `127.0.0.1:<port>`,
+detouring through the **primary** gateway. In a detour chain the inner address
+resolves at the gateway end, so `127.0.0.1:<port>` means "this exit's rathole
+loopback on the primary." Exits pin to the primary because **it's the only node
+running rathole** — edges (also in `entry-select`) serve hy2/reality only, so
+routing an exit through an edge would dial a dead loopback. `entry-select` still
+governs *direct* egress across all gateways; exits transit the primary.
+
+No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
+(connection-level), so there's no return-path routing to misconfigure on a
+remote box. The exit pod egresses normally; microk8s' CNI SNATs to the node IP,
+which is the home link. Topology is a pure function of the config lists,
+expanded at `pulumi up`. (Making exits reachable via *any* gateway — the full
+entry × exit cross-product — needs edges to also run rathole; deferred. When
+multiple rathole gateways exist, `port` must be identical across them.)
 
 ## Hardening notes
 

@@ -10,6 +10,7 @@ import {
   createServiceRecord,
 } from "./modules/dns.ts";
 import { createEdge } from "./modules/edge.ts";
+import { createExit } from "./modules/exit.ts";
 import { createGateway } from "./modules/gateway.ts";
 import {
   createIngress,
@@ -39,7 +40,8 @@ export default async function () {
 
   if (env.HCLOUD_TOKEN) {
     const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
-    const gw = createGateway(gatewayConf);
+    // Exits (config values) surface on the gateway's rathole loopback.
+    const gw = createGateway(gatewayConf, conf.exits);
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
@@ -149,6 +151,10 @@ export default async function () {
     { provider },
   );
 
+  // Egress exit nodes: ss-rust in-cluster. The rathole client (in createIngress)
+  // punches each one's port out to the gateway loopback.
+  const exits = conf.exits.map((e) => createExit(provider, namespace, e));
+
   // --- Ingress: Traefik always on hostPort 443 + rathole client if gateway exists ---
   createIngress(
     provider,
@@ -157,6 +163,7 @@ export default async function () {
     dnsTarget,
     ratholeToken,
     env.CLOUDFLARE_API_TOKEN,
+    conf.exits,
   );
 
   createRedirectMiddleware(provider, namespace);
@@ -209,6 +216,7 @@ export default async function () {
         privateKey: pulumi.secret(env.SSH_PRIVATE_KEY),
         user: env.OLDBOY_USER,
       },
+      exits,
       slug: env.SINGBOX_SLUG,
       telegram:
         env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
