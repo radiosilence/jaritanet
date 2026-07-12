@@ -240,7 +240,11 @@ export function buildProfile(
       // Persist the DNS cache across restarts: a cold app start resolves
       // recently-seen names from disk (~0ms) instead of paying a tunnel round
       // trip. This is what makes "1ms DNS" real for the common (warm) case.
-      cache_file: { enabled: true, store_dns: true },
+      // NB: store_rdrc, not store_dns. store_dns is a 1.14+ field and hard-fails
+      // ("unknown field") on the current 1.13.x SFM/SFI core; store_rdrc works
+      // and only earns a cosmetic deprecation warning on 1.14. Flip to store_dns
+      // once every client is on a 1.14+ core.
+      cache_file: { enabled: true, store_rdrc: true },
     },
     dns: {
       // Every resolver is pinned to entry-select (detour) so DNS egresses at the
