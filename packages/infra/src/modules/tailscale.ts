@@ -24,6 +24,11 @@ type Connection = {
  * routes must not be able to swallow the VPS default route, or the relay
  * (and every service riding it) goes dark. `--ssh` exposes Tailscale SSH so
  * the box is reachable over the tailnet without the public :22.
+ *
+ * `authKey` is an OAuth client secret (`tskey-client-...`, auth_keys scope +
+ * the tag), used directly as the auth key — those don't hit the 90-day
+ * expiry that raw auth keys do. OAuth-minted keys default to ephemeral, so
+ * `ephemeral=false` is required to keep the relay node persistent.
  */
 export function createTailscale(
   connection: Connection,
@@ -41,7 +46,7 @@ if ! command -v tailscale >/dev/null 2>&1; then
   curl -fsSL https://tailscale.com/install.sh | sh
 fi
 tailscale up \
-  --auth-key="${authKey}" \
+  --auth-key="${authKey}?ephemeral=false&preauthorized=true" \
   --hostname="${tailnet.hostname}" \
   --advertise-tags="${tailnet.tag}" \
   --accept-routes=false \

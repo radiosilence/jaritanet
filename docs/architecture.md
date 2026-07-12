@@ -168,6 +168,11 @@ Load-bearing on the VPS side: `tailscale up --accept-routes=false`. With routes
 accepted, a peer advertising an exit node or routes swallows the VPS default
 route → the relay and every service riding it go dark.
 
+The `TS_AUTHKEY` secret is an **OAuth client secret** (`tskey-client-…`, with
+the `auth_keys` scope and the tag), not a raw auth key — raw keys cap at 90-day
+expiry, OAuth secrets don't. OAuth-minted keys default to ephemeral, so the
+`up` command forces `ephemeral=false` to keep the relay persistent.
+
 MagicDNS is best-effort here: `ts-dns` points at `100.100.100.100` detoured
 through the tunnel, so the VPS resolves `*.ts.net` on the client's behalf. If a
 sing-box version doesn't honour `detour` on a DNS server, fall back to raw
