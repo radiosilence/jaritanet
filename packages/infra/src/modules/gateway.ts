@@ -149,10 +149,14 @@ sysctl --system`,
   // Each exit's ss-rust port, surfaced on this gateway's loopback via rathole —
   // same pattern as the Reality decoy dest. The port is stable + identical
   // across gateways, so one client ss outbound reaches this exit via any entry.
+  // A tcp *and* udp service on the same port so ss carries UDP (rathole muxes
+  // udp datagrams over the control channel — no extra public port).
   const exitServices = exits
-    .map(
-      (e) =>
-        `\n[server.services.exit-${e.name}]\ntype = "tcp"\nbind_addr = "127.0.0.1:${e.port}"\n`,
+    .flatMap((e) =>
+      ["tcp", "udp"].map(
+        (proto) =>
+          `\n[server.services.exit-${e.name}-${proto}]\ntype = "${proto}"\nbind_addr = "127.0.0.1:${e.port}"\n`,
+      ),
     )
     .join("");
 
