@@ -240,7 +240,7 @@ export function buildProfile(
       // Persist the DNS cache across restarts: a cold app start resolves
       // recently-seen names from disk (~0ms) instead of paying a tunnel round
       // trip. This is what makes "1ms DNS" real for the common (warm) case.
-      cache_file: { enabled: true, store_rdrc: true },
+      cache_file: { enabled: true, store_dns: true },
     },
     dns: {
       // Every resolver is pinned to entry-select (detour) so DNS egresses at the
