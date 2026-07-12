@@ -80,7 +80,7 @@
             "type": "object",
             "properties": {
               "image": {
-                "default": "ghcr.io/shadowsocks/ssserver-rust:latest",
+                "default": "ghcr.io/shadowsocks/ssserver-rust:v1.24.0",
                 "type": "string"
               },
               "method": {

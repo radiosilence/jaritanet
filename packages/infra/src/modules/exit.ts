@@ -33,18 +33,21 @@ export function createExit(
       server_port: exit.port,
       method: exit.method,
       password: pw,
-      mode: "tcp_and_udp",
+      // TCP only: the rathole tunnel that reaches this server is TCP, so UDP
+      // associations can't traverse the exit path (UDP goes direct instead).
+      mode: "tcp_only",
     }),
   );
   const configHash = config.apply((c) =>
     crypto.createHash("sha256").update(c).digest("hex"),
   );
 
-  const configMap = new k8s.core.v1.ConfigMap(
+  // Secret, not ConfigMap: config.json embeds the ss password in cleartext.
+  const secret = new k8s.core.v1.Secret(
     `${name}-config`,
     {
       metadata: { name, namespace },
-      data: { "config.json": config },
+      stringData: { "config.json": config },
     },
     { provider },
   );
@@ -80,12 +83,12 @@ export function createExit(
                 },
               },
             ],
-            volumes: [{ name: "config", configMap: { name } }],
+            volumes: [{ name: "config", secret: { secretName: name } }],
           },
         },
       },
     },
-    { dependsOn: [configMap], provider },
+    { dependsOn: [secret], provider },
   );
 
   const service = new k8s.core.v1.Service(
@@ -94,10 +97,7 @@ export function createExit(
       metadata: { name, namespace },
       spec: {
         selector: { app: name },
-        ports: [
-          { name: "ss-tcp", port: exit.port, protocol: "TCP" },
-          { name: "ss-udp", port: exit.port, protocol: "UDP" },
-        ],
+        ports: [{ name: "ss-tcp", port: exit.port, protocol: "TCP" }],
       },
     },
     { provider },

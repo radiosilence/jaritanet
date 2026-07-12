@@ -109,9 +109,10 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  *     entry gateway). Route `final` points here; tailnet + DNS stay on
  *     `entry-select` so they egress at the gateway, never via an exit.
  *
- * Each exit outbound targets `127.0.0.1:<port>` with `detour: entry-select` —
- * the inner address resolves at the gateway end of the detour, hitting that
- * exit's rathole loopback there.
+ * Each exit outbound targets `127.0.0.1:<port>` and detours through the
+ * **primary** gateway (the only rathole node) — the inner address resolves at
+ * the primary end, hitting that exit's rathole loopback. Exits therefore always
+ * transit the primary, regardless of the `entry-select` pick for direct egress.
  */
 export function buildProfile(
   nodes: ResolvedNode[],
@@ -156,8 +157,16 @@ export function buildProfile(
     );
   }
 
-  // Each exit: a Shadowsocks outbound dialled through the entry gateway. The
-  // 127.0.0.1:<port> resolves at the gateway → its rathole loopback for this
+  // Exits are pinned to the PRIMARY gateway (nodes[0]) — it's the only node
+  // that runs rathole, so it's the only one exposing the exit loopbacks. Edges
+  // (also in entry-select) run hy2/reality only; detouring an exit through an
+  // edge would dial 127.0.0.1:<port> where nothing listens. So the exit detour
+  // targets the primary specifically, not entry-select — entry-select governs
+  // *direct* egress; exits always transit the primary.
+  const ratholeEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
+
+  // Each exit: a Shadowsocks outbound dialled through the primary gateway. The
+  // 127.0.0.1:<port> resolves at the primary → its rathole loopback for this
   // exit → the exit's ss-rust → egress at the exit's own IP.
   for (const e of exits) {
     outbounds.push({
@@ -167,7 +176,7 @@ export function buildProfile(
       server_port: e.port,
       method: e.method,
       password: e.password,
-      detour: "entry-select",
+      detour: ratholeEntry,
     });
   }
 

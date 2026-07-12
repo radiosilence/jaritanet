@@ -87,15 +87,20 @@ export const EdgeConfSchema = z.object({
  * the exit's own IP.
  *
  * Reached through the EXISTING rathole tunnel, not the tailnet: the exit's
- * ss-rust port is surfaced on every gateway's loopback (`127.0.0.1:<port>`) via
- * a rathole service entry, exactly like the Reality decoy `dest`. The client's
- * ss outbound dials `127.0.0.1:<port>` through the entry gateway (detour), and
- * because a detour resolves the inner address at the gateway end, that hits the
- * gateway's rathole loopback for this exit. `port` MUST be identical across all
- * gateways — that invariant is what lets one exit outbound work via any entry.
+ * ss-rust port is surfaced on the rathole gateway's loopback (`127.0.0.1:<port>`)
+ * via a rathole service entry, exactly like the Reality decoy `dest`. The
+ * client's ss outbound dials `127.0.0.1:<port>` through that gateway (detour),
+ * and because a detour resolves the inner address at the gateway end, it hits
+ * the gateway's rathole loopback for this exit.
+ *
+ * Exits route via the **primary** gateway specifically — it's the only node
+ * that runs rathole (edges run hy2/reality only). So the exit detour is pinned
+ * to the primary, independent of which entry `entry-select` picks for direct
+ * traffic. When more rathole-running gateways exist, `port` must be identical
+ * across them so one exit outbound works via any of them.
  */
 export const ExitConfSchema = z.object({
-  image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:latest"),
+  image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:v1.24.0"),
   method: z.string().default("aes-256-gcm"),
   name: z.string(),
   port: z.number(),
