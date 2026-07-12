@@ -1,0 +1,133 @@
+# Renders the sing-box client profile from the canonical template, writes it to
+# the file server's unguessable path, and emails the URL + a QR when it changes.
+# No-ops entirely when SINGBOX_SLUG is unset (e.g. local runs without secrets).
+- name: Render and distribute the sing-box client profile
+  when: singbox_slug | length > 0
+  block:
+    - name: Assert all injected config values are present
+      ansible.builtin.assert:
+        that:
+          - singbox_files_hostname | length > 0
+          - singbox_vps_ip | length > 0
+          - singbox_xray_uuid | length > 0
+          - singbox_xray_public_key | length > 0
+          - singbox_xray_short_id | length > 0
+          - singbox_xray_server_name | length > 0
+          - singbox_hysteria_auth_password | length > 0
+          - singbox_hysteria_obfs_password | length > 0
+          - singbox_tailnet_magicdns_suffix | length > 0
+        fail_msg: "sing-box secrets missing — set the SINGBOX_* GitHub Actions secrets"
+        quiet: true
+
+    - name: Substitute placeholders in the canonical template
+      ansible.builtin.set_fact:
+        singbox_config: >-
+          {{ (singbox_config | default(lookup('file', singbox_template_path)))
+             | replace(item.token, item.value) }}
+      loop: "{{ singbox_placeholders }}"
+      loop_control:
+        label: "{{ item.token }}"
+      no_log: true
+
+    - name: Assert no placeholder survived (template may have gained tokens)
+      ansible.builtin.assert:
+        that:
+          - not (singbox_config is search('<[A-Z_]+>'))
+        fail_msg: "Template has placeholders the singbox role does not map — update roles/singbox/vars/main.yml"
+        quiet: true
+
+    - name: Assert rendered profile is valid JSON
+      ansible.builtin.assert:
+        that:
+          - singbox_config | from_json is mapping
+        quiet: true
+
+    - name: Ensure the hosted profile directory exists
+      ansible.builtin.file:
+        path: "{{ singbox_dest_dir }}"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: "0755"
+
+    - name: Write the rendered profile
+      ansible.builtin.copy:
+        content: "{{ singbox_config }}"
+        dest: "{{ singbox_dest_dir }}/{{ singbox_slug }}.json"
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: "0644"
+      no_log: true
+      register: singbox_written
+
+    - name: Build the profile URL
+      ansible.builtin.set_fact:
+        singbox_url: "https://{{ singbox_files_hostname }}/.sfm/{{ singbox_slug }}.json"
+
+    - name: Build the notification caption
+      ansible.builtin.set_fact:
+        singbox_caption: |-
+          sing-box profile updated
+
+          {{ singbox_url }}
+
+          Add as a Remote profile (auto-refreshes every device on "Update").
+          Scan the QR to onboard a phone. Keep this URL secret — the unguessable
+          path is the only thing guarding it.
+
+    # Delivery runs on the controller (localhost) — it needs the QR tool and
+    # egress to Telegram, not the target. Only fires when the profile changed,
+    # or when explicitly forced (device onboarding).
+    - name: Notify via Telegram
+      when: >-
+        (singbox_written is changed or singbox_force_notify | length > 0)
+        and singbox_telegram_bot_token | length > 0
+        and singbox_telegram_chat_id | length > 0
+      delegate_to: localhost
+      become: false
+      run_once: true
+      block:
+        - name: Check for qrencode
+          ansible.builtin.command: qrencode --version
+          register: singbox_qrencode
+          failed_when: false
+          changed_when: false
+
+        - name: Generate a QR code for the profile URL
+          ansible.builtin.command: "qrencode -o {{ singbox_qr_path }} -s 8 -m 2 {{ singbox_url }}"
+          when: singbox_qrencode.rc == 0
+          changed_when: true
+
+        - name: Send the profile URL + QR photo
+          ansible.builtin.command:
+            argv:
+              - curl
+              - -fsS
+              - -X
+              - POST
+              - "https://api.telegram.org/bot{{ singbox_telegram_bot_token }}/sendPhoto"
+              - -F
+              - "chat_id={{ singbox_telegram_chat_id }}"
+              - -F
+              - "photo=@{{ singbox_qr_path }}"
+              - -F
+              - "caption={{ singbox_caption }}"
+          when: singbox_qrencode.rc == 0
+          changed_when: true
+          no_log: true
+
+        - name: Send the profile URL (no QR tool available)
+          ansible.builtin.command:
+            argv:
+              - curl
+              - -fsS
+              - -X
+              - POST
+              - "https://api.telegram.org/bot{{ singbox_telegram_bot_token }}/sendMessage"
+              - -F
+              - "chat_id={{ singbox_telegram_chat_id }}"
+              - -F
+              - "text={{ singbox_caption }}"
+          when: singbox_qrencode.rc != 0
+          changed_when: true
+          no_log: true
