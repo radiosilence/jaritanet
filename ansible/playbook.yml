@@ -25,7 +25,6 @@
     - { role: nfs, tags: [nfs] }
     - { role: samba, tags: [samba] }
     - { role: syncthing, tags: [syncthing] }
-    - { role: singbox, tags: [singbox] }
 
 - name: Ensure tailnet is joined
   hosts: tailnet

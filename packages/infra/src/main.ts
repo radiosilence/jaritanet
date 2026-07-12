@@ -17,31 +17,13 @@ import {
   createIpWatcher,
   createRedirectMiddleware,
 } from "./modules/ingress.ts";
+import { createSingboxDelivery, type SingboxNode } from "./modules/singbox.ts";
 import { createService } from "./templates/service.ts";
 
 const dnsModules = {
   bluesky: createBlueskyRecords,
   fastmail: createFastmailRecords,
 } as const;
-
-// One entry per sing-box node (primary gateway + every edge). The client
-// profile is rendered from this; exported as the `singboxNodes` stack output.
-type SingboxNode = {
-  name: string;
-  server: pulumi.Input<string>;
-  hysteria: {
-    authPassword: pulumi.Output<string>;
-    obfsPassword: pulumi.Output<string>;
-    port: number;
-    sni: string;
-  };
-  reality: {
-    publicKey: pulumi.Output<string>;
-    serverName: string;
-    shortId: pulumi.Output<string>;
-    uuid: pulumi.Output<string>;
-  };
-};
 
 export default async function () {
   const { namespace } = conf;
@@ -51,9 +33,8 @@ export default async function () {
   let xray: ReturnType<typeof createGateway>["xray"];
   let hysteria: ReturnType<typeof createGateway>["hysteria"];
 
-  // sing-box nodes (primary gateway + every edge) — the single source the
-  // client profile is rendered from. Marked secret; consumed by the singbox
-  // ansible role via `pulumi stack output singboxNodes`.
+  // sing-box nodes (primary gateway + every edge). Pulumi builds the client
+  // profile from these and delivers it to the file server (see the end).
   const nodes: SingboxNode[] = [];
 
   if (env.HCLOUD_TOKEN) {
@@ -209,6 +190,36 @@ export default async function () {
       return [name, { hostname, service: service.metadata.name }] as const;
     });
 
+  // --- sing-box client profile: generate + deliver + notify, all in Pulumi ---
+  // Builds the profile from the nodes, writes it to the file server over SSH
+  // (change-detected by content hash), and notifies Telegram on change.
+  if (
+    nodes.length > 0 &&
+    env.SINGBOX_SLUG &&
+    env.FILES_HOSTNAME &&
+    env.TAILNET_MAGICDNS_SUFFIX &&
+    env.OLDBOY_HOST &&
+    env.SSH_PRIVATE_KEY
+  ) {
+    createSingboxDelivery(nodes, {
+      filesHostname: env.FILES_HOSTNAME,
+      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
+      oldboy: {
+        host: env.OLDBOY_HOST,
+        privateKey: pulumi.secret(env.SSH_PRIVATE_KEY),
+        user: env.OLDBOY_USER,
+      },
+      slug: env.SINGBOX_SLUG,
+      telegram:
+        env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
+          ? {
+              botToken: pulumi.secret(env.TELEGRAM_BOT_TOKEN),
+              chatId: env.TELEGRAM_CHAT_ID,
+            }
+          : undefined,
+    });
+  }
+
   return {
     ...(gatewayProvider && { gatewayProvider }),
     namespace,
@@ -224,6 +235,5 @@ export default async function () {
     ...(hysteria && {
       hysteriaShareUrl: hysteria.shareUrl,
     }),
-    ...(nodes.length > 0 && { singboxNodes: pulumi.secret(nodes) }),
   };
 }

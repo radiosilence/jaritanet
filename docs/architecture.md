@@ -178,8 +178,11 @@ through the tunnel, so the VPS resolves `*.ts.net` on the client's behalf. If a
 sing-box version doesn't honour `detour` on a DNS server, fall back to raw
 `100.x` IPs — and the native client covers names on open networks anyway.
 
-See [`ansible/roles/singbox/README.md`](../ansible/roles/singbox/README.md) for
-the template and how the profile is generated and delivered to devices.
+The profile is generated and delivered entirely by Pulumi — see
+`packages/infra/src/modules/singbox.ts`. `buildProfile` constructs the config
+as a TypeScript object (`JSON.stringify`, so it can't emit invalid JSON — no
+templating), and `createSingboxDelivery` writes it to the file server over SSH
+and notifies Telegram. Ansible is not involved; it only provisions the boxes.
 
 ## Edge nodes (multi-location)
 
@@ -198,10 +201,10 @@ jaritanet:edges:
 
 On the next deploy each edge gets a server, a firewall (22 + 443 only), a
 `<name>.<zone>` A record (default zone `radiosilence.dev`), and joins the
-tailnet as `jaritanet-<name>`. Every node — primary + edges — is emitted as the
-secret `singboxNodes` stack output; the deploy pipes that into the singbox
-ansible role, which renders one profile with a **location picker** and pushes
-the updated URL/QR to Telegram. So: edit config, push, get a working URL.
+tailnet as `jaritanet-<name>`. Every node — primary + edges — feeds Pulumi's
+`buildProfile`, which renders one profile with a **location picker**; Pulumi
+writes it to the file server (change-detected by content hash) and pushes the
+updated URL/QR to Telegram. So: edit config, push, get a working URL.
 
 The picker is nested: the top `main` selector chooses `auto-all` (fastest node
 anywhere) or a per-host group. Each host is its own selector (`helsinki`,
