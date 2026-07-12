@@ -52,7 +52,6 @@ The project uses Lefthook for pre-commit validation:
 Everything deploys in one `pulumi up` from `packages/infra/`:
 
 - **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server provisioning
-- **`src/modules/gateway-oci.ts`** — Oracle Cloud ARM instance + VCN + Rathole via Docker
 - **`src/modules/xray.ts`** — optional Xray VLESS-REALITY proxy sharing :443 with the gateway
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
@@ -78,7 +77,7 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
-- **Gateway auto-detection** — Hetzner (HCLOUD_TOKEN) > Oracle Cloud (OCI_TENANCY_OCID) > direct mode.
+- **Gateway** — Hetzner (HCLOUD_TOKEN) when set, else direct mode.
 
 ## GitHub Actions
 
