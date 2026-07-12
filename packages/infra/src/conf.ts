@@ -7,6 +7,7 @@ const config = new pulumi.Config();
 const { data, error } = ConfSchema.safeParse({
   bluesky: config.requireObject("bluesky"),
   cloudflare: config.requireObject("cloudflare"),
+  edges: config.getObject("edges"),
   externalIp: config.get("externalIp"),
   fastmail: config.requireObject("fastmail"),
   gateway: config.getObject("gateway"),

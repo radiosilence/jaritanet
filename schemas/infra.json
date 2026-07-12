@@ -22,21 +22,63 @@
           },
           "required": ["accountId"]
         },
+        "jaritanet:edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "hysteria": {
+                "default": {
+                  "port": 443,
+                  "sni": "www.bing.com"
+                },
+                "$ref": "#/$defs/__schema1"
+              },
+              "image": {
+                "default": "ubuntu-24.04",
+                "type": "string"
+              },
+              "location": {
+                "default": "hel1",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "reality": {
+                "default": {
+                  "dest": "www.microsoft.com:443",
+                  "serverName": "www.microsoft.com"
+                },
+                "type": "object",
+                "properties": {
+                  "dest": {
+                    "default": "www.microsoft.com:443",
+                    "type": "string"
+                  },
+                  "serverName": {
+                    "default": "www.microsoft.com",
+                    "type": "string"
+                  }
+                }
+              },
+              "serverType": {
+                "default": "cx23",
+                "type": "string"
+              },
+              "zone": {
+                "default": "radiosilence.dev",
+                "type": "string"
+              }
+            },
+            "required": ["name"]
+          }
+        },
         "jaritanet:gateway": {
           "type": "object",
           "properties": {
             "hysteria": {
-              "type": "object",
-              "properties": {
-                "port": {
-                  "default": 443,
-                  "type": "number"
-                },
-                "sni": {
-                  "default": "www.bing.com",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/$defs/__schema1"
             },
             "image": {
               "default": "ubuntu-24.04",
@@ -469,6 +511,19 @@
         "cloudflare:apiToken",
         "hcloud:token"
       ]
+    },
+    "__schema1": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "default": 443,
+          "type": "number"
+        },
+        "sni": {
+          "default": "www.bing.com",
+          "type": "string"
+        }
+      }
     }
   }
 }
