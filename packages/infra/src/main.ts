@@ -9,6 +9,7 @@ import {
   createFastmailRecords,
   createServiceRecord,
 } from "./modules/dns.ts";
+import { createEdge } from "./modules/edge.ts";
 import { createGateway } from "./modules/gateway.ts";
 import {
   createIngress,
@@ -23,6 +24,25 @@ const dnsModules = {
   fastmail: createFastmailRecords,
 } as const;
 
+// One entry per sing-box node (primary gateway + every edge). The client
+// profile is rendered from this; exported as the `singboxNodes` stack output.
+type SingboxNode = {
+  name: string;
+  server: pulumi.Input<string>;
+  hysteria: {
+    authPassword: pulumi.Output<string>;
+    obfsPassword: pulumi.Output<string>;
+    port: number;
+    sni: string;
+  };
+  reality: {
+    publicKey: pulumi.Output<string>;
+    serverName: string;
+    shortId: pulumi.Output<string>;
+    uuid: pulumi.Output<string>;
+  };
+};
+
 export default async function () {
   const { namespace } = conf;
   let dnsTarget: pulumi.Output<string> | undefined;
@@ -31,13 +51,70 @@ export default async function () {
   let xray: ReturnType<typeof createGateway>["xray"];
   let hysteria: ReturnType<typeof createGateway>["hysteria"];
 
+  // sing-box nodes (primary gateway + every edge) — the single source the
+  // client profile is rendered from. Marked secret; consumed by the singbox
+  // ansible role via `pulumi stack output singboxNodes`.
+  const nodes: SingboxNode[] = [];
+
   if (env.HCLOUD_TOKEN) {
-    const gw = createGateway(conf.gateway ?? GatewayConfSchema.parse({}));
+    const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
+    const gw = createGateway(gatewayConf);
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     xray = gw.xray;
     hysteria = gw.hysteria;
+
+    // The primary is a node too: clients connect by IP, and its REALITY decoy
+    // is its own reverse-proxied site (unlike edges, which use an external one).
+    if (gw.hysteria && gw.xray && gatewayConf.hysteria && gatewayConf.xray) {
+      nodes.push({
+        name: "primary",
+        server: gw.vpsIp,
+        hysteria: {
+          authPassword: gw.hysteria.authPassword,
+          obfsPassword: gw.hysteria.obfsPassword,
+          port: gatewayConf.hysteria.port,
+          sni: gatewayConf.hysteria.sni,
+        },
+        reality: {
+          publicKey: gw.xray.publicKey,
+          serverName: gatewayConf.xray.serverName,
+          shortId: gw.xray.shortId,
+          uuid: gw.xray.uuid,
+        },
+      });
+    }
+
+    // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
+    // picker entry. Tailnet relay only when TS_AUTHKEY is present.
+    const edgeAuthKey = env.TS_AUTHKEY
+      ? pulumi.secret(env.TS_AUTHKEY)
+      : undefined;
+    for (const edge of conf.edges) {
+      const e = createEdge(edge, edgeAuthKey);
+      const hostname = `${edge.name}.${edge.zone}`;
+      const zone = conf.zones.find((z) => z.name === edge.zone);
+      if (zone) {
+        createServiceRecord(e.vpsIp, zone, hostname);
+      }
+      nodes.push({
+        name: edge.name,
+        server: hostname,
+        hysteria: {
+          authPassword: e.hysteria.authPassword,
+          obfsPassword: e.hysteria.obfsPassword,
+          port: edge.hysteria.port,
+          sni: edge.hysteria.sni,
+        },
+        reality: {
+          publicKey: e.xray.publicKey,
+          serverName: edge.reality.serverName,
+          shortId: e.xray.shortId,
+          uuid: e.xray.uuid,
+        },
+      });
+    }
   } else if (conf.externalIp) {
     dnsTarget = pulumi.output(conf.externalIp);
   }
@@ -147,5 +224,6 @@ export default async function () {
     ...(hysteria && {
       hysteriaShareUrl: hysteria.shareUrl,
     }),
+    ...(nodes.length > 0 && { singboxNodes: pulumi.secret(nodes) }),
   };
 }

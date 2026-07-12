@@ -181,6 +181,46 @@ sing-box version doesn't honour `detour` on a DNS server, fall back to raw
 See [`ansible/roles/singbox/README.md`](../ansible/roles/singbox/README.md) for
 the template and how the profile is generated and delivered to devices.
 
+## Edge nodes (multi-location)
+
+Beyond the primary gateway, `edges` in config spins up standalone VPN boxes in
+other locations — each a Hetzner VPS running hy2 + REALITY + a tailnet relay,
+and nothing else (no rathole, no reverse proxy). Adding one is a config change:
+
+```yaml
+jaritanet:edges:
+  - name: helsinki
+    location: hel1
+  - name: singapore
+    location: sin
+    serverType: cx23
+```
+
+On the next deploy each edge gets a server, a firewall (22 + 443 only), a
+`<name>.<zone>` A record (default zone `radiosilence.dev`), and joins the
+tailnet as `jaritanet-<name>`. Every node — primary + edges — is emitted as the
+secret `singboxNodes` stack output; the deploy pipes that into the singbox
+ansible role, which renders one profile with a **location picker** and pushes
+the updated URL/QR to Telegram. So: edit config, push, get a working URL.
+
+The picker is nested: the top `main` selector chooses `auto-all` (fastest node
+anywhere) or a per-host group. Each host is its own selector (`helsinki`,
+`primary`, …) holding that node's `auto-<name>` + `hy2-<name>` + `reality-<name>`,
+so you pick a location and can drill in to force a transport. Leaf outbound tags
+are prefixed per host (tags must be globally unique); the grouping is what you
+navigate.
+
+**Why edges can use an external REALITY decoy** (unlike the primary): an edge
+fronts no site of its own, so there's no own-domain to break by forwarding
+probe traffic away. `edge.reality` defaults to `www.microsoft.com` — a real,
+universally-reachable TLS site — and is overridable per edge. The primary keeps
+its own-domain decoy because it must serve real visitors on the same `:443`.
+
+Every edge is also a tailnet member, so any of them relays `100.x` into the
+mesh — the same censorship-resistant tailnet path works whichever location you
+pick. (This is the foundation for a future home-exit node: oldboy becomes just
+another entry in the picker, exiting via the residential IP.)
+
 ## Hardening notes
 
 Live tradeoffs worth knowing, not necessarily bugs:

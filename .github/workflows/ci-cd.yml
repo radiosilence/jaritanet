@@ -221,3 +221,45 @@ jobs:
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+
+      # --- Render + distribute the sing-box profile (Option A) ---
+      # Pulumi is the single source of truth for node data (primary + edges);
+      # the singbox role renders the multi-node profile from it. One deploy →
+      # profile regenerated → Telegram notify on change. No node data (e.g. no
+      # gateway) → the role no-ops.
+      - name: Capture sing-box nodes from Pulumi
+        working-directory: packages/infra
+        run: |
+          set -euo pipefail
+          pulumi stack select radiosilence/jaritanet/main
+          NODES="$(pulumi stack output singboxNodes --show-secrets --json 2>/dev/null || echo '[]')"
+          echo "captured $(printf '%s' "$NODES" | jq 'length') sing-box node(s)"
+          {
+            echo 'SINGBOX_NODES<<SB_NODES_EOF'
+            printf '%s\n' "$NODES"
+            echo 'SB_NODES_EOF'
+          } >> "$GITHUB_ENV"
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      # qrencode runs on the runner — the notify task delegates to localhost.
+      - name: Install qrencode
+        run: sudo apt-get update && sudo apt-get install -y qrencode
+
+      - name: Render + distribute sing-box profile
+        uses: dawidd6/action-ansible-playbook@93764e7048f4dd16117d134dadb4b36e8ee73227 # v4
+        with:
+          playbook: playbook.yml
+          directory: ./ansible
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          options: |
+            --limit homeservers
+            --tags singbox
+            --extra-vars "oldboy_host=${{ secrets.OLDBOY_HOST }} oldboy_user=${{ secrets.OLDBOY_USER }} oldboy_password=${{ secrets.OLDBOY_PASSWORD }}"
+        env:
+          SINGBOX_NODES: ${{ env.SINGBOX_NODES }}
+          SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
+          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
+          SINGBOX_TAILNET_MAGICDNS_SUFFIX: ${{ secrets.SINGBOX_TAILNET_MAGICDNS_SUFFIX }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

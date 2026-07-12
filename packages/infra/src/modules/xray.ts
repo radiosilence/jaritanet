@@ -24,12 +24,16 @@ export function createXray(
   connection: Connection,
   server: hcloud.Server,
   xray: z.infer<typeof XrayConfSchema>,
+  name = "",
 ) {
-  const uuid = new random.RandomUuid("xray-uuid");
-  const shortId = new random.RandomId("xray-short-id", { byteLength: 8 });
+  // Empty name = the primary gateway, keeping its original resource names so
+  // Pulumi doesn't replace the live box. Edges pass a name → prefixed names.
+  const p = name ? `${name}-` : "";
+  const uuid = new random.RandomUuid(`${p}xray-uuid`);
+  const shortId = new random.RandomId(`${p}xray-short-id`, { byteLength: 8 });
 
   const install = new command.remote.Command(
-    "xray-install",
+    `${p}xray-install`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
@@ -54,7 +58,7 @@ fi`,
 
   // Read back the minted public key so clients can be configured.
   const publicKey = new command.remote.Command(
-    "xray-public-key",
+    `${p}xray-public-key`,
     {
       connection,
       create: "cat /usr/local/etc/xray/public.key",
@@ -66,7 +70,7 @@ fi`,
   // Render config.json on the box, injecting the private key from disk so
   // it stays off the wire and out of Pulumi state.
   const config = new command.remote.Command(
-    "xray-config",
+    `${p}xray-config`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail

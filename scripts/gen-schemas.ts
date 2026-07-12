@@ -32,6 +32,7 @@ const schemas = {
   infra: await import("../packages/infra/src/conf.schemas.ts").then(
     ({
       CloudflareConfSchema,
+      EdgeConfSchema,
       GatewayConfSchema,
       TraefikConfSchema,
       ServicesMapSchema,
@@ -43,6 +44,7 @@ const schemas = {
         .object({
           config: z.object({
             [`${PROJECT}:cloudflare`]: CloudflareConfSchema,
+            [`${PROJECT}:edges`]: z.array(EdgeConfSchema).optional(),
             [`${PROJECT}:gateway`]: GatewayConfSchema,
             [`${PROJECT}:traefik`]: TraefikConfSchema,
             [`${PROJECT}:services`]: ServicesMapSchema,

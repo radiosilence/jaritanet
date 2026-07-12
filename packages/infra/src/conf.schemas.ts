@@ -54,6 +54,33 @@ export const GatewayConfSchema = z.object({
   xray: XrayConfSchema.optional(),
 });
 
+/**
+ * A standalone VPN edge box — hy2 + REALITY + tailnet relay, no reverse proxy.
+ *
+ * Unlike the primary gateway it fronts no home services, which is exactly why
+ * its REALITY decoy can point at a real EXTERNAL site: there's no own-site to
+ * break by forwarding probe traffic away. `name` drives everything — the
+ * `<name>.<zone>` A record clients connect to, the `jaritanet-<name>` tailnet
+ * hostname, and the per-instance Pulumi resource names.
+ */
+export const EdgeConfSchema = z.object({
+  hysteria: HysteriaConfSchema.default({ port: 443, sni: "www.bing.com" }),
+  image: z.string().default("ubuntu-24.04"),
+  location: z.string().default("hel1"),
+  name: z.string(),
+  reality: z
+    .object({
+      dest: z.string().default("www.microsoft.com:443"),
+      serverName: z.string().default("www.microsoft.com"),
+    })
+    .default({
+      dest: "www.microsoft.com:443",
+      serverName: "www.microsoft.com",
+    }),
+  serverType: z.string().default("cx23"),
+  zone: z.string().default("radiosilence.dev"),
+});
+
 export const TraefikConfSchema = z.object({
   acmeEmail: z.string(),
   chartVersion: z.string().default("41.0.2"),
@@ -94,6 +121,7 @@ export const ConfSchema = z.object({
   bluesky: BlueskyConfSchema,
   cloudflare: CloudflareConfSchema,
   clusterDomain: z.string().default("cluster.local"),
+  edges: z.array(EdgeConfSchema).default([]),
   externalIp: z.string().optional(),
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
