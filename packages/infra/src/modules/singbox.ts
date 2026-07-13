@@ -237,14 +237,12 @@ export function buildProfile(
   return {
     log: { level: "info", timestamp: true },
     experimental: {
-      // Persist the DNS cache across restarts: a cold app start resolves
-      // recently-seen names from disk (~0ms) instead of paying a tunnel round
-      // trip. This is what makes "1ms DNS" real for the common (warm) case.
-      // NB: store_rdrc, not store_dns. store_dns is a 1.14+ field and hard-fails
-      // ("unknown field") on the current 1.13.x SFM/SFI core; store_rdrc works
-      // and only earns a cosmetic deprecation warning on 1.14. Flip to store_dns
-      // once every client is on a 1.14+ core.
-      cache_file: { enabled: true, store_rdrc: true },
+      // Persist the FULL positive DNS cache across restarts (store_dns, 1.14+),
+      // so a cold app launch resolves recently-seen names from disk (~0ms) — not
+      // just the rejected-response cache that 1.13's store_rdrc managed.
+      // REQUIRES a 1.14+ core on EVERY client: store_dns hard-fails ("unknown
+      // field") on 1.13.x. Don't merge this to main until the fleet is on 1.14.
+      cache_file: { enabled: true, store_dns: true },
     },
     dns: {
       // Every resolver is pinned to entry-select (detour) so DNS egresses at the
@@ -280,6 +278,11 @@ export function buildProfile(
       rules: [{ domain_suffix: [magicdnsSuffix], server: "ts-dns" }],
       final: "gw-cache",
       strategy: "ipv4_only",
+      // Optimistic cache (1.14+): serve an expired entry instantly and refresh
+      // it in the background, so an expired lookup never blocks on a tunnel RTT.
+      // The client-side twin of unbound's serve-expired on the gateway — this is
+      // what closes the last gap to "always ~0ms" DNS. 3d stale window.
+      optimistic: { enabled: true, timeout: "3d" },
     },
     inbounds: [
       {
