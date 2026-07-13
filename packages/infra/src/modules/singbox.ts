@@ -300,7 +300,16 @@ export function buildProfile(
         mtu: TUN_MTU,
         auto_route: true,
         strict_route: true,
-        // gVisor for UDP, kernel for TCP
+        // `mixed` = kernel TCP stack (fast) + gVisor's userspace UDP stack. The
+        // gVisor UDP path is LOAD-BEARING, not a perf knob: this client nests a
+        // UDP-based corporate VPN (AWS Client VPN = OpenVPN/UDP) inside our
+        // tunnel. The kernel `system` stack silently DROPS that nested UDP even
+        // with perfect routing (endpoint→sing-box, VPC→AWS tun, all verified) —
+        // gVisor reassembles it + does endpoint-independent NAT. Proven the hard
+        // way: `system` broke the nested DB path with correct routing; switching
+        // to gvisor/mixed fixed it instantly. DO NOT "optimise" back to `system`.
+        // `mixed` keeps kernel TCP for everything else; pure `gvisor` also works
+        // but costs more CPU.
         stack: "mixed",
       },
     ],

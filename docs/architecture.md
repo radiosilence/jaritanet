@@ -376,3 +376,15 @@ Live tradeoffs worth knowing, not necessarily bugs:
   loss) and sits in the selector for manual use on a known-fat hostile pipe.
   Brutal is deliberately *not* the default: on a slow link it blasts loss into a
   small pipe and feels worse. Reality has no such knob — its speed is all MTU.
+- **The tun stack is `mixed` (kernel TCP + gVisor UDP), and that's load-bearing
+  for nesting another VPN inside this one.** A common use is nesting a UDP-based
+  corporate VPN (e.g. AWS Client VPN, OpenVPN/UDP) inside the tunnel to shield
+  its first hop from local DPI: the nested VPN's *endpoint* has no specific route
+  so it falls to sing-box's default and egresses at the gateway (DPI sees only
+  hy2/reality), while the routes the nested VPN pushes (its VPC CIDR) are more
+  specific and send that traffic down its own tun. The catch: the kernel
+  `system` stack silently drops the *nested UDP* even when routing is provably
+  correct — only gVisor's UDP stack reassembles it and does endpoint-independent
+  NAT. So `mixed`/`gvisor`, never `system`, if nesting is in play. Operational
+  gotcha: reconnecting/updating sing-box tears down anything nested on top of it,
+  so the order is always **sing-box first, then (re)dial the inner VPN**.
