@@ -1,3 +1,36 @@
+# The installer left the base repos as a bare `noble` pocket (release snapshot),
+# so no security/update fixes were ever seen — dist-upgrade ran against a frozen
+# April-2024 tree. Manage the base sources here so it can't drift again.
+- name: Configure Ubuntu base apt repositories
+  ansible.builtin.deb822_repository:
+    name: ubuntu
+    types: [deb]
+    uris: http://archive.ubuntu.com/ubuntu
+    suites:
+      - "{{ ansible_distribution_release }}"
+      - "{{ ansible_distribution_release }}-updates"
+      - "{{ ansible_distribution_release }}-backports"
+    components: [main, restricted, universe, multiverse]
+    signed_by: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    state: present
+    enabled: true
+
+- name: Configure Ubuntu security apt repository
+  ansible.builtin.deb822_repository:
+    name: ubuntu-security
+    types: [deb]
+    uris: http://security.ubuntu.com/ubuntu
+    suites: ["{{ ansible_distribution_release }}-security"]
+    components: [main, restricted, universe, multiverse]
+    signed_by: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    state: present
+    enabled: true
+
+- name: Remove stale single-file apt sources.list
+  ansible.builtin.file:
+    path: /etc/apt/sources.list
+    state: absent
+
 - name: Update all packages to the latest version (dist-upgrade)
   ansible.builtin.apt:
     upgrade: dist
