@@ -300,7 +300,14 @@ export function buildProfile(
         mtu: TUN_MTU,
         auto_route: true,
         strict_route: true,
-        stack: "system",
+        // gVisor, not the kernel `system` stack. It's mandatory for Apple's
+        // `includeAllNetworks` (full-tunnel kill-switch) — sing-tun refuses to
+        // start with system/mixed under it. That lockdown is the whole point:
+        // every socket forced through the tunnel, nothing able to bypass, and it
+        // guarantees a nested AWS VPN egresses through us (its endpoint can't
+        // bind the physical NIC). Cost: a userspace stack is a bit more CPU /
+        // slightly lower peak throughput than the kernel path — worth it here.
+        stack: "gvisor",
       },
     ],
     outbounds,
