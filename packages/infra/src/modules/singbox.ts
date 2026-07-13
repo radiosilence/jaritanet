@@ -300,14 +300,16 @@ export function buildProfile(
         mtu: TUN_MTU,
         auto_route: true,
         strict_route: true,
-        // gVisor, not the kernel `system` stack. It's mandatory for Apple's
-        // `includeAllNetworks` (full-tunnel kill-switch) — sing-tun refuses to
-        // start with system/mixed under it. That lockdown is the whole point:
-        // every socket forced through the tunnel, nothing able to bypass, and it
-        // guarantees a nested AWS VPN egresses through us (its endpoint can't
-        // bind the physical NIC). Cost: a userspace stack is a bit more CPU /
-        // slightly lower peak throughput than the kernel path — worth it here.
-        stack: "gvisor",
+        // Kernel `system` stack — fastest, and its proper ICMP/PMTUD is what
+        // lets a *nested* tunnel (e.g. an AWS Client VPN riding on top) work.
+        // We briefly ran gvisor to enable Apple's `includeAllNetworks` lockdown,
+        // but that forces ALL traffic — including a nested VPN's own inner/VPC
+        // traffic — through the tun, which broke the nested DB path (and gvisor's
+        // weak ICMP kills PMTUD). The lockdown was never needed to shield a
+        // nested VPN anyway: auto_route's 0.0.0.0/1 + 128.0.0.0/1 already capture
+        // the nested VPN's *endpoint*, so its first hop egresses through us (DPI
+        // only ever sees hy2/reality) while the VPC traffic rides the inner tun.
+        stack: "system",
       },
     ],
     outbounds,
