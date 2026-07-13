@@ -288,7 +288,15 @@ export function buildProfile(
       {
         type: "tun",
         tag: "tun-in",
-        address: ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+        // Point-to-point tun endpoints. Deliberately NOT in 172.16/12 — that
+        // whole range is a collision minefield: Docker bridges live at 172.17/18
+        // and, worse, corporate AWS VPCs sit in 172.x. We were on 172.19.0.1/30,
+        // which overlaps a work VPC (172.19.0.0/16) whose DNS resolver is at
+        // VPC_base+2 = 172.19.0.2 — *exactly* our tun peer, so the tun silently
+        // hijacked the VPC resolver whenever both VPNs were up. 198.18.0.0/15 is
+        // IANA benchmarking space (RFC 2544): never a real destination, so it
+        // can't collide with any VPC, Docker bridge, corp VPN, or home LAN.
+        address: ["198.18.0.1/30", "fdfe:dcba:9876::1/126"],
         mtu: TUN_MTU,
         auto_route: true,
         strict_route: true,
