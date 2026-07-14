@@ -27,18 +27,27 @@ flowchart TD
     XR["Xray VLESS-REALITY<br/>owns TCP :443"]
     HY["Hysteria2 + Salamander<br/>owns UDP :443"]
     FREE["freedom → direct egress"]
-    subgraph RH["rathole server — static port→pipe mux, no routing logic"]
-      HTTPS_P["https pipe<br/>127.0.0.1:8443"]
-      EXIT_P["exit-home pipe<br/>127.0.0.1:9000"]
-    end
+  end
+
+  subgraph rh["🛢 rathole — ONE tunnel · VPS server ↔ home client · services muxed"]
+    HTTPS_P["https pipe<br/>VPS :8443"]
+    EXIT_P["exit-home pipe<br/>VPS :9000"]
+    RC["rathole client<br/>(in home k8s, dials out)"]
+    HTTPS_P -.->|"muxed over 1 conn"| RC
+    EXIT_P -.->|"muxed over 1 conn"| RC
   end
 
   subgraph home["oldboy — home k8s, behind NAT"]
-    RC["rathole client<br/>dials out · one tunnel, services muxed"]
-    TR["Traefik · TLS + routing"] --> SVC["Navidrome · blit · files"]
+    TR["Traefik · TLS + routing"]
+    subgraph apps["home services · Deployment + Service each, IngressRoute-routed"]
+      ND["navidrome"]
+      BL["blit"]
+      FS["files"]
+    end
     SS["ss-rust exit"]
-    RC -->|"https → Traefik"| TR
-    RC -->|"exit-home → ss-rust"| SS
+    TR --> ND
+    TR --> BL
+    TR --> FS
   end
 
   VPSIP(("internet · VPS IP"))
@@ -48,13 +57,15 @@ flowchart TD
   CLIENT -->|hy2| HY
   VISITOR -->|"HTTPS to blit.cc"| XR
 
-  XR -->|"unmatched → dest :8443"| HTTPS_P
-  XR -->|"matched · egress=direct"| FREE
-  XR -->|"matched · egress=exit → dials :9000"| EXIT_P
-  HY -->|"authed · egress=direct"| FREE
-  HY -->|"authed · egress=exit → dials :9000"| EXIT_P
+  XR -->|"unmatched → :8443"| HTTPS_P
+  XR -->|"matched · direct"| FREE
+  XR -->|"matched · exit → :9000"| EXIT_P
+  HY -->|"authed · direct"| FREE
+  HY -->|"authed · exit → :9000"| EXIT_P
 
-  RH ==>|"ONE rathole tunnel — https + exit-home muxed"| RC
+  RC -->|"https → Traefik"| TR
+  RC -->|"exit-home → ss-rust"| SS
+
   FREE ==> VPSIP
   SS ==> HOMEIP
 ```
