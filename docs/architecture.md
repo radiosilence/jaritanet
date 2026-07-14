@@ -34,8 +34,11 @@ flowchart TD
   end
 
   subgraph home["oldboy — home k8s, behind NAT"]
+    RC["rathole client<br/>dials out · one tunnel, services muxed"]
     TR["Traefik · TLS + routing"] --> SVC["Navidrome · blit · files"]
     SS["ss-rust exit"]
+    RC -->|"https → Traefik"| TR
+    RC -->|"exit-home → ss-rust"| SS
   end
 
   VPSIP(("internet · VPS IP"))
@@ -51,9 +54,9 @@ flowchart TD
   HY -->|"authed · egress=direct"| FREE
   HY -->|"authed · egress=exit → dials :9000"| EXIT_P
 
+  RH ==>|"ONE rathole tunnel — https + exit-home muxed"| RC
   FREE ==> VPSIP
-  HTTPS_P ==>|rathole tunnel| TR
-  EXIT_P ==>|rathole tunnel| SS ==> HOMEIP
+  SS ==> HOMEIP
 ```
 
 Reading it: **two decisions, in two places.** First, on the shared `:443`, Xray
@@ -64,7 +67,9 @@ decides *where* it leaves: `direct` goes straight out `freedom` at the VPS IP
 (**never touching rathole**), or a named exit makes the VPS dial
 `127.0.0.1:<port>`. rathole itself decides nothing — it's a fixed set of named
 pipes (`https → Traefik`, `exit-home → ss-rust`); the loopback port a flow lands
-on is what picks the pipe.
+on is what picks the pipe. All those pipes ride **one** rathole tunnel — a single
+outbound connection the home client dials to the VPS, multiplexing every service;
+there is no separate tunnel per pipe.
 
 Tailnet `100.x` isn't drawn here — it rides the same entry transports and the VPS
 dials it locally over `tailscale0`; see [Tailnet over the tunnel](#tailnet-over-the-tunnel-censorship-resistant-100x).
