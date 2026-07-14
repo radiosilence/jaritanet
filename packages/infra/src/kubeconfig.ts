@@ -2,7 +2,6 @@ interface KubeConfigArgs {
   host: string;
   port?: string | number;
   token: string;
-  caCert?: string;
 }
 
 export const getKubeconfig = ({

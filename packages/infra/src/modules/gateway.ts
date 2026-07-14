@@ -8,6 +8,7 @@ import type { GatewayConfSchema } from "../conf.schemas.ts";
 import { env } from "../env.ts";
 import { createHysteria } from "./hysteria.ts";
 import { createTailscale } from "./tailscale.ts";
+import { createNetworkTuning, inboundRule } from "./vps.ts";
 import { createXray } from "./xray.ts";
 
 /**
@@ -34,44 +35,12 @@ export function createGateway(
 
   const firewall = new hcloud.Firewall("gateway", {
     rules: [
-      {
-        description: "SSH",
-        direction: "in",
-        port: "22",
-        protocol: "tcp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
-      {
-        description: "HTTP",
-        direction: "in",
-        port: "80",
-        protocol: "tcp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
-      {
-        description: "HTTPS",
-        direction: "in",
-        port: "443",
-        protocol: "tcp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
-      {
-        description: "Rathole control channel",
-        direction: "in",
-        port: "2333",
-        protocol: "tcp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
+      inboundRule("SSH", 22),
+      inboundRule("HTTP", 80),
+      inboundRule("HTTPS", 443),
+      inboundRule("Rathole control channel", 2333),
       ...(gateway.hysteria
-        ? [
-            {
-              description: "Hysteria2 QUIC",
-              direction: "in",
-              port: String(gateway.hysteria.port),
-              protocol: "udp",
-              sourceIps: ["0.0.0.0/0", "::/0"],
-            },
-          ]
+        ? [inboundRule("Hysteria2 QUIC", gateway.hysteria.port, "udp")]
         : []),
     ],
   });
@@ -124,23 +93,7 @@ systemctl enable rathole
     user: "root",
   };
 
-  // Enable BBR congestion control + fq qdisc. Default (cubic) collapses
-  // throughput on packet loss; BBR holds the pipe open across lossy links,
-  // which is what the relayed traffic rides over. Applied over SSH so the
-  // server is never rebuilt.
-  new command.remote.Command(
-    "gateway-network-tuning",
-    {
-      connection,
-      create: `cat > /etc/sysctl.d/99-network-tuning.conf << 'EOF'
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-EOF
-sysctl --system`,
-      triggers: ["bbr-fq-v1"],
-    },
-    { dependsOn: [server] },
-  );
+  createNetworkTuning("gateway", connection, server);
 
   // Caching DNS forwarder on loopback. Clients dial 127.0.0.1:53 *at this box*
   // through the tunnel (a DNS server with detour=entry-select), so unbound has
