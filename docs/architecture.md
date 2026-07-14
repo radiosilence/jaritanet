@@ -203,9 +203,11 @@ at `127.0.0.1:53`; the client dials that loopback *at the gateway end* through
 the tunnel, hitting an unbound caching forwarder on the gateway with prefetch +
 serve-expired. So a client-cache miss is answered from a Germany-local, already-
 warm cache in one tunnel RTT rather than a round trip to the upstream from
-wherever the client happens to be. On top of that, sing-box's `cache_file`
-persists the DNS cache across restarts, so a cold app launch resolves recently-
-seen names from disk (~0ms).
+wherever the client happens to be. On top of that the client caches
+aggressively: `dns.optimistic` serves an expired entry instantly and refreshes
+it in the background (no lookup ever blocks on a stale hit), and `cache_file`
+(`store_dns`) persists that cache across restarts — so a cold app launch
+resolves recently-seen names from disk (~0ms).
 
 **No cleartext DNS anywhere in the chain.** The client↔gateway leg is plain UDP
 but rides the encrypted tunnel (DoH's per-query TLS/HTTP2 framing would be

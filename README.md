@@ -6,9 +6,9 @@ Infrastructure-as-code monorepo for exposing Kubernetes services via Traefik wit
 
 ## Architecture
 
-A single Pulumi stack deploys everything: Traefik handles TLS termination (Let's Encrypt via DNS-01) and hostname routing inside the K8s cluster. An IP watcher pod monitors the server's external IP and triggers DNS updates when it changes — DIY dynamic DNS powered by Cloudflare.
+A single Pulumi stack deploys everything: Traefik handles TLS termination (Let's Encrypt via DNS-01) and hostname routing inside the K8s cluster. An optional IP-watcher pod tracks the server's external IP and dispatches a deploy to refresh Cloudflare A records when it changes.
 
-The gateway also doubles as a censorship-resistant VPN (Hysteria2 + VLESS-REALITY, sharing :443 with the reverse proxy). See [`docs/architecture.md`](docs/architecture.md) for the full topology, transport choices, and the port-multiplexing trick.
+The gateway also doubles as a censorship-resistant VPN (Hysteria2 + VLESS-REALITY), sharing `:443` with rathole — which relays any non-VPN traffic on to the in-cluster Traefik. See [`docs/architecture.md`](docs/architecture.md) for the full topology, transport choices, and the port-multiplexing trick.
 
 ```mermaid
 graph TB
@@ -64,7 +64,7 @@ User -> VPS:443 -> Rathole tunnel -> Traefik -> Service
 
 1. **Traefik** terminates TLS using Let's Encrypt certs (DNS-01 via Cloudflare API) and routes by hostname.
 2. **Cloudflare DNS** A records point service hostnames at the server's external IP.
-3. **IP watcher** (direct mode only) — a pod checks the external IP every 60s via Cloudflare's `1.1.1.1/cdn-cgi/trace` and, on change, dispatches a deploy to refresh the A records. With a gateway, DNS points at the VPS's static IP, so the watcher is a dormant fallback (gated behind `DEPLOY_TOKEN`).
+3. **IP watcher** — an optional pod (enabled by `DEPLOY_TOKEN`) checks the external IP every 60s via Cloudflare's `1.1.1.1/cdn-cgi/trace` and, on change, dispatches a deploy to refresh the A records. Most useful in direct mode; with a gateway, DNS points at the VPS's static IP so it's a dormant fallback.
 4. **Deploys** trigger on push to `main` (package changes) or manual `workflow_dispatch` — there is no scheduled/cron reconcile.
 
 ## Topology configuration
