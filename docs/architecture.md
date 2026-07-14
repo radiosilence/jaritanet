@@ -9,9 +9,9 @@ and secrets see the [README](../README.md).
 
 ## The whole system, end to end
 
-How a flow actually travels: the shared `:443` split by protocol, the
-classify-then-egress decisions the gateway makes, the rathole reverse-tunnel to
-home, and the three places traffic can leave for the internet.
+The path a connection takes: the shared `:443` split by protocol, the
+classification and egress decisions at the gateway, the rathole reverse-tunnel to
+home, and the three egress points.
 
 The gateway is the **hub**. The client picks how it *enters* (`entry-select` —
 a protocol today, a gateway once there's more than one) and where the gateway
@@ -23,23 +23,23 @@ flowchart TD
   CLIENT["sing-box client (VPN)"]
   VISITOR["public visitor / probe<br/>(no VLESS creds)"]
 
-  subgraph vps["Hetzner VPS — one :443, split by protocol"]
-    XR["Xray VLESS-REALITY<br/>owns TCP :443"]
-    HY["Hysteria2 + Salamander<br/>owns UDP :443"]
-    FREE["freedom → direct egress"]
+  subgraph vps["Hetzner VPS — :443, split by protocol"]
+    XR["Xray VLESS-REALITY<br/>TCP :443"]
+    HY["Hysteria2 + Salamander<br/>UDP :443"]
+    FREE["freedom — direct egress"]
   end
 
-  subgraph rh["🛢 rathole — ONE tunnel · VPS server ↔ home client · services muxed"]
-    HTTPS_P["https pipe<br/>VPS :8443"]
-    EXIT_P["exit-home pipe<br/>VPS :9000"]
-    RC["rathole client<br/>(in home k8s, dials out)"]
-    HTTPS_P -.->|"muxed over 1 conn"| RC
-    EXIT_P -.->|"muxed over 1 conn"| RC
+  subgraph rh["rathole tunnel — single connection, multiplexed services"]
+    HTTPS_P["https service<br/>VPS :8443"]
+    EXIT_P["exit-home service<br/>VPS :9000"]
+    RC["rathole client<br/>(home k8s)"]
+    HTTPS_P -.-> RC
+    EXIT_P -.-> RC
   end
 
   subgraph home["oldboy — home k8s, behind NAT"]
-    TR["Traefik · TLS + routing"]
-    subgraph apps["home services · Deployment + Service each, IngressRoute-routed"]
+    TR["Traefik — TLS + routing"]
+    subgraph apps["home services — Deployment + Service, IngressRoute"]
       ND["navidrome"]
       BL["blit"]
       FS["files"]
@@ -50,18 +50,18 @@ flowchart TD
     TR --> FS
   end
 
-  VPSIP(("internet · VPS IP"))
-  HOMEIP(("internet · home IP"))
+  VPSIP(("internet — VPS IP"))
+  HOMEIP(("internet — home IP"))
 
   CLIENT -->|reality| XR
   CLIENT -->|hy2| HY
   VISITOR -->|"HTTPS to blit.cc"| XR
 
   XR -->|"unmatched → :8443"| HTTPS_P
-  XR -->|"matched · direct"| FREE
-  XR -->|"matched · exit → :9000"| EXIT_P
-  HY -->|"authed · direct"| FREE
-  HY -->|"authed · exit → :9000"| EXIT_P
+  XR -->|"matched, direct"| FREE
+  XR -->|"matched, exit → :9000"| EXIT_P
+  HY -->|"authenticated, direct"| FREE
+  HY -->|"authenticated, exit → :9000"| EXIT_P
 
   RC -->|"https → Traefik"| TR
   RC -->|"exit-home → ss-rust"| SS
@@ -70,17 +70,16 @@ flowchart TD
   SS ==> HOMEIP
 ```
 
-Reading it: **two decisions, in two places.** First, on the shared `:443`, Xray
-(TCP) and Hysteria2 (UDP) each classify *who's* connecting — a matched VPN client
-gets proxied; an unmatched TLS connection (real visitor or active probe) is
-forwarded to `dest 127.0.0.1:8443`. Second, a matched client's `exit-select`
-decides *where* it leaves: `direct` goes straight out `freedom` at the VPS IP
-(**never touching rathole**), or a named exit makes the VPS dial
-`127.0.0.1:<port>`. rathole itself decides nothing — it's a fixed set of named
-pipes (`https → Traefik`, `exit-home → ss-rust`); the loopback port a flow lands
-on is what picks the pipe. All those pipes ride **one** rathole tunnel — a single
-outbound connection the home client dials to the VPS, multiplexing every service;
-there is no separate tunnel per pipe.
+Egress is determined in two stages. On the shared `:443`, Xray (TCP) and
+Hysteria2 (UDP) classify the connection: a valid VPN client is proxied; an
+unmatched TLS connection — a real visitor or an active probe — is forwarded to
+`dest 127.0.0.1:8443`. A proxied client's `exit-select` then determines egress:
+`direct` leaves via `freedom` at the VPS IP without entering rathole, and a named
+exit has the VPS dial `127.0.0.1:<port>`. rathole performs no routing — it
+exposes a fixed set of named services (`https → Traefik`, `exit-home → ss-rust`),
+and the loopback port a connection arrives on selects the service. All services
+share a single rathole tunnel, one outbound connection from the home client to
+the VPS, rather than one tunnel per service.
 
 Tailnet `100.x` isn't drawn here — it rides the same entry transports and the VPS
 dials it locally over `tailscale0`; see [Tailnet over the tunnel](#tailnet-over-the-tunnel-censorship-resistant-100x).
