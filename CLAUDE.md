@@ -18,6 +18,8 @@ Code should be simple, elegant, and concise. Respect the "rule of three" - only 
 
 JARITANET is an infrastructure-as-code monorepo using Pulumi to expose Kubernetes services via a Hetzner VPS gateway. Rathole tunnels TCP from the VPS to an in-cluster Traefik instance that handles TLS termination (Let's Encrypt via DNS-01) and hostname routing. Cloudflare provides DNS only (no proxy/tunnel).
 
+The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-REALITY and Hysteria2 share the VPS `:443`, optional edge boxes add entry points in other locations, and selectable exit nodes control egress IP. The sing-box client profile is generated and distributed by the same Pulumi run.
+
 ## Common Commands
 
 ### Development
@@ -51,11 +53,16 @@ The project uses Lefthook for pre-commit validation:
 
 Everything deploys in one `pulumi up` from `packages/infra/`:
 
-- **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server provisioning
-- **`src/modules/xray.ts`** — optional Xray VLESS-REALITY proxy sharing :443 with the gateway
+- **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server; hosts the entry transports and the gateway `unbound` DNS cache
+- **`src/modules/hysteria.ts`** — Hysteria2 (QUIC/UDP) transport with Salamander obfuscation, on the gateway + edges
+- **`src/modules/xray.ts`** — optional Xray VLESS-REALITY (TCP), sharing :443 with rathole on the gateway
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
+- **`src/modules/edge.ts`** — standalone VPN edge boxes (hy2 + REALITY + tailnet relay, no rathole/proxy)
+- **`src/modules/exit.ts`** — in-cluster ss-rust egress nodes, reached through the rathole tunnel (deterministic loopback ports)
+- **`src/modules/tailscale.ts`** — joins the gateway/edges to the tailnet as a relay (`--accept-routes=false` is load-bearing)
+- **`src/modules/singbox.ts`** — builds the sing-box client profile from all nodes and delivers it to the file server (SSH, content-hashed, Telegram notify)
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
+- **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates (schemas + tests alongside)
 - **`src/main.ts`** — Orchestrates all modules
 - **`src/conf.ts`** / **`src/conf.schemas.ts`** — Unified Zod config schema
 
@@ -73,7 +80,9 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 ### Key Components
 
 - **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
+- **Hysteria2** — QUIC/UDP `:443` transport with Salamander obfuscation; the fast, loss-tolerant daily-driver entry, on the gateway and every edge. Auth + obfs passwords are minted on-box; per-node `hysteria2://` share URL.
 - **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and rathole's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (rathole → Traefik); matched clients are proxied out. The keypair is minted on-box and never leaves it; the client `vless://` URL is a stack output (`xrayShareUrl`). `serverName` must be a hostname Traefik serves a real cert for.
+- **sing-box delivery** — `singbox.ts` aggregates the primary + every edge into one client profile (`buildProfile`), writes it to the file server over SSH (content-hashed, so unchanged deploys are silent), and notifies Telegram with the URL/QR on change.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
@@ -83,10 +92,14 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 
 ### CI/CD (`ci-cd.yml`)
 
-Triggered on pushes to main branch affecting package files, or manually via workflow_dispatch:
+Triggered on pushes and pull requests affecting package files, manually via `workflow_dispatch`, or as a reusable workflow (`workflow_call`, with the Pulumi/Cloudflare/Hetzner secrets):
 
 1. **Test** - Type checks, lints, runs vitest suite
 2. **Deploy** (main branch only) - Single `pulumi up` deploying everything
+
+### Preview (`preview.yml`)
+
+Runs `pulumi preview` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge.
 
 ### Schema Generation (`generate-schemas.yml`)
 
@@ -94,7 +107,7 @@ Generates JSON schemas from Zod definitions on changes or daily schedule. Commit
 
 ### App Version Updates (`update-apps.yml`)
 
-Daily check for new releases of deployed services (currently Navidrome). Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
+Daily check for new releases of deployed services (Navidrome Docker image + Traefik Helm chart). Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
 
 ### Ansible Deployment (`run-playbook.yml`)
 
