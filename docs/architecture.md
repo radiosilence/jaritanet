@@ -9,9 +9,9 @@ and secrets see the [README](../README.md).
 
 ## The whole system, end to end
 
-Every moving part and how a flow travels through it — client selection, the two
-entry transports, the gateway's shared `:443`, the rathole reverse-tunnel, the
-in-cluster exit, tailnet relay, and home services.
+How a flow actually travels: the shared `:443` split by protocol, the
+classify-then-egress decisions the gateway makes, the rathole reverse-tunnel to
+home, and the three places traffic can leave for the internet.
 
 The gateway is the **hub**. The client picks how it *enters* (`entry-select` —
 a protocol today, a gateway once there's more than one) and where the gateway
@@ -19,40 +19,55 @@ a protocol today, a gateway once there's more than one) and where the gateway
 transits the gateway; exits are just `ss-rust + rathole` boxes it forwards to.
 
 ```mermaid
-flowchart LR
-  CLIENT["Client · sing-box<br/>entry-select × exit-select"]
+flowchart TD
+  CLIENT["sing-box client (VPN)"]
+  VISITOR["public visitor / probe<br/>(no VLESS creds)"]
 
-  subgraph GW["Primary gateway · Hetzner VPS — the entry hub"]
-    IN["Xray REALITY (tcp) + Hysteria2 (udp)<br/>shared :443"]
-    FR["freedom · direct egress"]
-    RS["rathole server"]
-    TSG["tailscale"]
+  subgraph vps["Hetzner VPS — one :443, split by protocol"]
+    XR["Xray VLESS-REALITY<br/>owns TCP :443"]
+    HY["Hysteria2 + Salamander<br/>owns UDP :443"]
+    FREE["freedom → direct egress"]
+    subgraph RH["rathole server — static port→pipe mux, no routing logic"]
+      HTTPS_P["https pipe<br/>127.0.0.1:8443"]
+      EXIT_P["exit-home pipe<br/>127.0.0.1:9000"]
+    end
   end
 
-  subgraph EX["oldboy · home MicroK8s (behind NAT)"]
-    RC["rathole client"]
+  subgraph home["oldboy — home k8s, behind NAT"]
+    TR["Traefik · TLS + routing"] --> SVC["Navidrome · blit · files"]
     SS["ss-rust exit"]
-    TSH["tailscale"]
-    SV["Traefik + home services"]
   end
 
-  NET(("Internet · gateway IP"))
-  EIP(("Exit IP · e.g. home"))
+  VPSIP(("internet · VPS IP"))
+  HOMEIP(("internet · home IP"))
 
-  CLIENT ==>|"entry: hy2 or reality"| IN
-  IN -->|"exit = direct"| FR ==> NET
-  IN -->|"exit = a named exit → 127.0.0.1:port"| RS
-  RS <==>|"rathole tunnel"| RC --> SS ==> EIP
-  RS -.->|"home services"| RC
-  RC -.-> SV
-  IN -.->|"tailnet 100.x · any protocol"| TSG <-.-> TSH
+  CLIENT -->|reality| XR
+  CLIENT -->|hy2| HY
+  VISITOR -->|"HTTPS to blit.cc"| XR
+
+  XR -->|"unmatched → dest :8443"| HTTPS_P
+  XR -->|"matched · egress=direct"| FREE
+  XR -->|"matched · egress=exit → dials :9000"| EXIT_P
+  HY -->|"authed · egress=direct"| FREE
+  HY -->|"authed · egress=exit → dials :9000"| EXIT_P
+
+  FREE ==> VPSIP
+  HTTPS_P ==>|rathole tunnel| TR
+  EXIT_P ==>|rathole tunnel| SS ==> HOMEIP
 ```
 
-Reading it: the client always reaches the **gateway** first (via the chosen
-protocol). Then `exit-select` decides what the gateway does — egress directly
-(gateway's own IP), or dial `127.0.0.1:<port>`, which is that exit's rathole
-loopback → the exit's ss-rust → egress at *its* IP (here, the home link).
-Tailnet `100.x` and DNS ride the gateway's tailscale regardless of protocol.
+Reading it: **two decisions, in two places.** First, on the shared `:443`, Xray
+(TCP) and Hysteria2 (UDP) each classify *who's* connecting — a matched VPN client
+gets proxied; an unmatched TLS connection (real visitor or active probe) is
+forwarded to `dest 127.0.0.1:8443`. Second, a matched client's `exit-select`
+decides *where* it leaves: `direct` goes straight out `freedom` at the VPS IP
+(**never touching rathole**), or a named exit makes the VPS dial
+`127.0.0.1:<port>`. rathole itself decides nothing — it's a fixed set of named
+pipes (`https → Traefik`, `exit-home → ss-rust`); the loopback port a flow lands
+on is what picks the pipe.
+
+Tailnet `100.x` isn't drawn here — it rides the same entry transports and the VPS
+dials it locally over `tailscale0`; see [Tailnet over the tunnel](#tailnet-over-the-tunnel-censorship-resistant-100x).
 
 The exit shown is oldboy (which also hosts the reverse-proxied home services),
 but an exit is just `ss-rust + rathole` — a future Hetzner VPS exit is the same
