@@ -30,3 +30,6 @@ mise.local.toml
 
 node_modules
 
+
+# harness-managed agent worktrees
+.claude/worktrees/
