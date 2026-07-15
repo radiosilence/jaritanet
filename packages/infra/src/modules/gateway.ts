@@ -6,6 +6,7 @@ import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { GatewayConfSchema } from "../conf.schemas.ts";
 import { env } from "../env.ts";
+import type { VpnUser } from "../env.schema.ts";
 import { createHysteria } from "./hysteria.ts";
 import { createTailscale } from "./tailscale.ts";
 import { createXray } from "./xray.ts";
@@ -15,9 +16,13 @@ import { createXray } from "./xray.ts";
  * The VPS is completely stateless — no certs, no proxy config.
  * It just tunnels ports 80/443 from the public internet to
  * the rathole client running inside the K8s cluster.
+ *
+ * `users` is the per-user VPN roster threaded into the entry transports (Xray
+ * clients + hy2 userpass); see xray.ts / hysteria.ts for role enforcement.
  */
 export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
+  users: VpnUser[],
   exits: { name: string; port: number }[] = [],
 ) {
   const ratholeToken = new random.RandomPassword("rathole-token", {
@@ -245,11 +250,11 @@ RATHOLE_EOF`,
   );
 
   const xray = gateway.xray
-    ? createXray(connection, server, gateway.xray)
+    ? createXray(connection, server, gateway.xray, users)
     : undefined;
 
   const hysteria = gateway.hysteria
-    ? createHysteria(connection, server, gateway.hysteria)
+    ? createHysteria(connection, server, gateway.hysteria, users)
     : undefined;
 
   // Tailnet relay: only when configured and an auth key is present, so

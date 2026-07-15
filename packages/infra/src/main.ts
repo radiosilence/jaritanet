@@ -2,7 +2,8 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { conf } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
-import { env } from "./env.ts";
+import { env, vpnUsers } from "./env.ts";
+import type { VpnUser } from "./env.schema.ts";
 import { getKubeconfig } from "./kubeconfig.ts";
 import {
   createBlueskyRecords,
@@ -32,11 +33,16 @@ export default async function () {
   let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
   let xray: ReturnType<typeof createGateway>["xray"];
-  let hysteria: ReturnType<typeof createGateway>["hysteria"];
 
-  // sing-box nodes (primary gateway + every edge). Pulumi builds the client
-  // profile from these and delivers it to the file server (see the end).
+  // sing-box nodes (primary gateway + every edge). Pulumi builds a per-user
+  // client profile from these and delivers each to the file server (see the end).
   const nodes: SingboxNode[] = [];
+
+  // The VPN roster. No VPN_USERS → a single implicit owner-admin, so the
+  // multi-user path is exercised uniformly and old single-owner deploys keep
+  // full access. A trailing `+` in the secret marks an admin; the rest are guests.
+  const users: VpnUser[] =
+    vpnUsers.length > 0 ? vpnUsers : [{ name: "owner", role: "admin" }];
 
   // Resolve each exit's loopback port once (derived from the name unless set),
   // so the identical port is used at the gateway bind, ss server, rathole
@@ -57,12 +63,11 @@ export default async function () {
   if (env.HCLOUD_TOKEN) {
     const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
     // Exits surface on the gateway's rathole loopback (name + port).
-    const gw = createGateway(gatewayConf, resolvedExits);
+    const gw = createGateway(gatewayConf, users, resolvedExits);
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     xray = gw.xray;
-    hysteria = gw.hysteria;
 
     // The primary is a node too: clients connect by IP, and its REALITY decoy
     // is its own reverse-proxied site (unlike edges, which use an external one).
@@ -71,8 +76,8 @@ export default async function () {
         name: "primary",
         server: gw.vpsIp,
         hysteria: {
-          authPassword: gw.hysteria.authPassword,
           obfsPassword: gw.hysteria.obfsPassword,
+          passwords: gw.hysteria.passwords,
           port: gatewayConf.hysteria.port,
           sni: gatewayConf.hysteria.sni,
         },
@@ -80,7 +85,7 @@ export default async function () {
           publicKey: gw.xray.publicKey,
           serverName: gatewayConf.xray.serverName,
           shortId: gw.xray.shortId,
-          uuid: gw.xray.uuid,
+          uuids: gw.xray.uuids,
         },
       });
     }
@@ -91,7 +96,7 @@ export default async function () {
       ? pulumi.secret(env.TS_AUTHKEY)
       : undefined;
     for (const edge of conf.edges) {
-      const e = createEdge(edge, edgeAuthKey);
+      const e = createEdge(edge, users, edgeAuthKey);
       const hostname = `${edge.name}.${edge.zone}`;
       const zone = conf.zones.find((z) => z.name === edge.zone);
       if (zone) {
@@ -101,8 +106,8 @@ export default async function () {
         name: edge.name,
         server: hostname,
         hysteria: {
-          authPassword: e.hysteria.authPassword,
           obfsPassword: e.hysteria.obfsPassword,
+          passwords: e.hysteria.passwords,
           port: edge.hysteria.port,
           sni: edge.hysteria.sni,
         },
@@ -110,7 +115,7 @@ export default async function () {
           publicKey: e.xray.publicKey,
           serverName: edge.reality.serverName,
           shortId: e.xray.shortId,
-          uuid: e.xray.uuid,
+          uuids: e.xray.uuids,
         },
       });
     }
@@ -224,7 +229,7 @@ export default async function () {
     env.OLDBOY_HOST &&
     env.SSH_PRIVATE_KEY
   ) {
-    createSingboxDelivery(nodes, {
+    createSingboxDelivery(users, nodes, {
       filesHostname: env.FILES_HOSTNAME,
       magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
       oldboy: {
@@ -249,15 +254,13 @@ export default async function () {
     namespace,
     services: Object.fromEntries(services),
     ...(dnsTarget && { vpsIp: dnsTarget }),
+    // Per-user credentials + share URLs are now delivered as individual sing-box
+    // profiles (see createSingboxDelivery), so only the shared, non-secret
+    // REALITY params are surfaced as stack outputs.
     ...(xray && {
       xrayPublicKey: xray.publicKey,
       xrayServerName: conf.gateway?.xray?.serverName,
-      xrayShareUrl: xray.shareUrl,
       xrayShortId: xray.shortId,
-      xrayUuid: xray.uuid,
-    }),
-    ...(hysteria && {
-      hysteriaShareUrl: hysteria.shareUrl,
     }),
   };
 }

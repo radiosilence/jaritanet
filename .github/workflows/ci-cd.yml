@@ -47,6 +47,8 @@ on:
         required: true
       TS_AUTHKEY:
         required: false
+      VPN_USERS:
+        required: false
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -221,6 +223,9 @@ jobs:
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          # Per-user VPN roster (RBAC). "jc+,guest1" → jc admin, guest1 guest.
+          # Unset → single implicit owner-admin.
+          VPN_USERS: ${{ secrets.VPN_USERS }}
           # sing-box profile: Pulumi generates it and ships it to the file
           # server over SSH (tailnet), notifying Telegram on change. Delivery is
           # skipped if any of the box/slug/hostname/magicdns vars are unset.

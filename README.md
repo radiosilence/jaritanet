@@ -140,9 +140,10 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 
 | Secret | Required | Purpose |
 |---|---|---|
-| `SINGBOX_SLUG` | No | Unguessable path for the hosted client profile |
+| `SINGBOX_SLUG` | No | Base secret for per-user profile paths (each user's slug is derived from it) |
 | `TAILNET_MAGICDNS_SUFFIX` | No | Tailnet MagicDNS suffix baked into the profile |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | No | Telegram bot + chat for the profile URL/QR notify |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | No | Telegram bot + chat for the per-user profile URL notify |
+| `VPN_USERS` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin. E.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 
 **Ansible / server provisioning (`run-playbook.yml`)**
 

@@ -316,9 +316,9 @@ jaritanet:edges:
 On the next deploy each edge gets a server, a firewall (22 + 443 only), a
 `<name>.<zone>` A record (default zone `radiosilence.dev`), and joins the
 tailnet as `jaritanet-<name>`. Every node — primary + edges — feeds Pulumi's
-`buildProfile`, which renders one profile with a **location picker**; Pulumi
-writes it to the file server (change-detected by content hash) and pushes the
-updated URL/QR to Telegram. So: edit config, push, get a working URL.
+`buildProfile`, which renders a per-user profile with a **location picker**;
+Pulumi writes each to the file server (change-detected by content hash) and
+pushes every user's URL to Telegram. So: edit config, push, get a working URL.
 
 With multiple gateways, `entry-select` becomes nested: it chooses `auto-all`
 (fastest node anywhere) or a per-host group. Each host is its own selector
@@ -382,6 +382,47 @@ which is the home link. Topology is a pure function of the config lists,
 expanded at `pulumi up`. (Making exits reachable via *any* gateway — the full
 entry × exit cross-product — needs edges to also run rathole; deferred. When
 multiple rathole gateways exist, `port` must be identical across them.)
+
+## Multi-user access (admin / guest)
+
+The VPN is multi-tenant. The `VPN_USERS` GitHub secret is one comma-separated
+list where a trailing `+` marks an admin — `jc+,guest1` → `jc` admin, `guest1`
+guest. `env.ts` parses it into `{name, role}[]`; unset falls back to a single
+implicit owner-admin, so pre-RBAC deploys keep full access. Each user gets their
+own credentials and their own sing-box profile at `.sfm/<per-user-slug>.json`
+(slug derived from the base `SINGBOX_SLUG` + name — deterministic, so no orphans,
+but unguessable). Removing a user from the secret and redeploying deletes their
+profile file (each delivery is a Pulumi resource with a `delete` that unlinks it)
+and drops their credentials — a hard revoke.
+
+| | Admin | Guest |
+|---|---|---|
+| Reality (Xray) | ✅ | ✅ |
+| Hysteria2 | ✅ | ❌ |
+| Exits | all | none (direct egress only) |
+| Tailnet `100.x` | ✅ | ❌ (blackholed) |
+
+**Enforcement is server-side, not profile-shaped.** A guest could hand-edit
+their profile JSON; the restrictions still hold because they live at the gateway:
+
+- **Guests are reality-only by design** — and that's what makes the rest hard.
+  Reality is their sole entry, and Xray tags each inbound flow with the client's
+  `email` (= user name), so per-user routing rules are airtight. hy2 has no such
+  per-user routing, so giving guests hy2 would open an unpoliced door — hence
+  they get none (no hy2 credential exists for them).
+- **Identity + revocation** — one REALITY UUID per user in Xray's `clients`;
+  admins additionally in hy2's `userpass` map. Drop the user → the credential
+  vanishes → locked out. Since exits and tailnet are only reachable *through* an
+  entry, killing the entry kills everything downstream.
+- **Exits** — gated by the ss-rust PSK, which is simply omitted from guest
+  profiles, so a guest has no exit outbound to select even if they edit the JSON.
+- **Tailnet + exit loopbacks** — an Xray routing rule blackholes guest emails'
+  flows to `100.64.0.0/10` (+ the v6 ULA) and to `127.0.0.0/8:20000-29999` (the
+  exit loopback range). Belt-and-braces on top of the PSK omission.
+
+Delivery is owner-relayed: a bot can't cold-DM a handle, so on change the owner
+gets one Telegram message grouping users under Admins / Guests, each URL a
+tap-to-copy `<code>` block plus a `copy_text` inline-keyboard button.
 
 ## Hardening notes
 

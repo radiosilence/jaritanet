@@ -5,6 +5,7 @@ import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { EdgeConfSchema } from "../conf.schemas.ts";
 import { XrayConfSchema } from "../conf.schemas.ts";
+import type { VpnUser } from "../env.schema.ts";
 import { createHysteria } from "./hysteria.ts";
 import { createTailscale } from "./tailscale.ts";
 import { createXray } from "./xray.ts";
@@ -26,6 +27,7 @@ import { createXray } from "./xray.ts";
  */
 export function createEdge(
   edge: z.infer<typeof EdgeConfSchema>,
+  users: VpnUser[],
   authKey: pulumi.Output<string> | undefined,
 ) {
   const { name } = edge;
@@ -94,7 +96,13 @@ sysctl --system`,
     { dependsOn: [server] },
   );
 
-  const hysteria = createHysteria(connection, server, edge.hysteria, name);
+  const hysteria = createHysteria(
+    connection,
+    server,
+    edge.hysteria,
+    users,
+    name,
+  );
 
   // REALITY with an external decoy — parse through XrayConfSchema so the pinned
   // xray version default applies.
@@ -105,6 +113,7 @@ sysctl --system`,
       dest: edge.reality.dest,
       serverName: edge.reality.serverName,
     }),
+    users,
     name,
   );
 
