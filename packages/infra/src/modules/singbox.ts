@@ -182,7 +182,10 @@ export function buildProfile(
   for (const n of nodes) {
     outbounds.push(reality(n, n.reality.uuids[user.name]));
     if (isAdmin) {
-      const pw = n.hysteria.passwords[user.name];
+      // hy2's server auth is `userpass`, so the client's password must be
+      // `<name>:<password>` — the server splits on the first colon to look the
+      // user up. Sending the bare password fails auth for every admin.
+      const pw = `${user.name}:${n.hysteria.passwords[user.name]}`;
       outbounds.push(hy2(n, pw), hy2Brutal(n, pw));
     }
   }
