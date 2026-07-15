@@ -423,13 +423,23 @@ export function createSingboxDelivery(
     const slug = userSlug(opts.slug, user.name);
     const dest = `${destDir}/${slug}.json`;
 
-    const write = new command.remote.Command(`singbox-profile-${user.name}`, {
-      connection,
-      create: `mkdir -p ${destDir} && cat > ${dest} && chmod 644 ${dest}`,
-      delete: `rm -f ${dest}`,
-      stdin: profileJson,
-      triggers: [profileHash],
-    });
+    const write = new command.remote.Command(
+      `singbox-profile-${user.name}`,
+      {
+        connection,
+        create: `mkdir -p ${destDir} && cat > ${dest} && chmod 644 ${dest}`,
+        delete: `rm -f ${dest}`,
+        stdin: profileJson,
+        triggers: [profileHash],
+      },
+      // `dest` is a deterministic per-user path, so a content change *replaces*
+      // this resource. Delete-before-replace is mandatory: the default
+      // (create-then-delete) would write the new profile and then `rm` the same
+      // path when deleting the old resource — silently clobbering it. Deleting
+      // first keeps the file present after a content change, while user removal
+      // still revokes it.
+      { deleteBeforeReplace: true },
+    );
 
     return {
       user,
