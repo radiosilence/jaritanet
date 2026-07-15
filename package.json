@@ -29,14 +29,12 @@
     "@pulumi/pulumi": "3.239.0",
     "@pulumi/random": "4.20.0",
     "@pulumi/tls": "5.4.0",
-    "qrcode": "1.5.4",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@tsconfig/node-ts": "23.6.4",
     "@tsconfig/node24": "24.0.4",
     "@types/node": "25.8.0",
-    "@types/qrcode": "1.5.6",
     "@vitest/ui": "4.1.6",
     "lefthook": "2.1.6",
     "oxfmt": "0.49.0",

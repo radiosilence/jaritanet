@@ -4,6 +4,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { HysteriaConfSchema } from "../conf.schemas.ts";
+import type { VpnUser } from "../env.schema.ts";
 import { type Connection, resourcePrefix } from "./vps.ts";
 
 /**
@@ -12,21 +13,39 @@ import { type Connection, resourcePrefix } from "./vps.ts";
  * Unlike the TCP-based Reality path, Hysteria2 runs over QUIC with
  * loss-tolerant congestion control, so it stays smooth on lossy/jittery
  * links where TCP-over-TCP melts down. Salamander obfuscation scrambles
- * the QUIC so DPI can't fingerprint it. Auth + obfs passwords are Pulumi
- * secrets; the TLS cert is a self-signed keypair minted on the box that
- * clients trust via insecure + pinned SNI. Returns a share URL for clients.
+ * the QUIC so DPI can't fingerprint it. hy2 is admin-only: auth is a per-admin
+ * `userpass` map, so a guest has no credential here at all (their sole entry is
+ * reality — that's what makes the guest tailnet block enforceable). The obfs
+ * password is server-wide; the TLS cert is a self-signed keypair minted on the
+ * box that clients trust via insecure + pinned SNI. Returns the per-admin auth
+ * passwords + the shared obfs password for the client profile.
  */
 export function createHysteria(
   connection: Connection,
   server: hcloud.Server,
   hysteria: z.infer<typeof HysteriaConfSchema>,
+  users: VpnUser[],
   name = "",
 ) {
   const p = resourcePrefix(name);
-  const authPassword = new random.RandomPassword(`${p}hysteria-auth`, {
-    length: 32,
-    special: false,
-  });
+  const admins = users.filter((u) => u.role === "admin");
+  const authByAdmin = admins.map((a) => ({
+    name: a.name,
+    password: new random.RandomPassword(`${p}hysteria-auth-${a.name}`, {
+      length: 32,
+      special: false,
+    }),
+  }));
+  const passwords: Record<string, pulumi.Output<string>> = {};
+  for (const a of authByAdmin) passwords[a.name] = a.password.result;
+
+  // YAML userpass block: "  <name>: <password>" per admin, resolved together.
+  const userpassBlock = pulumi
+    .all(authByAdmin.map((a) => a.password.result))
+    .apply((pws) =>
+      authByAdmin.map((a, i) => `    ${a.name}: ${pws[i]}`).join("\n"),
+    );
+
   const obfsPassword = new random.RandomPassword(`${p}hysteria-obfs`, {
     length: 32,
     special: false,
@@ -69,13 +88,14 @@ obfs:
   salamander:
     password: ${obfsPassword.result}
 auth:
-  type: password
-  password: ${authPassword.result}
+  type: userpass
+  userpass:
+${userpassBlock}
 HY_EOF
 systemctl enable hysteria-server
 systemctl restart hysteria-server`,
       triggers: [
-        authPassword.result,
+        userpassBlock,
         obfsPassword.result,
         pulumi.interpolate`${hysteria.port}`,
       ],
@@ -83,13 +103,9 @@ systemctl restart hysteria-server`,
     { dependsOn: [install] },
   );
 
-  // hysteria2:// share URL for client import.
-  const shareUrl = pulumi.interpolate`hysteria2://${authPassword.result}@${connection.host}:${hysteria.port}/?obfs=salamander&obfs-password=${obfsPassword.result}&sni=${hysteria.sni}&insecure=1#jaritanet`;
-
   return {
-    authPassword: authPassword.result,
     config,
     obfsPassword: obfsPassword.result,
-    shareUrl: pulumi.secret(shareUrl),
+    passwords,
   };
 }
