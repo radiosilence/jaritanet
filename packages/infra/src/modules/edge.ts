@@ -1,4 +1,3 @@
-import * as command from "@pulumi/command";
 import * as hcloud from "@pulumi/hcloud";
 import type * as pulumi from "@pulumi/pulumi";
 import * as tls from "@pulumi/tls";
@@ -7,6 +6,7 @@ import type { EdgeConfSchema } from "../conf.schemas.ts";
 import { XrayConfSchema } from "../conf.schemas.ts";
 import { createHysteria } from "./hysteria.ts";
 import { createTailscale } from "./tailscale.ts";
+import { createNetworkTuning, inboundRule } from "./vps.ts";
 import { createXray } from "./xray.ts";
 
 /**
@@ -40,27 +40,9 @@ export function createEdge(
 
   const firewall = new hcloud.Firewall(name, {
     rules: [
-      {
-        description: "SSH",
-        direction: "in",
-        port: "22",
-        protocol: "tcp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
-      {
-        description: "HTTPS / REALITY",
-        direction: "in",
-        port: "443",
-        protocol: "tcp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
-      {
-        description: "Hysteria2 QUIC",
-        direction: "in",
-        port: String(edge.hysteria.port),
-        protocol: "udp",
-        sourceIps: ["0.0.0.0/0", "::/0"],
-      },
+      inboundRule("SSH", 22),
+      inboundRule("HTTPS / REALITY", 443),
+      inboundRule("Hysteria2 QUIC", edge.hysteria.port, "udp"),
     ],
   });
 
@@ -78,21 +60,7 @@ export function createEdge(
     user: "root",
   };
 
-  // BBR + fq: cubic collapses on packet loss; BBR holds the pipe open, which
-  // is what the hy2/reality traffic rides over. Same tuning as the gateway.
-  new command.remote.Command(
-    `${name}-network-tuning`,
-    {
-      connection,
-      create: `cat > /etc/sysctl.d/99-network-tuning.conf << 'EOF'
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-EOF
-sysctl --system`,
-      triggers: ["bbr-fq-v1"],
-    },
-    { dependsOn: [server] },
-  );
+  createNetworkTuning(name, connection, server);
 
   const hysteria = createHysteria(connection, server, edge.hysteria, name);
 
