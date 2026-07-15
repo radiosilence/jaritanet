@@ -172,24 +172,8 @@ systemctl restart xray`,
     { dependsOn: [publicKey] },
   );
 
-  // TEMP diagnostic (issue #99): surface the xray journal so the real REALITY
-  // rejection reason is visible in the deploy log / `pulumi stack output`.
-  // Non-secret (warning-level logs, no keys). Re-runs on every config change.
-  // REMOVE before final merge.
-  const journal = new command.remote.Command(
-    `${p}xray-journal`,
-    {
-      connection,
-      create:
-        "sleep 2; echo \"active=$(systemctl is-active xray)\"; echo '--- journal ---'; journalctl -u xray -n 150 --no-pager 2>&1 | tail -c 8000",
-      triggers: [config.id],
-    },
-    { dependsOn: [config] },
-  );
-
   return {
     config,
-    journal: journal.stdout,
     publicKey: publicKey.stdout,
     shortId: shortId.hex,
     uuids,
