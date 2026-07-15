@@ -30,8 +30,8 @@ flowchart TD
   end
 
   subgraph rh["rathole tunnel — single connection, multiplexed services"]
-    HTTPS_P["https service<br/>127.0.0.1:8443 (loopback)"]
-    EXIT_P["exit-home service<br/>127.0.0.1:9000 (loopback)"]
+    HTTPS_P["https service<br/>127.0.0.1:8443"]
+    EXIT_P["exit-home service<br/>127.0.0.1:9000"]
     RC["rathole client<br/>(home k8s)"]
     HTTPS_P -.-> RC
     EXIT_P -.-> RC
@@ -79,11 +79,11 @@ exit has the VPS dial `127.0.0.1:<port>`. rathole performs no routing — it
 exposes a fixed set of named services (`https → Traefik`, `exit-home → ss-rust`),
 and the loopback port a connection arrives on selects the service. All services
 share a single rathole tunnel, one outbound connection from the home client to
-the VPS, rather than one tunnel per service. Both service binds (`:8443`,
-`:9000`) listen on loopback and are absent from the firewall's inbound allow-list
-(`22`, `80`, `443`, `2333`, Hysteria2 UDP), so neither is reachable from the
-internet: Xray reaches `:8443` locally, and an exit request reaches `:9000` only
-after arriving through the tunnel.
+the VPS, rather than one tunnel per service. Both service binds
+(`127.0.0.1:8443`, `127.0.0.1:9000`) are loopback and absent from the firewall's
+inbound allow-list (`:22`, `:80`, `:443`, `:2333`, Hysteria2 UDP), so neither is
+reachable from the internet: Xray reaches `127.0.0.1:8443` locally, and an exit
+request reaches `127.0.0.1:9000` only after arriving through the tunnel.
 
 Tailnet `100.x` isn't drawn here — it rides the same entry transports and the VPS
 dials it locally over `tailscale0`; see [Tailnet over the tunnel](#tailnet-over-the-tunnel-censorship-resistant-100x).
