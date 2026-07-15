@@ -81,6 +81,13 @@ const HY2_DOWN_MBPS = 1000;
 // packets, so on unknown networks this maximises *real* throughput + latency.
 const TUN_MTU = 1280;
 
+// Force-rewrite lever for the delivered profiles. Part of every profile's
+// triggers, so bumping it re-writes all of them on the next deploy. Needed when
+// the on-disk files drift from Pulumi's state — e.g. after the create-before-
+// delete clobber bug rm'd them while state still thought they existed. Bump to
+// recover; leave it otherwise (content changes trigger rewrites on their own).
+const PROFILE_REV = "2";
+
 const hy2 = (n: ResolvedNode, password: string) => ({
   type: "hysteria2",
   tag: `hy2-${n.name}`,
@@ -430,7 +437,7 @@ export function createSingboxDelivery(
         create: `mkdir -p ${destDir} && cat > ${dest} && chmod 644 ${dest}`,
         delete: `rm -f ${dest}`,
         stdin: profileJson,
-        triggers: [profileHash],
+        triggers: [profileHash, PROFILE_REV],
       },
       // `dest` is a deterministic per-user path, so a content change *replaces*
       // this resource. Delete-before-replace is mandatory: the default
