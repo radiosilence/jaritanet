@@ -1,10 +1,31 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as z from "zod";
+import type { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import type { ServiceArgsSchema } from "./service.schemas.ts";
 
 const annotations = {
   "pulumi.com/skipAwait": "false",
 };
+
+// A k8s httpGet probe from the health-check config. Liveness/readiness/startup
+// share the same shape; startup passes a larger failureThreshold to tolerate a
+// slow first boot.
+const probe = (
+  hc: z.infer<typeof HealthCheckConfigSchema>,
+  httpPort: number,
+  failureThreshold = hc.failureThreshold,
+) => ({
+  httpGet: {
+    path: hc.path,
+    port: hc.port ?? httpPort,
+    ...(hc.httpHeaders.length > 0 && { httpHeaders: hc.httpHeaders }),
+  },
+  initialDelaySeconds: hc.initialDelaySeconds,
+  periodSeconds: hc.periodSeconds,
+  timeoutSeconds: hc.timeoutSeconds,
+  failureThreshold,
+  successThreshold: hc.successThreshold,
+});
 
 export function createService(
   provider: k8s.Provider,
@@ -118,6 +139,26 @@ export function createService(
     { provider },
   );
 
+  const probes = healthCheck
+    ? {
+        ...(healthCheck.enableLiveness && {
+          livenessProbe: probe(healthCheck, httpPort),
+        }),
+        ...(healthCheck.enableReadiness && {
+          readinessProbe: probe(healthCheck, httpPort),
+        }),
+        // Startup gets 3× the failure budget (min 30) so a cold boot isn't
+        // killed before it's ready.
+        ...(healthCheck.enableStartup && {
+          startupProbe: probe(
+            healthCheck,
+            httpPort,
+            Math.max(healthCheck.failureThreshold * 3, 30),
+          ),
+        }),
+      }
+    : {};
+
   new k8s.apps.v1.Deployment(
     `${serviceName}-deployment`,
     {
@@ -140,7 +181,7 @@ export function createService(
               {
                 name: serviceName,
                 image: `${image.repository}:${image.tag}`,
-                imagePullPolicy: "Always",
+                imagePullPolicy: image.pullPolicy ?? "Always",
                 ports: [
                   { name: "http", containerPort: httpPort },
                   ...ports.map(([hostPort, containerPort]) => ({
@@ -165,59 +206,7 @@ export function createService(
                     readOnly,
                   })),
                 ],
-                ...(healthCheck && {
-                  ...(healthCheck.enableLiveness && {
-                    livenessProbe: {
-                      httpGet: {
-                        path: healthCheck.path,
-                        port: healthCheck.port ?? httpPort,
-                        ...(healthCheck.httpHeaders.length > 0 && {
-                          httpHeaders: healthCheck.httpHeaders,
-                        }),
-                      },
-                      initialDelaySeconds: healthCheck.initialDelaySeconds,
-                      periodSeconds: healthCheck.periodSeconds,
-                      timeoutSeconds: healthCheck.timeoutSeconds,
-                      failureThreshold: healthCheck.failureThreshold,
-                      successThreshold: healthCheck.successThreshold,
-                    },
-                  }),
-                  ...(healthCheck.enableReadiness && {
-                    readinessProbe: {
-                      httpGet: {
-                        path: healthCheck.path,
-                        port: healthCheck.port ?? httpPort,
-                        ...(healthCheck.httpHeaders.length > 0 && {
-                          httpHeaders: healthCheck.httpHeaders,
-                        }),
-                      },
-                      initialDelaySeconds: healthCheck.initialDelaySeconds,
-                      periodSeconds: healthCheck.periodSeconds,
-                      timeoutSeconds: healthCheck.timeoutSeconds,
-                      failureThreshold: healthCheck.failureThreshold,
-                      successThreshold: healthCheck.successThreshold,
-                    },
-                  }),
-                  ...(healthCheck.enableStartup && {
-                    startupProbe: {
-                      httpGet: {
-                        path: healthCheck.path,
-                        port: healthCheck.port ?? httpPort,
-                        ...(healthCheck.httpHeaders.length > 0 && {
-                          httpHeaders: healthCheck.httpHeaders,
-                        }),
-                      },
-                      initialDelaySeconds: healthCheck.initialDelaySeconds,
-                      periodSeconds: healthCheck.periodSeconds,
-                      timeoutSeconds: healthCheck.timeoutSeconds,
-                      failureThreshold: Math.max(
-                        healthCheck.failureThreshold * 3,
-                        30,
-                      ),
-                      successThreshold: healthCheck.successThreshold,
-                    },
-                  }),
-                }),
+                ...probes,
                 securityContext: {
                   allowPrivilegeEscalation: false,
                 },

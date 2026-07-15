@@ -5,12 +5,7 @@ import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { XrayConfSchema } from "../conf.schemas.ts";
 import type { VpnUser } from "../env.schema.ts";
-
-type Connection = {
-  host: pulumi.Output<string>;
-  privateKey: pulumi.Output<string>;
-  user: string;
-};
+import { type Connection, resourcePrefix } from "./vps.ts";
 
 // Exit ss-rust loopbacks live in this range (see deriveExitPort in exit.ts).
 // Guests are blackholed to it at the Xray layer — belt-and-braces on top of the
@@ -36,9 +31,7 @@ export function createXray(
   users: VpnUser[],
   name = "",
 ) {
-  // Empty name = the primary gateway, keeping its original resource names so
-  // Pulumi doesn't replace the live box. Edges pass a name → prefixed names.
-  const p = name ? `${name}-` : "";
+  const p = resourcePrefix(name);
   const shortId = new random.RandomId(`${p}xray-short-id`, { byteLength: 8 });
 
   // One UUID per user, keyed on the (stable) user name so adding/removing a user

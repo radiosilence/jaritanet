@@ -5,12 +5,7 @@ import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { HysteriaConfSchema } from "../conf.schemas.ts";
 import type { VpnUser } from "../env.schema.ts";
-
-type Connection = {
-  host: pulumi.Output<string>;
-  privateKey: pulumi.Output<string>;
-  user: string;
-};
+import { type Connection, resourcePrefix } from "./vps.ts";
 
 /**
  * Provisions Hysteria2 (QUIC/UDP) on the gateway VPS.
@@ -32,9 +27,7 @@ export function createHysteria(
   users: VpnUser[],
   name = "",
 ) {
-  // Empty name = the primary gateway, keeping its original resource names so
-  // Pulumi doesn't replace the live box. Edges pass a name → prefixed names.
-  const p = name ? `${name}-` : "";
+  const p = resourcePrefix(name);
   const admins = users.filter((u) => u.role === "admin");
   const authByAdmin = admins.map((a) => ({
     name: a.name,

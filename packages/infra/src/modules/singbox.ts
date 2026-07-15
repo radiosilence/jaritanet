@@ -2,6 +2,7 @@ import * as crypto from "node:crypto";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "../env.schema.ts";
+import { sha256hex } from "../util.ts";
 
 /**
  * One node in the client profile — the primary gateway or an edge. Credentials
@@ -414,9 +415,7 @@ export function createSingboxDelivery(
           2,
         ),
       );
-    const profileHash = profileJson.apply((s) =>
-      crypto.createHash("sha256").update(s).digest("hex"),
-    );
+    const profileHash = sha256hex(profileJson);
 
     const slug = userSlug(opts.slug, user.name);
     const dest = `${destDir}/${slug}.json`;
@@ -450,11 +449,9 @@ export function createSingboxDelivery(
           })),
         ),
       );
-    const notifyHash = pulumi
-      .all(delivered.map((d) => d.profileHash))
-      .apply((hashes) =>
-        crypto.createHash("sha256").update(hashes.join()).digest("hex"),
-      );
+    const notifyHash = sha256hex(
+      pulumi.all(delivered.map((d) => d.profileHash)).apply((h) => h.join()),
+    );
     new command.local.Command(
       "singbox-notify",
       {
