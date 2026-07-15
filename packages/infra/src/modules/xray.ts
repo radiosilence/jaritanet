@@ -4,7 +4,13 @@ import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { XrayConfSchema } from "../conf.schemas.ts";
+import type { VpnUser } from "../env.schema.ts";
 import { type Connection, resourcePrefix } from "./vps.ts";
+
+// Exit ss-rust loopbacks live in this range (see deriveExitPort in exit.ts).
+// Guests are blackholed to it at the Xray layer — belt-and-braces on top of the
+// ss PSK being omitted from their profile.
+const EXIT_PORT_RANGE = "20000-29999";
 
 /**
  * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
@@ -12,18 +18,61 @@ import { type Connection, resourcePrefix } from "./vps.ts";
  * Xray takes :443; traffic that doesn't match a client is relayed to `dest`
  * (the local rathole https port → in-cluster Traefik), matched clients are
  * proxied out. Keys are minted on first boot and never leave the box: the
- * x25519 private key stays in /usr/local/etc/xray and the UUID + shortId
- * are Pulumi secrets. Returns a vless:// share URL for client import.
+ * x25519 private key stays in /usr/local/etc/xray, and one REALITY UUID is
+ * minted per user (`email: <name>`) so a user is revoked by dropping them from
+ * the clients list. Guests (reality-only) are blackholed server-side to the
+ * tailnet CIDR and the exit loopbacks — a hard block, not a profile omission.
+ * Returns the shared REALITY params plus each user's per-node UUID.
  */
 export function createXray(
   connection: Connection,
   server: hcloud.Server,
   xray: z.infer<typeof XrayConfSchema>,
+  users: VpnUser[],
   name = "",
 ) {
   const p = resourcePrefix(name);
-  const uuid = new random.RandomUuid(`${p}xray-uuid`);
   const shortId = new random.RandomId(`${p}xray-short-id`, { byteLength: 8 });
+
+  // One UUID per user, keyed on the (stable) user name so adding/removing a user
+  // only churns that user's resource. `email` tags the client for routing rules.
+  const clients = users.map((u) => ({
+    role: u.role,
+    name: u.name,
+    uuid: new random.RandomUuid(`${p}xray-uuid-${u.name}`),
+  }));
+  const uuids: Record<string, pulumi.Output<string>> = {};
+  for (const c of clients) uuids[c.name] = c.uuid.result;
+
+  const clientsJson = pulumi
+    .all(clients.map((c) => c.uuid.result))
+    .apply((ids) =>
+      JSON.stringify(
+        clients.map((c, i) => ({
+          id: ids[i],
+          email: c.name,
+          flow: "xtls-rprx-vision",
+        })),
+      ),
+    );
+
+  // Guest hard-block: reality is their only entry, so a routing rule keyed on
+  // their client email is airtight. Two rules — the tailnet mesh and the exit
+  // loopbacks — both to a blackhole outbound. Admins are unrestricted.
+  const guests = clients.filter((c) => c.role === "guest").map((c) => c.name);
+  const guestsList = JSON.stringify(guests);
+  const routingBlock = guests.length
+    ? `,
+  "routing": {
+    "rules": [
+      { "user": ${guestsList}, "ip": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"], "outboundTag": "block" },
+      { "user": ${guestsList}, "ip": ["127.0.0.0/8"], "port": "${EXIT_PORT_RANGE}", "outboundTag": "block" }
+    ]
+  }`
+    : "";
+  const blackhole = guests.length
+    ? `, { "protocol": "blackhole", "tag": "block" }`
+    : "";
 
   const install = new command.remote.Command(
     `${p}xray-install`,
@@ -77,7 +126,7 @@ cat > /usr/local/etc/xray/config.json << XRAY_EOF
       "port": 443,
       "protocol": "vless",
       "settings": {
-        "clients": [{ "id": "${uuid.result}", "flow": "xtls-rprx-vision" }],
+        "clients": ${clientsJson},
         "decryption": "none"
       },
       "streamSettings": {
@@ -94,12 +143,13 @@ cat > /usr/local/etc/xray/config.json << XRAY_EOF
       }
     }
   ],
-  "outbounds": [{ "protocol": "freedom" }]
+  "outbounds": [{ "protocol": "freedom" }${blackhole}]${routingBlock}
 }
 XRAY_EOF
 systemctl restart xray`,
       triggers: [
-        uuid.result,
+        clientsJson,
+        guestsList,
         shortId.hex,
         xray.serverName,
         xray.dest,
@@ -109,14 +159,10 @@ systemctl restart xray`,
     { dependsOn: [publicKey] },
   );
 
-  // vless:// share URL for client import.
-  const shareUrl = pulumi.interpolate`vless://${uuid.result}@${connection.host}:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${xray.serverName}&fp=chrome&pbk=${publicKey.stdout}&sid=${shortId.hex}&type=tcp#jaritanet`;
-
   return {
     config,
     publicKey: publicKey.stdout,
-    shareUrl: pulumi.secret(shareUrl),
     shortId: shortId.hex,
-    uuid: uuid.result,
+    uuids,
   };
 }

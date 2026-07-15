@@ -1,14 +1,21 @@
+import * as crypto from "node:crypto";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
+import type { VpnUser } from "../env.schema.ts";
 import { sha256hex } from "../util.ts";
 
-/** One node in the client profile — the primary gateway or an edge. */
+/**
+ * One node in the client profile — the primary gateway or an edge. Credentials
+ * are per-user: `reality.uuids[name]` for every user, `hysteria.passwords[name]`
+ * for admins only (guests have no hy2 credential). The obfs password is
+ * server-wide.
+ */
 export type SingboxNode = {
   name: string;
   server: pulumi.Input<string>;
   hysteria: {
-    authPassword: pulumi.Input<string>;
     obfsPassword: pulumi.Input<string>;
+    passwords: Record<string, pulumi.Input<string>>;
     port: number;
     sni: string;
   };
@@ -16,7 +23,7 @@ export type SingboxNode = {
     publicKey: pulumi.Input<string>;
     serverName: string;
     shortId: pulumi.Input<string>;
-    uuid: pulumi.Input<string>;
+    uuids: Record<string, pulumi.Input<string>>;
   };
 };
 
@@ -25,8 +32,8 @@ type ResolvedNode = {
   name: string;
   server: string;
   hysteria: {
-    authPassword: string;
     obfsPassword: string;
+    passwords: Record<string, string>;
     port: number;
     sni: string;
   };
@@ -34,7 +41,7 @@ type ResolvedNode = {
     publicKey: string;
     serverName: string;
     shortId: string;
-    uuid: string;
+    uuids: Record<string, string>;
   };
 };
 
@@ -74,28 +81,28 @@ const HY2_DOWN_MBPS = 1000;
 // packets, so on unknown networks this maximises *real* throughput + latency.
 const TUN_MTU = 1280;
 
-const hy2 = (n: ResolvedNode) => ({
+const hy2 = (n: ResolvedNode, password: string) => ({
   type: "hysteria2",
   tag: `hy2-${n.name}`,
   server: n.server,
   server_port: n.hysteria.port,
-  password: n.hysteria.authPassword,
+  password,
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
   tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
 });
 // Same endpoint, but with bandwidth hints → Brutal. Manual-pick only.
-const hy2Brutal = (n: ResolvedNode) => ({
-  ...hy2(n),
+const hy2Brutal = (n: ResolvedNode, password: string) => ({
+  ...hy2(n, password),
   tag: `hy2b-${n.name}`,
   up_mbps: HY2_UP_MBPS,
   down_mbps: HY2_DOWN_MBPS,
 });
-const reality = (n: ResolvedNode) => ({
+const reality = (n: ResolvedNode, uuid: string) => ({
   type: "vless",
   tag: `reality-${n.name}`,
   server: n.server,
   server_port: 443,
-  uuid: n.reality.uuid,
+  uuid,
   flow: "xtls-rprx-vision",
   tls: {
     enabled: true,
@@ -141,50 +148,68 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  * **primary** gateway (the only rathole node) — the inner address resolves at
  * the primary end, hitting that exit's rathole loopback. Exits therefore always
  * transit the primary, regardless of the `entry-select` pick for direct egress.
+ *
+ * Per-user + role-aware: reality outbounds use the user's own UUID; admins also
+ * get hy2/hy2b (their per-node password) and the exit axis; guests are
+ * reality-only with direct egress (no hy2, no exits) — and their exit/tailnet
+ * access is additionally blackholed server-side, so the profile shape is a
+ * convenience, not the security boundary.
  */
 export function buildProfile(
+  user: VpnUser,
   nodes: ResolvedNode[],
   magicdnsSuffix: string,
   exits: ResolvedExit[] = [],
 ) {
+  const isAdmin = user.role === "admin";
+  // Guests get no exit axis — the ss PSK is never in their profile anyway.
+  const effExits = isAdmin ? exits : [];
+
+  // Transports available to this user per node: reality always; hy2 admin-only.
+  const autoTags = (n: ResolvedNode) =>
+    isAdmin ? [`hy2-${n.name}`, `reality-${n.name}`] : [`reality-${n.name}`];
+  const pickTags = (n: ResolvedNode) =>
+    isAdmin
+      ? [
+          `auto-${n.name}`,
+          `hy2-${n.name}`,
+          `hy2b-${n.name}`,
+          `reality-${n.name}`,
+        ]
+      : [`reality-${n.name}`];
+
   const outbounds: Record<string, unknown>[] = [];
   for (const n of nodes) {
-    outbounds.push(hy2(n), reality(n), hy2Brutal(n));
+    outbounds.push(reality(n, n.reality.uuids[user.name]));
+    if (isAdmin) {
+      const pw = n.hysteria.passwords[user.name];
+      outbounds.push(hy2(n, pw), hy2Brutal(n, pw));
+    }
   }
   if (nodes.length === 1) {
     const t = nodes[0].name;
-    outbounds.push(urltest("auto", [`hy2-${t}`, `reality-${t}`]));
-    outbounds.push(
-      selector(
-        "entry-select",
-        ["auto", `hy2-${t}`, `hy2b-${t}`, `reality-${t}`],
-        "auto",
-      ),
-    );
-  } else {
-    for (const n of nodes) {
-      outbounds.push(
-        urltest(`auto-${n.name}`, [`hy2-${n.name}`, `reality-${n.name}`]),
-      );
+    if (isAdmin) {
+      outbounds.push(urltest("auto", [`hy2-${t}`, `reality-${t}`]));
       outbounds.push(
         selector(
-          n.name,
-          [
-            `auto-${n.name}`,
-            `hy2-${n.name}`,
-            `hy2b-${n.name}`,
-            `reality-${n.name}`,
-          ],
-          `auto-${n.name}`,
+          "entry-select",
+          ["auto", `hy2-${t}`, `hy2b-${t}`, `reality-${t}`],
+          "auto",
         ),
       );
+    } else {
+      // Reality-only: no urltest to pick between transports, so entry-select is
+      // just the single reality outbound.
+      outbounds.push(
+        selector("entry-select", [`reality-${t}`], `reality-${t}`),
+      );
     }
-    outbounds.push(
-      urltest(
-        "auto-all",
-        nodes.flatMap((n) => [`hy2-${n.name}`, `reality-${n.name}`]),
-      ),
-    );
+  } else {
+    for (const n of nodes) {
+      outbounds.push(urltest(`auto-${n.name}`, autoTags(n)));
+      outbounds.push(selector(n.name, pickTags(n), `auto-${n.name}`));
+    }
+    outbounds.push(urltest("auto-all", nodes.flatMap(autoTags)));
     outbounds.push(
       selector(
         "entry-select",
@@ -196,7 +221,7 @@ export function buildProfile(
 
   // The exit axis only exists when there are exits — otherwise routing points
   // straight at entry-select (direct egress, no extra groups).
-  if (exits.length) {
+  if (effExits.length) {
     // Exits pin to the PRIMARY gateway (nodes[0]) — the only node running
     // rathole, so the only one exposing the exit loopbacks. Edges (also in
     // entry-select) run hy2/reality only; detouring an exit through an edge
@@ -206,7 +231,7 @@ export function buildProfile(
     // Each exit: a Shadowsocks outbound dialled through the primary. The
     // 127.0.0.1:<port> resolves at the primary → its rathole loopback → the
     // exit's ss-rust → egress at the exit's own IP.
-    for (const e of exits) {
+    for (const e of effExits) {
       outbounds.push({
         type: "shadowsocks",
         tag: `exit-${e.name}`,
@@ -226,13 +251,13 @@ export function buildProfile(
     outbounds.push(
       selector(
         "exit-select",
-        ["exit-direct", ...exits.map((e) => `exit-${e.name}`)],
+        ["exit-direct", ...effExits.map((e) => `exit-${e.name}`)],
         "exit-direct",
       ),
     );
   }
 
-  const finalOutbound = exits.length ? "exit-select" : "entry-select";
+  const finalOutbound = effExits.length ? "exit-select" : "entry-select";
 
   return {
     log: { level: "info", timestamp: true },
@@ -341,62 +366,106 @@ type DeliveryOpts = {
 };
 
 /**
- * Generates the profile and delivers it to the file server, replacing the old
- * ansible role. The `sha256(profile)` trigger is the change-detection: the
- * write only re-runs when the rendered profile actually changes, and the
- * Telegram notify (a local command that draws the QR) fires on the same
- * trigger — so an unchanged deploy is silent. The profile rides `stdin`, never
- * the command string, so credentials stay out of process args and state.
+ * Per-user profile slug: an unguessable path is the only thing guarding a
+ * profile, so each user's file lives at a name derived from the (secret) base
+ * slug + user name. Deterministic (stable across deploys, so no orphaned files)
+ * but unguessable without the base slug.
+ */
+function userSlug(baseSlug: string, name: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${baseSlug}:${name}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/**
+ * Generates one profile per user and delivers each to the file server, replacing
+ * the old ansible role. Each user's write is its own Pulumi resource keyed on the
+ * user name, with a `delete` that unlinks the file — so removing a user from
+ * VPN_USERS and redeploying actually revokes their profile on disk. The
+ * `sha256(profile)` trigger is per-user change-detection; one Telegram notify
+ * fires when any profile changes, grouping every user's URL. Profiles ride
+ * `stdin`, never the command string, so credentials stay out of args and state.
  */
 export function createSingboxDelivery(
+  users: VpnUser[],
   nodes: SingboxNode[],
   opts: DeliveryOpts,
 ) {
-  const profileJson = pulumi
-    .all([pulumi.output(nodes), pulumi.output(opts.exits ?? [])])
-    .apply(([resolvedNodes, resolvedExits]) =>
-      JSON.stringify(
-        buildProfile(
-          resolvedNodes as ResolvedNode[],
-          opts.magicdnsSuffix,
-          resolvedExits as ResolvedExit[],
-        ),
-        null,
-        2,
-      ),
-    );
-  const profileHash = sha256hex(profileJson);
-
+  const connection = {
+    host: opts.oldboy.host,
+    user: opts.oldboy.user,
+    privateKey: opts.oldboy.privateKey,
+  };
   const destDir = "/srv/files/.sfm";
-  const dest = `${destDir}/${opts.slug}.json`;
 
-  const write = new command.remote.Command("singbox-profile", {
-    connection: {
-      host: opts.oldboy.host,
-      user: opts.oldboy.user,
-      privateKey: opts.oldboy.privateKey,
-    },
-    create: `mkdir -p ${destDir} && cat > ${dest} && chmod 644 ${dest}`,
-    stdin: profileJson,
-    triggers: [profileHash],
+  const delivered = users.map((user) => {
+    const profileJson = pulumi
+      .all([pulumi.output(nodes), pulumi.output(opts.exits ?? [])])
+      .apply(([resolvedNodes, resolvedExits]) =>
+        JSON.stringify(
+          buildProfile(
+            user,
+            resolvedNodes as ResolvedNode[],
+            opts.magicdnsSuffix,
+            resolvedExits as ResolvedExit[],
+          ),
+          null,
+          2,
+        ),
+      );
+    const profileHash = sha256hex(profileJson);
+
+    const slug = userSlug(opts.slug, user.name);
+    const dest = `${destDir}/${slug}.json`;
+
+    const write = new command.remote.Command(`singbox-profile-${user.name}`, {
+      connection,
+      create: `mkdir -p ${destDir} && cat > ${dest} && chmod 644 ${dest}`,
+      delete: `rm -f ${dest}`,
+      stdin: profileJson,
+      triggers: [profileHash],
+    });
+
+    return {
+      user,
+      write,
+      profileHash,
+      url: `https://${opts.filesHostname}/.sfm/${slug}.json`,
+    };
   });
 
-  if (opts.telegram) {
-    const url = `https://${opts.filesHostname}/.sfm/${opts.slug}.json`;
+  // One notify for the whole roster, fired when any profile changes.
+  if (opts.telegram && delivered.length) {
+    const notifyUsers = pulumi
+      .all(delivered.map((d) => d.profileHash))
+      .apply(() =>
+        JSON.stringify(
+          delivered.map((d) => ({
+            name: d.user.name,
+            role: d.user.role,
+            url: d.url,
+          })),
+        ),
+      );
+    const notifyHash = sha256hex(
+      pulumi.all(delivered.map((d) => d.profileHash)).apply((h) => h.join()),
+    );
     new command.local.Command(
       "singbox-notify",
       {
         create: "node --experimental-strip-types scripts/notify-singbox.ts",
         environment: {
-          SINGBOX_URL: url,
+          VPN_NOTIFY_USERS: notifyUsers,
           TELEGRAM_BOT_TOKEN: opts.telegram.botToken,
           TELEGRAM_CHAT_ID: opts.telegram.chatId,
         },
-        triggers: [profileHash],
+        triggers: [notifyHash],
       },
-      { dependsOn: [write] },
+      { dependsOn: delivered.map((d) => d.write) },
     );
   }
 
-  return { profileHash, profileJson };
+  return delivered;
 }
