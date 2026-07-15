@@ -205,20 +205,11 @@
                         "default": false,
                         "type": "boolean"
                       },
-                      "expectedStatus": {
-                        "default": "UP",
-                        "type": "string",
-                        "enum": ["UP", "DOWN", "UNKNOWN", "OUT_OF_SERVICE"]
-                      },
                       "failureThreshold": {
                         "default": 3,
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 4294967295
-                      },
-                      "followRedirects": {
-                        "default": false,
-                        "type": "boolean"
                       },
                       "httpHeaders": {
                         "default": [

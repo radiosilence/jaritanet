@@ -1,19 +1,10 @@
 import * as z from "zod";
 
-export const HealthStatusSchema = z.enum([
-  "UP",
-  "DOWN",
-  "UNKNOWN",
-  "OUT_OF_SERVICE",
-]);
-
 export const HealthCheckConfigSchema = z.object({
   enableLiveness: z.boolean().default(true),
   enableReadiness: z.boolean().default(true),
   enableStartup: z.boolean().default(false),
-  expectedStatus: HealthStatusSchema.default("UP"),
   failureThreshold: z.uint32().default(3),
-  followRedirects: z.boolean().default(false),
   httpHeaders: z
     .array(
       z.object({

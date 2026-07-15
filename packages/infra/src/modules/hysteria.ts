@@ -4,12 +4,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { HysteriaConfSchema } from "../conf.schemas.ts";
-
-type Connection = {
-  host: pulumi.Output<string>;
-  privateKey: pulumi.Output<string>;
-  user: string;
-};
+import { type Connection, resourcePrefix } from "./vps.ts";
 
 /**
  * Provisions Hysteria2 (QUIC/UDP) on the gateway VPS.
@@ -27,9 +22,7 @@ export function createHysteria(
   hysteria: z.infer<typeof HysteriaConfSchema>,
   name = "",
 ) {
-  // Empty name = the primary gateway, keeping its original resource names so
-  // Pulumi doesn't replace the live box. Edges pass a name → prefixed names.
-  const p = name ? `${name}-` : "";
+  const p = resourcePrefix(name);
   const authPassword = new random.RandomPassword(`${p}hysteria-auth`, {
     length: 32,
     special: false,

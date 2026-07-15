@@ -112,8 +112,6 @@ describe("service template", () => {
         timeoutSeconds: 5,
         failureThreshold: 3,
         successThreshold: 1,
-        expectedStatus: "UP" as const,
-        followRedirects: false,
         httpHeaders: [],
       },
       hostVolumes: [],

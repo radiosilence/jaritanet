@@ -1,8 +1,8 @@
-import * as crypto from "node:crypto";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TraefikConfSchema } from "../conf.schemas.ts";
+import { sha256hex } from "../util.ts";
 
 /**
  * Deploys the ingress stack into the K8s cluster:
@@ -129,9 +129,7 @@ type = "tcp"
 local_addr = "${traefikSvc}:80"
 ${exitClientEntries}`;
 
-    const ratholeConfigHash = ratholeConfig.apply((c) =>
-      crypto.createHash("sha256").update(c).digest("hex"),
-    );
+    const ratholeConfigHash = sha256hex(ratholeConfig);
 
     const ratholeConfigMap = new k8s.core.v1.ConfigMap(
       "rathole-client-config",

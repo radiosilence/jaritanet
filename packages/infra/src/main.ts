@@ -21,11 +21,6 @@ import {
 import { createSingboxDelivery, type SingboxNode } from "./modules/singbox.ts";
 import { createService } from "./templates/service.ts";
 
-const dnsModules = {
-  bluesky: createBlueskyRecords,
-  fastmail: createFastmailRecords,
-} as const;
-
 export default async function () {
   const { namespace } = conf;
   let dnsTarget: pulumi.Output<string> | undefined;
@@ -122,9 +117,9 @@ export default async function () {
   for (const zone of conf.zones) {
     for (const mod of zone.modules) {
       if (mod === "fastmail") {
-        dnsModules[mod](zone, conf.fastmail);
+        createFastmailRecords(zone, conf.fastmail);
       } else {
-        dnsModules[mod](zone, conf.bluesky);
+        createBlueskyRecords(zone, conf.bluesky);
       }
     }
   }

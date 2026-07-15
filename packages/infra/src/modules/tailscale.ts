@@ -3,12 +3,7 @@ import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TailnetConfSchema } from "../conf.schemas.ts";
-
-type Connection = {
-  host: pulumi.Output<string>;
-  privateKey: pulumi.Output<string>;
-  user: string;
-};
+import { type Connection, resourcePrefix } from "./vps.ts";
 
 /**
  * Joins the gateway VPS to the tailnet so it can relay client traffic into
@@ -38,9 +33,7 @@ export function createTailscale(
   authKey: pulumi.Output<string>,
   name = "",
 ) {
-  // Empty name = the primary gateway, keeping its original resource name so
-  // Pulumi doesn't replace the live box. Edges pass a name → prefixed name.
-  const p = name ? `${name}-` : "";
+  const p = resourcePrefix(name);
   return new command.remote.Command(
     `${p}tailscale-up`,
     {
