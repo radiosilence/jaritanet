@@ -256,6 +256,8 @@ export default async function () {
       xrayPublicKey: xray.publicKey,
       xrayServerName: conf.gateway?.xray?.serverName,
       xrayShortId: xray.shortId,
+      // TEMP diagnostic (issue #99) — remove with the xray-journal command.
+      xrayJournal: xray.journal,
     }),
   };
 }

@@ -22,6 +22,12 @@ const EXIT_PORT_RANGE = "20000-29999";
  * minted per user (`email: <name>`) so a user is revoked by dropping them from
  * the clients list. Guests (reality-only) are blackholed server-side to the
  * tailnet CIDR and the exit loopbacks — a hard block, not a profile omission.
+ *
+ * `user`-scoped routing only resolves once the inbound sniffs the flow, so the
+ * inbound enables sniffing with `routeOnly` (route on the sniffed destination
+ * without rewriting it). Outbounds are tagged (`direct` freedom, `block`
+ * blackhole) and routing ends in an explicit `direct` default, so a non-guest
+ * (matching no rule) proxies out cleanly instead of relying on ordering.
  * Returns the shared REALITY params plus each user's per-node UUID.
  */
 export function createXray(
@@ -56,22 +62,15 @@ export function createXray(
       ),
     );
 
-  // Guest hard-block: reality is their only entry, so a routing rule keyed on
-  // their client email is airtight. Two rules — the tailnet mesh and the exit
-  // loopbacks — both to a blackhole outbound. Admins are unrestricted.
+  // Guest hard-block: reality is their only entry, so routing keyed on their
+  // client email is airtight — the tailnet mesh and the exit loopbacks both go
+  // to the blackhole. Admins match no guest rule and fall through to `direct`.
   const guests = clients.filter((c) => c.role === "guest").map((c) => c.name);
   const guestsList = JSON.stringify(guests);
-  const routingBlock = guests.length
-    ? `,
-  "routing": {
-    "rules": [
+  const guestRules = guests.length
+    ? `
       { "user": ${guestsList}, "ip": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"], "outboundTag": "block" },
-      { "user": ${guestsList}, "ip": ["127.0.0.0/8"], "port": "${EXIT_PORT_RANGE}", "outboundTag": "block" }
-    ]
-  }`
-    : "";
-  const blackhole = guests.length
-    ? `, { "protocol": "blackhole", "tag": "block" }`
+      { "user": ${guestsList}, "ip": ["127.0.0.0/8"], "port": "${EXIT_PORT_RANGE}", "outboundTag": "block" },`
     : "";
 
   const install = new command.remote.Command(
@@ -140,10 +139,24 @@ cat > /usr/local/etc/xray/config.json << XRAY_EOF
           "privateKey": "$PRIV",
           "shortIds": ["${shortId.hex}"]
         }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
       }
     }
   ],
-  "outbounds": [{ "protocol": "freedom" }${blackhole}]${routingBlock}
+  "outbounds": [
+    { "protocol": "freedom", "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block" }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [${guestRules}
+      { "network": "tcp,udp", "outboundTag": "direct" }
+    ]
+  }
 }
 XRAY_EOF
 systemctl restart xray`,
@@ -159,8 +172,24 @@ systemctl restart xray`,
     { dependsOn: [publicKey] },
   );
 
+  // TEMP diagnostic (issue #99): surface the xray journal so the real REALITY
+  // rejection reason is visible in the deploy log / `pulumi stack output`.
+  // Non-secret (warning-level logs, no keys). Re-runs on every config change.
+  // REMOVE before final merge.
+  const journal = new command.remote.Command(
+    `${p}xray-journal`,
+    {
+      connection,
+      create:
+        "sleep 2; echo \"active=$(systemctl is-active xray)\"; echo '--- journal ---'; journalctl -u xray -n 150 --no-pager 2>&1 | tail -c 8000",
+      triggers: [config.id],
+    },
+    { dependsOn: [config] },
+  );
+
   return {
     config,
+    journal: journal.stdout,
     publicKey: publicKey.stdout,
     shortId: shortId.hex,
     uuids,
