@@ -378,8 +378,10 @@ type DeliveryOpts = {
 /**
  * Per-user profile slug: an unguessable path is the only thing guarding a
  * profile, so each user's file lives at a name derived from the (secret) base
- * slug + user name. Deterministic (stable across deploys, so no orphaned files)
- * but unguessable without the base slug.
+ * slug + user name. Deterministic (stable across deploys) but unguessable
+ * without the base slug. Slug-scheme changes orphan the old paths — the sweep
+ * in createSingboxDelivery removes those so they 404 instead of serving stale
+ * credentials to clients still subscribed to a dead URL.
  */
 function userSlug(baseSlug: string, name: string): string {
   return crypto
@@ -455,6 +457,23 @@ export function createSingboxDelivery(
       url: `https://${opts.filesHostname}/.sfm/${slug}.json`,
     };
   });
+
+  // Sweep superseded profiles: after the current set is written, any *.json in
+  // the delivery dir that isn't a live slug is removed, so a rotated URL 404s.
+  // Without this, a client subscribed to a pre-rotation URL keeps "updating"
+  // from a file whose credentials were revoked — a silent, permanent outage.
+  const liveSlugs = users.map((u) => userSlug(opts.slug, u.name));
+  new command.remote.Command(
+    "singbox-profile-sweep",
+    {
+      connection,
+      create: `mkdir -p ${destDir} && find ${destDir} -maxdepth 1 -name '*.json' ${liveSlugs
+        .map((s) => `! -name '${s}.json'`)
+        .join(" ")} -delete`,
+      triggers: [liveSlugs.join()],
+    },
+    { dependsOn: delivered.map((d) => d.write) },
+  );
 
   // One notify for the whole roster, fired when any profile changes.
   if (opts.telegram && delivered.length) {
