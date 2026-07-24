@@ -333,7 +333,12 @@ export function createMcpGateway(
           replicas: 1,
           selector: { matchLabels: { app: `mcp-gateway-mcp-${b.id}` } },
           template: {
-            metadata: { labels: { app: `mcp-gateway-mcp-${b.id}` } },
+            metadata: {
+              labels: {
+                app: `mcp-gateway-mcp-${b.id}`,
+                "mcp-gateway/role": "backend",
+              },
+            },
             spec: {
               containers: [
                 {
@@ -465,6 +470,46 @@ export function createMcpGateway(
       spec: {
         selector: { app: "mcp-gateway" },
         ports: [{ port: 80, targetPort: 8080 }],
+      },
+    },
+    opts,
+  );
+
+  // --- NetworkPolicies: lock sensitive internal pods to their callers ---
+  // Backends trust the gateway-injected credential header and have no auth of
+  // their own, so only the gateway may reach them.
+  new k8s.networking.v1.NetworkPolicy(
+    "mcp-gateway-backends-netpol",
+    {
+      metadata: { name: "mcp-gateway-backends", namespace },
+      spec: {
+        podSelector: { matchLabels: { "mcp-gateway/role": "backend" } },
+        policyTypes: ["Ingress"],
+        ingress: [
+          { from: [{ podSelector: { matchLabels: { app: "mcp-gateway" } } }] },
+        ],
+      },
+    },
+    opts,
+  );
+  // Postgres holds the encrypted credential vault + Hydra's DB — only the
+  // gateway and Hydra connect to it.
+  new k8s.networking.v1.NetworkPolicy(
+    "mcp-gateway-postgres-netpol",
+    {
+      metadata: { name: "mcp-gateway-postgres", namespace },
+      spec: {
+        podSelector: { matchLabels: { app: pgHost } },
+        policyTypes: ["Ingress"],
+        ingress: [
+          {
+            from: [
+              { podSelector: { matchLabels: { app: "mcp-gateway" } } },
+              { podSelector: { matchLabels: { app: "mcp-gateway-hydra" } } },
+            ],
+            ports: [{ protocol: "TCP", port: 5432 }],
+          },
+        ],
       },
     },
     opts,

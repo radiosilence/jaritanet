@@ -28,7 +28,7 @@ config:
     backends:
       - id: fastmail
         name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:mcp"
+        image: "ghcr.io/radiosilence/fastmail-cli:main"
         args: ["mcp", "--http", "0.0.0.0:8080"]
         port: 8080
         path: "/mcp"
