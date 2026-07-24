@@ -10,6 +10,12 @@ export const EnvSchema = z.object({
   KUBE_TOKEN: z.string().min(1, "KUBE_TOKEN is required"),
   TS_AUTHKEY: z.string().optional(),
 
+  // MCP gateway: GitHub OAuth app creds + login allowlist. GH_ prefix because
+  // GitHub Actions reserves GITHUB_. Absent → the gateway stack is skipped.
+  GH_CLIENT_ID: z.string().optional(),
+  GH_CLIENT_SECRET: z.string().optional(),
+  GH_ALLOWED: z.string().optional(),
+
   // Per-user VPN access (RBAC). One comma-separated list; a trailing `+` marks
   // an admin. Absent → single implicit owner-admin (see main.ts). Parsed by
   // parseVpnUsers below into a typed {name, role}[]; delivery is per-user.

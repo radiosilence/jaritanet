@@ -76,6 +76,8 @@ jobs:
           pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
           pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
           pulumi config set --path jaritanet:gateway.xray.serverName "$BLIT_HOSTNAME"
+          pulumi config set --path jaritanet:mcpGateway.hostname "$MCP_HOSTNAME"
+          pulumi config set --path jaritanet:mcpGateway.authHostname "$MCP_AUTH_HOSTNAME"
           if [[ -n "$EXTERNAL_IP" ]]; then
             pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
           fi
@@ -87,6 +89,8 @@ jobs:
           NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
           FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
+          MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
+          MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
 
       - name: Preview
         uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
@@ -106,6 +110,9 @@ jobs:
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          GH_ALLOWED: ${{ secrets.GH_ALLOWED }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           OLDBOY_HOST: ${{ secrets.OLDBOY_HOST }}
           OLDBOY_USER: ${{ secrets.OLDBOY_USER }}
