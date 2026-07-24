@@ -23,7 +23,7 @@ config:
       # tag is auto-bumped to sha-<short> by jaritanet-mcp-gateway's ci-cd
       # (update-deployment job); `main` is the initial pointer.
       repository: "ghcr.io/radiosilence/jaritanet-mcp-gateway"
-      tag: sha-815c2f2
+      tag: sha-7f2ed95
       pullPolicy: "Always"
     backends:
       - id: fastmail
