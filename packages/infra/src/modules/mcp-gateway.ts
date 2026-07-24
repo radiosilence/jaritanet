@@ -47,22 +47,21 @@ export function createMcpGateway(
   const svcDns = (name: string) => `${name}.${namespace}.svc.cluster.local`;
 
   // --- Generated secrets ---
-  const pgPassword = new random.RandomPassword(
-    "mcp-gateway-pg",
-    { length: 32, special: false },
-    opts,
-  );
+  // NB: random.* resources use the default provider — passing the k8s provider
+  // here makes Pulumi look for `random:...` types on the k8s provider and fail
+  // with "unrecognized resource type".
+  const pgPassword = new random.RandomPassword("mcp-gateway-pg", {
+    length: 32,
+    special: false,
+  });
   const hydraSystemSecret = new random.RandomPassword(
     "mcp-gateway-hydra-system",
     { length: 48, special: false },
-    opts,
   );
   // 32 random bytes, base64 — the token-encryption master key.
-  const tokenEncKey = new random.RandomBytes(
-    "mcp-gateway-token-enc",
-    { length: 32 },
-    opts,
-  );
+  const tokenEncKey = new random.RandomBytes("mcp-gateway-token-enc", {
+    length: 32,
+  });
 
   const pgUser = "fastmail";
   const pgDb = "fastmail_mcp";
