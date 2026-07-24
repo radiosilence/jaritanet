@@ -20,8 +20,10 @@ config:
       cpu: "500m"
       memory: "256Mi"
     image:
-      repository: "ghcr.io/radiosilence/mcp-gateway"
-      tag: latest
+      # tag is auto-bumped to sha-<short> by jaritanet-mcp-gateway's ci-cd
+      # (update-deployment job); `main` is the initial pointer.
+      repository: "ghcr.io/radiosilence/jaritanet-mcp-gateway"
+      tag: main
       pullPolicy: "Always"
     backends:
       - id: fastmail
