@@ -23,7 +23,7 @@ config:
       # tag is auto-bumped to sha-<short> by jaritanet-mcp-gateway's ci-cd
       # (update-deployment job); `main` is the initial pointer.
       repository: "ghcr.io/radiosilence/jaritanet-mcp-gateway"
-      tag: main
+      tag: sha-b3431f7
       pullPolicy: "Always"
     backends:
       - id: fastmail
@@ -58,11 +58,11 @@ config:
   jaritanet:exits:
     # oldboy — the home k8s cluster. Egresses your home residential IP.
     - name: oldboy
-    # A Hetzner (or any) VPS exit is the same two daemons via cloud-init.
-    # NOT WIRED YET — substrate `vps` is unimplemented (k8s only for now):
-    # - name: fin
-    #   substrate: vps
-    #   location: hel1
+      # A Hetzner (or any) VPS exit is the same two daemons via cloud-init.
+      # NOT WIRED YET — substrate `vps` is unimplemented (k8s only for now):
+      # - name: fin
+      #   substrate: vps
+      #   location: hel1
   jaritanet:services:
     navidrome:
       hostname: ''
