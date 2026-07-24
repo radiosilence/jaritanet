@@ -49,6 +49,16 @@ on:
         required: false
       VPN_USERS:
         required: false
+      MCP_HOSTNAME:
+        required: false
+      MCP_AUTH_HOSTNAME:
+        required: false
+      GH_CLIENT_ID:
+        required: false
+      GH_CLIENT_SECRET:
+        required: false
+      GH_ALLOWED:
+        required: false
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -195,6 +205,8 @@ jobs:
           pulumi config set --path jaritanet:services.files.hostname "$FILES_HOSTNAME"
           pulumi config set --path jaritanet:services.blit.hostname "$BLIT_HOSTNAME"
           pulumi config set --path jaritanet:gateway.xray.serverName "$BLIT_HOSTNAME"
+          pulumi config set --path jaritanet:mcpGateway.hostname "$MCP_HOSTNAME"
+          pulumi config set --path jaritanet:mcpGateway.authHostname "$MCP_AUTH_HOSTNAME"
           if [[ -n "$EXTERNAL_IP" ]]; then
             pulumi config set jaritanet:externalIp "$EXTERNAL_IP"
           fi
@@ -206,6 +218,8 @@ jobs:
           NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
           FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
+          MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
+          MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
 
       - name: Deploy
         uses: pulumi/actions@8582a9e8cc630786854029b4e09281acd6794b58 # v6
@@ -237,3 +251,8 @@ jobs:
           TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # MCP gateway: GitHub OAuth app creds + login allowlist (read by
+          # env.ts). Hostnames go via `pulumi config set` above, not env.
+          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          GH_ALLOWED: ${{ secrets.GH_ALLOWED }}

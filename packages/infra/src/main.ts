@@ -19,6 +19,7 @@ import {
   createIpWatcher,
   createRedirectMiddleware,
 } from "./modules/ingress.ts";
+import { createMcpGateway } from "./modules/mcp-gateway.ts";
 import { createSingboxDelivery, type SingboxNode } from "./modules/singbox.ts";
 import { createService } from "./templates/service.ts";
 
@@ -212,6 +213,36 @@ export default async function () {
 
       return [name, { hostname, service: service.metadata.name }] as const;
     });
+
+  // --- MCP Gateway: OAuth-fronted gateway for self-hosted MCP servers ---
+  // Skipped unless configured and the GitHub OAuth app creds are present.
+  if (
+    conf.mcpGateway?.hostname &&
+    conf.mcpGateway.authHostname &&
+    env.GH_CLIENT_ID &&
+    env.GH_CLIENT_SECRET
+  ) {
+    const mg = conf.mcpGateway;
+    createMcpGateway(provider, namespace, mg, {
+      githubClientId: env.GH_CLIENT_ID,
+      githubClientSecret: pulumi.secret(env.GH_CLIENT_SECRET),
+      githubAllowed: env.GH_ALLOWED ?? "",
+    });
+    // Two public hostnames: the gateway and Hydra's public API. Admin stays
+    // in-cluster (no ingress route).
+    for (const [svcName, host] of [
+      ["mcp-gateway", mg.hostname],
+      ["mcp-gateway-hydra", mg.authHostname],
+    ] as const) {
+      if (dnsTarget) {
+        const zone = conf.zones.find(
+          (z) => z.name === host.split(".").slice(-2).join("."),
+        );
+        if (zone) createServiceRecord(dnsTarget, zone, host);
+      }
+      createIngressRoute(provider, svcName, host, namespace);
+    }
+  }
 
   // --- sing-box client profile: generate + deliver + notify, all in Pulumi ---
   // Builds the profile from the nodes, writes it to the file server over SSH
