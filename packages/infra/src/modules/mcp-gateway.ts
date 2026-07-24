@@ -213,7 +213,9 @@ export function createMcpGateway(
     "mcp-gateway-hydra-migrate",
     {
       metadata: {
-        name: pulumi.interpolate`mcp-gateway-hydra-migrate-${hydraSystemSecret.result.apply((s) => s.slice(0, 6))}`,
+        // Suffix ties the Job name to the secret (Jobs are immutable, so a new
+        // secret forces a new Job). Lowercase it — k8s names are RFC 1123.
+        name: pulumi.interpolate`mcp-gateway-hydra-migrate-${hydraSystemSecret.result.apply((s) => s.slice(0, 6).toLowerCase())}`,
         namespace,
       },
       spec: {
