@@ -1,5 +1,36 @@
 import * as z from "zod";
+import { ImageSchema, LimitsSchema } from "./templates/schemas.ts";
 import { ServiceArgsSchema } from "./templates/service.schemas.ts";
+
+/** A backend MCP the gateway fronts (one Deployment + Service each). */
+export const McpBackendSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  image: z.string(),
+  args: z.array(z.string()).default([]),
+  port: z.number().default(8080),
+  path: z.string().default("/mcp"),
+  credentialHeader: z.string(),
+  keyHelpUrl: z.string().optional(),
+  keyHint: z.string().optional(),
+});
+
+/** The MCP Gateway stack (gateway + Hydra + Postgres + backends). */
+export const McpGatewayConfSchema = z.object({
+  // Blank in the (public) repo; injected at CI time from secrets, so the source
+  // reveals no hostnames. An empty hostname skips the stack (see main.ts).
+  hostname: z.string().default(""),
+  authHostname: z.string().default(""),
+  image: ImageSchema,
+  hydraTag: z.string().default("v2.2.0"),
+  replicas: z.number().default(2),
+  limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
+  nodeAffinityHostname: z.string().default("oldboy"),
+  postgresHostPath: z
+    .string()
+    .default("/var/lib/jaritanet/mcp-gateway-postgres"),
+  backends: z.array(McpBackendSchema).default([]),
+});
 
 export const CloudflareConfSchema = z.object({
   accountId: z.string(),
@@ -158,6 +189,7 @@ export const ConfSchema = z.object({
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
   managedBy: z.string().default("jaritanet"),
+  mcpGateway: McpGatewayConfSchema.optional(),
   namespace: z.string().default("jaritanet"),
   services: ServicesMapSchema,
   traefik: TraefikConfSchema,

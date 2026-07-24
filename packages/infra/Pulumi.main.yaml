@@ -8,6 +8,31 @@ config:
     # acmeEmail injected from the ACME_EMAIL secret in CI (see ci-cd.yml)
     acmeEmail: ''
     chartVersion: "41.0.2"
+  jaritanet:mcpGateway:
+    # hostname/authHostname injected in CI from MCP_HOSTNAME / MCP_AUTH_HOSTNAME
+    # (kept out of this public repo). GitHub OAuth creds + allowlist come via
+    # GH_CLIENT_ID / GH_CLIENT_SECRET / GH_ALLOWED env in CI.
+    hostname: ''
+    authHostname: ''
+    hydraTag: "v2.2.0"
+    replicas: 2
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+    image:
+      repository: "ghcr.io/radiosilence/mcp-gateway"
+      tag: latest
+      pullPolicy: "Always"
+    backends:
+      - id: fastmail
+        name: Fastmail
+        image: "ghcr.io/radiosilence/fastmail-cli:mcp"
+        args: ["mcp", "--http", "0.0.0.0:8080"]
+        port: 8080
+        path: "/mcp"
+        credentialHeader: "X-Fastmail-Token"
+        keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
+        keyHint: "fmu1-…"
   jaritanet:gateway:
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https). serverName is injected from BLIT_HOSTNAME
