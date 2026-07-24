@@ -25,10 +25,9 @@ export const McpGatewayConfSchema = z.object({
   hydraTag: z.string().default("v2.2.0"),
   replicas: z.number().default(2),
   limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
-  nodeAffinityHostname: z.string().default("oldboy"),
-  postgresHostPath: z
-    .string()
-    .default("/var/lib/jaritanet/mcp-gateway-postgres"),
+  // Postgres uses the cluster's default StorageClass unless set — a few tiny
+  // tables, so (unlike the media services) we don't pin them to a disk path.
+  postgresStorageClass: z.string().optional(),
   backends: z.array(McpBackendSchema).default([]),
 });
 
