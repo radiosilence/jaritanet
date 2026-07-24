@@ -95,35 +95,10 @@ export function createMcpGateway(
     opts,
   );
 
-  const pgPv = new k8s.core.v1.PersistentVolume(
-    "mcp-gateway-postgres-pv",
-    {
-      spec: {
-        accessModes: ["ReadWriteOnce"],
-        capacity: { storage: "2Gi" },
-        local: { path: conf.postgresHostPath },
-        nodeAffinity: {
-          required: {
-            nodeSelectorTerms: [
-              {
-                matchExpressions: [
-                  {
-                    key: "kubernetes.io/hostname",
-                    operator: "In",
-                    values: [conf.nodeAffinityHostname],
-                  },
-                ],
-              },
-            ],
-          },
-        },
-        persistentVolumeReclaimPolicy: "Retain",
-        storageClassName: "manual",
-        volumeMode: "Filesystem",
-      },
-    },
-    opts,
-  );
+  // Dynamically provisioned by the cluster's default StorageClass (on jaritanet
+  // that's microk8s-hostpath, which creates the volume wherever it likes). No
+  // hand-rolled PV / node pinning — these are tiny tables, we just want them to
+  // persist. `undefined` storageClassName means "use the default SC".
   const pgPvc = new k8s.core.v1.PersistentVolumeClaim(
     "mcp-gateway-postgres-pvc",
     {
@@ -131,8 +106,7 @@ export function createMcpGateway(
       spec: {
         accessModes: ["ReadWriteOnce"],
         resources: { requests: { storage: "2Gi" } },
-        storageClassName: "manual",
-        volumeName: pgPv.metadata.name,
+        storageClassName: conf.postgresStorageClass,
       },
     },
     opts,
