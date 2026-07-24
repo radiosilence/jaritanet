@@ -138,7 +138,7 @@ export function createMcpGateway(
     opts,
   );
 
-  new k8s.apps.v1.Deployment(
+  const pgDeploy = new k8s.apps.v1.Deployment(
     "mcp-gateway-postgres",
     {
       metadata: { name: pgHost, namespace },
@@ -209,11 +209,13 @@ export function createMcpGateway(
     { name: "SECRETS_SYSTEM", ...secretRef("hydra-system-secret") },
   ];
 
-  new k8s.batch.v1.Job(
+  const migrateJob = new k8s.batch.v1.Job(
     "mcp-gateway-hydra-migrate",
     {
       metadata: {
-        name: pulumi.interpolate`mcp-gateway-hydra-migrate-${hydraSystemSecret.result.apply((s) => s.slice(0, 6))}`,
+        // Suffix ties the Job name to the secret (Jobs are immutable, so a new
+        // secret forces a new Job). Lowercase it — k8s names are RFC 1123.
+        name: pulumi.interpolate`mcp-gateway-hydra-migrate-${hydraSystemSecret.result.apply((s) => s.slice(0, 6).toLowerCase())}`,
         namespace,
       },
       spec: {
@@ -233,7 +235,9 @@ export function createMcpGateway(
         },
       },
     },
-    { dependsOn: [secret], provider },
+    // Needs Postgres reachable (readinessProbe = pg_isready) before it can run
+    // the Hydra schema migration.
+    { dependsOn: [secret, pgDeploy], provider },
   );
 
   new k8s.apps.v1.Deployment(
@@ -293,7 +297,8 @@ export function createMcpGateway(
         },
       },
     },
-    { provider },
+    // Serve only after the schema migration has completed.
+    { dependsOn: [migrateJob], provider },
   );
 
   // Public API — named `<x>-service` so createIngressRoute can front it (port
@@ -460,7 +465,8 @@ export function createMcpGateway(
         },
       },
     },
-    { provider },
+    // The gateway's own tables live in the same Postgres; wait for it.
+    { dependsOn: [pgDeploy], provider },
   );
   new k8s.core.v1.Service(
     "mcp-gateway-service",
