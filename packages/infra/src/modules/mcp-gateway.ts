@@ -109,7 +109,9 @@ export function createMcpGateway(
         storageClassName: conf.postgresStorageClass,
       },
     },
-    opts,
+    // An immutable spec change (e.g. storageClassName) forces a replace; delete
+    // the old claim first, else the fixed name collides with the replacement.
+    { deleteBeforeReplace: true, provider },
   );
 
   const pgDeploy = new k8s.apps.v1.Deployment(
