@@ -43,7 +43,7 @@ config:
       # in one request instead of an MCP session handshake.
       - id: caldav
         name: Calendar (CalDAV)
-        image: "ghcr.io/radiosilence/caldav-cli:v0.3.0"
+        image: "ghcr.io/radiosilence/caldav-cli:v0.4.0"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
