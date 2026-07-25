@@ -85,7 +85,7 @@ config:
       # licence to front an MCP unauthenticated.
       - id: folk
         name: Folk (Mainly Norfolk)
-        image: "ghcr.io/radiosilence/mainlynorfolk-cli:v0.1.0"
+        image: "ghcr.io/radiosilence/mainlynorfolk-cli:v0.1.1"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
