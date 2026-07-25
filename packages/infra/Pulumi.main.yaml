@@ -91,6 +91,26 @@ config:
         path: "/mcp"
         graphqlPath: "/graphql"
         public: true
+      # TfL needs no key at all — anonymous callers get 50 requests/minute,
+      # which is the same data, not a degraded tier. A key raises that to 500,
+      # so the field is offered and optional: the proxy treats a missing
+      # credential as fine and the backend simply runs anonymously, which means
+      # this works the moment someone logs in.
+      - id: tfl
+        name: TfL (London transport)
+        image: "ghcr.io/radiosilence/tfl-cli:v0.2.0"
+        args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
+        port: 8080
+        path: "/mcp"
+        graphqlPath: "/graphql"
+        keyHelpUrl: "https://api-portal.tfl.gov.uk/profile"
+        fields:
+          - id: app_key
+            label: "TfL app key (optional — raises the rate limit)"
+            header: "X-Tfl-App-Key"
+            secret: true
+            required: false
+            hint: "32 hex characters"
   jaritanet:gateway:
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https). serverName is injected from BLIT_HOSTNAME
