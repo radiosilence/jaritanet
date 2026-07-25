@@ -13,6 +13,8 @@ export const McpCredentialFieldSchema = z.object({
   required: z.boolean().optional(),
   /** Query whose results become this field's suggestions in the dashboard. */
   optionsQuery: z.string().optional(),
+  /** Mutation run after a save, telling the backend what was picked. */
+  syncMutation: z.string().optional(),
 });
 
 /**
