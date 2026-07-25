@@ -364,6 +364,7 @@ export function createMcpGateway(
         ...(f.hint && { hint: f.hint }),
         ...(f.required !== undefined && { required: f.required }),
         ...(f.optionsQuery && { options_query: f.optionsQuery }),
+        ...(f.syncMutation && { sync_mutation: f.syncMutation }),
       })),
     }),
     ...(b.graphqlPath && {
