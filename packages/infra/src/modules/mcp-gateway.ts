@@ -353,6 +353,7 @@ export function createMcpGateway(
     name: b.name,
     backend: `http://${svcDns(`mcp-gateway-mcp-${b.id}`)}:${b.port}${b.path}`,
     // snake_case: this is the gateway's on-disk registry format, not ours.
+    ...(b.public && { public: true }),
     ...(b.credentialHeader && { credential_header: b.credentialHeader }),
     ...(b.fields?.length && {
       fields: b.fields.map((f) => ({

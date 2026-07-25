@@ -22,8 +22,13 @@ export const McpCredentialFieldSchema = z.object({
  *
  * `credentialHeader` is the shorthand for the common one-token case;
  * `fields` covers backends wanting several values (CalDAV needs a username, an
- * app password, and a server URL). Exactly one of the two, matching what the
+ * app password, and a server URL); `public` covers a backend fronting something
+ * public, which needs neither. Exactly one of the three, matching what the
  * gateway's registry accepts.
+ *
+ * `public` is opt-in rather than inferred from an absent credential block: a
+ * backend declaring no credentials is far more often a typo than a decision,
+ * and the deploy should fail rather than quietly front an unauthenticated MCP.
  */
 export const McpBackendSchema = z
   .object({
@@ -35,6 +40,8 @@ export const McpBackendSchema = z
     path: z.string().default("/mcp"),
     credentialHeader: z.string().optional(),
     fields: z.array(McpCredentialFieldSchema).optional(),
+    /** Takes no credentials at all — see the note above. */
+    public: z.boolean().optional(),
     /**
      * Path to a plain GraphQL endpoint the backend serves beside its MCP one,
      * for the dashboard's own lookups. In-cluster only — never proxied.
@@ -43,9 +50,12 @@ export const McpBackendSchema = z
     keyHelpUrl: z.string().optional(),
     keyHint: z.string().optional(),
   })
-  .refine((b) => !!b.credentialHeader !== !!b.fields?.length, {
-    message: "set credentialHeader or fields, never both",
-  });
+  .refine(
+    (b) =>
+      [!!b.credentialHeader, !!b.fields?.length, !!b.public].filter(Boolean)
+        .length === 1,
+    { message: "set exactly one of credentialHeader, fields, or public" },
+  );
 
 /** The MCP Gateway stack (gateway + Hydra + Postgres + backends). */
 export const McpGatewayConfSchema = z.object({
