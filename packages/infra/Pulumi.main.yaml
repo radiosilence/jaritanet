@@ -23,7 +23,7 @@ config:
       # tag is auto-bumped to sha-<short> by jaritanet-mcp-gateway's ci-cd
       # (update-deployment job); `main` is the initial pointer.
       repository: "ghcr.io/radiosilence/jaritanet-mcp-gateway"
-      tag: sha-aabfe6a
+      tag: sha-2d617c4
       pullPolicy: "Always"
     backends:
       # Pinned to release tags, not :main. A floating tag with the default
