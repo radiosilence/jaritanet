@@ -2,18 +2,48 @@ import * as z from "zod";
 import { ImageSchema, LimitsSchema } from "./templates/schemas.ts";
 import { ServiceArgsSchema } from "./templates/service.schemas.ts";
 
-/** A backend MCP the gateway fronts (one Deployment + Service each). */
-export const McpBackendSchema = z.object({
+/** One value a backend MCP needs from the user, injected into its own header. */
+export const McpCredentialFieldSchema = z.object({
   id: z.string(),
-  name: z.string(),
-  image: z.string(),
-  args: z.array(z.string()).default([]),
-  port: z.number().default(8080),
-  path: z.string().default("/mcp"),
-  credentialHeader: z.string(),
-  keyHelpUrl: z.string().optional(),
-  keyHint: z.string().optional(),
+  label: z.string(),
+  header: z.string(),
+  secret: z.boolean().optional(),
+  default: z.string().optional(),
+  hint: z.string().optional(),
+  required: z.boolean().optional(),
+  /** Query whose results become this field's suggestions in the dashboard. */
+  optionsQuery: z.string().optional(),
 });
+
+/**
+ * A backend MCP the gateway fronts (one Deployment + Service each).
+ *
+ * `credentialHeader` is the shorthand for the common one-token case;
+ * `fields` covers backends wanting several values (CalDAV needs a username, an
+ * app password, and a server URL). Exactly one of the two, matching what the
+ * gateway's registry accepts.
+ */
+export const McpBackendSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    image: z.string(),
+    args: z.array(z.string()).default([]),
+    port: z.number().default(8080),
+    path: z.string().default("/mcp"),
+    credentialHeader: z.string().optional(),
+    fields: z.array(McpCredentialFieldSchema).optional(),
+    /**
+     * Path to a plain GraphQL endpoint the backend serves beside its MCP one,
+     * for the dashboard's own lookups. In-cluster only — never proxied.
+     */
+    graphqlPath: z.string().optional(),
+    keyHelpUrl: z.string().optional(),
+    keyHint: z.string().optional(),
+  })
+  .refine((b) => !!b.credentialHeader !== !!b.fields?.length, {
+    message: "set credentialHeader or fields, never both",
+  });
 
 /** The MCP Gateway stack (gateway + Hydra + Postgres + backends). */
 export const McpGatewayConfSchema = z.object({
