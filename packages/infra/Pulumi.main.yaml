@@ -78,6 +78,19 @@ config:
             # supportsEvents marks the task-only collections nothing can land in.
             optionsQuery: "{ options: calendars(first: 100) { nodes { value: id label: name disabled: readOnly isDefault supportsEvents } } }"
             syncMutation: "mutation($value: String!) { setDefaultCalendar(id: $value) { success error } }"
+      # The English folk archive. The first backend needing no credentials at
+      # all: mainlynorfolk.info is a public website, so there is nothing to
+      # authenticate to and nothing to store. `public: true` says so
+      # explicitly — an omitted credential block is a schema error, not a
+      # licence to front an MCP unauthenticated.
+      - id: folk
+        name: Folk (Mainly Norfolk)
+        image: "ghcr.io/radiosilence/mainlynorfolk-cli:v0.1.0"
+        args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
+        port: 8080
+        path: "/mcp"
+        graphqlPath: "/graphql"
+        public: true
   jaritanet:gateway:
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https). serverName is injected from BLIT_HOSTNAME
