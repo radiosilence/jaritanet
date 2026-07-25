@@ -31,7 +31,7 @@ config:
       # backends would silently drift from the gateway they serve.
       - id: fastmail
         name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:v3.1.2"
+        image: "ghcr.io/radiosilence/fastmail-cli:v3.2.0"
         args: ["mcp", "--http", "0.0.0.0:8080"]
         port: 8080
         path: "/mcp"
@@ -43,7 +43,7 @@ config:
       # in one request instead of an MCP session handshake.
       - id: caldav
         name: Calendar (CalDAV)
-        image: "ghcr.io/radiosilence/caldav-cli:v0.4.0"
+        image: "ghcr.io/radiosilence/caldav-cli:v0.5.0"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
