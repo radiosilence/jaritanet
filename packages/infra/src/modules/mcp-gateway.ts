@@ -352,7 +352,23 @@ export function createMcpGateway(
     id: b.id,
     name: b.name,
     backend: `http://${svcDns(`mcp-gateway-mcp-${b.id}`)}:${b.port}${b.path}`,
-    credential_header: b.credentialHeader,
+    // snake_case: this is the gateway's on-disk registry format, not ours.
+    ...(b.credentialHeader && { credential_header: b.credentialHeader }),
+    ...(b.fields?.length && {
+      fields: b.fields.map((f) => ({
+        id: f.id,
+        label: f.label,
+        header: f.header,
+        ...(f.secret !== undefined && { secret: f.secret }),
+        ...(f.default && { default: f.default }),
+        ...(f.hint && { hint: f.hint }),
+        ...(f.required !== undefined && { required: f.required }),
+        ...(f.optionsQuery && { options_query: f.optionsQuery }),
+      })),
+    }),
+    ...(b.graphqlPath && {
+      graphql: `http://${svcDns(`mcp-gateway-mcp-${b.id}`)}:${b.port}${b.graphqlPath}`,
+    }),
     ...(b.keyHelpUrl && { key_help_url: b.keyHelpUrl }),
     ...(b.keyHint && { key_hint: b.keyHint }),
   }));

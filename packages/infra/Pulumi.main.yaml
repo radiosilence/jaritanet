@@ -26,15 +26,53 @@ config:
       tag: sha-aabfe6a
       pullPolicy: "Always"
     backends:
+      # Pinned to release tags, not :main. A floating tag with the default
+      # pull policy leaves a running pod on whatever it first pulled, so the
+      # backends would silently drift from the gateway they serve.
       - id: fastmail
         name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:main"
+        image: "ghcr.io/radiosilence/fastmail-cli:v3.1.2"
         args: ["mcp", "--http", "0.0.0.0:8080"]
         port: 8080
         path: "/mcp"
         credentialHeader: "X-Fastmail-Token"
         keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
         keyHint: "fmu1-…"
+      # CalDAV needs three values rather than one token, and serves plain
+      # GraphQL beside /mcp so the dashboard can list an account's calendars
+      # in one request instead of an MCP session handshake.
+      - id: caldav
+        name: Calendar (CalDAV)
+        image: "ghcr.io/radiosilence/caldav-cli:v0.3.0"
+        args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
+        port: 8080
+        path: "/mcp"
+        graphqlPath: "/graphql"
+        keyHelpUrl: "https://appleid.apple.com"
+        fields:
+          - id: username
+            label: "Apple ID / username"
+            header: "X-CalDAV-Username"
+            secret: false
+            hint: "you@icloud.com"
+          - id: password
+            label: "App-specific password"
+            header: "X-CalDAV-Password"
+            secret: true
+            hint: "abcd-efgh-ijkl-mnop"
+          - id: url
+            label: "CalDAV server"
+            header: "X-CalDAV-Url"
+            secret: false
+            default: "https://caldav.icloud.com"
+            required: false
+          - id: calendar
+            label: "Default calendar for new events"
+            header: "X-CalDAV-Calendar"
+            secret: false
+            required: false
+            hint: "Blank = whichever calendar your calendar app uses"
+            optionsQuery: "{ options: calendars(first: 100) { nodes { value: name label: name disabled: readOnly isDefault } } }"
   jaritanet:gateway:
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https). serverName is injected from BLIT_HOSTNAME
