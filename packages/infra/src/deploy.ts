@@ -73,12 +73,23 @@ async function detectExternalIp() {
 }
 
 /**
+ * Plugin download progress is most of a cold run's output and none of its
+ * meaning. Dropping it keeps the comment about the resources that change, and
+ * leaves far more room before the truncation limit.
+ */
+const NOISE = /^(Downloading|Installing) plugin /;
+
+/**
  * Truncated from the top, because the resource summary a preview is read for
  * sits at the end of the output.
  */
 function previewComment(output: string) {
-  const overflowed = output.length > COMMENT_LIMIT;
-  const body = overflowed ? output.slice(-COMMENT_LIMIT) : output;
+  const cleaned = output
+    .split("\n")
+    .filter((line) => !NOISE.test(line))
+    .join("\n");
+  const overflowed = cleaned.length > COMMENT_LIMIT;
+  const body = overflowed ? cleaned.slice(-COMMENT_LIMIT) : cleaned;
   const note = overflowed
     ? `\n> Truncated to the last ${COMMENT_LIMIT} characters — see the run for the whole preview.\n`
     : "";
