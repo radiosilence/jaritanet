@@ -18,7 +18,7 @@
     "fmt": "oxfmt --write",
     "fmt:check": "oxfmt --check",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
-    "gen:schemas": "./scripts/gen-schemas.ts",
+    "gen:schemas": "./scripts/gen-schemas.ts && oxfmt --write schemas/",
     "prepare": "lefthook install"
   },
   "dependencies": {

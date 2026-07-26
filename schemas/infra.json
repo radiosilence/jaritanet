@@ -6,9 +6,7 @@
       "$ref": "#/$defs/__schema0"
     }
   },
-  "required": [
-    "config"
-  ],
+  "required": ["config"],
   "description": "Schema for infrastructure configuration",
   "title": "Infrastructure Configuration Schema",
   "$defs": {
@@ -22,9 +20,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "accountId"
-          ]
+          "required": ["accountId"]
         },
         "jaritanet:edges": {
           "type": "array",
@@ -75,9 +71,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "name"
-            ]
+            "required": ["name"]
           }
         },
         "jaritanet:exits": {
@@ -102,14 +96,10 @@
               "substrate": {
                 "default": "k8s",
                 "type": "string",
-                "enum": [
-                  "k8s"
-                ]
+                "enum": ["k8s"]
               }
             },
-            "required": [
-              "name"
-            ]
+            "required": ["name"]
           }
         },
         "jaritanet:gateway": {
@@ -162,9 +152,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "serverName"
-              ]
+              "required": ["serverName"]
             }
           }
         },
@@ -246,17 +234,11 @@
                     "$ref": "#/$defs/__schema16"
                   }
                 },
-                "required": [
-                  "id",
-                  "name",
-                  "image"
-                ]
+                "required": ["id", "name", "image"]
               }
             }
           },
-          "required": [
-            "image"
-          ]
+          "required": ["image"]
         },
         "jaritanet:traefik": {
           "type": "object",
@@ -269,9 +251,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "acmeEmail"
-          ]
+          "required": ["acmeEmail"]
         },
         "jaritanet:services": {
           "type": "object",
@@ -333,10 +313,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "value"
-                          ]
+                          "required": ["name", "value"]
                         }
                       },
                       "initialDelaySeconds": {
@@ -407,11 +384,7 @@
                           "type": "boolean"
                         }
                       },
-                      "required": [
-                        "hostPath",
-                        "mountPath",
-                        "name"
-                      ]
+                      "required": ["hostPath", "mountPath", "name"]
                     }
                   },
                   "httpPort": {
@@ -509,25 +482,18 @@
                       "type": {
                         "default": "RollingUpdate",
                         "type": "string",
-                        "enum": [
-                          "Recreate",
-                          "RollingUpdate"
-                        ]
+                        "enum": ["Recreate", "RollingUpdate"]
                       }
                     }
                   }
                 },
-                "required": [
-                  "image"
-                ]
+                "required": ["image"]
               },
               "hostname": {
                 "type": "string"
               }
             },
-            "required": [
-              "args"
-            ]
+            "required": ["args"]
           }
         },
         "jaritanet:zones": {
@@ -539,10 +505,7 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "bluesky",
-                    "fastmail"
-                  ]
+                  "enum": ["bluesky", "fastmail"]
                 }
               },
               "name": {
@@ -552,11 +515,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "modules",
-              "name",
-              "zoneId"
-            ]
+            "required": ["modules", "name", "zoneId"]
           }
         },
         "jaritanet:fastmail": {
@@ -601,9 +560,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "did"
-          ]
+          "required": ["did"]
         },
         "cloudflare:apiToken": {
           "type": "object",
@@ -612,9 +569,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ]
+          "required": ["secure"]
         },
         "hcloud:token": {
           "type": "object",
@@ -623,9 +578,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ]
+          "required": ["secure"]
         }
       },
       "required": [
@@ -666,10 +619,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "repository",
-        "tag"
-      ]
+      "required": ["repository", "tag"]
     },
     "__schema3": {
       "type": "object",
@@ -744,11 +694,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "label",
-          "header"
-        ]
+        "required": ["id", "label", "header"]
       }
     },
     "__schema12": {
@@ -779,9 +725,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "query"
-      ]
+      "required": ["query"]
     }
   }
 }
