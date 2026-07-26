@@ -53,6 +53,7 @@ export function mcpRegistry(
         ...(m.graphqlPath && { graphql: url(m.graphqlPath) }),
         ...(m.keyHelpUrl && { key_help_url: m.keyHelpUrl }),
         ...(m.keyHint && { key_hint: m.keyHint }),
+        ...(m.verify && { verify: m.verify }),
       };
     }),
   );
