@@ -2,4 +2,3 @@
 aube = "1"
 node = "24"
 pulumi = "latest"
-yq = "latest"
