@@ -183,7 +183,11 @@ jobs:
             fi
             url=$(gh issue create --title "$title" --body "$details
           [Run]($RUN_URL)")
-            gh issue close "$url" --reason completed >/dev/null
+            # REST, not `gh issue close`: that goes through the GraphQL
+            # closeIssue mutation, which the app token is refused for even
+            # though it may create the issue over REST perfectly well.
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/${url##*/}" \
+              -f state=closed -f state_reason=completed >/dev/null
             echo "recorded at $url"
           else
             echo "nothing to update"
