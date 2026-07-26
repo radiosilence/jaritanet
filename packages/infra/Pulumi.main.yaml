@@ -23,7 +23,7 @@ config:
       # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
       # to be a sha pushed here by that repo's CI on every build.
       repository: "ghcr.io/radiosilence/mcp-gateway"
-      tag: v0.1.0
+      tag: v0.1.1
       pullPolicy: "Always"
     # Each entry is both a backend pod and its entry in the registry the gateway
     # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
