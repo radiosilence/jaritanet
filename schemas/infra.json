@@ -229,6 +229,9 @@
                   },
                   "keyHint": {
                     "$ref": "#/$defs/__schema15"
+                  },
+                  "verify": {
+                    "$ref": "#/$defs/__schema16"
                   }
                 },
                 "required": ["id", "name", "image"]
@@ -705,6 +708,24 @@
     },
     "__schema15": {
       "type": "string"
+    },
+    "__schema16": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "string"
+        },
+        "rejected": {
+          "type": "string"
+        }
+      },
+      "required": ["query"]
     }
   }
 }
