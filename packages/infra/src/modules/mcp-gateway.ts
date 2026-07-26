@@ -63,8 +63,11 @@ export function createMcpGateway(
     length: 32,
   });
 
-  const pgUser = "fastmail";
-  const pgDb = "fastmail_mcp";
+  // One instance, two databases: the gateway's vault and Hydra's. They share it
+  // deliberately — the two must agree on who a subject is, and a second
+  // datastore would be a second thing to back up for three tables.
+  const pgUser = "mcpgw";
+  const pgDb = "mcp_gateway";
   const pgHost = "mcp-gateway-postgres";
   const databaseUrl = pulumi.interpolate`postgres://${pgUser}:${pgPassword.result}@${svcDns(pgHost)}:5432/${pgDb}`;
   const hydraDsn = pulumi.interpolate`postgres://${pgUser}:${pgPassword.result}@${svcDns(pgHost)}:5432/hydra?sslmode=disable`;
