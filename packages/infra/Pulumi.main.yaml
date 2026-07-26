@@ -20,10 +20,10 @@ config:
       cpu: "500m"
       memory: "256Mi"
     image:
-      # tag is auto-bumped to sha-<short> by mcp-gateway's ci-cd
-      # (update-deployment job); `main` is the initial pointer.
+      # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
+      # to be a sha pushed here by that repo's CI on every build.
       repository: "ghcr.io/radiosilence/mcp-gateway"
-      tag: sha-9dd0e1f
+      tag: v0.1.0
       pullPolicy: "Always"
     # Each entry is both a backend pod and its entry in the registry the gateway
     # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod

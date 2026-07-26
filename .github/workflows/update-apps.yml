@@ -38,6 +38,10 @@ jobs:
             repo: "traefik/traefik-helm-chart"
             path: '.config["jaritanet:traefik"].chartVersion'
             value: "{version}"
+          - app: "MCP Gateway"
+            repo: "radiosilence/mcp-gateway"
+            path: '.config["jaritanet:mcpGateway"].image.tag'
+            value: "v{version}"
           - app: "Fastmail MCP"
             repo: "radiosilence/fastmail-cli"
             path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "fastmail") | .image)'
