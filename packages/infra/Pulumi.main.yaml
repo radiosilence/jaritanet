@@ -35,7 +35,7 @@ config:
       # backends would silently drift from the gateway they serve.
       - id: fastmail
         name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:v3.2.0"
+        image: "ghcr.io/radiosilence/fastmail-cli:v3.2.1"
         args: ["mcp", "--http", "0.0.0.0:8080"]
         port: 8080
         path: "/mcp"
@@ -47,7 +47,7 @@ config:
       # in one request instead of an MCP session handshake.
       - id: caldav
         name: Calendar (CalDAV)
-        image: "ghcr.io/radiosilence/caldav-cli:v0.5.2"
+        image: "ghcr.io/radiosilence/caldav-cli:v0.5.3"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
@@ -89,7 +89,7 @@ config:
       # licence to front an MCP unauthenticated.
       - id: folk
         name: Folk (Mainly Norfolk)
-        image: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.0.0"
+        image: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.0.2"
         args: ["--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
