@@ -23,7 +23,7 @@ config:
       # tag is auto-bumped to sha-<short> by mcp-gateway's ci-cd
       # (update-deployment job); `main` is the initial pointer.
       repository: "ghcr.io/radiosilence/mcp-gateway"
-      tag: sha-9a7b5bc
+      tag: sha-1f615d3
       pullPolicy: "Always"
     # Each entry is both a backend pod and its entry in the registry the gateway
     # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
