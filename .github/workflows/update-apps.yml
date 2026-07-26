@@ -1,7 +1,12 @@
 name: Update App Versions
 
 on:
+  # main only. This job commits and pushes to whatever branch it runs on, so a
+  # feature branch touching these paths got the day's version bumps written into
+  # its own PR. Verify a change with `--dry-run` or workflow_dispatch instead.
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/update-apps.yml"
       - ".github/tracked-versions.yml"
