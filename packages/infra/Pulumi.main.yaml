@@ -36,9 +36,10 @@ config:
       - id: fastmail
         name: Fastmail
         image: "ghcr.io/radiosilence/fastmail-cli:v3.3.0"
-        args: ["mcp", "--http", "0.0.0.0:8080"]
+        args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
+        graphqlPath: "/graphql"
         credentialHeader: "X-Fastmail-Token"
         keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
         keyHint: "fmu1-…"
