@@ -53,6 +53,26 @@ export const McpSchema = z
     graphqlPath: z.string().optional(),
     keyHelpUrl: z.string().optional(),
     keyHint: z.string().optional(),
+    /**
+     * How to ask this backend whether the stored credentials still work, so the
+     * dashboard can distinguish one that is configured from one that is
+     * working. Omit it and the gateway claims nothing, which is the honest
+     * answer for a backend that authenticates nothing.
+     *
+     * `path`, `ok` and `rejected` are all optional because backends disagree
+     * about how to report bad auth: one that raises needs only a query, one
+     * that answers calmly with a status names the values. Nothing is ever
+     * reported as rejected unless `rejected` says which value means it — an
+     * unreachable server is not evidence about a password.
+     */
+    verify: z
+      .object({
+        query: z.string(),
+        path: z.string().optional(),
+        ok: z.string().optional(),
+        rejected: z.string().optional(),
+      })
+      .optional(),
   })
   .refine(
     (b) =>
