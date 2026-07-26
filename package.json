@@ -19,6 +19,7 @@
     "fmt:check": "oxfmt --check",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
     "gen:schemas": "./scripts/gen-schemas.ts",
+    "update:apps": "./packages/infra/src/update-apps.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {

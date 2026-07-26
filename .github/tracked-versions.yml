@@ -1,54 +1,56 @@
-# What update-apps.yml watches. Adding a component is an entry here; the
-# workflow itself never needs touching.
+# What the version updater watches. Adding a component is an entry here; the
+# updater itself never needs touching.
 #
 #   repo   where the releases are read from
-#   path   a yq expression naming what to rewrite in Pulumi.main.yaml
+#   path   what to rewrite in Pulumi.main.yaml, as a list of keys. A mapping
+#          segment like `{ id: tfl }` picks a list entry out by field rather
+#          than by position, so reordering that list is harmless.
 #   value  what to write, with {version} substituted
 #   image  an image reference to confirm exists before committing the bump.
 #          Defaults to `value` when that is already a full reference, so only
 #          entries writing a bare tag need to spell it out. Omit entirely when
 #          there is no image to check, as for a Helm chart.
 #
-# {version} is the release tag with any chart-name prefix and leading `v`
-# stripped, so an entry puts back whatever form it actually needs — a bare
-# version for a tag field, a full reference for an image.
+# {version} is the release tag with everything before its first digit stripped,
+# which covers both a leading `v` and a chart-name prefix. An entry puts back
+# whatever form it actually needs — a bare version for a tag field, a full
+# reference for an image.
 
 - app: Navidrome
   repo: deluan/navidrome
-  path: '.config["jaritanet:services"].navidrome.args.image.tag'
+  path: [config, "jaritanet:services", navidrome, args, image, tag]
   value: "{version}"
   image: "deluan/navidrome:{version}"
 
 # Chart releases are tagged "traefik-34.5.0".
 - app: Traefik
   repo: traefik/traefik-helm-chart
-  path: '.config["jaritanet:traefik"].chartVersion'
+  path: [config, "jaritanet:traefik", chartVersion]
   value: "{version}"
 
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway
-  path: '.config["jaritanet:mcpGateway"].image.tag'
+  path: [config, "jaritanet:mcpGateway", image, tag]
   value: "v{version}"
   image: "ghcr.io/radiosilence/mcp-gateway:v{version}"
 
-# The MCPs the gateway fronts. Each is an image reference inside a list, picked
-# out by its id rather than its position, so reordering the list is harmless.
+# The MCPs the gateway fronts, each an image reference inside a list.
 - app: Fastmail MCP
   repo: radiosilence/fastmail-cli
-  path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "fastmail") | .image)'
+  path: [config, "jaritanet:mcpGateway", mcps, { id: fastmail }, image]
   value: "ghcr.io/radiosilence/fastmail-cli:v{version}"
 
 - app: CalDAV MCP
   repo: radiosilence/caldav-cli
-  path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "caldav") | .image)'
+  path: [config, "jaritanet:mcpGateway", mcps, { id: caldav }, image]
   value: "ghcr.io/radiosilence/caldav-cli:v{version}"
 
 - app: Folk MCP
   repo: radiosilence/mainlynorfolk-mcp
-  path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "folk") | .image)'
+  path: [config, "jaritanet:mcpGateway", mcps, { id: folk }, image]
   value: "ghcr.io/radiosilence/mainlynorfolk-mcp:v{version}"
 
 - app: TfL MCP
   repo: radiosilence/tfl-mcp
-  path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "tfl") | .image)'
+  path: [config, "jaritanet:mcpGateway", mcps, { id: tfl }, image]
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
