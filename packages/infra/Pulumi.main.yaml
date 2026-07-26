@@ -42,6 +42,14 @@ config:
         credentialHeader: "X-Fastmail-Token"
         keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
         keyHint: "fmu1-…"
+        # Re-runs the handshake rather than reading a cached client, so a
+        # revoked token is caught rather than reported as fine. Only a 401 is a
+        # verdict on the credential; rate limits and outages are UNREACHABLE.
+        verify:
+          query: "{ session { status } }"
+          path: session.status
+          ok: CONNECTED
+          rejected: INVALID_CREDENTIALS
       # CalDAV needs three values rather than one token, and serves plain
       # GraphQL beside /mcp so the dashboard can list an account's calendars
       # in one request instead of an MCP session handshake.
@@ -53,6 +61,12 @@ config:
         path: "/mcp"
         graphqlPath: "/graphql"
         keyHelpUrl: "https://appleid.apple.com"
+        # A cheap PROPFIND for the principal — never touches the calendar list.
+        verify:
+          query: "{ viewer { status } }"
+          path: viewer.status
+          ok: CONNECTED
+          rejected: INVALID_CREDENTIALS
         fields:
           - id: username
             label: "Apple ID / username"
