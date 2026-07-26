@@ -1,6 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
+import * as yaml from "yaml";
 import type * as z from "zod";
 import type { McpGatewayConfSchema } from "../conf.schemas.ts";
 
@@ -9,6 +10,53 @@ const SECRETS_NAME = "mcp-gateway-secrets";
 const secretRef = (key: string) => ({
   valueFrom: { secretKeyRef: { name: SECRETS_NAME, key } },
 });
+
+/**
+ * The registry the gateway boots from: which MCPs it fronts, what each one is
+ * called, and what it needs from the user.
+ *
+ * Keys are snake_case because this is the gateway's format, not ours. Backend
+ * URLs are derived from the Services declared beside them, so config says which
+ * MCPs exist and never where they live.
+ *
+ * Handed over whole in an env var rather than mounted as a file: a ConfigMap
+ * edited under a running pod is invisible to it, whereas env is part of the pod
+ * spec, so changing an MCP rolls the gateway onto it.
+ */
+export function mcpRegistry(
+  mcps: z.infer<typeof McpGatewayConfSchema>["mcps"],
+  svcDns: (name: string) => string,
+) {
+  return yaml.stringify(
+    mcps.map((m) => {
+      const url = (path: string) =>
+        `http://${svcDns(`mcp-gateway-mcp-${m.id}`)}:${m.port}${path}`;
+      return {
+        id: m.id,
+        name: m.name,
+        backend: url(m.path),
+        ...(m.public && { public: true }),
+        ...(m.credentialHeader && { credential_header: m.credentialHeader }),
+        ...(m.fields?.length && {
+          fields: m.fields.map((f) => ({
+            id: f.id,
+            label: f.label,
+            header: f.header,
+            ...(f.secret !== undefined && { secret: f.secret }),
+            ...(f.default && { default: f.default }),
+            ...(f.hint && { hint: f.hint }),
+            ...(f.required !== undefined && { required: f.required }),
+            ...(f.optionsQuery && { options_query: f.optionsQuery }),
+            ...(f.syncMutation && { sync_mutation: f.syncMutation }),
+          })),
+        }),
+        ...(m.graphqlPath && { graphql: url(m.graphqlPath) }),
+        ...(m.keyHelpUrl && { key_help_url: m.keyHelpUrl }),
+        ...(m.keyHint && { key_hint: m.keyHint }),
+      };
+    }),
+  );
+}
 
 /**
  * The MCP Gateway stack: an OAuth-fronted gateway for self-hosted MCP servers.
@@ -304,7 +352,7 @@ export function createMcpGateway(
   );
 
   // --- Backend MCPs (one Deployment + Service each) ---
-  for (const b of conf.backends) {
+  for (const b of conf.mcps) {
     new k8s.apps.v1.Deployment(
       `mcp-gateway-backend-${b.id}`,
       {
@@ -347,42 +395,6 @@ export function createMcpGateway(
     );
   }
 
-  // --- MCP registry ConfigMap ---
-  const registry = conf.backends.map((b) => ({
-    id: b.id,
-    name: b.name,
-    backend: `http://${svcDns(`mcp-gateway-mcp-${b.id}`)}:${b.port}${b.path}`,
-    // snake_case: this is the gateway's on-disk registry format, not ours.
-    ...(b.public && { public: true }),
-    ...(b.credentialHeader && { credential_header: b.credentialHeader }),
-    ...(b.fields?.length && {
-      fields: b.fields.map((f) => ({
-        id: f.id,
-        label: f.label,
-        header: f.header,
-        ...(f.secret !== undefined && { secret: f.secret }),
-        ...(f.default && { default: f.default }),
-        ...(f.hint && { hint: f.hint }),
-        ...(f.required !== undefined && { required: f.required }),
-        ...(f.optionsQuery && { options_query: f.optionsQuery }),
-        ...(f.syncMutation && { sync_mutation: f.syncMutation }),
-      })),
-    }),
-    ...(b.graphqlPath && {
-      graphql: `http://${svcDns(`mcp-gateway-mcp-${b.id}`)}:${b.port}${b.graphqlPath}`,
-    }),
-    ...(b.keyHelpUrl && { key_help_url: b.keyHelpUrl }),
-    ...(b.keyHint && { key_hint: b.keyHint }),
-  }));
-  const registryCm = new k8s.core.v1.ConfigMap(
-    "mcp-gateway-registry",
-    {
-      metadata: { name: "mcp-gateway-registry", namespace },
-      data: { "mcps.json": JSON.stringify(registry, null, 2) },
-    },
-    opts,
-  );
-
   // --- Gateway (the Rust app) ---
   new k8s.apps.v1.Deployment(
     "mcp-gateway",
@@ -392,13 +404,7 @@ export function createMcpGateway(
         replicas: conf.replicas,
         selector: { matchLabels: { app: "mcp-gateway" } },
         template: {
-          metadata: {
-            labels: { app: "mcp-gateway" },
-            annotations: {
-              // Roll when the registry changes.
-              "jaritanet/registry-hash": registryCm.metadata.name,
-            },
-          },
+          metadata: { labels: { app: "mcp-gateway" } },
           spec: {
             containers: [
               {
@@ -417,7 +423,10 @@ export function createMcpGateway(
                     name: "HYDRA_ADMIN_URL",
                     value: `http://${svcDns("mcp-gateway-hydra-admin")}:4445`,
                   },
-                  { name: "MCP_REGISTRY", value: "/etc/mcp-gateway/mcps.json" },
+                  {
+                    name: "MCP_REGISTRY",
+                    value: mcpRegistry(conf.mcps, svcDns),
+                  },
                   { name: "DATABASE_URL", ...secretRef("database-url") },
                   { name: "TOKEN_ENC_KEY", ...secretRef("token-enc-key") },
                   {
@@ -433,13 +442,6 @@ export function createMcpGateway(
                     value: pulumi.output(secrets.githubAllowed),
                   },
                 ],
-                volumeMounts: [
-                  {
-                    name: "registry",
-                    mountPath: "/etc/mcp-gateway",
-                    readOnly: true,
-                  },
-                ],
                 readinessProbe: {
                   httpGet: { path: "/healthz", port: 8080 },
                   initialDelaySeconds: 5,
@@ -447,12 +449,6 @@ export function createMcpGateway(
                 },
                 resources: { limits: conf.limits },
                 securityContext: { allowPrivilegeEscalation: false },
-              },
-            ],
-            volumes: [
-              {
-                name: "registry",
-                configMap: { name: registryCm.metadata.name },
               },
             ],
           },

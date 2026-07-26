@@ -20,12 +20,16 @@ config:
       cpu: "500m"
       memory: "256Mi"
     image:
-      # tag is auto-bumped to sha-<short> by jaritanet-mcp-gateway's ci-cd
+      # tag is auto-bumped to sha-<short> by mcp-gateway's ci-cd
       # (update-deployment job); `main` is the initial pointer.
-      repository: "ghcr.io/radiosilence/jaritanet-mcp-gateway"
+      repository: "ghcr.io/radiosilence/mcp-gateway"
       tag: sha-bb854b4
       pullPolicy: "Always"
-    backends:
+    # Each entry is both a backend pod and its entry in the registry the gateway
+    # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
+    # that doesn't exist is just a 502. The in-cluster URL joining them is
+    # derived, so nothing here says where an MCP lives.
+    mcps:
       # Pinned to release tags, not :main. A floating tag with the default
       # pull policy leaves a running pod on whatever it first pulled, so the
       # backends would silently drift from the gateway they serve.
