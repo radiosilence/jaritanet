@@ -8,6 +8,14 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+# Every entry pushes to main, so two runs at once fight over it — and they do
+# overlap in practice: editing this file triggers a run, and reaching for
+# workflow_dispatch straight after starts a second. Queue rather than cancel;
+# a cancelled run is a dropped update, not a retried one.
+concurrency:
+  group: update-apps
+  cancel-in-progress: false
+
 jobs:
   update-apps:
     name: Update ${{ matrix.app }}
@@ -138,7 +146,18 @@ jobs:
           git add packages/infra/Pulumi.main.yaml
           git commit -m "chore: update ${{ matrix.app }} to ${{ env.NEW_VALUE }}"
 
-          git push
+          # The checkout is a snapshot from when this job started, so anything
+          # landing on main since — a merged PR, an earlier entry in this run —
+          # makes the push a non-fast-forward even though nothing conflicts.
+          # Rebase puts this bump back on top; retry because main can move again
+          # in the gap between the rebase and the push.
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            echo "push attempt $attempt lost a race, retrying"
+            sleep $((attempt * 5))
+          done
+          echo "could not push after 3 attempts"
+          exit 1
 
       - name: Create Issue
         if: env.VERSION_UPDATED == 'true'
