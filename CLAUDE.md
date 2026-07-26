@@ -31,6 +31,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `aube run lint:fix` - Lint and auto-fix with oxlint
 - `aube run fmt` - Format code with oxfmt
 - `aube run fmt:check` - Check formatting with oxfmt
+- `aube run preview` / `aube run deploy` - Drive the stack through `src/deploy.ts`, the same entrypoint CI uses. Both rewrite the local `Pulumi.main.yaml` from the environment first, so run them with CI's secrets or not at all.
 
 ### Git Hooks
 
@@ -95,11 +96,13 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 Triggered on pushes and pull requests affecting package files, manually via `workflow_dispatch`, or as a reusable workflow (`workflow_call`, with the Pulumi/Cloudflare/Hetzner secrets):
 
 1. **Test** - Type checks, lints, runs vitest suite
-2. **Deploy** (main branch only) - Single `pulumi up` deploying everything
+2. **Deploy** (main branch only) - `aube run deploy`, a single `pulumi up` deploying everything
 
 ### Preview (`preview.yml`)
 
-Runs `pulumi preview` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge.
+Runs `aube run preview` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge.
+
+Both verbs enter `packages/infra/src/deploy.ts` (Pulumi Automation API), which applies stack config from the environment and then previews or updates. Sharing an entrypoint is the point: a preview produced by different machinery than the deploy predicts nothing. Config is written to the checked-out `Pulumi.main.yaml` rather than the shared stack, so one PR's injected hostnames never reach another's preview.
 
 ### Schema Generation (`generate-schemas.yml`)
 
