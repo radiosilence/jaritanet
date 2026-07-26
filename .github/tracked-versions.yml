@@ -4,6 +4,10 @@
 #   repo   where the releases are read from
 #   path   a yq expression naming what to rewrite in Pulumi.main.yaml
 #   value  what to write, with {version} substituted
+#   image  an image reference to confirm exists before committing the bump.
+#          Defaults to `value` when that is already a full reference, so only
+#          entries writing a bare tag need to spell it out. Omit entirely when
+#          there is no image to check, as for a Helm chart.
 #
 # {version} is the release tag with any chart-name prefix and leading `v`
 # stripped, so an entry puts back whatever form it actually needs — a bare
@@ -13,6 +17,7 @@
   repo: deluan/navidrome
   path: '.config["jaritanet:services"].navidrome.args.image.tag'
   value: "{version}"
+  image: "deluan/navidrome:{version}"
 
 # Chart releases are tagged "traefik-34.5.0".
 - app: Traefik
@@ -24,6 +29,7 @@
   repo: radiosilence/mcp-gateway
   path: '.config["jaritanet:mcpGateway"].image.tag'
   value: "v{version}"
+  image: "ghcr.io/radiosilence/mcp-gateway:v{version}"
 
 # The MCPs the gateway fronts. Each is an image reference inside a list, picked
 # out by its id rather than its position, so reordering the list is harmless.
