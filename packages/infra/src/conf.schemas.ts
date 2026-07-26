@@ -18,7 +18,11 @@ export const McpCredentialFieldSchema = z.object({
 });
 
 /**
- * A backend MCP the gateway fronts (one Deployment + Service each).
+ * An MCP the gateway fronts: one Deployment + Service, and one entry in the
+ * registry handed to the gateway. Declared once because the two cannot
+ * meaningfully disagree — a registry entry naming a pod that does not exist is
+ * a 502 waiting to happen, and the in-cluster URL joining them is derived, not
+ * written down.
  *
  * `credentialHeader` is the shorthand for the common one-token case;
  * `fields` covers backends wanting several values (CalDAV needs a username, an
@@ -30,7 +34,7 @@ export const McpCredentialFieldSchema = z.object({
  * backend declaring no credentials is far more often a typo than a decision,
  * and the deploy should fail rather than quietly front an unauthenticated MCP.
  */
-export const McpBackendSchema = z
+export const McpSchema = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -57,7 +61,7 @@ export const McpBackendSchema = z
     { message: "set exactly one of credentialHeader, fields, or public" },
   );
 
-/** The MCP Gateway stack (gateway + Hydra + Postgres + backends). */
+/** The MCP Gateway stack (gateway + Hydra + Postgres + the MCPs it fronts). */
 export const McpGatewayConfSchema = z.object({
   // Blank in the (public) repo; injected at CI time from secrets, so the source
   // reveals no hostnames. An empty hostname skips the stack (see main.ts).
@@ -70,7 +74,7 @@ export const McpGatewayConfSchema = z.object({
   // Postgres uses the cluster's default StorageClass unless set — a few tiny
   // tables, so (unlike the media services) we don't pin them to a disk path.
   postgresStorageClass: z.string().optional(),
-  backends: z.array(McpBackendSchema).default([]),
+  mcps: z.array(McpSchema).default([]),
 });
 
 export const CloudflareConfSchema = z.object({

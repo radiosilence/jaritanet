@@ -156,6 +156,87 @@
             }
           }
         },
+        "jaritanet:mcpGateway": {
+          "type": "object",
+          "properties": {
+            "hostname": {
+              "default": "",
+              "type": "string"
+            },
+            "authHostname": {
+              "default": "",
+              "type": "string"
+            },
+            "image": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "hydraTag": {
+              "default": "v2.2.0",
+              "type": "string"
+            },
+            "replicas": {
+              "default": 2,
+              "type": "number"
+            },
+            "limits": {
+              "default": {
+                "cpu": "500m",
+                "memory": "256Mi"
+              },
+              "$ref": "#/$defs/__schema3"
+            },
+            "postgresStorageClass": {
+              "type": "string"
+            },
+            "mcps": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/__schema5"
+                  },
+                  "image": {
+                    "$ref": "#/$defs/__schema6"
+                  },
+                  "args": {
+                    "$ref": "#/$defs/__schema7"
+                  },
+                  "port": {
+                    "$ref": "#/$defs/__schema8"
+                  },
+                  "path": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "credentialHeader": {
+                    "$ref": "#/$defs/__schema10"
+                  },
+                  "fields": {
+                    "$ref": "#/$defs/__schema11"
+                  },
+                  "public": {
+                    "$ref": "#/$defs/__schema12"
+                  },
+                  "graphqlPath": {
+                    "$ref": "#/$defs/__schema13"
+                  },
+                  "keyHelpUrl": {
+                    "$ref": "#/$defs/__schema14"
+                  },
+                  "keyHint": {
+                    "$ref": "#/$defs/__schema15"
+                  }
+                },
+                "required": ["id", "name", "image"]
+              }
+            }
+          },
+          "required": ["image"]
+        },
         "jaritanet:traefik": {
           "type": "object",
           "properties": {
@@ -310,32 +391,10 @@
                     "maximum": 4294967295
                   },
                   "image": {
-                    "type": "object",
-                    "properties": {
-                      "pullPolicy": {
-                        "type": "string"
-                      },
-                      "repository": {
-                        "type": "string"
-                      },
-                      "tag": {
-                        "type": "string"
-                      }
-                    },
-                    "required": ["repository", "tag"]
+                    "$ref": "#/$defs/__schema2"
                   },
                   "limits": {
-                    "type": "object",
-                    "properties": {
-                      "cpu": {
-                        "default": "50m",
-                        "type": "string"
-                      },
-                      "memory": {
-                        "default": "64Mi",
-                        "type": "string"
-                      }
-                    }
+                    "$ref": "#/$defs/__schema3"
                   },
                   "persistence": {
                     "default": [],
@@ -543,6 +602,109 @@
           "type": "string"
         }
       }
+    },
+    "__schema2": {
+      "type": "object",
+      "properties": {
+        "pullPolicy": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      },
+      "required": ["repository", "tag"]
+    },
+    "__schema3": {
+      "type": "object",
+      "properties": {
+        "cpu": {
+          "default": "50m",
+          "type": "string"
+        },
+        "memory": {
+          "default": "64Mi",
+          "type": "string"
+        }
+      }
+    },
+    "__schema4": {
+      "type": "string"
+    },
+    "__schema5": {
+      "type": "string"
+    },
+    "__schema6": {
+      "type": "string"
+    },
+    "__schema7": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "__schema8": {
+      "default": 8080,
+      "type": "number"
+    },
+    "__schema9": {
+      "default": "/mcp",
+      "type": "string"
+    },
+    "__schema10": {
+      "type": "string"
+    },
+    "__schema11": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "header": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "boolean"
+          },
+          "default": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "optionsQuery": {
+            "type": "string"
+          },
+          "syncMutation": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "label", "header"]
+      }
+    },
+    "__schema12": {
+      "type": "boolean"
+    },
+    "__schema13": {
+      "type": "string"
+    },
+    "__schema14": {
+      "type": "string"
+    },
+    "__schema15": {
+      "type": "string"
     }
   }
 }
