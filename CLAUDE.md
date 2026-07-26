@@ -32,6 +32,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `aube run fmt` - Format code with oxfmt
 - `aube run fmt:check` - Check formatting with oxfmt
 - `aube run preview` / `aube run deploy` - Drive the stack through `src/deploy.ts`, the same entrypoint CI uses. Both rewrite the local `Pulumi.main.yaml` from the environment first, so run them with CI's secrets or not at all.
+- `./packages/infra/src/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
 ### Git Hooks
 
@@ -110,7 +111,11 @@ Generates JSON schemas from Zod definitions on changes or daily schedule. Commit
 
 ### App Version Updates (`update-apps.yml`)
 
-Daily check for new releases of deployed services (Navidrome Docker image + Traefik Helm chart). Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
+Daily check for new releases of the components listed in `.github/tracked-versions.yml`. Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
+
+The workflow only supplies tokens; the work is `packages/infra/src/update-apps.ts`, with the decisions it makes — tag normalisation, image reference parsing, and whether an entry moved — isolated in `versions.ts` where they are unit tested. A release tag is never trusted on its own: the registry is asked whether the image actually published, including for entries already up to date, so a pin that stopped resolving is reported rather than waiting for the next pod restart to find it.
+
+Rewrites go through the YAML document API and mutate the existing scalar, so a bump changes exactly one line and leaves comments and quoting alone.
 
 ### Ansible Deployment (`run-playbook.yml`)
 
