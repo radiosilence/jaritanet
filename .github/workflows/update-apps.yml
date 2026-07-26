@@ -4,68 +4,30 @@ on:
   push:
     paths:
       - ".github/workflows/update-apps.yml"
+      - ".github/tracked-versions.yml"
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
-# Every entry pushes to main, so two runs at once fight over it — and they do
-# overlap in practice: editing this file triggers a run, and reaching for
-# workflow_dispatch straight after starts a second. Queue rather than cancel;
-# a cancelled run is a dropped update, not a retried one.
+# One run at a time. Editing either file triggers a run, and reaching for
+# workflow_dispatch straight after starts a second; both would push to main.
+# Queue rather than cancel — a cancelled run drops that day's updates instead of
+# retrying them.
 concurrency:
   group: update-apps
   cancel-in-progress: false
 
 jobs:
+  # One job walking the list, rather than a job per component. The work is a few
+  # seconds of API calls; a matrix spent minutes booting runners, checking out
+  # and re-downloading yq to do it, and had to be serialised anyway because each
+  # entry pushes to the same branch.
   update-apps:
-    name: Update ${{ matrix.app }}
+    name: Update tracked versions
     runs-on: ubuntu-latest
     permissions:
       contents: write
       issues: write
-    strategy:
-      # Each entry commits and pushes to main, so they run one at a time — in
-      # parallel all but the first push is a non-fast-forward, and the update is
-      # silently lost until tomorrow's run.
-      max-parallel: 1
-      fail-fast: false
-      # `path` is the yq expression naming what to rewrite, and `value` what to
-      # write, with {version} substituted from the upstream release. Carrying
-      # both here rather than deriving them means a new entry is a row, and the
-      # step below never grows another special case — the MCPs in particular are
-      # image references inside a list, not a bare tag field, which the old
-      # "everything lives under jaritanet:services" assumption could not express.
-      matrix:
-        include:
-          - app: "Navidrome"
-            repo: "deluan/navidrome"
-            path: '.config["jaritanet:services"].navidrome.args.image.tag'
-            value: "{version}"
-          # Chart tags look like "traefik-34.5.0"; the prefix strip below handles it.
-          - app: "Traefik"
-            repo: "traefik/traefik-helm-chart"
-            path: '.config["jaritanet:traefik"].chartVersion'
-            value: "{version}"
-          - app: "MCP Gateway"
-            repo: "radiosilence/mcp-gateway"
-            path: '.config["jaritanet:mcpGateway"].image.tag'
-            value: "v{version}"
-          - app: "Fastmail MCP"
-            repo: "radiosilence/fastmail-cli"
-            path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "fastmail") | .image)'
-            value: "ghcr.io/radiosilence/fastmail-cli:v{version}"
-          - app: "CalDAV MCP"
-            repo: "radiosilence/caldav-cli"
-            path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "caldav") | .image)'
-            value: "ghcr.io/radiosilence/caldav-cli:v{version}"
-          - app: "Folk MCP"
-            repo: "radiosilence/mainlynorfolk-mcp"
-            path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "folk") | .image)'
-            value: "ghcr.io/radiosilence/mainlynorfolk-mcp:v{version}"
-          - app: "TfL MCP"
-            repo: "radiosilence/tfl-mcp"
-            path: '(.config["jaritanet:mcpGateway"].mcps[] | select(.id == "tfl") | .image)'
-            value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
 
     steps:
       - name: Generate App Token
@@ -85,93 +47,99 @@ jobs:
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Check for Updates
+      - name: Update tracked versions
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          YQ_PATH: ${{ matrix.path }}
-          VALUE_TEMPLATE: ${{ matrix.value }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
 
-          CONFIG_PATH="packages/infra/Pulumi.main.yaml"
-          REPO="${{ matrix.repo }}"
+          CONFIG="packages/infra/Pulumi.main.yaml"
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git pull --rebase --autostash
 
-          echo "Checking $REPO"
+          updated=0
+          failed=""
+          titles=""
+          details=""
 
-          TAG=$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')
-          # Upstreams disagree on how a release is spelled: chart repos prefix
-          # the chart name, most prefix a v, some neither. Normalise to the bare
-          # version and let each entry's template put back what it needs.
-          VERSION="${TAG#traefik-}"
-          VERSION="${VERSION#v}"
+          while IFS= read -r entry; do
+            app=$(jq -r '.app'   <<<"$entry")
+            repo=$(jq -r '.repo' <<<"$entry")
+            yqpath=$(jq -r '.path'  <<<"$entry")
+            template=$(jq -r '.value' <<<"$entry")
 
-          if [[ -z "$VERSION" || "$VERSION" == "null" ]]; then
-            echo "Could not read a release tag for $REPO"
+            if ! tag=$(gh api "repos/$repo/releases/latest" --jq '.tag_name' 2>/dev/null); then
+              echo "::warning::$app — no readable release on $repo"
+              failed="$failed $app"
+              continue
+            fi
+
+            # Upstreams disagree on how a release is spelled; normalise to the
+            # bare version and let the entry's template put back what it needs.
+            version="${tag#traefik-}"
+            version="${version#v}"
+            new="${template//\{version\}/$version}"
+
+            current=$(yq eval "$yqpath" "$CONFIG")
+            # An empty read means the path matches nothing — a renamed id, or a
+            # restructured config. Say so, rather than silently stop tracking it.
+            if [[ -z "$current" || "$current" == "null" ]]; then
+              echo "::warning::$app — nothing at $yqpath, the config moved"
+              failed="$failed $app"
+              continue
+            fi
+
+            if [[ "$current" == "$new" ]]; then
+              echo "$app — up to date ($current)"
+              continue
+            fi
+
+            echo "$app — $current -> $new"
+            yq eval "($yqpath) = \"$new\"" -i "$CONFIG"
+            git add "$CONFIG"
+            git commit -q -m "chore: update $app to $new"
+            updated=$((updated + 1))
+
+            titles="${titles:+$titles, }$app $version"
+            details="$details- **$app** \`$current\` → \`$new\` (from $repo)"$'\n'
+          done < <(yq -o=json '.' .github/tracked-versions.yml | jq -c '.[]')
+
+          if (( updated > 0 )); then
+            # main can move while this runs — a merged PR, or a long list of
+            # releases to fetch. Rebase these commits on top and retry, since it
+            # can move again between the rebase and the push.
+            for attempt in 1 2 3; do
+              if git pull --rebase --autostash && git push; then
+                break
+              fi
+              echo "push attempt $attempt lost a race, retrying"
+              sleep $((attempt * 5))
+              if (( attempt == 3 )); then
+                echo "::error::could not push after 3 attempts"
+                exit 1
+              fi
+            done
+            echo "pushed $updated update(s)"
+
+            # One issue per run, and only when something moved — a job per
+            # component meant a separate issue each, which buried the backlog in
+            # notifications nobody was meant to action. Closed on creation for
+            # the same reason: it is a record that something changed, not work.
+            title="Updated $titles"
+            if (( ${#title} > 200 )); then
+              title="Updated $updated versions"
+            fi
+            url=$(gh issue create --title "$title" --body "$details
+          [Run]($RUN_URL)")
+            gh issue close "$url" --reason completed >/dev/null
+            echo "recorded at $url"
+          else
+            echo "nothing to update"
+          fi
+
+          if [[ -n "$failed" ]]; then
+            echo "::error::could not check:$failed"
             exit 1
           fi
-
-          NEW_VALUE="${VALUE_TEMPLATE//\{version\}/$VERSION}"
-          CURRENT_VALUE=$(yq eval "$YQ_PATH" "$CONFIG_PATH")
-
-          # An empty read means the path no longer matches anything — a renamed
-          # id or a restructured config. Fail rather than write a second copy
-          # somewhere, or silently stop tracking this one.
-          if [[ -z "$CURRENT_VALUE" || "$CURRENT_VALUE" == "null" ]]; then
-            echo "Nothing at $YQ_PATH — the config moved and this entry needs updating"
-            exit 1
-          fi
-
-          echo "current: $CURRENT_VALUE"
-          echo "latest:  $NEW_VALUE"
-
-          if [[ "$CURRENT_VALUE" == "$NEW_VALUE" ]]; then
-            echo "Already up to date."
-            exit 0
-          fi
-
-          yq eval "($YQ_PATH) = \"$NEW_VALUE\"" -i "$CONFIG_PATH"
-
-          {
-            echo "CURRENT_VALUE=$CURRENT_VALUE"
-            echo "NEW_VALUE=$NEW_VALUE"
-            echo "VERSION_UPDATED=true"
-          } >> "$GITHUB_ENV"
-
-      - name: Commit Changes
-        if: env.VERSION_UPDATED == 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
-          git add packages/infra/Pulumi.main.yaml
-          git commit -m "chore: update ${{ matrix.app }} to ${{ env.NEW_VALUE }}"
-
-          # The checkout is a snapshot from when this job started, so anything
-          # landing on main since — a merged PR, an earlier entry in this run —
-          # makes the push a non-fast-forward even though nothing conflicts.
-          # Rebase puts this bump back on top; retry because main can move again
-          # in the gap between the rebase and the push.
-          for attempt in 1 2 3; do
-            git pull --rebase --autostash && git push && exit 0
-            echo "push attempt $attempt lost a race, retrying"
-            sleep $((attempt * 5))
-          done
-          echo "could not push after 3 attempts"
-          exit 1
-
-      - name: Create Issue
-        if: env.VERSION_UPDATED == 'true'
-        run: |
-          gh issue create \
-            --title "${{ matrix.app }} updated" \
-            --body "${{ matrix.app }} has been automatically updated.
-
-          **Details:**
-          - Previous: \`${{ env.CURRENT_VALUE }}\`
-          - New: \`${{ env.NEW_VALUE }}\`
-          - Repository: ${{ matrix.repo }}
-          - Updated at: $(date -u)
-
-          **Commit:** ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
