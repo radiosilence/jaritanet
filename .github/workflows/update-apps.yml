@@ -50,6 +50,10 @@ jobs:
       - name: Update tracked versions
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # The app installation can open an issue but is refused when amending
+          # one, so closing uses the workflow's own token — this job already
+          # grants that issues:write.
+          ISSUE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -183,11 +187,12 @@ jobs:
             fi
             url=$(gh issue create --title "$title" --body "$details
           [Run]($RUN_URL)")
-            # REST, not `gh issue close`: that goes through the GraphQL
-            # closeIssue mutation, which the app token is refused for even
-            # though it may create the issue over REST perfectly well.
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/${url##*/}" \
-              -f state=closed -f state_reason=completed >/dev/null
+            # Best-effort. The updates are already pushed by this point, and a
+            # note left open is not worth reporting the run as failed over.
+            GH_TOKEN="$ISSUE_TOKEN" gh api -X PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/${url##*/}" \
+              -f state=closed -f state_reason=completed >/dev/null \
+              || echo "::warning::opened $url but could not close it"
             echo "recorded at $url"
           else
             echo "nothing to update"
