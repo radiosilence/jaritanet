@@ -98,7 +98,7 @@ config:
       # this works the moment someone logs in.
       - id: tfl
         name: TfL (London transport)
-        image: "ghcr.io/radiosilence/tfl-cli:v0.5.0"
+        image: "ghcr.io/radiosilence/tfl-cli:v0.5.1"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
