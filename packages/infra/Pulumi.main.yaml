@@ -35,7 +35,7 @@ config:
       # backends would silently drift from the gateway they serve.
       - id: fastmail
         name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:v3.3.0"
+        image: "ghcr.io/radiosilence/fastmail-cli:v3.3.1"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
