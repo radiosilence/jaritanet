@@ -59,6 +59,35 @@ jobs:
           git config user.name "GitHub Action"
           git pull --rebase --autostash
 
+          # A GitHub release does not prove an image was published. A release job
+          # that runs alongside the image build rather than after it will happily
+          # tag a release whose build then fails, and pinning to that is an
+          # ImagePullBackOff we inflicted on ourselves. So ask the registry.
+          image_exists() {
+            local ref="$1" tag repo registry token url code
+            tag="${ref##*:}"; ref="${ref%:*}"
+            case "$ref" in
+              */*/*) registry="${ref%%/*}"; repo="${ref#*/}" ;;
+              *)     registry="docker.io"; repo="$ref" ;;
+            esac
+            case "$registry" in
+              ghcr.io)
+                token=$(curl -sf "https://ghcr.io/token?scope=repository:$repo:pull&service=ghcr.io" | jq -r '.token // empty')
+                url="https://ghcr.io/v2/$repo/manifests/$tag" ;;
+              docker.io)
+                token=$(curl -sf "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$repo:pull" | jq -r '.token // empty')
+                url="https://registry-1.docker.io/v2/$repo/manifests/$tag" ;;
+              *)
+                echo "::warning::no registry client for $registry, skipping the existence check"
+                return 0 ;;
+            esac
+            [ -n "$token" ] || return 1
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" \
+              -H 'Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json' \
+              "$url")
+            [ "$code" = "200" ]
+          }
+
           updated=0
           failed=""
           titles=""
@@ -87,6 +116,27 @@ jobs:
             # restructured config. Say so, rather than silently stop tracking it.
             if [[ -z "$current" || "$current" == "null" ]]; then
               echo "::warning::$app — nothing at $yqpath, the config moved"
+              failed="$failed $app"
+              continue
+            fi
+
+            # Checked even when already up to date, so a pin that stopped
+            # resolving — a release deleted, or one whose image never published
+            # in the first place — is reported rather than sitting quietly until
+            # the next pod restart finds it.
+            # Defaults to the new value when that is already a full reference,
+            # which covers every entry that pins an image by name.
+            verify=$(jq -r '.image // ""' <<<"$entry")
+            verify="${verify//\{version\}/$version}"
+            if [[ -z "$verify" && "$new" == */*:* ]]; then
+              verify="$new"
+            fi
+            if [[ -n "$verify" ]] && ! image_exists "$verify"; then
+              if [[ "$current" == "$new" ]]; then
+                echo "::warning::$app — pinned to $verify, which is not in the registry"
+              else
+                echo "::warning::$app — $repo released $tag but $verify is not in the registry; staying on $current"
+              fi
               failed="$failed $app"
               continue
             fi
