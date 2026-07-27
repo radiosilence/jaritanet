@@ -122,7 +122,10 @@ export function createIngress(
     // that already carries Traefik — an exit is just another service on it.
     const exitClientEntries = exits
       .flatMap((e) => {
-        const addr = `exit-${e.name}.${namespace}.svc.cluster.local:${e.port}`;
+        // Bare service name for the same reason as the gateway's: same
+        // namespace, and the namespace is an Output that must not reach a
+        // plain template literal.
+        const addr = `exit-${e.name}:${e.port}`;
         return ["tcp", "udp"].map(
           (proto) =>
             `\n[client.services.exit-${e.name}-${proto}]\ntype = "${proto}"\nlocal_addr = "${addr}"\n`,
