@@ -14,6 +14,7 @@ export type SingboxNode = {
   name: string;
   server: pulumi.Input<string>;
   hysteria: {
+    altPorts: number[];
     obfsPassword: pulumi.Input<string>;
     passwords: Record<string, pulumi.Input<string>>;
     port: number;
@@ -32,6 +33,7 @@ type ResolvedNode = {
   name: string;
   server: string;
   hysteria: {
+    altPorts: number[];
     obfsPassword: string;
     passwords: Record<string, string>;
     port: number;
@@ -88,22 +90,31 @@ const TUN_MTU = 1280;
 // recover; leave it otherwise (content changes trigger rewrites on their own).
 const PROFILE_REV = "2";
 
-const hy2 = (n: ResolvedNode, password: string) => ({
+// The same server on each of its listening ports — which port survives is a
+// property of the client's network, not of the node (see HysteriaConfSchema),
+// so every port is an outbound and the urltest finds the one that works.
+// The main port keeps the bare tag, so a client that has one pinned as its
+// selected outbound survives an alt port being added.
+const hy2Tag = (n: ResolvedNode, port: number) =>
+  port === n.hysteria.port ? `hy2-${n.name}` : `hy2-${n.name}-${port}`;
+const hy2 = (n: ResolvedNode, password: string, port: number) => ({
   type: "hysteria2",
-  tag: `hy2-${n.name}`,
+  tag: hy2Tag(n, port),
   server: n.server,
-  server_port: n.hysteria.port,
+  server_port: port,
   password,
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
   tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
 });
 // Same endpoint, but with bandwidth hints → Brutal. Manual-pick only.
 const hy2Brutal = (n: ResolvedNode, password: string) => ({
-  ...hy2(n, password),
+  ...hy2(n, password, n.hysteria.port),
   tag: `hy2b-${n.name}`,
   up_mbps: HY2_UP_MBPS,
   down_mbps: HY2_DOWN_MBPS,
 });
+const hy2Ports = (n: ResolvedNode) => [n.hysteria.port, ...n.hysteria.altPorts];
+const hy2Tags = (n: ResolvedNode) => hy2Ports(n).map((p) => hy2Tag(n, p));
 const reality = (n: ResolvedNode, uuid: string) => ({
   type: "vless",
   tag: `reality-${n.name}`,
@@ -174,15 +185,10 @@ export function buildProfile(
 
   // Transports available to this user per node: reality always; hy2 admin-only.
   const autoTags = (n: ResolvedNode) =>
-    isAdmin ? [`hy2-${n.name}`, `reality-${n.name}`] : [`reality-${n.name}`];
+    isAdmin ? [...hy2Tags(n), `reality-${n.name}`] : [`reality-${n.name}`];
   const pickTags = (n: ResolvedNode) =>
     isAdmin
-      ? [
-          `auto-${n.name}`,
-          `hy2-${n.name}`,
-          `hy2b-${n.name}`,
-          `reality-${n.name}`,
-        ]
+      ? [`auto-${n.name}`, ...hy2Tags(n), `hy2b-${n.name}`, `reality-${n.name}`]
       : [`reality-${n.name}`];
 
   const outbounds: Record<string, unknown>[] = [];
@@ -193,17 +199,19 @@ export function buildProfile(
       // `<name>:<password>` — the server splits on the first colon to look the
       // user up. Sending the bare password fails auth for every admin.
       const pw = `${user.name}:${n.hysteria.passwords[user.name]}`;
-      outbounds.push(hy2(n, pw), hy2Brutal(n, pw));
+      for (const port of hy2Ports(n)) outbounds.push(hy2(n, pw, port));
+      outbounds.push(hy2Brutal(n, pw));
     }
   }
   if (nodes.length === 1) {
-    const t = nodes[0].name;
+    const n = nodes[0];
+    const t = n.name;
     if (isAdmin) {
-      outbounds.push(urltest("auto", [`hy2-${t}`, `reality-${t}`]));
+      outbounds.push(urltest("auto", autoTags(n)));
       outbounds.push(
         selector(
           "entry-select",
-          ["auto", `hy2-${t}`, `hy2b-${t}`, `reality-${t}`],
+          ["auto", ...hy2Tags(n), `hy2b-${t}`, `reality-${t}`],
           "auto",
         ),
       );

@@ -29,6 +29,7 @@
             "properties": {
               "hysteria": {
                 "default": {
+                  "altPorts": [3478, 4500],
                   "port": 443,
                   "sni": "www.bing.com"
                 },
@@ -596,6 +597,13 @@
     "__schema1": {
       "type": "object",
       "properties": {
+        "altPorts": {
+          "default": [3478, 4500],
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
         "port": {
           "default": 443,
           "type": "number"

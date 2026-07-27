@@ -45,7 +45,12 @@ export function createGateway(
       inboundRule("HTTPS", 443),
       inboundRule("Rathole control channel", 2333),
       ...(gateway.hysteria
-        ? [inboundRule("Hysteria2 QUIC", gateway.hysteria.port, "udp")]
+        ? [
+            inboundRule("Hysteria2 QUIC", gateway.hysteria.port, "udp"),
+            ...gateway.hysteria.altPorts.map((port) =>
+              inboundRule(`Hysteria2 QUIC (alt ${port})`, port, "udp"),
+            ),
+          ]
         : []),
     ],
   });
