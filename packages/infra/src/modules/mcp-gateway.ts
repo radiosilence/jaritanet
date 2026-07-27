@@ -31,7 +31,7 @@ const secretRef = (key: string) => ({
  * silently embedded Pulumi's "cannot call toString on an Output" error into the
  * Postgres DSN.
  */
-const svcDns = (name: string) => name;
+const sameNamespaceDns = (name: string) => name;
 
 export function mcpRegistry(
   mcps: z.infer<typeof McpGatewayConfSchema>["mcps"],
@@ -127,8 +127,8 @@ export function createMcpGateway(
   const pgUser = "mcpgw";
   const pgDb = "mcp_gateway";
   const pgHost = "mcp-gateway-postgres";
-  const databaseUrl = pulumi.interpolate`postgres://${pgUser}:${pgPassword.result}@${svcDns(pgHost)}:5432/${pgDb}`;
-  const hydraDsn = pulumi.interpolate`postgres://${pgUser}:${pgPassword.result}@${svcDns(pgHost)}:5432/hydra?sslmode=disable`;
+  const databaseUrl = pulumi.interpolate`postgres://${pgUser}:${pgPassword.result}@${sameNamespaceDns(pgHost)}:5432/${pgDb}`;
+  const hydraDsn = pulumi.interpolate`postgres://${pgUser}:${pgPassword.result}@${sameNamespaceDns(pgHost)}:5432/hydra?sslmode=disable`;
 
   const secret = new k8s.core.v1.Secret(
     "mcp-gateway-secrets",
@@ -434,11 +434,11 @@ export function createMcpGateway(
                   },
                   {
                     name: "HYDRA_ADMIN_URL",
-                    value: `http://${svcDns("mcp-gateway-hydra-admin")}:4445`,
+                    value: `http://${sameNamespaceDns("mcp-gateway-hydra-admin")}:4445`,
                   },
                   {
                     name: "MCP_REGISTRY",
-                    value: mcpRegistry(conf.mcps, svcDns),
+                    value: mcpRegistry(conf.mcps, sameNamespaceDns),
                   },
                   { name: "DATABASE_URL", ...secretRef("database-url") },
                   { name: "TOKEN_ENC_KEY", ...secretRef("token-enc-key") },
