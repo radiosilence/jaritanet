@@ -20,12 +20,14 @@ on:
     paths:
       - .github/workflows/ci-cd.yml
       - "packages/**"
+      - "containers/**"
       - "*.config.*"
       - package.json
   pull_request:
     paths:
       - .github/workflows/ci-cd.yml
       - "packages/**"
+      - "containers/**"
       - "*.config.*"
       - package.json
   workflow_call:
@@ -165,8 +167,26 @@ jobs:
       - name: Check profiles against the minimum sing-box core
         run: aube run check:profiles
 
+  containers:
+    name: Containers
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Environment
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      - name: Check and Test
+        working-directory: containers/serve-from-env
+        run: cargo fmt --check && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked
+
   deploy:
     name: Deploy
+    # Not `containers`: the deploy neither builds nor consumes the container
+    # images — they are published by their own workflow and pinned by tag — so
+    # gating on them would block infra deploys for an unrelated red.
     needs: [test, lint, format, typecheck]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
