@@ -106,9 +106,15 @@ export const CloudflareConfSchema = z.object({
  * rathole. Traffic that doesn't match a client is relayed to `dest`;
  * matched clients are proxied out.
  *
- * `serverName` is the SNI clients present and must match the TLS cert served
- * at `dest`. `dest` defaults to the local rathole https port; point it at an
- * external "host:port" to use a different backend.
+ * `serverName` is the SNI clients present. Ideally it matches the cert served
+ * at `dest`, but on a gateway that reverse-proxies its own site the two are
+ * deliberately decoupled: `dest` must stay the local backend so real visitors
+ * are served, while the SNI has to be a name content filters won't intercept.
+ * Pick one from a category no middlebox dares break (see docs/architecture.md);
+ * a sparse own-domain gets mis-rated and the tunnel dies with it.
+ *
+ * `dest` defaults to the local rathole https port; point it at an external
+ * "host:port" to use a different backend.
  */
 export const XrayConfSchema = z.object({
   dest: z.string().default("127.0.0.1:8443"),

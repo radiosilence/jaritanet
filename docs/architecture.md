@@ -331,8 +331,9 @@ see below.)
 **Why edges can use an external REALITY decoy** (unlike the primary): an edge
 fronts no site of its own, so there's no own-domain to break by forwarding
 probe traffic away. `edge.reality` defaults to `www.microsoft.com` — a real,
-universally-reachable TLS site — and is overridable per edge. The primary keeps
-its own-domain decoy because it must serve real visitors on the same `:443`.
+universally-reachable TLS site — and is overridable per edge. The primary must
+keep `dest` pointed at its own backend to serve real visitors on the same
+`:443`, so only its SNI borrows an untouchable name; see Hardening notes.
 
 Every edge is also a tailnet member, so any of them relays `100.x` into the
 mesh — the same censorship-resistant tailnet path works whichever location you
@@ -428,16 +429,30 @@ tap-to-copy `<code>` block plus a `copy_text` inline-keyboard button.
 
 Live tradeoffs worth knowing, not necessarily bugs:
 
-- **The primary's REALITY decoy is our own domain, and that's load-bearing —
-  not a weakness to "fix."** REALITY has a single `dest` fallback, and every
+- **The primary's SNI and its `dest` are deliberately different things, and the
+  mismatch is the tradeoff.** REALITY has a single `dest` fallback, and every
   non-proxy TCP/443 connection (i.e. every real public visitor to the site) is
-  forwarded there. Because the primary's `dest` is the home Traefik backend,
-  visitors get the genuine site. Repointing it at an external site would serve
-  *that* site to real visitors and break public access — the primary cannot both
-  reverse-proxy its own domain on :443 and mimic someone else's. The cover is
-  fine as-is: a real LE cert, real organic traffic, an unremarkable HTTPS site.
-  (Edges are different — they front no site, so they *do* use an external decoy;
-  see Edge nodes. The only threat neither beats is allowlist-style censorship.)
+  forwarded there, so `dest` must stay the home Traefik backend or public access
+  breaks — the primary cannot reverse-proxy its own domain on :443 while also
+  relaying probes to someone else's server. The SNI has no such constraint, and
+  pinning it to our own domain turned out to be the more dangerous half:
+  content-filtering middleboxes choose what to TLS-intercept from the SNI's
+  reputation category, FortiGuard rates `blit.cc` as "Other Adult Materials",
+  and any FortiGate running adult filtering (pubs, trains, schools, hotels)
+  therefore forges a cert for it and every REALITY handshake dies with
+  `x509: certificate signed by unknown authority`. A one-page CV site gives the
+  classifier nothing to overturn that with. So the SNI is now
+  `www.google.co.uk`: a category no filter dares block. What it costs is the
+  decoy's realism — an active prober who connects with that SNI gets Traefik's
+  default cert rather than a Google chain, and a passive observer sees a Google
+  ClientHello aimed at a Hetzner IP that has never been Google. That trades
+  well: mis-rating by an automated category database is a routine, observed
+  failure, while deliberate probing of this box is not. Against an adversary who
+  probes, the fix is an SNI dispatcher on :443 (own domains → Traefik,
+  everything else → REALITY with a matching external `dest`), not a return to
+  the own-domain SNI. (Edges have neither problem — they front no site, so their
+  `dest` *is* the site they mimic. The only threat none of this beats is
+  allowlist-style censorship.)
 - **hy2 uses `insecure=1` + a self-signed cert.** Fine in practice — Salamander
   wraps the whole handshake so the cert never appears on the wire, and the obfs
   password gates access — but there's no cert pinning.

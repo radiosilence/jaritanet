@@ -35,7 +35,6 @@ const CONFIG_FROM_ENV = {
   "jaritanet:services.navidrome.hostname": "NAVIDROME_HOSTNAME",
   "jaritanet:services.files.hostname": "FILES_HOSTNAME",
   "jaritanet:services.blit.hostname": "BLIT_HOSTNAME",
-  "jaritanet:gateway.xray.serverName": "BLIT_HOSTNAME",
   "jaritanet:mcpGateway.hostname": "MCP_HOSTNAME",
   "jaritanet:mcpGateway.authHostname": "MCP_AUTH_HOSTNAME",
 } as const;
