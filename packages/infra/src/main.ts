@@ -191,11 +191,12 @@ export default async function () {
   // The cluster has no CNI until this exists — k3s runs with
   // --flannel-backend=none so Cilium can own networking and the
   // NetworkPolicies in this repo finally mean something.
-  if (gatewayK3s && gatewayConfForCilium) {
-    createCilium(provider, gatewayConfForCilium.ciliumVersion, [
-      gatewayK3s.install,
-    ]);
-  }
+  const cilium =
+    gatewayK3s && gatewayConfForCilium
+      ? createCilium(provider, gatewayConfForCilium.ciliumVersion, [
+          gatewayK3s.install,
+        ])
+      : undefined;
 
   // Every resource below takes its namespace from this output rather than the
   // bare string, so Pulumi orders them after it. With a literal there is no
@@ -214,7 +215,13 @@ export default async function () {
         name: namespace,
       },
     },
-    { provider },
+    // Gating the namespace on the CNI gates everything in it, since every
+    // resource below now descends from this one. Not because a Namespace needs
+    // networking — it does not — but because Pulumi awaits Deployment
+    // readiness, and without a CNI every pod stays Pending until its create
+    // times out. Racing a one-minute install against a five-minute timeout is
+    // a race that is usually won, which is the worst kind.
+    { provider, dependsOn: cilium ? [cilium] : [] },
   );
   const nsName = ns.metadata.name;
 
