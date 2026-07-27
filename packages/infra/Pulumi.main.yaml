@@ -134,15 +134,27 @@ config:
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https), so real visitors still get the site.
     #
-    # serverName is DELIBERATELY not our own domain. Content-filtering
-    # middleboxes (FortiGate et al) decide what to TLS-intercept from the SNI's
-    # reputation category, and a sparse personal domain is one bad rating away
-    # from having every REALITY handshake forged out from under it — blit.cc is
-    # rated "Other Adult Materials" by FortiGuard, which killed the tunnel on
-    # every filtered guest network. A category no filter dares touch is worth
-    # more here than an SNI that matches dest's cert; see docs/architecture.md.
+    # These are DELIBERATELY not our own domains. Content-filtering middleboxes
+    # (FortiGate et al) decide what to TLS-intercept from the SNI's reputation
+    # category, and a sparse personal domain is one bad rating away from having
+    # every REALITY handshake forged out from under it — blit.cc is rated "Other
+    # Adult Materials" by FortiGuard, which killed the tunnel on every filtered
+    # guest network. A category no filter dares touch is worth more here than an
+    # SNI that matches dest's cert; see docs/architecture.md.
+    #
+    # A list because no one borrowed identity is safe everywhere: google is
+    # camouflage in a British pub and blocked outright in China, where bing and
+    # apple still pass. First entry is the client's default; the rest are extra
+    # outbounds in its urltest, so it finds the identity the local network
+    # tolerates without anyone touching a setting.
     xray:
-      serverName: www.google.co.uk
+      serverNames:
+        - www.google.co.uk
+        - www.microsoft.com
+        - www.apple.com
+        - www.bing.com
+        - www.baidu.com
+        - vk.com
       dest: 127.0.0.1:8443
     # Hysteria2 (QUIC/UDP) on 443/udp — fast, loss-tolerant daily driver
     hysteria: {}

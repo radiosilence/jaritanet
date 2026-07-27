@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "../env.schema.ts";
-import { sha256hex } from "../util.ts";
+import { sha256hex, sniLabel } from "../util.ts";
 
 /**
  * One node in the client profile — the primary gateway or an edge. Credentials
@@ -22,7 +22,7 @@ export type SingboxNode = {
   };
   reality: {
     publicKey: pulumi.Input<string>;
-    serverName: string;
+    serverNames: string[];
     shortId: pulumi.Input<string>;
     uuids: Record<string, pulumi.Input<string>>;
   };
@@ -41,7 +41,7 @@ type ResolvedNode = {
   };
   reality: {
     publicKey: string;
-    serverName: string;
+    serverNames: string[];
     shortId: string;
     uuids: Record<string, string>;
   };
@@ -62,18 +62,6 @@ type ResolvedExit = {
   password: string;
 };
 
-// Brutal is opt-in, not the default. Setting bandwidth switches Hysteria2 from
-// adaptive BBR to the Brutal congestion control, which paces to a fixed rate and
-// ignores loss — it stomps through lossy/censored *fat* links where BBR backs
-// off, but on a genuinely slow or metered link (mid-tier LTE, hotel wifi) it
-// blasts loss into a small pipe and feels *worse*. So the daily driver (`hy2-*`,
-// and `auto`) stays adaptive and safe on every link; a separate `hy2b-*` variant
-// carries these bandwidth hints and lives in the selector for manual use when
-// you know you're on a fat hostile pipe. Tune to your actual line.
-// (Reality has no such knob — it stays adaptive TCP; its speed comes from MTU.)
-const HY2_UP_MBPS = 1000;
-const HY2_DOWN_MBPS = 1000;
-
 // Innermost tun MTU for the whole chain. Sized so a packet survives the worst
 // entry path — hy2 (QUIC/UDP) over a reduced-MTU hostile/mobile net (~1400):
 // IPv4 20 + UDP 8 + QUIC/AEAD/Salamander ~70 of overhead, so inner ≤ ~1330.
@@ -92,11 +80,10 @@ const PROFILE_REV = "2";
 
 // The same server on each of its listening ports — which port survives is a
 // property of the client's network, not of the node (see HysteriaConfSchema),
-// so every port is an outbound and the urltest finds the one that works.
-// The main port keeps the bare tag, so a client that has one pinned as its
-// selected outbound survives an alt port being added.
-const hy2Tag = (n: ResolvedNode, port: number) =>
-  port === n.hysteria.port ? `hy2-${n.name}` : `hy2-${n.name}-${port}`;
+// so every port is an outbound and the urltest finds the one that works. Every
+// tag names its own port: in a picker holding several ports and several REALITY
+// identities, a bare `hy2-<node>` says nothing about what it actually dials.
+const hy2Tag = (n: ResolvedNode, port: number) => `hy2-${n.name}-${port}`;
 const hy2 = (n: ResolvedNode, password: string, port: number) => ({
   type: "hysteria2",
   tag: hy2Tag(n, port),
@@ -106,25 +93,27 @@ const hy2 = (n: ResolvedNode, password: string, port: number) => ({
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
   tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
 });
-// Same endpoint, but with bandwidth hints → Brutal. Manual-pick only.
-const hy2Brutal = (n: ResolvedNode, password: string) => ({
-  ...hy2(n, password, n.hysteria.port),
-  tag: `hy2b-${n.name}`,
-  up_mbps: HY2_UP_MBPS,
-  down_mbps: HY2_DOWN_MBPS,
-});
 const hy2Ports = (n: ResolvedNode) => [n.hysteria.port, ...n.hysteria.altPorts];
 const hy2Tags = (n: ResolvedNode) => hy2Ports(n).map((p) => hy2Tag(n, p));
-const reality = (n: ResolvedNode, uuid: string) => ({
+// One outbound per borrowed identity, all the same inbound: same UUID, key and
+// shortId, differing only in the name the ClientHello claims. Which identity
+// survives is a property of the network (see XrayConfSchema), so they all sit
+// in the urltest and the client settles on one that isn't being intercepted.
+// Tagged by identity for the same reason hy2 is tagged by port.
+const realityTag = (n: ResolvedNode, sni: string) =>
+  `reality-${n.name}-${sniLabel(sni)}`;
+const realityTags = (n: ResolvedNode) =>
+  n.reality.serverNames.map((sni) => realityTag(n, sni));
+const reality = (n: ResolvedNode, uuid: string, sni: string) => ({
   type: "vless",
-  tag: `reality-${n.name}`,
+  tag: realityTag(n, sni),
   server: n.server,
   server_port: 443,
   uuid,
   flow: "xtls-rprx-vision",
   tls: {
     enabled: true,
-    server_name: n.reality.serverName,
+    server_name: sni,
     utls: { enabled: true, fingerprint: "chrome" },
     reality: {
       enabled: true,
@@ -155,8 +144,11 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  * string — that can't emit invalid JSON, and the group layout is just data.
  *
  * Two independent axes:
- *   - `entry-select` — which gateway/transport you enter through. Expands with
- *     node count: one node → [auto, hy2, reality]; N → auto-all | per-host.
+ *   - `entry-select` — which gateway/transport you enter through. Every leaf is
+ *     one (node, hy2 port) or (node, REALITY identity) pair, since those are
+ *     what a hostile network blocks individually; `auto` urltests the lot and
+ *     takes the fastest that answers. Expands with node count: one node →
+ *     [auto, leaves]; N → auto-all | per-host groups.
  *   - `exit-select` — where you egress: `entry-select` (direct, at the gateway)
  *     or an `exit-<name>` (a Shadowsocks proxy on that exit, dialled via the
  *     entry gateway). Route `final` points here; tailnet + DNS stay on
@@ -168,7 +160,7 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  * transit the primary, regardless of the `entry-select` pick for direct egress.
  *
  * Per-user + role-aware: reality outbounds use the user's own UUID; admins also
- * get hy2/hy2b (their per-node password) and the exit axis; guests are
+ * get hy2 (their per-node password) and the exit axis; guests are
  * reality-only with direct egress (no hy2, no exits) — and their exit/tailnet
  * access is additionally blackholed server-side, so the profile shape is a
  * convenience, not the security boundary.
@@ -185,42 +177,37 @@ export function buildProfile(
 
   // Transports available to this user per node: reality always; hy2 admin-only.
   const autoTags = (n: ResolvedNode) =>
-    isAdmin ? [...hy2Tags(n), `reality-${n.name}`] : [`reality-${n.name}`];
-  const pickTags = (n: ResolvedNode) =>
-    isAdmin
-      ? [`auto-${n.name}`, ...hy2Tags(n), `hy2b-${n.name}`, `reality-${n.name}`]
-      : [`reality-${n.name}`];
+    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+  // Leaf outbounds in picker order — the manual drill-in under a node's group.
+  const entryTags = (n: ResolvedNode) =>
+    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+  const pickTags = (n: ResolvedNode) => [`auto-${n.name}`, ...entryTags(n)];
 
   const outbounds: Record<string, unknown>[] = [];
   for (const n of nodes) {
-    outbounds.push(reality(n, n.reality.uuids[user.name]));
+    for (const sni of n.reality.serverNames) {
+      outbounds.push(reality(n, n.reality.uuids[user.name], sni));
+    }
     if (isAdmin) {
       // hy2's server auth is `userpass`, so the client's password must be
       // `<name>:<password>` — the server splits on the first colon to look the
       // user up. Sending the bare password fails auth for every admin.
       const pw = `${user.name}:${n.hysteria.passwords[user.name]}`;
       for (const port of hy2Ports(n)) outbounds.push(hy2(n, pw, port));
-      outbounds.push(hy2Brutal(n, pw));
     }
   }
   if (nodes.length === 1) {
     const n = nodes[0];
-    const t = n.name;
-    if (isAdmin) {
-      outbounds.push(urltest("auto", autoTags(n)));
+    const candidates = autoTags(n);
+    if (candidates.length > 1) {
+      outbounds.push(urltest("auto", candidates));
       outbounds.push(
-        selector(
-          "entry-select",
-          ["auto", ...hy2Tags(n), `hy2b-${t}`, `reality-${t}`],
-          "auto",
-        ),
+        selector("entry-select", ["auto", ...entryTags(n)], "auto"),
       );
     } else {
-      // Reality-only: no urltest to pick between transports, so entry-select is
-      // just the single reality outbound.
-      outbounds.push(
-        selector("entry-select", [`reality-${t}`], `reality-${t}`),
-      );
+      // One candidate, so nothing for a urltest to choose between: a guest on a
+      // node serving a single REALITY identity.
+      outbounds.push(selector("entry-select", candidates, candidates[0]));
     }
   } else {
     for (const n of nodes) {

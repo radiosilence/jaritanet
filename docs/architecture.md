@@ -341,11 +341,16 @@ pushes every user's URL to Telegram. So: edit config, push, get a working URL.
 
 With multiple gateways, `entry-select` becomes nested: it chooses `auto-all`
 (fastest node anywhere) or a per-host group. Each host is its own selector
-(`helsinki`, `primary`, …) holding that node's `auto-<name>` + `hy2-<name>` +
-`reality-<name>`, so you pick a location and can drill in to force a transport.
-Leaf outbound tags are prefixed per host (tags must be globally unique); the
-grouping is what you navigate. (`exit-select` — the egress axis — is separate;
-see below.)
+(`helsinki`, `primary`, …) holding that node's `auto-<name>` and every leaf
+under it, so you pick a location and can drill in to force one exact path.
+
+A leaf is named for the thing a hostile network blocks individually, which
+differs by transport: hy2 varies by **port** (`hy2-<node>-443`, `-3478`,
+`-4500`) since its SNI is cosmetic and never reaches the wire, while REALITY
+varies by **SNI** (`reality-<node>-google`, `-bing`, …) on TCP/443 alone, since
+the name it claims is the whole disguise. Tags carry the node prefix because
+they must be globally unique; the grouping is what you navigate. (`exit-select`
+— the egress axis — is separate; see below.)
 
 **Why edges can use an external REALITY decoy** (unlike the primary): an edge
 fronts no site of its own, so there's no own-domain to break by forwarding
@@ -460,10 +465,10 @@ Live tradeoffs worth knowing, not necessarily bugs:
   and any FortiGate running adult filtering (pubs, trains, schools, hotels)
   therefore forges a cert for it and every REALITY handshake dies with
   `x509: certificate signed by unknown authority`. A one-page CV site gives the
-  classifier nothing to overturn that with. So the SNI is now
-  `www.google.co.uk`: a category no filter dares block. What it costs is the
-  decoy's realism — an active prober who connects with that SNI gets Traefik's
-  default cert rather than a Google chain, and a passive observer sees a Google
+  classifier nothing to overturn that with. So the SNI borrows names from
+  categories no filter dares block. What it costs is the decoy's realism — an
+  active prober who connects with a borrowed SNI gets Traefik's default cert
+  rather than a matching chain, and a passive observer sees, say, a Google
   ClientHello aimed at a Hetzner IP that has never been Google. That trades
   well: mis-rating by an automated category database is a routine, observed
   failure, while deliberate probing of this box is not. Against an adversary who
@@ -472,6 +477,22 @@ Live tradeoffs worth knowing, not necessarily bugs:
   the own-domain SNI. (Edges have neither problem — they front no site, so their
   `dest` *is* the site they mimic. The only threat none of this beats is
   allowlist-style censorship.)
+- **One borrowed identity isn't enough, so `serverNames` is a list.** The ways a
+  decoy dies don't overlap: a category filter forges whatever it rates as adult,
+  while a national firewall blocks the biggest names outright. `www.google.co.uk`
+  is camouflage in a British pub and a red flag in China, where `www.bing.com`
+  and `www.apple.com` still pass. The server accepts every name on the list —
+  keys, shortIds and `dest` are shared — and the client carries one outbound per
+  name inside its urltest, so it settles on an identity the local network
+  tolerates without anyone touching a setting. This is also what finally gives
+  **guests** unattended failover: they are reality-only, so before the list a
+  single intercepted SNI was a total outage for them. Two costs to keep in mind.
+  Each name is another probe every urltest interval, on top of one per hy2 port,
+  so the list should stay short rather than exhaustive. And a name whose real
+  service lives in one country (`www.baidu.com`, `vk.com`) is a *stronger*
+  anomaly than a global one when pointed at a German IP, since SNI and
+  destination plainly disagree — they earn their place by surviving category
+  filters, not by being convincing to a firewall that checks.
 - **hy2 uses `insecure=1` + a self-signed cert.** Fine in practice — Salamander
   wraps the whole handshake so the cert never appears on the wire, and the obfs
   password gates access — but there's no cert pinning.
@@ -480,13 +501,16 @@ Live tradeoffs worth knowing, not necessarily bugs:
   gating SSH would shrink the attack surface but adds lockout risk on a box
   whose whole job is being reachable, so it's left open by choice. 2333 must
   stay open regardless: the home client dials in from a dynamic NATed IP.
-- **hy2 defaults to adaptive congestion control (BBR), with Brutal opt-in.**
-  The daily-driver `hy2-*` outbound (and the `auto` urltest) carry no bandwidth
-  hints, so they stay adaptive and friendly on variable/metered links. A
-  separate `hy2b-*` variant carries 1G/1G hints → Brutal (fixed-rate, ignores
-  loss) and sits in the selector for manual use on a known-fat hostile pipe.
-  Brutal is deliberately *not* the default: on a slow link it blasts loss into a
-  small pipe and feels worse. Reality has no such knob — its speed is all MTU.
+- **hy2 uses adaptive congestion control (BBR) everywhere; Brutal is not
+  offered.** Setting bandwidth hints switches Hysteria2 to Brutal, which paces
+  to a fixed rate and ignores loss — it stomps through lossy censored *fat*
+  links, and on a slow or metered one it blasts loss into a small pipe and feels
+  worse. A `hy2b-*` variant carrying 1G/1G hints used to sit in the selector for
+  manual use, and was dropped: the rate was a guess rather than a measured line,
+  which is the case where Brutal hurts, and being manual-pick-only it never
+  entered the urltest that does the actual work. Re-add it tuned to a real
+  measurement if a fat hostile link ever justifies it. Reality has no such knob —
+  its speed is all MTU.
 - **The tun stack is `mixed` (kernel TCP + gVisor UDP), and that's load-bearing
   for nesting another VPN inside this one.** A common use is nesting a UDP-based
   corporate VPN (e.g. AWS Client VPN, OpenVPN/UDP) inside the tunnel to shield
