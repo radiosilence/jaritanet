@@ -38,6 +38,20 @@ export const ServiceArgsSchema = z.object({
    * probes and the pod restart-loops.
    */
   networkPolicy: z.boolean().default(false),
+  /**
+   * Also restrict *ingress* to Traefik and the node, on top of `networkPolicy`.
+   *
+   * Separate from `networkPolicy` because the risk is different in kind. Egress
+   * rules cannot break a pod that is already serving; an ingress rule can, if
+   * the CNI also drops the kubelet's health probes — which arrive from the node
+   * rather than from a pod — and the pod is then killed for failing readiness.
+   * Whether Calico here does that is an empirical question, so this is opt-in
+   * per service and wants proving on something harmless first.
+   *
+   * What it buys: a compromised pod cannot reach a sibling. That is the lateral
+   * step after any egress control fails, and pod-to-pod is otherwise wide open.
+   */
+  restrictIngress: z.boolean().default(false),
   image: ImageSchema,
   limits: LimitsSchema.optional(),
   persistence: z.array(PersistenceSchema).default([]),

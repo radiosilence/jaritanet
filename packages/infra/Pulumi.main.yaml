@@ -248,6 +248,11 @@ config:
         # dropping: nginx binds :80 inside the container, which needs
         # NET_BIND_SERVICE even as root once ALL is dropped.
         networkPolicy: true
+        # The guinea pig for ingress restriction (#172): static nginx over a
+        # read-only mount, so if Calico drops the kubelet's probes and the pod
+        # restart-loops, nobody notices. Extend to blit/navidrome only once this
+        # has stayed Ready through several probe cycles.
+        restrictIngress: true
         strategy:
           type: Recreate
         image:
