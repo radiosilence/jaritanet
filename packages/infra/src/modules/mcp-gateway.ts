@@ -93,7 +93,13 @@ export function createMcpGateway(
   },
 ) {
   const opts = { provider };
-  const svcDns = (name: string) => `${name}.${namespace}.svc.cluster.local`;
+  // Bare service name, not an FQDN: everything this addresses lives in the same
+  // namespace as the pod doing the lookup, so the search path resolves it. It
+  // also keeps the namespace out of synchronously-built strings — it is an
+  // Output, and the registry YAML below is assembled eagerly, so interpolating
+  // it here silently embedded Pulumi's "cannot call toString on an Output"
+  // error into the Postgres DSN.
+  const svcDns = (name: string) => name;
 
   // --- Generated secrets ---
   // NB: random.* resources use the default provider — passing the k8s provider
