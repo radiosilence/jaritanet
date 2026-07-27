@@ -134,6 +134,7 @@ config:
     # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
     # carries the cluster as well as the transports.
+    name: sympathy
     serverType: cax21
     # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
     # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
@@ -171,7 +172,8 @@ config:
     # Tailnet relay: joins the VPS to the tailnet so clients can reach 100.x
     # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
     # no-op until the secret exists.
-    tailnet: {}
+    tailnet:
+      hostname: sympathy
   # Egress exit nodes — ss-rust in the home cluster, reached via the rathole
   # tunnel, egressing the home residential IP. Selectable in the client as
   # exit-<name>; exits transit the primary gateway.
