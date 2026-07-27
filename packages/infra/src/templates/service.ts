@@ -31,14 +31,12 @@ export function createService(
   provider: k8s.Provider,
   serviceName: string,
   {
-    dropCapabilities,
     env,
     healthCheck,
     hostVolumes,
     httpPort,
     image,
     limits,
-    networkPolicy,
     persistence,
     ports,
     replicas,
@@ -179,9 +177,6 @@ export function createService(
             labels: { app: serviceName },
           },
           spec: {
-            // None of these talk to the API server, so the token is a free
-            // foothold for anything that lands in the container.
-            automountServiceAccountToken: false,
             containers: [
               {
                 name: serviceName,
@@ -214,8 +209,6 @@ export function createService(
                 ...probes,
                 securityContext: {
                   allowPrivilegeEscalation: false,
-                  seccompProfile: { type: "RuntimeDefault" },
-                  ...(dropCapabilities && { capabilities: { drop: ["ALL"] } }),
                 },
               },
             ],
@@ -239,57 +232,6 @@ export function createService(
     },
     { deleteBeforeReplace: persistence.length > 0, provider },
   );
-
-  // Egress only — see `networkPolicy` in the schema for why ingress is left
-  // alone. DNS needs its own rule because the cluster resolver's ClusterIP
-  // sits inside the private space the second rule excludes; policy rules are
-  // OR'd, so the narrow allow survives the broad deny.
-  if (networkPolicy) {
-    new k8s.networking.v1.NetworkPolicy(
-      `${serviceName}-netpol`,
-      {
-        metadata: { name: serviceName },
-        spec: {
-          podSelector: { matchLabels: { app: serviceName } },
-          policyTypes: ["Egress"],
-          egress: [
-            {
-              to: [
-                {
-                  namespaceSelector: {
-                    matchLabels: {
-                      "kubernetes.io/metadata.name": "kube-system",
-                    },
-                  },
-                },
-              ],
-              ports: [
-                { protocol: "UDP", port: 53 },
-                { protocol: "TCP", port: 53 },
-              ],
-            },
-            {
-              to: [
-                {
-                  ipBlock: {
-                    cidr: "0.0.0.0/0",
-                    except: [
-                      "10.0.0.0/8", // pod + service CIDRs, and any LAN using it
-                      "172.16.0.0/12",
-                      "192.168.0.0/16", // the node's own LAN
-                      "169.254.0.0/16",
-                      "100.64.0.0/10", // tailnet
-                    ],
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      },
-      { provider },
-    );
-  }
 
   return service;
 }

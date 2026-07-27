@@ -182,12 +182,6 @@ config:
       hostname: ''
       args:
         httpPort: 4533
-        # Public-facing, on the host that holds the media. Confine it: no
-        # private-space egress (so a bug in it cannot walk to whatever the node
-        # is serving and write the library by another route), and no
-        # capabilities, which it needs none of on a port above 1024.
-        networkPolicy: true
-        dropCapabilities: true
         strategy:
           type: Recreate
         image:
