@@ -269,6 +269,10 @@
               "args": {
                 "type": "object",
                 "properties": {
+                  "dropCapabilities": {
+                    "default": false,
+                    "type": "boolean"
+                  },
                   "env": {
                     "default": {},
                     "type": "object",
@@ -397,6 +401,10 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 4294967295
+                  },
+                  "networkPolicy": {
+                    "default": false,
+                    "type": "boolean"
                   },
                   "image": {
                     "$ref": "#/$defs/__schema3"

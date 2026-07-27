@@ -1,9 +1,11 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
+import { ServiceArgsSchema } from "./service.schemas.ts";
 
 describe("service template", () => {
   let mockProvider: k8s.Provider;
+  const created: pulumi.runtime.MockResourceArgs[] = [];
 
   beforeAll(() => {
     // Set up mocks first
@@ -14,17 +16,22 @@ describe("service template", () => {
       ): {
         id: string;
         state: any;
-      } => ({
-        id: `${args.inputs.name || args.name || "test"}_id`,
-        state: {
-          ...args.inputs,
+      } => {
+        // Recorded so tests can assert on resources the template creates but
+        // does not return — the NetworkPolicy and the Deployment.
+        created.push(args);
+        return {
           id: `${args.inputs.name || args.name || "test"}_id`,
-          metadata: {
-            name: args.inputs.name || args.name || "test",
-            ...args.inputs.metadata,
+          state: {
+            ...args.inputs,
+            id: `${args.inputs.name || args.name || "test"}_id`,
+            metadata: {
+              name: args.inputs.name || args.name || "test",
+              ...args.inputs.metadata,
+            },
           },
-        },
-      }),
+        };
+      },
     });
 
     mockProvider = new k8s.Provider("test-provider", {
@@ -34,7 +41,7 @@ describe("service template", () => {
 
   it("creates service with basic configuration", async () => {
     const { createService } = await import("./service.ts");
-    const serviceArgs = {
+    const serviceArgs = ServiceArgsSchema.parse({
       env: {},
       hostVolumes: [],
       httpPort: 80,
@@ -42,7 +49,7 @@ describe("service template", () => {
       persistence: [],
       ports: [],
       replicas: 1,
-    };
+    });
 
     const service = createService(mockProvider, "test-service", serviceArgs);
 
@@ -55,7 +62,7 @@ describe("service template", () => {
 
   it("creates service with environment variables", async () => {
     const { createService } = await import("./service.ts");
-    const serviceArgs = {
+    const serviceArgs = ServiceArgsSchema.parse({
       env: { NODE_ENV: "production", PORT: "3000" },
       hostVolumes: [],
       httpPort: 3000,
@@ -63,7 +70,7 @@ describe("service template", () => {
       persistence: [],
       ports: [],
       replicas: 1,
-    };
+    });
 
     const service = createService(mockProvider, "test-app", serviceArgs);
 
@@ -72,7 +79,7 @@ describe("service template", () => {
 
   it("creates service with persistence volumes", async () => {
     const { createService } = await import("./service.ts");
-    const serviceArgs = {
+    const serviceArgs = ServiceArgsSchema.parse({
       env: {},
       hostVolumes: [],
       httpPort: 5432,
@@ -90,7 +97,7 @@ describe("service template", () => {
       ],
       ports: [],
       replicas: 1,
-    };
+    });
 
     const service = createService(mockProvider, "postgres", serviceArgs);
 
@@ -99,7 +106,7 @@ describe("service template", () => {
 
   it("creates service with health checks", async () => {
     const { createService } = await import("./service.ts");
-    const serviceArgs = {
+    const serviceArgs = ServiceArgsSchema.parse({
       env: {},
       healthCheck: {
         path: "/health",
@@ -120,7 +127,7 @@ describe("service template", () => {
       persistence: [],
       ports: [],
       replicas: 1,
-    };
+    });
 
     const service = createService(mockProvider, "web-app", serviceArgs);
 
@@ -129,7 +136,7 @@ describe("service template", () => {
 
   it("creates service with resource limits", async () => {
     const { createService } = await import("./service.ts");
-    const serviceArgs = {
+    const serviceArgs = ServiceArgsSchema.parse({
       env: {},
       hostVolumes: [],
       httpPort: 80,
@@ -141,10 +148,90 @@ describe("service template", () => {
       persistence: [],
       ports: [],
       replicas: 2,
-    };
+    });
 
     const service = createService(mockProvider, "limited-app", serviceArgs);
 
     expect(service).toBeDefined();
+  });
+
+  describe("hardening", () => {
+    const args = (over: Record<string, unknown> = {}) =>
+      ServiceArgsSchema.parse({
+        image: { repository: "nginx", tag: "latest" },
+        httpPort: 4533,
+        ...over,
+      });
+    const find = (type: string, name: string) =>
+      created.find((r) => r.type.endsWith(type) && r.name === name);
+    // Registration is async even under mocks, and resolving the returned
+    // Service's urn is not enough — the Deployment and NetworkPolicy register
+    // after it. So wait for the resource under test to actually appear.
+    const waitFor = async (type: string, name: string) => {
+      for (let i = 0; i < 100; i++) {
+        const found = find(type, name);
+        if (found) return found;
+        // Sequential is the point — polling for something to appear.
+        // oxlint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      throw new Error(`${name} was never registered`);
+    };
+
+    it("never mounts a service account token", async () => {
+      const { createService } = await import("./service.ts");
+      createService(mockProvider, "plain", args());
+
+      const deployment = await waitFor("Deployment", "plain-deployment");
+      expect(
+        deployment.inputs.spec.template.spec.automountServiceAccountToken,
+      ).toBe(false);
+    });
+
+    it("confines egress only where asked, and never to private space", async () => {
+      const { createService } = await import("./service.ts");
+      createService(mockProvider, "open", args());
+      createService(mockProvider, "confined", args({ networkPolicy: true }));
+
+      const { inputs } = await waitFor("NetworkPolicy", "confined-netpol");
+      await waitFor("Deployment", "open-deployment");
+      // Opt-in: the unconfined service gets no policy at all, rather than one
+      // that happens to allow everything.
+      expect(find("NetworkPolicy", "open-netpol")).toBeUndefined();
+
+      const spec = inputs.spec;
+      expect(spec.policyTypes).toEqual(["Egress"]);
+      // The tailnet and the node's own LAN are the addresses that turn an RCE
+      // into host access, so their absence here is the whole point.
+      expect(spec.egress[1].to[0].ipBlock.except).toEqual(
+        expect.arrayContaining([
+          "10.0.0.0/8",
+          "192.168.0.0/16",
+          "100.64.0.0/10",
+        ]),
+      );
+      // DNS has to survive the deny above, or the pod resolves nothing.
+      expect(spec.egress[0].ports).toEqual([
+        { protocol: "UDP", port: 53 },
+        { protocol: "TCP", port: 53 },
+      ]);
+    });
+
+    it("drops capabilities only where asked", async () => {
+      const { createService } = await import("./service.ts");
+      createService(mockProvider, "caps", args());
+      createService(mockProvider, "nocaps", args({ dropCapabilities: true }));
+
+      const sc = async (name: string) =>
+        (await waitFor("Deployment", `${name}-deployment`)).inputs.spec.template
+          .spec.containers[0].securityContext;
+
+      expect((await sc("caps")).capabilities).toBeUndefined();
+      expect((await sc("nocaps")).capabilities).toEqual({ drop: ["ALL"] });
+      // Applied regardless — it costs nothing and breaks nothing.
+      expect((await sc("caps")).seccompProfile).toEqual({
+        type: "RuntimeDefault",
+      });
+    });
   });
 });
