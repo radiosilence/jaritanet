@@ -5,6 +5,18 @@
       - samba-common
     state: present
 
+# Inherited from the retired NFS role, which is where the shared `shares` var
+# used to be turned into directories. Without this a rebuilt host has smb.conf
+# pointing at paths that do not exist.
+- name: Create share directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "0775"
+  with_items: "{{ shares }}"
+
 # Anonymous, read-only access — no logins. Unknown users map to guest (which
 # runs as the media owner so reads succeed), and connections are restricted to
 # the tailnet + LAN so the open shares aren't reachable from anywhere else.

@@ -1,35 +1,37 @@
-- name: Install NFS server
-  ansible.builtin.package:
-    name: nfs-kernel-server
-    state: present
+---
+# NFS is retired: SMB serves the same shares read-only and confined to the
+# tailnet + LAN, so the export was surface with no remaining use.
+#
+# It exported every share `rw` to `*` with all_squash onto the media owner, so
+# authorisation was reachability and nothing else. The tailnet side of that is
+# unremarkable — those are the owner's own devices — but the export listened on
+# every interface, which included the cluster's pod network. Navidrome is
+# internet-facing on the same host with no NetworkPolicy, so a bug in it reached
+# 2049 and gained write access to all media and to /srv/files, the directory
+# serving the sing-box profiles. A read-only volumeMount on /music does not
+# survive that, which is what makes the export worth deleting rather than
+# narrowing.
+#
+# This is a teardown rather than a deleted role: dropping the role from the
+# playbook would leave the running server exporting exactly as before. It stays
+# afterwards as a cheap guard against the package returning.
 
-- name: Create share directories
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: "{{ item.owner }}"
-    group: "{{ item.owner }}"
-    mode: "0775"
-  with_items: "{{ shares }}"
-
-- name: Get UID for users
-  ansible.builtin.command: "id -u {{ item.owner }}"
-  register: user_uids
-  changed_when: false
-  with_items: "{{ shares }}"
-
-- name: Add NFS exports
-  ansible.builtin.lineinfile:
-    path: /etc/exports
-    line: "{{ item.0.path }} *(rw,sync,no_subtree_check,all_squash,anonuid={{ item.1.stdout }},anongid={{ item.1.stdout }})"
-    create: true
-  with_together:
-    - "{{ shares }}"
-    - "{{ user_uids.results }}"
-  notify: reload nfs exports
-
-- name: Enable and start NFS server
+- name: Stop and disable the NFS server
   ansible.builtin.systemd:
     name: nfs-kernel-server
-    enabled: true
-    state: started
+    state: stopped
+    enabled: false
+  # Absent on a rebuilt host, where there is nothing to stop.
+  failed_when: false
+
+- name: Remove NFS exports
+  ansible.builtin.file:
+    path: /etc/exports
+    state: absent
+
+- name: Remove the NFS server package
+  ansible.builtin.apt:
+    name: nfs-kernel-server
+    state: absent
+    purge: true
+    autoremove: true
