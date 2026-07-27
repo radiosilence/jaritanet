@@ -23,7 +23,8 @@ import {
 import { createCilium } from "./modules/cilium.ts";
 import { createHysteriaPod } from "./modules/hysteria-pod.ts";
 import { createMcpGateway } from "./modules/mcp-gateway.ts";
-import { createSingboxDelivery, type SingboxNode } from "./modules/singbox.ts";
+import { createProfileServer } from "./modules/profiles.ts";
+import type { SingboxNode } from "./modules/singbox.ts";
 import { createTailscalePod } from "./modules/tailscale-pod.ts";
 import { createUnbound } from "./modules/unbound.ts";
 import { createXrayPod } from "./modules/xray-pod.ts";
@@ -363,9 +364,11 @@ export default async function () {
     }
   }
 
-  // --- sing-box client profile: generate + deliver + notify, all in Pulumi ---
-  // Builds the profile from the nodes, writes it to the file server over SSH
-  // (change-detected by content hash), and notifies Telegram on change.
+  // --- sing-box client profiles, served from the cluster ---
+  // Pulumi already holds every profile as a string, so the old round trip
+  // through a file server on the home box bought nothing and cost an SSH write
+  // to a machine that is being retired. Here the routing table is the content:
+  // a rotated slug stops existing rather than lingering as a stale file.
   //
   // The primary is a node too: clients connect by IP, and its REALITY decoy is
   // its own reverse-proxied site (unlike edges, which use an external one). It
@@ -379,23 +382,17 @@ export default async function () {
   ];
 
   if (
+    conf.profiles &&
     nodes.length > 0 &&
     env.SINGBOX_SLUG &&
-    env.FILES_HOSTNAME &&
-    env.TAILNET_MAGICDNS_SUFFIX &&
-    env.OLDBOY_HOST &&
-    env.SSH_PRIVATE_KEY
+    env.TAILNET_MAGICDNS_SUFFIX
   ) {
-    createSingboxDelivery(users, nodes, {
-      filesHostname: env.FILES_HOSTNAME,
-      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
-      oldboy: {
-        host: env.OLDBOY_HOST,
-        privateKey: pulumi.secret(env.SSH_PRIVATE_KEY),
-        user: env.OLDBOY_USER,
-      },
-      exits,
+    createProfileServer(provider, nsName, users, nodes, {
       slug: env.SINGBOX_SLUG,
+      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
+      image: conf.profiles.image,
+      exits,
+      hostname: conf.profiles.hostname,
       telegram:
         env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
           ? {
@@ -404,6 +401,21 @@ export default async function () {
             }
           : undefined,
     });
+
+    const host = conf.profiles.hostname;
+    const zone = conf.zones.find(
+      (z) => z.name === host.split(".").slice(-2).join("."),
+    );
+    if (dnsTarget && zone) {
+      createServiceRecord(dnsTarget, zone, host);
+    }
+    createIngressRoute(
+      provider,
+      "singbox-profiles",
+      host,
+      nsName,
+      traefikRelease,
+    );
   }
 
   return {
@@ -412,7 +424,7 @@ export default async function () {
     services: Object.fromEntries(services),
     ...(dnsTarget && { vpsIp: dnsTarget }),
     // Per-user credentials + share URLs are now delivered as individual sing-box
-    // profiles (see createSingboxDelivery), so only the shared, non-secret
+    // profiles (see createProfileServer), so only the shared, non-secret
     // REALITY params are surfaced as stack outputs.
     // So the cluster can be reached with kubectl without SSHing in first:
     //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet

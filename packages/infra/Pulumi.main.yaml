@@ -311,6 +311,9 @@ config:
           tag: sha-3855f05
           pullPolicy: "Always"
         httpPort: 3000
+  jaritanet:profiles:
+    hostname: p.radiosilence.dev
+    image: ghcr.io/radiosilence/serve-from-env:sha-8ca8f78
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"

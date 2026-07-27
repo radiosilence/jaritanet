@@ -44,16 +44,6 @@ on:
         required: true
       TS_OAUTH_SECRET:
         required: true
-      KUBE_HOST:
-        required: true
-      KUBE_API_PORT:
-        required: true
-      KUBE_TOKEN:
-        required: true
-      NAVIDROME_HOSTNAME:
-        required: true
-      FILES_HOSTNAME:
-        required: true
       BLIT_HOSTNAME:
         required: true
       TS_AUTHKEY:
@@ -224,11 +214,6 @@ jobs:
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
           PULUMI_K8S_DELETE_UNREACHABLE: ${{ inputs.deleteUnreachable && 'true' || '' }}
-          KUBE_HOST: ${{ secrets.KUBE_HOST }}
-          KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
-          KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
-          NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
-          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
           MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
           MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
@@ -237,12 +222,8 @@ jobs:
           # Per-user VPN roster (RBAC). "jc+,guest1" → jc admin, guest1 guest.
           # Unset → single implicit owner-admin.
           VPN_USERS: ${{ secrets.VPN_USERS }}
-          # sing-box profile: Pulumi generates it and ships it to the file
-          # server over SSH (tailnet), notifying Telegram on change. Delivery is
-          # skipped if any of the box/slug/hostname/magicdns vars are unset.
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          OLDBOY_HOST: ${{ secrets.OLDBOY_HOST }}
-          OLDBOY_USER: ${{ secrets.OLDBOY_USER }}
+          # sing-box profiles: Pulumi generates them and serves them from the
+          # cluster. Skipped if the slug or magicdns suffix is unset.
           SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
           TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
