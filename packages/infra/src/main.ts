@@ -197,7 +197,12 @@ export default async function () {
     ]);
   }
 
-  new k8s.core.v1.Namespace(
+  // Every resource below takes its namespace from this output rather than the
+  // bare string, so Pulumi orders them after it. With a literal there is no
+  // edge at all: on a cluster that already had the namespace that was invisible,
+  // and on a fresh one it presents as `namespaces "jaritanet" not found` on
+  // about forty resources at once.
+  const ns = new k8s.core.v1.Namespace(
     namespace,
     {
       metadata: {
@@ -211,18 +216,19 @@ export default async function () {
     },
     { provider },
   );
+  const nsName = ns.metadata.name;
 
   // Egress exit nodes: ss-rust in-cluster. The rathole client (in createIngress)
   // punches each one's port out to the gateway loopback.
-  const exits = resolvedExits.map((e) => createExit(provider, namespace, e));
+  const exits = resolvedExits.map((e) => createExit(provider, nsName, e));
 
   // --- Ingress: Traefik, plus a rathole client only when the cluster is
   // somewhere other than the gateway. Co-located, rathole would tunnel a box to
   // itself: xray relays straight to Traefik's hostPort instead.
   const clusterOnGateway = Boolean(gatewayK3s);
-  createIngress(
+  const { traefikRelease } = createIngress(
     provider,
-    namespace,
+    nsName,
     conf.traefik,
     clusterOnGateway ? undefined : dnsTarget,
     clusterOnGateway ? undefined : ratholeToken,
@@ -230,16 +236,11 @@ export default async function () {
     resolvedExits,
   );
 
-  createRedirectMiddleware(provider, namespace);
+  createRedirectMiddleware(provider, nsName, traefikRelease);
 
   // IP watcher — triggers deploy when external IP changes
   if (env.DEPLOY_TOKEN) {
-    createIpWatcher(
-      provider,
-      namespace,
-      env.DEPLOY_TOKEN,
-      env.GITHUB_REPOSITORY,
-    );
+    createIpWatcher(provider, nsName, env.DEPLOY_TOKEN, env.GITHUB_REPOSITORY);
   }
 
   // --- Services + DNS records + ingress routes ---
@@ -256,7 +257,7 @@ export default async function () {
         }
       }
 
-      createIngressRoute(provider, name, hostname!, namespace);
+      createIngressRoute(provider, name, hostname!, nsName, traefikRelease);
 
       return [name, { hostname, service: service.metadata.name }] as const;
     });
@@ -270,7 +271,7 @@ export default async function () {
     env.GH_CLIENT_SECRET
   ) {
     const mg = conf.mcpGateway;
-    createMcpGateway(provider, namespace, mg, {
+    createMcpGateway(provider, nsName, mg, {
       githubClientId: env.GH_CLIENT_ID,
       githubClientSecret: pulumi.secret(env.GH_CLIENT_SECRET),
       githubAllowed: env.GH_ALLOWED ?? "",
@@ -287,7 +288,7 @@ export default async function () {
         );
         if (zone) createServiceRecord(dnsTarget, zone, host);
       }
-      createIngressRoute(provider, svcName, host, namespace);
+      createIngressRoute(provider, svcName, host, nsName, traefikRelease);
     }
   }
 

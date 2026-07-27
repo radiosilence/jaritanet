@@ -35,7 +35,7 @@ export function deriveExitPort(name: string): number {
  */
 export function createExit(
   provider: k8s.Provider,
-  namespace: string,
+  namespace: pulumi.Input<string>,
   exit: ResolvedExit,
 ) {
   const name = `exit-${exit.name}`;

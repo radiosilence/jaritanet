@@ -29,7 +29,7 @@ import { buildProfile, type SingboxNode } from "./singbox.ts";
  */
 export function createProfileServer(
   provider: k8s.Provider,
-  namespace: string,
+  namespace: pulumi.Input<string>,
   users: VpnUser[],
   nodes: SingboxNode[],
   opts: { slug: string; magicdnsSuffix: string; image: string },
