@@ -10,6 +10,14 @@ export const EnvSchema = z.object({
   KUBE_TOKEN: z.string().min(1, "KUBE_TOKEN is required"),
   TS_AUTHKEY: z.string().optional(),
 
+  // Tailnet policy-as-code. Absent, the policy stays hand-managed in the admin
+  // console and the Pulumi resource is never created — same idiom as
+  // TS_AUTHKEY gating the relay. Needs an OAuth client with the `policy_file`
+  // scope; see README.
+  TS_OAUTH_CLIENT_ID: z.string().optional(),
+  TS_OAUTH_CLIENT_SECRET: z.string().optional(),
+  TS_TAILNET: z.string().optional(),
+
   // MCP gateway: GitHub OAuth app creds + login allowlist. GH_ prefix because
   // GitHub Actions reserves GITHUB_. Absent → the gateway stack is skipped.
   GH_CLIENT_ID: z.string().optional(),

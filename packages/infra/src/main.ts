@@ -13,6 +13,7 @@ import {
 import { createEdge } from "./modules/edge.ts";
 import { createExit, deriveExitPort } from "./modules/exit.ts";
 import { createGateway } from "./modules/gateway.ts";
+import { createTailnetPolicy } from "./modules/tailnet-policy.ts";
 import {
   createIngress,
   createIngressRoute,
@@ -122,6 +123,17 @@ export default async function () {
     }
   } else if (conf.externalIp) {
     dnsTarget = pulumi.output(conf.externalIp);
+  }
+
+  // Tailnet policy as code — only once an OAuth client exists, so this is a
+  // no-op until the secrets are set (and even then the provider refuses to
+  // touch a policy nobody has imported).
+  if (env.TS_OAUTH_CLIENT_ID && env.TS_OAUTH_CLIENT_SECRET && env.TS_TAILNET) {
+    createTailnetPolicy(
+      pulumi.secret(env.TS_OAUTH_CLIENT_ID),
+      pulumi.secret(env.TS_OAUTH_CLIENT_SECRET),
+      env.TS_TAILNET,
+    );
   }
 
   // --- DNS: zone modules (fastmail, bluesky) ---

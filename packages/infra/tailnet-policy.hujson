@@ -1,0 +1,38 @@
+// Tailnet policy file (HuJSON — comments are preserved when applied).
+//
+// NOT YET LIVE. This is a starting point, not the current policy. The Pulumi
+// resource refuses to touch a policy it has not imported, so nothing here
+// applies until someone runs the import in the README. Before that import,
+// replace everything below with the tailnet's *current* policy — the point is
+// to bring what exists under version control first and tighten afterwards, not
+// to swap a working policy for a guess.
+//
+// Why this is worth doing: the gateway is a tailnet member so it can relay
+// 100.x over the VPN tunnel. Anything it can reach, a bug in Xray or Hysteria
+// can also reach — see #162, where guest rules that looked like they blocked
+// the tailnet did not. Grants here are what contains that class of bug, and
+// they hold regardless of which layer above them is wrong.
+//
+// The catch worth understanding before tightening: the gateway is a *relay*, so
+// whatever it cannot reach, you cannot reach over the VPN either. The right
+// question is not "how locked down can this be" but "what do I actually use the
+// tunnel to reach" — likely oldboy on a handful of ports.
+{
+	"tagOwners": {
+		// The gateway wants its own tag. It currently joins as tag:server, which
+		// it shares with every other server, so no grant can distinguish it.
+		// Give it one here first — a node cannot advertise a tag the policy does
+		// not define — then set gateway.tailnet.tag to match.
+		// "tag:gateway": ["autogroup:admin"],
+	},
+
+	"grants": [
+		// Placeholder mirroring Tailscale's default: everything reaches
+		// everything. Replace with the imported policy, then narrow.
+		{
+			"src": ["*"],
+			"dst": ["*"],
+			"ip":  ["*"],
+		},
+	],
+}

@@ -122,6 +122,7 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 | `ACME_EMAIL` | Yes | Let's Encrypt account email (Traefik) |
 | `KUBE_HOST` / `KUBE_API_PORT` / `KUBE_TOKEN` | Yes | K8s API access (host = tailnet IP, token base64) |
 | `NAVIDROME_HOSTNAME` / `FILES_HOSTNAME` / `BLIT_HOSTNAME` | Yes | Service hostnames |
+| `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_CLIENT_SECRET` / `TS_TAILNET` | No | Manage the tailnet policy file as code (see below). Unset = policy stays hand-managed |
 
 **Tailscale**
 
@@ -198,3 +199,30 @@ Updates are auto-committed and trigger a deploy.
 ## Server Management
 
 Ansible playbooks provision and configure the homeserver (MicroK8s, Tailscale, Samba, Syncthing, SSH hardening). See `ansible/` directory.
+
+## Tailnet policy as code
+
+The tailnet policy is the last line of defence for anything that reaches the
+gateway. The gateway is a tailnet member so it can relay `100.x` over the
+tunnel, so whatever it may reach, a bug in Xray or Hysteria may also reach —
+grants contain that class of bug regardless of which layer above them is wrong.
+
+Managing it here is opt-in and cannot clobber an existing policy: the provider
+refuses to modify a policy file it has not imported. Bringing it under Pulumi:
+
+1. In the Tailscale admin console, create an **OAuth client** with the
+   `policy_file` read/write scope. Free on the Personal plan.
+2. Set `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET` and `TS_TAILNET` as
+   repository secrets.
+3. Copy the tailnet's **current** policy into
+   `packages/infra/tailnet-policy.hujson`, replacing the placeholder. Bring what
+   exists under version control before changing anything.
+4. Import it so Pulumi adopts the existing policy rather than replacing it:
+   `pulumi import tailscale:index/acl:Acl tailnet-policy acl`
+5. Only now start tightening. Give the gateway its own tag (`tagOwners`) instead
+   of the shared `tag:server`, set `gateway.tailnet.tag` to match, and grant it
+   only what the tunnel is actually used to reach.
+
+Step 5 is where the value is, and the order matters: a node cannot advertise a
+tag the policy does not define, and the gateway is a *relay* — whatever it
+cannot reach, you cannot reach over the VPN either.
