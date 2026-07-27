@@ -43,8 +43,16 @@ export const StrategySchema = z.object({
   type: z.enum(["Recreate", "RollingUpdate"]).default("RollingUpdate"),
 });
 
+/**
+ * Pod-level security context. Every field is optional and none is defaulted,
+ * because setting one has consequences: `fsGroup` in particular switches on
+ * kubelet volume ownership management, which walks and chowns the volume. On a
+ * 2Ti media library backed by a `local` PV that is not a default anyone wants
+ * to acquire by accident — so a service that only needs to run as a given uid
+ * sets exactly that and nothing else.
+ */
 export const SecurityContextSchema = z.object({
-  fsGroup: z.number().default(1000),
-  runAsGroup: z.number().default(1000),
-  runAsUser: z.number().default(1000),
+  fsGroup: z.number().optional(),
+  runAsGroup: z.number().optional(),
+  runAsUser: z.number().optional(),
 });

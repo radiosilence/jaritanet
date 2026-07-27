@@ -476,15 +476,12 @@
                     "type": "object",
                     "properties": {
                       "fsGroup": {
-                        "default": 1000,
                         "type": "number"
                       },
                       "runAsGroup": {
-                        "default": 1000,
                         "type": "number"
                       },
                       "runAsUser": {
-                        "default": 1000,
                         "type": "number"
                       }
                     }
