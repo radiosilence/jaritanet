@@ -155,124 +155,6 @@ systemctl enable rathole
   // of them may exist.
   const sshTransports = !gateway.k3s;
 
-  // Uninstalls the daemons this box ran before the cluster did, so it ends up
-  // as k3s and nothing else. Dropping a remote Command from the Pulumi program
-  // runs nothing on the machine, so without this a migrated gateway keeps its
-  // old xray holding :443 while the pod that wants it never binds. Every pod
-  // depends on this, so none of them races a daemon that is still up.
-  //
-  // Removed rather than stopped or masked: a stopped unit is one package
-  // upgrade, postinst or curious human away from coming back, and it would come
-  // back onto a port a pod is holding. The vendor uninstalls are preferred over
-  // hand-deleting so unit files, logrotate config and /usr/local/etc/xray go
-  // with the binary.
-  //
-  // tailscale is `remove`, never `purge`, and the difference is load-bearing:
-  // the pod inherits this node's tailnet identity from /var/lib/tailscale, and
-  // purge takes that directory with it. The node would rejoin as a new machine
-  // needing a fresh authkey — the cluster up but unreachable, which is the one
-  // failure this migration must not produce.
-  const legacyUnits = gateway.k3s
-    ? new command.remote.Command(
-        "gateway-legacy-units",
-        {
-          connection,
-          create: `set -uo pipefail
-
-# apt here contends with unattended-upgrades, which holds the dpkg lock for
-# minutes. Telling apt to wait is the only lever that also covers the vendor
-# uninstall scripts, which shell out to apt with flags we cannot pass.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
-export DEBIAN_FRONTEND=noninteractive
-
-# Stop everything first so the ports are free while the uninstalls run. Every
-# step tolerates the unit never having existed: on a box built after this
-# change the whole command is a no-op, not a reason to abort the deploy.
-stop_unit() {
-  systemctl stop "$1" >/dev/null 2>&1 || true
-  systemctl disable "$1" >/dev/null 2>&1 || true
-}
-for unit in xray hysteria-server unbound unbound-resolvconf tailscaled; do
-  stop_unit "$unit"
-done
-# The alt ports (3478, 4500) run as instances of a template unit, which the
-# vendor uninstall does not know about — it only handles the base one.
-for unit in $(systemctl list-units --all --plain --no-legend 'hysteria-server@*' | awk '{print $1}'); do
-  stop_unit "$unit"
-done
-
-# Same installers xray.ts and hysteria.ts used, in their removal mode. Both
-# exit non-zero when their package was never there.
-bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge >/dev/null 2>&1 || true
-bash -c "$(curl -fsSL https://get.hy2.sh/)" -- --remove >/dev/null 2>&1 || true
-rm -rf /etc/hysteria /etc/systemd/system/hysteria-server@.service
-
-# One apt call per package: an unknown name aborts the whole invocation without
-# removing anything, and this list is partly what was found on the box rather
-# than what the code installed.
-for pkg in unbound unbound-anchor unbound-resolvconf; do
-  apt-get purge -y "$pkg" >/dev/null 2>&1 || true
-done
-rm -rf /etc/unbound
-
-# remove, not purge — see above. tailscale-archive-keyring is left alone: it is
-# inert, and removing it would only make a future reinstall harder.
-if [ -f /var/lib/tailscale/tailscaled.state ]; then
-  rm -rf /var/lib/tailscale.premigrate
-  cp -a /var/lib/tailscale /var/lib/tailscale.premigrate
-fi
-apt-get remove -y tailscale >/dev/null 2>&1 || true
-# Belt and braces, in case the packaging ever stops respecting remove/purge.
-if [ -d /var/lib/tailscale.premigrate ] && [ ! -f /var/lib/tailscale/tailscaled.state ]; then
-  mkdir -p /var/lib/tailscale
-  cp -a /var/lib/tailscale.premigrate/. /var/lib/tailscale/
-fi
-if [ -d /var/lib/tailscale.premigrate ] && [ ! -f /var/lib/tailscale/tailscaled.state ]; then
-  echo "tailscale node state did not survive removal — the relay would rejoin as a new machine" >&2
-  exit 1
-fi
-
-systemctl daemon-reload >/dev/null 2>&1 || true
-sleep 2
-
-# Assert the end state rather than assume it, because the failure mode is
-# invisible from kubectl: these pods are hostNetwork, not hostPort, so they bind
-# in this very namespace. A surviving daemon means one process keeps the port,
-# the other never serves, and the pod still reports Running.
-leftovers=""
-for bin in xray hysteria tailscale tailscaled unbound; do
-  found=$(command -v "$bin" 2>/dev/null || true)
-  if [ -n "$found" ]; then leftovers="$leftovers $found"; fi
-done
-if [ -n "$leftovers" ]; then
-  echo "legacy daemons still installed:$leftovers" >&2
-  exit 1
-fi
-
-# Anything under kubepods is one of ours — this command re-runs after the pods
-# exist, and their listeners are exactly the ones that must not count.
-# systemd-resolved is not a conflict either: it holds 127.0.0.53:53, a different
-# address from unbound's 127.0.0.1:53.
-listeners() {
-  ss -Hlnptu "$1" 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2
-}
-held=""
-for pid in $( { listeners 'sport = :443'; listeners 'sport = :3478'; listeners 'sport = :4500'; listeners 'src 127.0.0.1:53'; } | sort -u ); do
-  grep -q kubepods "/proc/$pid/cgroup" 2>/dev/null && continue
-  held="$held $pid($(cat "/proc/$pid/comm" 2>/dev/null || echo unknown))"
-done
-if [ -n "$held" ]; then
-  echo "host processes still holding VPN ports:$held" >&2
-  ss -lnptu 'sport = :443 or sport = :3478 or sport = :4500' >&2 || true
-  exit 1
-fi`,
-          triggers: ["legacy-units-v3"],
-        },
-        { dependsOn: [server] },
-      )
-    : undefined;
-
   // Caching DNS forwarder on loopback. Clients dial 127.0.0.1:53 *at this box*
   // through the tunnel (a DNS server with detour=entry-select), so unbound has
   // zero public attack surface — reachable only from inside the tunnel. It
@@ -452,7 +334,6 @@ k3s kubectl label node "$(hostname)" ${VPN_ENTRY_LABEL}=true --overwrite`,
   return {
     hysteria,
     k3s,
-    legacyUnits,
     vpnEntryLabel,
     ratholeToken,
     server,
