@@ -50,6 +50,9 @@ export function createGateway(
             ...gateway.hysteria.altPorts.map((port) =>
               inboundRule(`Hysteria2 QUIC (alt ${port})`, port, "udp"),
             ),
+            ...gateway.hysteria.guestPorts.map((port) =>
+              inboundRule(`Hysteria2 QUIC (guest ${port})`, port, "udp"),
+            ),
           ]
         : []),
     ],

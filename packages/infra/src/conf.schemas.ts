@@ -155,6 +155,15 @@ export const XrayConfSchema = z.object({
  */
 export const HysteriaConfSchema = z.object({
   altPorts: z.array(z.number()).default([3478, 4500]),
+  // Guests listen separately because Hysteria2's ACL has no per-user dimension
+  // — it matches addresses, ports and protocols, never the authenticated name.
+  // Sharing a listener would hand a guest the tailnet and the exit loopbacks,
+  // which is the whole thing guests are not allowed to have, so their access is
+  // a different process with a deny ACL rather than a different credential.
+  // Two listeners cannot share a UDP port, so guests cannot have 443: their
+  // ports are the other WebRTC/TLS-ish ones a restrictive network tends to
+  // permit, and where those are blocked they still hold REALITY on TCP/443.
+  guestPorts: z.array(z.number()).default([19302, 5349, 8443]),
   port: z.number().default(443),
   sni: z.string().default("www.bing.com"),
 });
@@ -194,6 +203,7 @@ export const GatewayConfSchema = z.object({
 export const EdgeConfSchema = z.object({
   hysteria: HysteriaConfSchema.default({
     altPorts: [3478, 4500],
+    guestPorts: [19302, 5349, 8443],
     port: 443,
     sni: "www.bing.com",
   }),

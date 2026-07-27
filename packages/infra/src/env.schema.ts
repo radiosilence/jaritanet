@@ -37,8 +37,10 @@ export const EnvSchema = z.object({
 
 /**
  * A VPN identity and its access tier. `admin` gets hy2 + reality on every node,
- * all exits, and tailnet 100.x; `guest` gets reality only, direct egress, no
- * tailnet — enforced hard server-side (see xray.ts), not by profile shape.
+ * all exits, and tailnet 100.x; `guest` gets reality and hy2 on the guest-only
+ * listeners, direct egress, no exits, no tailnet — enforced hard server-side
+ * (Xray routing per client email, plus the guest listeners' own deny ACL; see
+ * xray.ts and hysteria.ts), not by profile shape.
  */
 export const VpnUserSchema = z.object({
   name: z.string(),

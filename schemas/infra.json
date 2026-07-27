@@ -30,6 +30,7 @@
               "hysteria": {
                 "default": {
                   "altPorts": [3478, 4500],
+                  "guestPorts": [19302, 5349, 8443],
                   "port": 443,
                   "sni": "www.bing.com"
                 },
@@ -603,6 +604,13 @@
       "properties": {
         "altPorts": {
           "default": [3478, 4500],
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "guestPorts": {
+          "default": [19302, 5349, 8443],
           "type": "array",
           "items": {
             "type": "number"

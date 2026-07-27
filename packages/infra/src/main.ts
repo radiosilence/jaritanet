@@ -73,6 +73,7 @@ export default async function () {
         server: gw.vpsIp,
         hysteria: {
           altPorts: gatewayConf.hysteria.altPorts,
+          guestPorts: gatewayConf.hysteria.guestPorts,
           obfsPassword: gw.hysteria.obfsPassword,
           passwords: gw.hysteria.passwords,
           port: gatewayConf.hysteria.port,
@@ -107,6 +108,7 @@ export default async function () {
         server: e.vpsIp,
         hysteria: {
           altPorts: edge.hysteria.altPorts,
+          guestPorts: edge.hysteria.guestPorts,
           obfsPassword: e.hysteria.obfsPassword,
           passwords: e.hysteria.passwords,
           port: edge.hysteria.port,

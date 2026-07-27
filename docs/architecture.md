@@ -422,19 +422,29 @@ and drops their credentials — a hard revoke.
 
 | | Admin | Guest |
 |---|---|---|
-| Reality (Xray) | ✅ | ✅ |
-| Hysteria2 | ✅ | ❌ |
+| Reality (Xray) | ✅ all identities | ✅ all identities |
+| Hysteria2 | ✅ `port` + `altPorts` | ✅ `guestPorts` only (deny ACL) |
 | Exits | all | none (direct egress only) |
 | Tailnet `100.x` | ✅ | ❌ (blackholed) |
+
+Guests share the REALITY identity list, so they route around an intercepted SNI
+exactly as an admin does. They cannot have `udp/443`, since two listeners cannot
+share a port and that one is the admins' — a guest on a network that kills their
+QUIC ports falls back to REALITY on TCP/443, which is where they started.
 
 **Enforcement is server-side, not profile-shaped.** A guest could hand-edit
 their profile JSON; the restrictions still hold because they live at the gateway:
 
-- **Guests are reality-only by design** — and that's what makes the rest hard.
-  Reality is their sole entry, and Xray tags each inbound flow with the client's
-  `email` (= user name), so per-user routing rules are airtight. hy2 has no such
-  per-user routing, so giving guests hy2 would open an unpoliced door — hence
-  they get none (no hy2 credential exists for them).
+- **Guests get both transports, but hy2 on their own listeners.** Xray tags each
+  inbound flow with the client's `email` (= user name), so per-user REALITY
+  routing rules are airtight. Hysteria2 has no equivalent: its ACL matches
+  addresses, ports and protocols and never sees who authenticated, so a guest on
+  a shared hy2 listener would have an unpoliced route to the tailnet and to the
+  exit loopbacks — whose ports derive from exit names, so guessing them is
+  trivial. The boundary is therefore a *separate process*: guest ports run their
+  own `hysteria-server@guest-<port>` instances whose config rejects the tailnet,
+  loopback and RFC1918 outright, with everything else falling through to direct.
+  Same credential system, different listener, no shared blast radius.
 - **Identity + revocation** — one REALITY UUID per user in Xray's `clients`;
   admins additionally in hy2's `userpass` map. Drop the user → the credential
   vanishes → locked out. Since exits and tailnet are only reachable *through* an

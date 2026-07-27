@@ -48,6 +48,9 @@ export function createEdge(
       ...edge.hysteria.altPorts.map((port) =>
         inboundRule(`Hysteria2 QUIC (alt ${port})`, port, "udp"),
       ),
+      ...edge.hysteria.guestPorts.map((port) =>
+        inboundRule(`Hysteria2 QUIC (guest ${port})`, port, "udp"),
+      ),
     ],
   });
 

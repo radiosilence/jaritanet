@@ -20,8 +20,10 @@ const EXIT_PORT_RANGE = "20000-29999";
  * proxied out. Keys are minted on first boot and never leave the box: the
  * x25519 private key stays in /usr/local/etc/xray, and one REALITY UUID is
  * minted per user (`email: <name>`) so a user is revoked by dropping them from
- * the clients list. Guests (reality-only) are blackholed server-side to the
- * tailnet CIDR and the exit loopbacks — a hard block, not a profile omission.
+ * the clients list. Guests are blackholed server-side to the tailnet CIDR and
+ * the exit loopbacks — a hard block, not a profile omission. Their hy2 access
+ * is fenced separately, by listener rather than by routing rule (see
+ * hysteria.ts), since Hysteria2's ACL cannot see who is connected.
  *
  * `user`-scoped routing only resolves once the inbound sniffs the flow, so the
  * inbound enables sniffing with `routeOnly` (route on the sniffed destination

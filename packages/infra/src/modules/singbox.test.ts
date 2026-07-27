@@ -6,8 +6,9 @@ const node = {
   server: "1.2.3.4",
   hysteria: {
     altPorts: [3478],
+    guestPorts: [19302],
     obfsPassword: "obfs",
-    passwords: { jc: "jc-hy2" },
+    passwords: { guest1: "guest1-hy2", jc: "jc-hy2" },
     port: 443,
     sni: "sni.example",
   },
@@ -52,7 +53,7 @@ describe("buildProfile roles", () => {
     expect(exitOut?.password).toBe("ss-psk");
   });
 
-  it("gives a guest reality-only, direct egress, and no exit/hy2/PSK", () => {
+  it("gives a guest both transports but direct egress, no exit axis or PSK", () => {
     const p = buildProfile(
       { name: "guest1", role: "guest" },
       [node],
@@ -61,7 +62,11 @@ describe("buildProfile roles", () => {
     );
     const t = tags(p);
     expect(t).toContain("reality-primary-google");
+    // hy2, but only on the guest listeners — the admin ports are a different
+    // process this credential cannot authenticate against.
+    expect(t).toContain("hy2-primary-19302");
     expect(t).not.toContain("hy2-primary-443");
+    expect(t).not.toContain("hy2-primary-3478");
     expect(t).not.toContain("exit-select");
     expect(t).not.toContain("exit-home");
     expect(p.route.final).toBe("entry-select");
@@ -80,7 +85,7 @@ describe("buildProfile roles", () => {
 describe("buildProfile hy2 ports", () => {
   const admin = { name: "jc", role: "admin" } as const;
 
-  it("gives every listening port its own outbound, main port untagged", () => {
+  it("gives every listening port its own outbound", () => {
     const p = buildProfile(admin, [node], "ts.net");
     const t = tags(p);
     expect(t).toContain("hy2-primary-443");
@@ -115,11 +120,21 @@ describe("buildProfile hy2 ports", () => {
     expect(t).not.toContain("hy2-primary-3478");
   });
 
-  it("keeps hy2 off a guest profile whatever ports the node serves", () => {
-    const json = JSON.stringify(
-      buildProfile({ name: "guest1", role: "guest" }, [node], "ts.net"),
-    );
-    expect(json).not.toContain("3478");
+  it("hands a guest the guest listeners and its own credential", () => {
+    const p = buildProfile({ name: "guest1", role: "guest" }, [node], "ts.net");
+    const outs = p.outbounds as {
+      tag: string;
+      server_port?: number;
+      password?: string;
+    }[];
+    const hy2 = outs.find((o) => o.tag === "hy2-primary-19302");
+
+    expect(hy2?.server_port).toBe(19302);
+    // userpass auth: the server splits on the first colon to find the user.
+    expect(hy2?.password).toBe("guest1:guest1-hy2");
+    // The admin ports are a separate process with no ACL; a guest is never
+    // pointed at one, and could not authenticate if they were.
+    expect(JSON.stringify(p)).not.toContain("jc-hy2");
   });
 });
 
@@ -152,16 +167,22 @@ describe("buildProfile REALITY identities", () => {
     const auto = (p.outbounds as { tag: string; outbounds?: string[] }[]).find(
       (o) => o.tag === "auto",
     );
-    // Reality-only, but no longer a single point of failure.
+    // No longer a single point of failure: a guest's own hy2 port plus every
+    // identity, so an intercepted SNI costs one candidate rather than the lot.
     expect(auto?.outbounds).toEqual([
+      "hy2-primary-19302",
       "reality-primary-google",
       "reality-primary-bing",
     ]);
     expect(tags(p)).not.toContain("hy2-primary-443");
   });
 
-  it("skips the urltest when a guest node serves one identity", () => {
-    const p = buildProfile(guest, [oneSni], "ts.net");
+  it("skips the urltest when a node offers a guest one candidate", () => {
+    const bare = {
+      ...oneSni,
+      hysteria: { ...oneSni.hysteria, guestPorts: [] },
+    };
+    const p = buildProfile(guest, [bare], "ts.net");
     expect(tags(p)).not.toContain("auto");
     const entry = (p.outbounds as { tag: string; default?: string }[]).find(
       (o) => o.tag === "entry-select",

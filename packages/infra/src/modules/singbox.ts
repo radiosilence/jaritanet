@@ -15,6 +15,7 @@ export type SingboxNode = {
   server: pulumi.Input<string>;
   hysteria: {
     altPorts: number[];
+    guestPorts: number[];
     obfsPassword: pulumi.Input<string>;
     passwords: Record<string, pulumi.Input<string>>;
     port: number;
@@ -34,6 +35,7 @@ type ResolvedNode = {
   server: string;
   hysteria: {
     altPorts: number[];
+    guestPorts: number[];
     obfsPassword: string;
     passwords: Record<string, string>;
     port: number;
@@ -93,8 +95,13 @@ const hy2 = (n: ResolvedNode, password: string, port: number) => ({
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
   tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
 });
-const hy2Ports = (n: ResolvedNode) => [n.hysteria.port, ...n.hysteria.altPorts];
-const hy2Tags = (n: ResolvedNode) => hy2Ports(n).map((p) => hy2Tag(n, p));
+// Roles listen on different ports (see HysteriaConfSchema): a guest's ports are
+// a separate, ACL-restricted process, so there is nothing to gain by offering
+// them an admin port they cannot authenticate against.
+const hy2Ports = (n: ResolvedNode, role: VpnUser["role"]) =>
+  role === "admin"
+    ? [n.hysteria.port, ...n.hysteria.altPorts]
+    : n.hysteria.guestPorts;
 // One outbound per borrowed identity, all the same inbound: same UUID, key and
 // shortId, differing only in the name the ClientHello claims. Which identity
 // survives is a property of the network (see XrayConfSchema), so they all sit
@@ -159,11 +166,12 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  * the primary end, hitting that exit's rathole loopback. Exits therefore always
  * transit the primary, regardless of the `entry-select` pick for direct egress.
  *
- * Per-user + role-aware: reality outbounds use the user's own UUID; admins also
- * get hy2 (their per-node password) and the exit axis; guests are
- * reality-only with direct egress (no hy2, no exits) — and their exit/tailnet
- * access is additionally blackholed server-side, so the profile shape is a
- * convenience, not the security boundary.
+ * Per-user + role-aware: reality outbounds use the user's own UUID, and hy2 uses
+ * the user's own password on the ports their role may authenticate against —
+ * admins on the main + alt ports, guests on the deny-ACL'd guest listeners. Only
+ * admins get the exit axis. A guest's exit and tailnet access is blackholed
+ * server-side either way, so the profile shape is a convenience, not the
+ * security boundary.
  */
 export function buildProfile(
   user: VpnUser,
@@ -175,12 +183,13 @@ export function buildProfile(
   // Guests get no exit axis — the ss PSK is never in their profile anyway.
   const effExits = isAdmin ? exits : [];
 
-  // Transports available to this user per node: reality always; hy2 admin-only.
-  const autoTags = (n: ResolvedNode) =>
-    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+  // Every user gets both transports; the role decides which hy2 ports and
+  // whether the exit axis exists at all.
+  const hy2Tags = (n: ResolvedNode) =>
+    hy2Ports(n, user.role).map((port) => hy2Tag(n, port));
   // Leaf outbounds in picker order — the manual drill-in under a node's group.
-  const entryTags = (n: ResolvedNode) =>
-    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+  const entryTags = (n: ResolvedNode) => [...hy2Tags(n), ...realityTags(n)];
+  const autoTags = entryTags;
   const pickTags = (n: ResolvedNode) => [`auto-${n.name}`, ...entryTags(n)];
 
   const outbounds: Record<string, unknown>[] = [];
@@ -188,12 +197,12 @@ export function buildProfile(
     for (const sni of n.reality.serverNames) {
       outbounds.push(reality(n, n.reality.uuids[user.name], sni));
     }
-    if (isAdmin) {
-      // hy2's server auth is `userpass`, so the client's password must be
-      // `<name>:<password>` — the server splits on the first colon to look the
-      // user up. Sending the bare password fails auth for every admin.
-      const pw = `${user.name}:${n.hysteria.passwords[user.name]}`;
-      for (const port of hy2Ports(n)) outbounds.push(hy2(n, pw, port));
+    // hy2's server auth is `userpass`, so the client's password must be
+    // `<name>:<password>` — the server splits on the first colon to look the
+    // user up. Sending the bare password fails auth for everyone.
+    const pw = `${user.name}:${n.hysteria.passwords[user.name]}`;
+    for (const port of hy2Ports(n, user.role)) {
+      outbounds.push(hy2(n, pw, port));
     }
   }
   if (nodes.length === 1) {
