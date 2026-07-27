@@ -98,11 +98,18 @@ export function createXray(
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
-# Wait out cloud-init before touching the box. Pulumi SSHes in the moment the
-# server answers, which is well before provisioning finishes — so apt is still
-# locked (exit 100) and directories these scripts write into do not exist yet.
-# Idempotent and instant once boot is done.
+# Pulumi SSHes in the moment the server answers, which is long before the box
+# is actually usable. Two separate waits are needed:
+#   1. cloud-init, or directories these scripts write into do not exist yet;
+#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
+#      finishes and holds it for minutes — every apt call here exits 100 until
+#      it lets go, and the vendor install scripts give no way to pass a timeout.
+# Both are idempotent and return immediately once the box has settled.
 cloud-init status --wait >/dev/null 2>&1 || true
+for _ in $(seq 1 120); do
+  fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break
+  sleep 5
+done
 export DEBIAN_FRONTEND=noninteractive
 XRAY_VERSION=$(printf '%s' "${xray.version}" | sed 's/^v//')
 
@@ -140,11 +147,18 @@ fi`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
-# Wait out cloud-init before touching the box. Pulumi SSHes in the moment the
-# server answers, which is well before provisioning finishes — so apt is still
-# locked (exit 100) and directories these scripts write into do not exist yet.
-# Idempotent and instant once boot is done.
+# Pulumi SSHes in the moment the server answers, which is long before the box
+# is actually usable. Two separate waits are needed:
+#   1. cloud-init, or directories these scripts write into do not exist yet;
+#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
+#      finishes and holds it for minutes — every apt call here exits 100 until
+#      it lets go, and the vendor install scripts give no way to pass a timeout.
+# Both are idempotent and return immediately once the box has settled.
 cloud-init status --wait >/dev/null 2>&1 || true
+for _ in $(seq 1 120); do
+  fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break
+  sleep 5
+done
 PRIV=$(cat /usr/local/etc/xray/private.key)
 cat > /usr/local/etc/xray/config.json << XRAY_EOF
 {
