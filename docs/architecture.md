@@ -432,18 +432,30 @@ their profile JSON; the restrictions still hold because they live at the gateway
 
 - **Guests are reality-only by design** — and that's what makes the rest hard.
   Reality is their sole entry, and Xray tags each inbound flow with the client's
-  `email` (= user name), so per-user routing rules are airtight. hy2 has no such
-  per-user routing, so giving guests hy2 would open an unpoliced door — hence
-  they get none (no hy2 credential exists for them).
+  `email` (= the user name, an arbitrary label, not an address), so rules can
+  match on `"user"` — a genuine per-user dimension. hy2 has no equivalent: its
+  ACL matches addresses, ports and protocols and never sees who authenticated,
+  so giving guests hy2 would open an unpoliced door — hence they get none (no
+  hy2 credential exists for them).
 - **Identity + revocation** — one REALITY UUID per user in Xray's `clients`;
   admins additionally in hy2's `userpass` map. Drop the user → the credential
   vanishes → locked out. Since exits and tailnet are only reachable *through* an
   entry, killing the entry kills everything downstream.
 - **Exits** — gated by the ss-rust PSK, which is simply omitted from guest
   profiles, so a guest has no exit outbound to select even if they edit the JSON.
-- **Tailnet + exit loopbacks** — an Xray routing rule blackholes guest emails'
-  flows to `100.64.0.0/10` (+ the v6 ULA) and to `127.0.0.0/8:20000-29999` (the
-  exit loopback range). Belt-and-braces on top of the PSK omission.
+- **Everything that isn't the public internet** — an Xray routing rule blackholes
+  guest flows to the tailnet, loopback and RFC1918. Enumerating what a guest may
+  *not* touch is the losing side of the argument, so the rule denies every
+  address that isn't the internet rather than the exit port range alone.
+
+  **This only works because `routing.domainStrategy` is `IPIfNonMatch`.** These
+  are IP rules, and under Xray's default `AsIs` an IP rule never matches a
+  request whose destination is a *domain* — so a guest editing their profile to
+  dial a hostname they control, with an A record pointing into the tailnet, fell
+  through to `direct` and reached the mesh. `IPIfNonMatch` resolves after a
+  non-matching round and matches again. An IP deny-list in front of a
+  non-resolving strategy is decoration; if the strategy is ever changed back,
+  these rules quietly stop meaning anything.
 
 Delivery is owner-relayed: a bot can't cold-DM a handle, so on change the owner
 gets one Telegram message grouping users under Admins / Guests, each URL a

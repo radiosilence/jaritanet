@@ -7,10 +7,24 @@ import type { XrayConfSchema } from "../conf.schemas.ts";
 import type { VpnUser } from "../env.schema.ts";
 import { type Connection, resourcePrefix } from "./vps.ts";
 
-// Exit ss-rust loopbacks live in this range (see deriveExitPort in exit.ts).
-// Guests are blackholed to it at the Xray layer — belt-and-braces on top of the
-// ss PSK being omitted from their profile.
-const EXIT_PORT_RANGE = "20000-29999";
+// A guest may address the public internet and nothing else. Narrower rules were
+// a mistake: the exit loopbacks were blocked only on their own port range
+// (20000-29999, see deriveExitPort in exit.ts), which left 0.0.0.0 — a synonym
+// for localhost on Linux — reachable, and said nothing about the rest of the
+// gateway's own stack. Enumerating what a guest may not touch is the losing
+// side of that argument, so this is every address that isn't the internet.
+const GUEST_DENY_CIDRS = [
+  "100.64.0.0/10", // tailnet
+  "fd7a:115c:a1e0::/48",
+  "127.0.0.0/8", // the gateway itself, incl. the exit loopbacks
+  "0.0.0.0/8",
+  "::1/128",
+  "10.0.0.0/8",
+  "172.16.0.0/12",
+  "192.168.0.0/16",
+  "169.254.0.0/16",
+  "fc00::/7",
+];
 
 /**
  * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
@@ -62,15 +76,21 @@ export function createXray(
       ),
     );
 
-  // Guest hard-block: reality is their only entry, so routing keyed on their
-  // client email is airtight — the tailnet mesh and the exit loopbacks both go
-  // to the blackhole. Admins match no guest rule and fall through to `direct`.
+  // Guest hard-block, keyed on the client's `email` (= user name), which is the
+  // per-user dimension Xray gives us and hy2 does not. Admins match no guest
+  // rule and fall through to `direct`.
+  //
+  // These are IP rules, so they are only worth anything with a domainStrategy
+  // that resolves: under `AsIs` an IP rule never matches a request whose
+  // destination is a *domain*, and a guest editing their own profile to dial a
+  // hostname they control — A record pointing into the tailnet — walked straight
+  // past this into the mesh. `IPIfNonMatch` resolves after a non-matching round
+  // and matches again, which is what makes the rule mean what it looks like.
   const guests = clients.filter((c) => c.role === "guest").map((c) => c.name);
   const guestsList = JSON.stringify(guests);
   const guestRules = guests.length
     ? `
-      { "user": ${guestsList}, "ip": ["100.64.0.0/10", "fd7a:115c:a1e0::/48"], "outboundTag": "block" },
-      { "user": ${guestsList}, "ip": ["127.0.0.0/8"], "port": "${EXIT_PORT_RANGE}", "outboundTag": "block" },`
+      { "user": ${guestsList}, "ip": ${JSON.stringify(GUEST_DENY_CIDRS)}, "outboundTag": "block" },`
     : "";
 
   const install = new command.remote.Command(
@@ -152,7 +172,7 @@ cat > /usr/local/etc/xray/config.json << XRAY_EOF
     { "protocol": "blackhole", "tag": "block" }
   ],
   "routing": {
-    "domainStrategy": "AsIs",
+    "domainStrategy": "IPIfNonMatch",
     "rules": [${guestRules}
       { "network": "tcp,udp", "outboundTag": "direct" }
     ]
@@ -163,6 +183,7 @@ systemctl restart xray`,
       triggers: [
         clientsJson,
         guestsList,
+        GUEST_DENY_CIDRS.join(),
         shortId.hex,
         xray.serverNames.join(),
         xray.dest,
