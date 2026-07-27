@@ -330,6 +330,10 @@ export default async function () {
     // Per-user credentials + share URLs are now delivered as individual sing-box
     // profiles (see createSingboxDelivery), so only the shared, non-secret
     // REALITY params are surfaced as stack outputs.
+    // So the cluster can be reached with kubectl without SSHing in first:
+    //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet
+    // Secret, because it is full cluster admin.
+    ...(gatewayK3s && { kubeconfig: gatewayK3s.kubeconfig }),
     ...(xray && {
       xrayPublicKey: xray.publicKey,
       xrayServerNames: conf.gateway?.xray?.serverNames,

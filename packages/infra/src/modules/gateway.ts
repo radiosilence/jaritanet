@@ -28,6 +28,12 @@ export function createGateway(
   exits: { name: string; port: number }[] = [],
   magicdnsSuffix = "",
 ) {
+  // rathole exists to reach a cluster behind NAT. With k3s on this box there is
+  // nothing on the other side of the tunnel, so none of it gets installed — no
+  // binary, no unit, no config, no open 2333. It is also what broke the last
+  // deploy: writing /etc/rathole/server.toml before cloud-init had created it.
+  const ratholeEnabled = !gateway.k3s;
+
   const ratholeToken = new random.RandomPassword("rathole-token", {
     length: 64,
   });
@@ -45,7 +51,7 @@ export function createGateway(
       inboundRule("SSH", 22),
       inboundRule("HTTP", 80),
       inboundRule("HTTPS", 443),
-      inboundRule("Rathole control channel", 2333),
+      ...(ratholeEnabled ? [inboundRule("Rathole control channel", 2333)] : []),
       // Only when the API server has no tailnet to hide behind. With Tailscale
       // configured the kubeconfig points at a MagicDNS name and 6443 never
       // needs a public rule at all — so adding the Pi (and its tailnet) closes
@@ -113,7 +119,7 @@ systemctl enable rathole
       name: gateway.name,
       serverType: gateway.serverType,
       sshKeys: [hcloudSshKey.id.apply((id) => id.toString())],
-      userData: serverConfig,
+      userData: ratholeEnabled ? serverConfig : "#!/bin/bash\ntrue\n",
     },
     {
       // NOT replaceOnChanges for serverType: within one architecture hcloud
@@ -150,6 +156,11 @@ systemctl enable rathole
     {
       connection,
       create: `set -euo pipefail
+# Wait out cloud-init before touching the box. Pulumi SSHes in the moment the
+# server answers, which is well before provisioning finishes — so apt is still
+# locked (exit 100) and directories these scripts write into do not exist yet.
+# Idempotent and instant once boot is done.
+cloud-init status --wait >/dev/null 2>&1 || true
 export DEBIAN_FRONTEND=noninteractive
 apt-get update && apt-get install -y unbound ca-certificates
 cat > /etc/unbound/unbound.conf.d/jaritanet.conf << 'EOF'
@@ -217,27 +228,29 @@ type = "tcp"
 bind_addr = "0.0.0.0:80"
 ${exitServices}`;
 
-  const configUpload = new command.remote.Command(
-    "rathole-config",
-    {
-      connection,
-      create: pulumi.interpolate`cat > /etc/rathole/server.toml << 'RATHOLE_EOF'
+  if (ratholeEnabled) {
+    const configUpload = new command.remote.Command(
+      "rathole-config",
+      {
+        connection,
+        create: pulumi.interpolate`cat > /etc/rathole/server.toml << 'RATHOLE_EOF'
 ${ratholeConfig}
 RATHOLE_EOF`,
-      triggers: [ratholeToken.result, httpsBind, exitServices],
-    },
-    { dependsOn: [server] },
-  );
+        triggers: [ratholeToken.result, httpsBind, exitServices],
+      },
+      { dependsOn: [server] },
+    );
 
-  new command.remote.Command(
-    "rathole-restart",
-    {
-      connection,
-      create: "systemctl restart rathole",
-      triggers: [configUpload.id],
-    },
-    { dependsOn: [configUpload] },
-  );
+    new command.remote.Command(
+      "rathole-restart",
+      {
+        connection,
+        create: "systemctl restart rathole",
+        triggers: [configUpload.id],
+      },
+      { dependsOn: [configUpload] },
+    );
+  }
 
   const xray = gateway.xray
     ? createXray(connection, server, gateway.xray, users)

@@ -39,6 +39,11 @@ export function createTailscale(
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
+# Wait out cloud-init before touching the box. Pulumi SSHes in the moment the
+# server answers, which is well before provisioning finishes — so apt is still
+# locked (exit 100) and directories these scripts write into do not exist yet.
+# Idempotent and instant once boot is done.
+cloud-init status --wait >/dev/null 2>&1 || true
 export DEBIAN_FRONTEND=noninteractive
 if ! command -v tailscale >/dev/null 2>&1; then
   curl -fsSL https://tailscale.com/install.sh | sh

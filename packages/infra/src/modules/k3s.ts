@@ -50,6 +50,11 @@ export function createK3s(
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
+# Wait out cloud-init before touching the box. Pulumi SSHes in the moment the
+# server answers, which is well before provisioning finishes — so apt is still
+# locked (exit 100) and directories these scripts write into do not exist yet.
+# Idempotent and instant once boot is done.
+cloud-init status --wait >/dev/null 2>&1 || true
 # Idempotent: the installer is a no-op when the pinned version is already there.
 curl -sfL https://get.k3s.io | \
   INSTALL_K3S_VERSION="${k3s.version}" \
