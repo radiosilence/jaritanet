@@ -406,6 +406,10 @@
                     "default": false,
                     "type": "boolean"
                   },
+                  "restrictIngress": {
+                    "default": false,
+                    "type": "boolean"
+                  },
                   "image": {
                     "$ref": "#/$defs/__schema3"
                   },

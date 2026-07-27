@@ -217,6 +217,36 @@ describe("service template", () => {
       ]);
     });
 
+    it("keeps the kubelet reachable when ingress is restricted", async () => {
+      const { createService } = await import("./service.ts");
+      createService(
+        mockProvider,
+        "fenced",
+        args({ networkPolicy: true, restrictIngress: true }),
+      );
+
+      const { spec } = (await waitFor("NetworkPolicy", "fenced-netpol")).inputs;
+      expect(spec.policyTypes).toEqual(["Ingress", "Egress"]);
+
+      const from = spec.ingress[0].from;
+      expect(from[0].podSelector.matchLabels).toEqual({
+        "app.kubernetes.io/name": "traefik",
+      });
+      // Probes originate from the node. Without this the pod fails readiness
+      // and gets killed — the exact failure this option is gated behind.
+      expect(from[1].ipBlock.cidr).toBe("192.168.0.0/16");
+    });
+
+    it("leaves ingress alone unless asked", async () => {
+      const { createService } = await import("./service.ts");
+      createService(mockProvider, "egressonly", args({ networkPolicy: true }));
+
+      const { spec } = (await waitFor("NetworkPolicy", "egressonly-netpol"))
+        .inputs;
+      expect(spec.policyTypes).toEqual(["Egress"]);
+      expect(spec.ingress).toBeUndefined();
+    });
+
     it("fixes ownership of writable mounts, never read-only ones", async () => {
       const { createService } = await import("./service.ts");
       const withVolumes = (over: Record<string, unknown> = {}) =>
