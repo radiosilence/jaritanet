@@ -2,7 +2,12 @@ import * as crypto from "node:crypto";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "../env.schema.ts";
-import { buildProfile, type SingboxNode } from "./singbox.ts";
+import {
+  buildProfile,
+  type Exit,
+  notifyProfileUrls,
+  type SingboxNode,
+} from "./singbox.ts";
 
 /**
  * Serves each user's sing-box profile, from a Secret, in the cluster.
@@ -32,7 +37,14 @@ export function createProfileServer(
   namespace: pulumi.Input<string>,
   users: VpnUser[],
   nodes: SingboxNode[],
-  opts: { slug: string; magicdnsSuffix: string; image: string },
+  opts: {
+    slug: string;
+    magicdnsSuffix: string;
+    image: string;
+    exits?: Exit[];
+    hostname: string;
+    telegram?: { botToken: pulumi.Output<string>; chatId: string };
+  },
 ) {
   // Unguessable path per user, derived from the secret base slug — stable
   // across deploys so a subscription keeps working, unguessable without the
@@ -44,25 +56,35 @@ export function createProfileServer(
       .digest("hex")
       .slice(0, 32)}.json`;
 
-  const routes = pulumi.all([pulumi.output(nodes)]).apply(([resolved]) =>
-    JSON.stringify(
-      Object.fromEntries(
-        users.map((user) => [
-          pathFor(user.name),
-          JSON.stringify(
-            buildProfile(
-              user,
-              // biome-ignore lint/suspicious/noExplicitAny: resolved Outputs
-              resolved as any,
-              opts.magicdnsSuffix,
+  const routes = pulumi
+    .all([pulumi.output(nodes), pulumi.output(opts.exits ?? [])])
+    .apply(([resolved, resolvedExits]) =>
+      JSON.stringify(
+        Object.fromEntries(
+          users.map((user) => [
+            pathFor(user.name),
+            JSON.stringify(
+              buildProfile(
+                user,
+                // biome-ignore lint/suspicious/noExplicitAny: resolved Outputs
+                resolved as any,
+                opts.magicdnsSuffix,
+                // biome-ignore lint/suspicious/noExplicitAny: resolved Outputs
+                resolvedExits as any,
+              ),
+              null,
+              2,
             ),
-            null,
-            2,
-          ),
-        ]),
+          ]),
+        ),
       ),
-    ),
-  );
+    );
+
+  const routesHash = pulumi
+    .secret(routes)
+    .apply((r) =>
+      crypto.createHash("sha256").update(r).digest("hex").slice(0, 16),
+    );
 
   const secret = new k8s.core.v1.Secret(
     "singbox-profiles",
@@ -87,17 +109,7 @@ export function createProfileServer(
             // ROUTES arrives as an environment variable, which is read once at
             // exec. Without this the pod would keep serving the profiles it
             // started with after a rotation, silently.
-            annotations: {
-              "jaritanet/routes": pulumi
-                .secret(routes)
-                .apply((r) =>
-                  crypto
-                    .createHash("sha256")
-                    .update(r)
-                    .digest("hex")
-                    .slice(0, 16),
-                ),
-            },
+            annotations: { "jaritanet/routes": routesHash },
           },
           spec: {
             automountServiceAccountToken: false,
@@ -124,6 +136,19 @@ export function createProfileServer(
     },
     { provider },
   );
+
+  if (opts.telegram) {
+    notifyProfileUrls(
+      users.map((user) => ({
+        name: user.name,
+        role: user.role,
+        url: `https://${opts.hostname}${pathFor(user.name)}`,
+      })),
+      opts.telegram,
+      routesHash,
+      [secret],
+    );
+  }
 
   return new k8s.core.v1.Service(
     "singbox-profiles-service",
