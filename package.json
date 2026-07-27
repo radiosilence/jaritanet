@@ -19,6 +19,7 @@
     "fmt:check": "oxfmt --check",
     "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
     "gen:schemas": "./scripts/gen-schemas.ts",
+    "check:profiles": "./scripts/check-profiles.ts",
     "update:apps": "./packages/infra/src/update-apps.ts",
     "deploy": "./packages/infra/src/deploy.ts up",
     "preview": "./packages/infra/src/deploy.ts preview",

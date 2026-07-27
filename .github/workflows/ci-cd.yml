@@ -149,6 +149,13 @@ jobs:
       - name: Run Tests
         run: aube run test
 
+      # The unit tests validate profile *shape* against sing-box's published
+      # (latest) schema. This runs the real binary of the oldest core the fleet
+      # is on, which is the only thing that answers "will the devices accept
+      # this" — the question July's outage turned on.
+      - name: Check profiles against the minimum sing-box core
+        run: aube run check:profiles
+
   deploy:
     name: Deploy
     needs: [test, lint, format, typecheck]
