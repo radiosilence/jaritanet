@@ -31,6 +31,31 @@
     path: /etc/apt/sources.list
     state: absent
 
+# broadcom-sta is a proprietary Broadcom blob for this laptop's wifi chip, last
+# released upstream around 2015. It fails to build against 7.0, and a DKMS
+# failure aborts the *kernel package's* postinst — so one dead driver leaves the
+# new kernel unconfigured, dpkg half-broken, and zz-update-grub never run.
+#
+# Disabled rather than purged: the module is already built for both 6.8 kernels,
+# so wifi keeps working there and only 7.0 goes without — and this box is wired
+# anyway (USB ethernet; wlp3s0 has never held carrier). Reversible by deleting
+# one file. Note a modprobe blacklist would NOT do: the build is the problem,
+# not the load.
+#
+# Ordered before dist-upgrade deliberately. Upgrading is what re-triggers the
+# failing build, so a run that wrote this afterwards would abort before reaching
+# it and never fix anything.
+- name: Stop DKMS auto-building the Broadcom wifi driver
+  ansible.builtin.copy:
+    dest: /etc/dkms/broadcom-sta.conf
+    content: |
+      # Managed by ansible — see roles/common/tasks/main.yml.
+      AUTOINSTALL="no"
+    owner: root
+    group: root
+    mode: "0644"
+  when: disable_broadcom_sta | default(false) | bool
+
 - name: Update all packages to the latest version (dist-upgrade)
   ansible.builtin.apt:
     upgrade: dist

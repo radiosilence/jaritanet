@@ -24,6 +24,11 @@ samba:
 # for the life of the release, so this is the only way to a newer kernel short of
 # a distro upgrade. Takes effect on the next reboot; the GA kernel stays in /boot
 # as a fallback.
+# Its DKMS build fails on 7.0 and takes the kernel package's postinst down with
+# it. Disabled rather than removed, so wifi still works on the 6.8 kernels where
+# the module is already built — and this box is wired regardless.
+disable_broadcom_sta: true
+
 hwe_kernel: true
 
 # Draw the GRUB menu for a few seconds before booting the newest kernel, so an
