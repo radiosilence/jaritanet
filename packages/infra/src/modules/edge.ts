@@ -5,10 +5,10 @@ import type * as z from "zod";
 import type { EdgeConfSchema } from "../conf.schemas.ts";
 import { XrayConfSchema } from "../conf.schemas.ts";
 import type { VpnUser } from "../env.schema.ts";
-import { createHysteria } from "./hysteria.ts";
-import { createTailscale } from "./tailscale.ts";
+import { createHysteriaSystemd } from "./hysteria-systemd.ts";
+import { createTailscaleSystemd } from "./tailscale-systemd.ts";
 import { createNetworkTuning, inboundRule } from "./vps.ts";
-import { createXray } from "./xray.ts";
+import { createXraySystemd } from "./xray-systemd.ts";
 
 /**
  * Provisions a standalone VPN edge box: a Hetzner VPS running hy2 + REALITY +
@@ -67,7 +67,7 @@ export function createEdge(
 
   createNetworkTuning(name, connection, server);
 
-  const hysteria = createHysteria(
+  const hysteria = createHysteriaSystemd(
     connection,
     server,
     edge.hysteria,
@@ -77,7 +77,7 @@ export function createEdge(
 
   // REALITY with an external decoy — parse through XrayConfSchema so the pinned
   // xray version default applies.
-  const xray = createXray(
+  const xray = createXraySystemd(
     connection,
     server,
     XrayConfSchema.parse({
@@ -93,7 +93,7 @@ export function createEdge(
   // Joins the tailnet as jaritanet-<name> so this box can relay 100.x into the
   // mesh, exactly like the primary. Only when an auth key is present.
   const tailscale = authKey
-    ? createTailscale(
+    ? createTailscaleSystemd(
         connection,
         server,
         { hostname: `jaritanet-${name}`, tag: "tag:server" },

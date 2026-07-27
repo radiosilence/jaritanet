@@ -56,12 +56,14 @@ The project uses Lefthook for pre-commit validation:
 Everything deploys in one `pulumi up` from `packages/infra/`:
 
 - **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server; hosts the entry transports and the gateway `unbound` DNS cache
-- **`src/modules/hysteria.ts`** — Hysteria2 (QUIC/UDP) transport with Salamander obfuscation, on the gateway + edges
-- **`src/modules/xray.ts`** — optional Xray VLESS-REALITY (TCP), sharing :443 with rathole on the gateway
+- **`src/modules/hysteria.ts`** — Hysteria2 (QUIC/UDP) transport with Salamander obfuscation
+- **`src/modules/xray.ts`** — Xray VLESS-REALITY (TCP), sharing :443 with rathole
+- **`src/modules/unbound.ts`** — the gateway's caching DNS resolver
+- **`src/modules/{xray,hysteria,tailscale}-systemd.ts`** — the same three transports installed over SSH as systemd units. Only path an edge has; a gateway uses it only without `gateway.k3s`
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
 - **`src/modules/edge.ts`** — standalone VPN edge boxes (hy2 + REALITY + tailnet relay, no rathole/proxy)
 - **`src/modules/exit.ts`** — in-cluster ss-rust egress nodes, reached through the rathole tunnel (deterministic loopback ports)
-- **`src/modules/tailscale.ts`** — joins the gateway/edges to the tailnet as a relay (`--accept-routes=false` is load-bearing)
+- **`src/modules/tailscale.ts`** — joins a node to the tailnet as a relay (`--accept-routes=false` is load-bearing)
 - **`src/modules/singbox.ts`** — builds the sing-box client profile from all nodes and delivers it to the file server (SSH, content-hashed, Telegram notify)
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates (schemas + tests alongside)
@@ -86,13 +88,14 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 ### Key Components
 
 - **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
-- **Hysteria2** — QUIC/UDP transport with Salamander obfuscation; the fast, loss-tolerant daily-driver entry, on the gateway and every edge. Listens on `:443` plus `altPorts` (3478 STUN, 4500 IPsec NAT-T) as separate `hysteria-server@` instances, because inspecting middleboxes block QUIC on 443 and VoIP-blocking regimes block 3478 — the client's urltest finds whichever survives. Admin-only: auth is a per-admin `userpass` map (guests get reality only), obfs is server-wide; both minted on-box and delivered inside admin sing-box profiles.
-- **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and rathole's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (rathole → Traefik); matched clients are proxied out. The keypair is minted on-box and never leaves it; one REALITY UUID is minted per VPN user (`email: <name>`) and delivered inside each user's sing-box profile (see RBAC). `serverNames` is a list, and deliberately contains none of our hostnames — content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain gets every handshake forged. The client carries one outbound per name in its urltest, so no single borrowed identity being blocked (google in China, an adult mis-rating in a pub) is fatal (see docs/architecture.md, Hardening notes).
+- **Hysteria2** — QUIC/UDP transport with Salamander obfuscation; the fast, loss-tolerant daily-driver entry, on the gateway and every edge. Listens on `:443` plus `altPorts` (3478 STUN, 4500 IPsec NAT-T) as one process per port, because inspecting middleboxes block QUIC on 443 and VoIP-blocking regimes block 3478 — the client's urltest finds whichever survives. Admin-only: auth is a per-admin `userpass` map (guests get reality only), obfs is server-wide; both delivered inside admin sing-box profiles.
+- **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and rathole's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (Traefik's `:8443`, via rathole only when the cluster is elsewhere); matched clients are proxied out. One REALITY UUID per VPN user (`email: <name>`), delivered inside that user's sing-box profile (see RBAC). `serverNames` is a list, and deliberately contains none of our hostnames — content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain gets every handshake forged. The client carries one outbound per name in its urltest, so no single borrowed identity being blocked (google in China, an adult mis-rating in a pub) is fatal (see docs/architecture.md, Hardening notes).
 - **sing-box delivery** — `singbox.ts` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware), writes each to the file server over SSH (content-hashed, so unchanged deploys are silent), sweeps superseded slug files so rotated profile URLs 404 rather than serving stale credentials, and notifies Telegram with every user's URL on change.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
 - **Gateway** — Hetzner (HCLOUD_TOKEN) when set, else direct mode.
+- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.dev/vpn-entry` node label, so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` modules stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
 
 ## GitHub Actions
 

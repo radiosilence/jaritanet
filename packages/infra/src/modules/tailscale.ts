@@ -1,75 +1,156 @@
-import * as command from "@pulumi/command";
-import type * as hcloud from "@pulumi/hcloud";
+import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TailnetConfSchema } from "../conf.schemas.ts";
-import { type Connection, resourcePrefix } from "./vps.ts";
+import { VPN_ENTRY_LABEL } from "../util.ts";
+
+const IMAGE = "ghcr.io/tailscale/tailscale:v1.98.9";
 
 /**
- * Joins the gateway VPS to the tailnet so it can relay client traffic into
- * the mesh.
+ * Joins the gateway to the tailnet from inside its own cluster, so it can relay
+ * client traffic into the mesh.
  *
- * The transports are connection-level proxies, not raw IP tunnels: a client
- * flow to 100.x arrives over hy2/reality and the VPS dials that address
- * itself, so the OS routes it out tailscale0 to the home nodes. That's why
- * no IP forwarding, NAT, or subnet-router advertisement is needed — being a
- * member is enough.
+ * `hostNetwork` is what makes this equivalent to the systemd unit it replaces:
+ * tailscale0 has to exist in the *host's* network namespace, because the things
+ * that dial 100.x — xray and hysteria, both hostNetwork too — resolve their
+ * routes there. A pod-local interface would route nothing.
  *
- * `accept-routes=false` is load-bearing: a peer advertising an exit node or
- * routes must not be able to swallow the VPS default route, or the relay
- * (and every service riding it) goes dark. `--ssh=false` is explicit: the
- * gateway is managed purely by config and exposes no human SSH over the
- * tailnet (explicit rather than omitted so a re-run definitely clears it).
+ * `--accept-routes=false` is load-bearing: a peer advertising an exit node or
+ * routes must not be able to swallow the VPS default route, or the relay (and
+ * every service riding it) goes dark. `--ssh=false` is explicit rather than
+ * omitted, so a re-run definitely clears it. `TS_ACCEPT_DNS=false` for the same
+ * class of reason — with hostNetwork, accepting MagicDNS would rewrite the
+ * node's /etc/resolv.conf, and this box resolves through its own unbound.
  *
- * `authKey` is an OAuth client secret (`tskey-client-...`, auth_keys scope +
- * the tag), used directly as the auth key — those don't hit the 90-day
- * expiry that raw auth keys do. OAuth-minted keys default to ephemeral, so
- * `ephemeral=false` is required to keep the relay node persistent.
+ * State lives on the host at the path the systemd tailscaled already used, so
+ * a gateway migrating from that keeps its node identity instead of registering
+ * a second machine. It is also why the migration must stop tailscaled without
+ * logging it out (see gateway.ts).
+ *
+ * Losing the tailnet when the cluster breaks is accepted: sshd on the public IP
+ * is the way back in, so nothing here is built to defend against it.
+ *
+ * `authKey` is an OAuth client secret (`tskey-client-...`, auth_keys scope plus
+ * the tag), used directly as the auth key — those don't hit the 90-day expiry
+ * raw auth keys do. OAuth-minted keys default to ephemeral, so `ephemeral=false`
+ * is required to keep the relay node persistent.
  */
 export function createTailscale(
-  connection: Connection,
-  server: hcloud.Server,
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
   tailnet: z.infer<typeof TailnetConfSchema>,
   authKey: pulumi.Output<string>,
-  name = "",
+  dependsOn: pulumi.Resource[] = [],
 ) {
-  const p = resourcePrefix(name);
-  return new command.remote.Command(
-    `${p}tailscale-up`,
+  const secret = new k8s.core.v1.Secret(
+    "tailscale-authkey",
     {
-      connection,
-      create: pulumi.interpolate`set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
-export DEBIAN_FRONTEND=noninteractive
-if ! command -v tailscale >/dev/null 2>&1; then
-  curl -fsSL https://tailscale.com/install.sh | sh
-fi
-tailscale up \
-  --auth-key="${authKey}?ephemeral=false&preauthorized=true" \
-  --hostname="${tailnet.hostname}" \
-  --advertise-tags="${tailnet.tag}" \
-  --accept-routes=false \
-  --ssh=false`,
-      // Not keyed on authKey: the node persists after first auth, so
-      // re-running only matters when the command changes. Bump the version
-      // to force a re-run (e.g. after rotating the key or changing flags).
-      triggers: ["tailscale-v2", tailnet.hostname, tailnet.tag],
+      metadata: { name: "tailscale-authkey", namespace },
+      stringData: {
+        authkey: pulumi.interpolate`${authKey}?ephemeral=false&preauthorized=true`,
+      },
     },
-    { dependsOn: [server] },
+    { provider },
+  );
+
+  const app = "tailscale";
+  return new k8s.apps.v1.DaemonSet(
+    app,
+    {
+      metadata: { name: app, namespace },
+      spec: {
+        selector: { matchLabels: { app } },
+        // The DaemonSet default, spelled out because it is load-bearing: there
+        // is one tailscale0 and one state directory per host, so the old pod
+        // must be deleted before the replacement is created (maxSurge 0).
+        updateStrategy: {
+          type: "RollingUpdate",
+          rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
+        },
+        template: {
+          metadata: { labels: { app } },
+          spec: {
+            hostNetwork: true,
+            // The host's resolver is unbound on this same box, not the cluster.
+            dnsPolicy: "Default",
+            automountServiceAccountToken: false,
+            // A relay is a property of the node, not of the cluster — the same
+            // label that decides which node serves the transports.
+            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
+            containers: [
+              {
+                name: app,
+                image: IMAGE,
+                env: [
+                  {
+                    name: "TS_AUTHKEY",
+                    valueFrom: {
+                      secretKeyRef: {
+                        name: secret.metadata.name,
+                        key: "authkey",
+                      },
+                    },
+                  },
+                  { name: "TS_HOSTNAME", value: tailnet.hostname },
+                  { name: "TS_STATE_DIR", value: "/var/lib/tailscale" },
+                  // Kernel networking, not userspace: this node relays traffic
+                  // for others rather than originating it, so it needs a real
+                  // interface the host routes through.
+                  { name: "TS_USERSPACE", value: "false" },
+                  { name: "TS_ACCEPT_DNS", value: "false" },
+                  // The node persists in the state directory, so re-running
+                  // `up` on every restart only risks churning a working node.
+                  { name: "TS_AUTH_ONCE", value: "true" },
+                  {
+                    name: "TS_EXTRA_ARGS",
+                    value: `--advertise-tags=${tailnet.tag} --accept-routes=false --ssh=false`,
+                  },
+                ],
+                // Request, not limit, for the same reason as the transports:
+                // every 100x flow a client sends into the mesh is encrypted
+                // here, and CFS throttling would show up as the tailnet going
+                // intermittently slow. 100m is a floor for a relay that is
+                // mostly idle and occasionally carries a file copy.
+                //
+                // 256Mi: wireguard state is per-peer and this tailnet is small,
+                // but containerboot runs tailscaled plus its own supervision,
+                // and an OOM here takes the mesh down rather than a request.
+                resources: {
+                  requests: { cpu: "100m" },
+                  limits: { memory: "256Mi" },
+                },
+                volumeMounts: [
+                  { name: "state", mountPath: "/var/lib/tailscale" },
+                  { name: "tun", mountPath: "/dev/net/tun" },
+                ],
+                securityContext: {
+                  allowPrivilegeEscalation: false,
+                  seccompProfile: { type: "RuntimeDefault" },
+                  capabilities: {
+                    drop: ["ALL"],
+                    // Creating tailscale0 and writing the routes it needs.
+                    add: ["NET_ADMIN"],
+                  },
+                },
+              },
+            ],
+            volumes: [
+              {
+                name: "state",
+                hostPath: {
+                  path: "/var/lib/tailscale",
+                  type: "DirectoryOrCreate",
+                },
+              },
+              {
+                name: "tun",
+                hostPath: { path: "/dev/net/tun", type: "CharDevice" },
+              },
+            ],
+          },
+        },
+      },
+    },
+    { provider, dependsOn },
   );
 }
