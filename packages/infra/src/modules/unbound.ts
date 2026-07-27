@@ -1,5 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
+import { VPN_ENTRY_LABEL } from "../util.ts";
 
 /**
  * The gateway's caching DNS resolver, as a pod rather than an apt install.
@@ -23,6 +24,7 @@ import type * as pulumi from "@pulumi/pulumi";
 export function createUnbound(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
+  dependsOn: pulumi.Resource[] = [],
 ) {
   const config = new k8s.core.v1.ConfigMap(
     "unbound-config",
@@ -65,17 +67,20 @@ forward-zone:
     { provider },
   );
 
-  return new k8s.apps.v1.Deployment(
+  return new k8s.apps.v1.DaemonSet(
     "unbound",
     {
       metadata: { name: "unbound", namespace },
       spec: {
-        replicas: 1,
         selector: { matchLabels: { app: "unbound" } },
-        // Only one process can hold the host's :53, so the old pod has to go
-        // before the new one starts. A rolling update would deadlock exactly as
-        // Traefik's hostPort did.
-        strategy: { type: "Recreate" },
+        // The DaemonSet default, spelled out because it is load-bearing: only
+        // one process can hold the host's :53, so the old pod must be deleted
+        // before the replacement is created (maxSurge 0). A surging update
+        // deadlocks exactly as Traefik's hostPort did.
+        updateStrategy: {
+          type: "RollingUpdate",
+          rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
+        },
         template: {
           metadata: {
             labels: { app: "unbound" },
@@ -88,12 +93,30 @@ forward-zone:
             // while providing it would be circular.
             dnsPolicy: "Default",
             automountServiceAccountToken: false,
+            // The cache belongs to whichever node terminates tunnels, since
+            // that is where 127.0.0.1:53 is dialled from. Same label as the
+            // transports, so a node either serves an entry or does not.
+            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
             containers: [
               {
                 name: "unbound",
                 image: "docker.io/klutchell/unbound:v1.24.0",
                 args: ["-d", "-c", "/etc/unbound/unbound.conf"],
-                resources: { limits: { cpu: "200m", memory: "192Mi" } },
+                // 320Mi, not 192Mi: the config above declares 64m of msg cache
+                // and 128m of rrset cache, so 192Mi was the cache size exactly,
+                // with nothing left for the process holding it. Every client's
+                // DNS goes through this, and an OOM here reads as the whole
+                // tunnel being broken.
+                //
+                // A request rather than a CPU limit, as everywhere else here:
+                // throttling the resolver adds latency to the first packet of
+                // every connection, which is the most visible millisecond in
+                // the system. 50m is a floor for work that is mostly a cache
+                // hit.
+                resources: {
+                  requests: { cpu: "50m" },
+                  limits: { memory: "320Mi" },
+                },
                 volumeMounts: [
                   {
                     name: "config",
@@ -121,6 +144,6 @@ forward-zone:
         },
       },
     },
-    { provider },
+    { provider, dependsOn },
   );
 }

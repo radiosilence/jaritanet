@@ -1,5 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import type * as z from "zod";
 import { conf } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { env, vpnUsers } from "./env.ts";
@@ -20,9 +21,13 @@ import {
   createRedirectMiddleware,
 } from "./modules/ingress.ts";
 import { createCilium } from "./modules/cilium.ts";
+import { createHysteria } from "./modules/hysteria.ts";
 import { createMcpGateway } from "./modules/mcp-gateway.ts";
 import { createProfileServer } from "./modules/profiles.ts";
 import type { SingboxNode } from "./modules/singbox.ts";
+import { createTailscale } from "./modules/tailscale.ts";
+import { createUnbound } from "./modules/unbound.ts";
+import { createXray } from "./modules/xray.ts";
 import { createService } from "./templates/service.ts";
 
 export default async function () {
@@ -33,12 +38,23 @@ export default async function () {
   // Set when the gateway runs its own control plane; its kubeconfig then
   // replaces the KUBE_* secrets below.
   let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
-  let gatewayConfForCilium: { ciliumVersion: string } | undefined;
-  let xray: ReturnType<typeof createGateway>["xray"];
+  let gatewayConf: z.infer<typeof GatewayConfSchema> | undefined;
+  let gatewayIp: pulumi.Output<string> | undefined;
+  // Ordering for the transport DaemonSets: the legacy daemons must be gone
+  // before anything tries to bind their ports, and the node must carry the
+  // entry label before a DaemonSet has anywhere to schedule.
+  let transportDeps: pulumi.Resource[] = [];
 
-  // sing-box nodes (primary gateway + every edge). Pulumi builds a per-user
-  // client profile from these and delivers each to the file server (see the end).
-  const nodes: SingboxNode[] = [];
+  // The primary gateway's transport parameters, from whichever of the two
+  // implementations is in play — SSH-provisioned units, or pods in its own
+  // cluster. Same shapes either way, so the client profile cannot tell.
+  let reality: SingboxNode["reality"] | undefined;
+  let hysteria: SingboxNode["hysteria"] | undefined;
+
+  // sing-box nodes for the edges. The primary is prepended once its transports
+  // are known — buildProfile treats nodes[0] as the rathole node that exits
+  // detour through, so the order is load-bearing.
+  const edgeNodes: SingboxNode[] = [];
 
   // The VPN roster. No VPN_USERS → a single implicit owner-admin, so the
   // multi-user path is exercised uniformly and old single-owner deploys keep
@@ -63,7 +79,7 @@ export default async function () {
   }
 
   if (env.HCLOUD_TOKEN) {
-    const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
+    gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
     // Exits surface on the gateway's rathole loopback (name + port).
     const gw = createGateway(
       gatewayConf,
@@ -72,32 +88,30 @@ export default async function () {
       env.TAILNET_MAGICDNS_SUFFIX,
     );
     dnsTarget = gw.vpsIp;
+    gatewayIp = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     gatewayK3s = gw.k3s;
-    gatewayConfForCilium = gatewayConf.k3s;
-    xray = gw.xray;
+    transportDeps = [gw.legacyUnits, gw.vpnEntryLabel].filter(
+      (r) => r !== undefined,
+    );
 
-    // The primary is a node too: clients connect by IP, and its REALITY decoy
-    // is its own reverse-proxied site (unlike edges, which use an external one).
-    if (gw.hysteria && gw.xray && gatewayConf.hysteria && gatewayConf.xray) {
-      nodes.push({
-        name: "primary",
-        server: gw.vpsIp,
-        hysteria: {
-          altPorts: gatewayConf.hysteria.altPorts,
-          obfsPassword: gw.hysteria.obfsPassword,
-          passwords: gw.hysteria.passwords,
-          port: gatewayConf.hysteria.port,
-          sni: gatewayConf.hysteria.sni,
-        },
-        reality: {
-          publicKey: gw.xray.publicKey,
-          serverNames: gatewayConf.xray.serverNames,
-          shortId: gw.xray.shortId,
-          uuids: gw.xray.uuids,
-        },
-      });
+    if (gw.xray && gatewayConf.xray) {
+      reality = {
+        publicKey: gw.xray.publicKey,
+        serverNames: gatewayConf.xray.serverNames,
+        shortId: gw.xray.shortId,
+        uuids: gw.xray.uuids,
+      };
+    }
+    if (gw.hysteria && gatewayConf.hysteria) {
+      hysteria = {
+        altPorts: gatewayConf.hysteria.altPorts,
+        obfsPassword: gw.hysteria.obfsPassword,
+        passwords: gw.hysteria.passwords,
+        port: gatewayConf.hysteria.port,
+        sni: gatewayConf.hysteria.sni,
+      };
     }
 
     // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
@@ -112,7 +126,7 @@ export default async function () {
       if (zone) {
         createServiceRecord(e.vpsIp, zone, hostname);
       }
-      nodes.push({
+      edgeNodes.push({
         name: edge.name,
         // The literal IP, not `hostname`: the profile detours every resolver
         // through the tunnel, so resolving an edge's name needs the tunnel that
@@ -188,8 +202,8 @@ export default async function () {
   // --flannel-backend=none so Cilium can own networking and the
   // NetworkPolicies in this repo finally mean something.
   const cilium =
-    gatewayK3s && gatewayConfForCilium
-      ? createCilium(provider, gatewayConfForCilium.ciliumVersion, [
+    gatewayK3s && gatewayConf?.k3s
+      ? createCilium(provider, gatewayConf.k3s.ciliumVersion, [
           gatewayK3s.install,
         ])
       : undefined;
@@ -240,6 +254,62 @@ export default async function () {
   );
 
   createRedirectMiddleware(provider, nsName, traefikRelease);
+
+  // --- The gateway's own transports, in the cluster on the box they front ---
+  // All hostNetwork, so xray owns the host's :443 and relays anything that is
+  // not a VPN client to 127.0.0.1:8443 — Traefik's hostPort, just above. That
+  // loopback only means the host's when the pod shares its netns, which is also
+  // what lets unbound answer 127.0.0.1:53 for tunnelled clients and tailscale0
+  // exist where the other two dial 100.x.
+  //
+  // All DaemonSets selecting the entry label, so which node carries an entry is
+  // a property of the node — see transportDeps for the ordering they need.
+  if (clusterOnGateway && gatewayConf) {
+    createUnbound(provider, nsName, transportDeps);
+
+    if (gatewayConf.tailnet && env.TS_AUTHKEY) {
+      createTailscale(
+        provider,
+        nsName,
+        gatewayConf.tailnet,
+        pulumi.secret(env.TS_AUTHKEY),
+        transportDeps,
+      );
+    }
+
+    if (gatewayConf.xray) {
+      const t = createXray(
+        provider,
+        nsName,
+        gatewayConf.xray,
+        users,
+        transportDeps,
+      );
+      reality = {
+        publicKey: t.publicKey,
+        serverNames: gatewayConf.xray.serverNames,
+        shortId: t.shortId,
+        uuids: t.uuids,
+      };
+    }
+
+    if (gatewayConf.hysteria) {
+      const t = createHysteria(
+        provider,
+        nsName,
+        gatewayConf.hysteria,
+        users,
+        transportDeps,
+      );
+      hysteria = {
+        altPorts: gatewayConf.hysteria.altPorts,
+        obfsPassword: t.obfsPassword,
+        passwords: t.passwords,
+        port: gatewayConf.hysteria.port,
+        sni: gatewayConf.hysteria.sni,
+      };
+    }
+  }
 
   // IP watcher — triggers deploy when external IP changes
   if (env.DEPLOY_TOKEN) {
@@ -300,6 +370,18 @@ export default async function () {
   // through a file server on the home box bought nothing and cost an SSH write
   // to a machine that is being retired. Here the routing table is the content:
   // a rotated slug stops existing rather than lingering as a stale file.
+  //
+  // The primary is a node too: clients connect by IP, and its REALITY decoy is
+  // its own reverse-proxied site (unlike edges, which use an external one). It
+  // leads the list because buildProfile detours exits through nodes[0], the
+  // only node running rathole.
+  const nodes: SingboxNode[] = [
+    ...(gatewayIp && reality && hysteria
+      ? [{ name: "primary", server: gatewayIp, hysteria, reality }]
+      : []),
+    ...edgeNodes,
+  ];
+
   if (
     conf.profiles &&
     nodes.length > 0 &&
@@ -349,10 +431,10 @@ export default async function () {
     //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet
     // Secret, because it is full cluster admin.
     ...(gatewayK3s && { kubeconfig: gatewayK3s.kubeconfig }),
-    ...(xray && {
-      xrayPublicKey: xray.publicKey,
-      xrayServerNames: conf.gateway?.xray?.serverNames,
-      xrayShortId: xray.shortId,
+    ...(reality && {
+      xrayPublicKey: reality.publicKey,
+      xrayServerNames: reality.serverNames,
+      xrayShortId: reality.shortId,
     }),
   };
 }
