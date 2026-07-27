@@ -527,6 +527,32 @@ Live tradeoffs worth knowing, not necessarily bugs:
   gating SSH would shrink the attack surface but adds lockout risk on a box
   whose whole job is being reachable, so it's left open by choice. 2333 must
   stay open regardless: the home client dials in from a dynamic NATed IP.
+- **The NetworkPolicies are declared but not enforced, because the CNI is
+  flannel.** `microk8s` here runs flannel (`/var/snap/microk8s/current/args/
+  cni-network/flannel.conflist`, and no Calico or Cilium pods exist). Flannel is
+  a pure overlay: it provides pod networking and has **no policy engine at all**,
+  so a NetworkPolicy is accepted by the API server, stored, listed by `kubectl
+  get netpol` — and implemented by nothing.
+
+  Everything the pods carry is therefore latent: the egress confinement on
+  navidrome, blit and files, and the ingress restriction on files. They are
+  correct, and they begin working the moment an enforcing CNI is installed,
+  without a change to this repo. Until then they must not be counted as a
+  control, and in particular the "ingress restriction did not break the kubelet
+  probes" result proves nothing — nothing was being applied.
+
+  What *is* enforced, and was never in doubt, is everything the kubelet and
+  container runtime own: `runAsUser`, dropped capabilities, `seccompProfile`,
+  `automountServiceAccountToken: false`, and read-only volume mounts. Those did
+  not need a CNI. Removing the unauthenticated NFS export was likewise real —
+  that was the concrete path a compromised pod had to the host, and it is gone.
+
+  The fix is an enforcing CNI. `microk8s enable ha-cluster` brings Calico but
+  also converts the datastore to dqlite for an HA property that means nothing on
+  one node. `microk8s enable cilium` is the narrower option — eBPF-based policy,
+  no datastore change. Either is a live CNI swap on the box that serves
+  everything, so it is its own piece of work, not a side effect of a hardening
+  PR.
 - **hy2 uses adaptive congestion control (BBR) everywhere; Brutal is not
   offered.** Setting bandwidth hints switches Hysteria2 to Brutal, which paces
   to a fixed rate and ignores loss — it stomps through lossy censored *fat*

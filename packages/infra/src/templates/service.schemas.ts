@@ -32,10 +32,11 @@ export const ServiceArgsSchema = z.object({
    * else; unrestricted egress lets a compromised pod walk to whatever the host
    * happens to be serving and write the same data by another route.
    *
-   * Ingress is deliberately left alone. Restricting it adds little (Traefik is
-   * the only intended caller, and pod-to-pod reach is not the threat here)
-   * while risking the classic failure where the CNI also drops the kubelet's
-   * probes and the pod restart-loops.
+   * ⚠️ NOT CURRENTLY ENFORCED. microk8s here runs **flannel**, a pure overlay
+   * with no policy engine, so these objects are accepted by the API server and
+   * implemented by nothing. They are correct and latent: install an enforcing
+   * CNI and they start working with no change here. Until then do not count
+   * this as a control — see docs/architecture.md, Hardening notes.
    */
   networkPolicy: z.boolean().default(false),
   /**
@@ -45,11 +46,14 @@ export const ServiceArgsSchema = z.object({
    * rules cannot break a pod that is already serving; an ingress rule can, if
    * the CNI also drops the kubelet's health probes — which arrive from the node
    * rather than from a pod — and the pod is then killed for failing readiness.
-   * Whether Calico here does that is an empirical question, so this is opt-in
-   * per service and wants proving on something harmless first.
+   * So this is opt-in per service and wants proving on something harmless.
    *
-   * What it buys: a compromised pod cannot reach a sibling. That is the lateral
-   * step after any egress control fails, and pod-to-pod is otherwise wide open.
+   * ⚠️ Same caveat as `networkPolicy`: flannel enforces neither. `files` staying
+   * healthy after this was enabled proved nothing about probes — nothing was
+   * being applied. That test has to be re-run against a real policy engine.
+   *
+   * What it would buy: a compromised pod cannot reach a sibling. That is the
+   * lateral step after any egress control fails, and pod-to-pod is wide open.
    */
   restrictIngress: z.boolean().default(false),
   image: ImageSchema,
