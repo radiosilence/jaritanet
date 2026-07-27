@@ -1,5 +1,8 @@
 {
   "name": "jaritanet-infra",
   "type": "module",
-  "main": "./src/main.ts"
+  "main": "./src/main.ts",
+  "devDependencies": {
+    "ajv": "^8.20.0"
+  }
 }
