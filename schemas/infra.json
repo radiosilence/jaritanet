@@ -113,6 +113,19 @@
               "default": "ubuntu-24.04",
               "type": "string"
             },
+            "k3s": {
+              "type": "object",
+              "properties": {
+                "ciliumVersion": {
+                  "default": "1.19.6",
+                  "type": "string"
+                },
+                "version": {
+                  "default": "v1.36.2+k3s1",
+                  "type": "string"
+                }
+              }
+            },
             "location": {
               "default": "nbg1",
               "type": "string"

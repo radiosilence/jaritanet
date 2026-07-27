@@ -8,6 +8,7 @@ import type { GatewayConfSchema } from "../conf.schemas.ts";
 import { env } from "../env.ts";
 import type { VpnUser } from "../env.schema.ts";
 import { createHysteria } from "./hysteria.ts";
+import { createK3s } from "./k3s.ts";
 import { createTailscale } from "./tailscale.ts";
 import { createNetworkTuning, inboundRule } from "./vps.ts";
 import { createXray } from "./xray.ts";
@@ -25,6 +26,7 @@ export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
   users: VpnUser[],
   exits: { name: string; port: number }[] = [],
+  magicdnsSuffix = "",
 ) {
   const ratholeToken = new random.RandomPassword("rathole-token", {
     length: 64,
@@ -44,6 +46,13 @@ export function createGateway(
       inboundRule("HTTP", 80),
       inboundRule("HTTPS", 443),
       inboundRule("Rathole control channel", 2333),
+      // Only when the API server has no tailnet to hide behind. With Tailscale
+      // configured the kubeconfig points at a MagicDNS name and 6443 never
+      // needs a public rule at all — so adding the Pi (and its tailnet) closes
+      // this automatically rather than leaving a control plane exposed.
+      ...(gateway.k3s && !gateway.tailnet
+        ? [inboundRule("k3s API server", 6443)]
+        : []),
       ...(gateway.hysteria
         ? [
             inboundRule("Hysteria2 QUIC", gateway.hysteria.port, "udp"),
@@ -227,8 +236,21 @@ RATHOLE_EOF`,
         )
       : undefined;
 
+  // Reachable over the tailnet when there is one, else the public IP. The
+  // certificate covers whichever is used, so the kubeconfig verifies properly
+  // in both cases rather than falling back to insecure-skip-tls-verify.
+  const apiHost =
+    gateway.tailnet && magicdnsSuffix
+      ? `${gateway.tailnet.hostname}.${magicdnsSuffix}`
+      : server.ipv4Address;
+
+  const k3s = gateway.k3s
+    ? createK3s(connection, server, gateway.k3s, apiHost)
+    : undefined;
+
   return {
     hysteria,
+    k3s,
     ratholeToken,
     server,
     sshKey,

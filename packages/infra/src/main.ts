@@ -29,6 +29,9 @@ export default async function () {
   let dnsTarget: pulumi.Output<string> | undefined;
   let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
+  // Set when the gateway runs its own control plane; its kubeconfig then
+  // replaces the KUBE_* secrets below.
+  let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
   let xray: ReturnType<typeof createGateway>["xray"];
 
   // sing-box nodes (primary gateway + every edge). Pulumi builds a per-user
@@ -60,10 +63,16 @@ export default async function () {
   if (env.HCLOUD_TOKEN) {
     const gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
     // Exits surface on the gateway's rathole loopback (name + port).
-    const gw = createGateway(gatewayConf, users, resolvedExits);
+    const gw = createGateway(
+      gatewayConf,
+      users,
+      resolvedExits,
+      env.TAILNET_MAGICDNS_SUFFIX,
+    );
     dnsTarget = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
+    gatewayK3s = gw.k3s;
     xray = gw.xray;
 
     // The primary is a node too: clients connect by IP, and its REALITY decoy
@@ -148,15 +157,21 @@ export default async function () {
   }
 
   // --- Kubernetes provider ---
-  const kubeconfig = JSON.stringify(
-    getKubeconfig({
-      host: env.KUBE_HOST,
-      port: env.KUBE_API_PORT,
-      token: atob(env.KUBE_TOKEN),
-    }),
-    null,
-    2,
-  );
+  // The gateway's own cluster when it runs one, otherwise the KUBE_* secrets
+  // that ansible pushes for the home box. Same `pulumi up` that creates the
+  // server produces this kubeconfig, so there is no secret round-trip — see
+  // modules/k3s.ts.
+  const kubeconfig: pulumi.Input<string> =
+    gatewayK3s?.kubeconfig ??
+    JSON.stringify(
+      getKubeconfig({
+        host: env.KUBE_HOST,
+        port: env.KUBE_API_PORT,
+        token: atob(env.KUBE_TOKEN),
+      }),
+      null,
+      2,
+    );
 
   const provider = new k8s.Provider(
     "provider",
