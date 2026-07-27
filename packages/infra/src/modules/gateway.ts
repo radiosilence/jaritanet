@@ -56,7 +56,7 @@ export function createGateway(
       // configured the kubeconfig points at a MagicDNS name and 6443 never
       // needs a public rule at all — so adding the Pi (and its tailnet) closes
       // this automatically rather than leaving a control plane exposed.
-      ...(gateway.k3s && !gateway.tailnet
+      ...(gateway.k3s && !gateway.k3s.apiViaTailnet
         ? [inboundRule("k3s API server", 6443)]
         : []),
       ...(gateway.hysteria
@@ -287,7 +287,7 @@ RATHOLE_EOF`,
   // certificate covers whichever is used, so the kubeconfig verifies properly
   // in both cases rather than falling back to insecure-skip-tls-verify.
   const apiHost =
-    gateway.tailnet && magicdnsSuffix
+    gateway.k3s?.apiViaTailnet && gateway.tailnet && magicdnsSuffix
       ? `${gateway.tailnet.hostname}.${magicdnsSuffix}`
       : server.ipv4Address;
 
