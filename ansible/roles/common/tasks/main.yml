@@ -32,33 +32,38 @@
     state: absent
 
 # broadcom-sta is a proprietary Broadcom blob for this laptop's wifi chip, last
-# released upstream around 2015. It fails to build against 7.0, and a DKMS
+# released upstream around 2015. It does not build against 7.0, and a DKMS
 # failure aborts the *kernel package's* postinst — so one dead driver leaves the
 # new kernel unconfigured, dpkg half-broken, and zz-update-grub never run.
 #
-# Disabled rather than purged: the module is already built for both 6.8 kernels,
-# so wifi keeps working there and only 7.0 goes without — and this box is wired
-# anyway (USB ethernet; wlp3s0 has never held carrier). Reversible by deleting
-# one file. Note a modprobe blacklist would NOT do: the build is the problem,
-# not the load.
+# Purged rather than disabled, after two attempts at the latter. dkms 3.0.11
+# does read /etc/dkms/<module>.conf (see read_conf), but not usefully on the
+# autoinstall path: that loop iterates `$m` while the override filename is built
+# from `$module`, so the file is never found and AUTOINSTALL is whatever the
+# module's own dkms.conf says. Neither AUTOINSTALL="no" (non-empty, so it means
+# yes) nor AUTOINSTALL="" changed anything.
 #
-# Ordered before dist-upgrade deliberately. Upgrading is what re-triggers the
-# failing build, so a run that wrote this afterwards would abort before reaching
-# it and never fix anything.
-- name: Stop DKMS auto-building the Broadcom wifi driver
-  ansible.builtin.copy:
-    dest: /etc/dkms/broadcom-sta.conf
-    content: |
-      # Managed by ansible — see roles/common/tasks/main.yml.
-      #
-      # Empty, NOT "no". dkms autoinstall tests `[[ ! $AUTOINSTALL ]]` and skips
-      # the module only when the value is an empty string — so AUTOINSTALL="no"
-      # is a non-empty string and means yes. (/usr/sbin/dkms, autoinstall().)
-      AUTOINSTALL=""
-    owner: root
-    group: root
-    mode: "0644"
+# Nothing is lost: the box is wired (USB ethernet) and wlp3s0 has never held
+# carrier. Reinstalling the package is the way back if wifi is ever wanted on a
+# kernel it still builds against.
+#
+# Before dist-upgrade deliberately — upgrading is what re-triggers the failing
+# build, so a run that purged afterwards would abort before reaching it, every
+# time.
+- name: Remove the Broadcom wifi DKMS driver
+  ansible.builtin.apt:
+    name:
+      - broadcom-sta-dkms
+      - broadcom-sta-common
+    state: absent
+    purge: true
+    autoremove: true
   when: disable_broadcom_sta | default(false) | bool
+
+- name: Drop the ineffective DKMS override
+  ansible.builtin.file:
+    path: /etc/dkms/broadcom-sta.conf
+    state: absent
 
 - name: Update all packages to the latest version (dist-upgrade)
   ansible.builtin.apt:
