@@ -23,7 +23,7 @@ config:
       # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
       # to be a sha pushed here by that repo's CI on every build.
       repository: "ghcr.io/radiosilence/mcp-gateway"
-      tag: v0.5.3
+      tag: v0.5.4
       pullPolicy: "Always"
     # Each entry is both a backend pod and its entry in the registry the gateway
     # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
@@ -35,7 +35,7 @@ config:
       # backends would silently drift from the gateway they serve.
       - id: fastmail
         name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:v3.3.1"
+        image: "ghcr.io/radiosilence/fastmail-cli:v3.3.2"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
@@ -56,7 +56,7 @@ config:
       # in one request instead of an MCP session handshake.
       - id: caldav
         name: Calendar (CalDAV)
-        image: "ghcr.io/radiosilence/caldav-cli:v0.6.1"
+        image: "ghcr.io/radiosilence/caldav-cli:v0.6.3"
         args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
@@ -104,7 +104,7 @@ config:
       # licence to front an MCP unauthenticated.
       - id: folk
         name: Folk (Mainly Norfolk)
-        image: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.1"
+        image: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.3"
         args: ["--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
@@ -117,7 +117,7 @@ config:
       # this works the moment someone logs in.
       - id: tfl
         name: TfL (London transport)
-        image: "ghcr.io/radiosilence/tfl-mcp:v1.3.2"
+        image: "ghcr.io/radiosilence/tfl-mcp:v1.3.4"
         args: ["--http", "0.0.0.0:8080", "--graphql"]
         port: 8080
         path: "/mcp"
@@ -252,7 +252,7 @@ config:
           memory: 1024Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-2132db9
+          tag: sha-7f768bd
           pullPolicy: "Always"
         httpPort: 3000
   jaritanet:zones:
