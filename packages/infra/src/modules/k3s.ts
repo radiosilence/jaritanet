@@ -27,6 +27,10 @@ import { type Connection, resourcePrefix } from "./vps.ts";
  * firewall's inbound rules. That matches how the home cluster was already
  * reached and keeps a control plane off the public internet.
  *
+ * `--disable-kube-proxy` is not an optimisation: Cilium only implements
+ * hostPort when it owns service routing, and Traefik binds one. Running both
+ * would also mean two components doing the same job.
+ *
  * Note k3s comes up with **no CNI**: `--flannel-backend=none` is what allows
  * Cilium to own networking, and until Cilium is installed the node is NotReady
  * and pods stay Pending. The API server runs on the host network, so Pulumi can
@@ -52,6 +56,7 @@ curl -sfL https://get.k3s.io | \
   INSTALL_K3S_EXEC="server \
     --flannel-backend=none \
     --disable-network-policy \
+    --disable-kube-proxy \
     --disable=traefik \
     --disable=servicelb \
     --tls-san ${apiHost} \

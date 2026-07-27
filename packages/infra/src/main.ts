@@ -20,6 +20,7 @@ import {
   createIpWatcher,
   createRedirectMiddleware,
 } from "./modules/ingress.ts";
+import { createCilium } from "./modules/cilium.ts";
 import { createMcpGateway } from "./modules/mcp-gateway.ts";
 import { createSingboxDelivery, type SingboxNode } from "./modules/singbox.ts";
 import { createService } from "./templates/service.ts";
@@ -32,6 +33,7 @@ export default async function () {
   // Set when the gateway runs its own control plane; its kubeconfig then
   // replaces the KUBE_* secrets below.
   let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
+  let gatewayConfForCilium: { ciliumVersion: string } | undefined;
   let xray: ReturnType<typeof createGateway>["xray"];
 
   // sing-box nodes (primary gateway + every edge). Pulumi builds a per-user
@@ -73,6 +75,7 @@ export default async function () {
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     gatewayK3s = gw.k3s;
+    gatewayConfForCilium = gatewayConf.k3s;
     xray = gw.xray;
 
     // The primary is a node too: clients connect by IP, and its REALITY decoy
@@ -185,6 +188,15 @@ export default async function () {
     },
   );
 
+  // The cluster has no CNI until this exists — k3s runs with
+  // --flannel-backend=none so Cilium can own networking and the
+  // NetworkPolicies in this repo finally mean something.
+  if (gatewayK3s && gatewayConfForCilium) {
+    createCilium(provider, gatewayConfForCilium.ciliumVersion, [
+      gatewayK3s.install,
+    ]);
+  }
+
   new k8s.core.v1.Namespace(
     namespace,
     {
@@ -204,13 +216,16 @@ export default async function () {
   // punches each one's port out to the gateway loopback.
   const exits = resolvedExits.map((e) => createExit(provider, namespace, e));
 
-  // --- Ingress: Traefik always on hostPort 443 + rathole client if gateway exists ---
+  // --- Ingress: Traefik, plus a rathole client only when the cluster is
+  // somewhere other than the gateway. Co-located, rathole would tunnel a box to
+  // itself: xray relays straight to Traefik's hostPort instead.
+  const clusterOnGateway = Boolean(gatewayK3s);
   createIngress(
     provider,
     namespace,
     conf.traefik,
-    dnsTarget,
-    ratholeToken,
+    clusterOnGateway ? undefined : dnsTarget,
+    clusterOnGateway ? undefined : ratholeToken,
     env.CLOUDFLARE_API_TOKEN,
     resolvedExits,
   );
