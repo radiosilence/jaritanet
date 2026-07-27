@@ -174,7 +174,11 @@ ${exitClientEntries}`;
                 {
                   args: ["--client", "/etc/rathole/client.toml"],
                   command: ["/app/rathole"],
-                  image: "rapiz1/rathole:latest",
+                  // Ours, not rapiz1/rathole:latest — that image was last
+                  // pushed in Oct 2023 and is amd64-only, so it cannot run on
+                  // arm64 at all. Same upstream binary, built for both arches
+                  // from the pinned release (containers/rathole).
+                  image: "ghcr.io/radiosilence/jaritanet-rathole:latest",
                   name: "rathole",
                   // 64Mi got this OOMKilled (exit 137) roughly every few days.
                   // Every restart drops the tunnel, and with it all public

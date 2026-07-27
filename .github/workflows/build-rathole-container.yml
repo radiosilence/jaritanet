@@ -1,0 +1,25 @@
+name: Build Rathole Container
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+    paths:
+      - "containers/rathole/**"
+      - ".github/workflows/build-rathole-container.yml"
+
+jobs:
+  publish:
+    name: Build and Publish
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@28e962429b331f0e39905f70ae10211b1db66349 # main
+    with:
+      working-directory: "./containers/rathole"
+      image: "jaritanet-rathole"
+    secrets:
+      PASSWORD: ${{ secrets.GITHUB_TOKEN }}
