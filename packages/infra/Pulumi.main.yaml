@@ -182,6 +182,17 @@ config:
       hostname: ''
       args:
         httpPort: 4533
+        # Public-facing, on the host that holds the media: confine egress to
+        # DNS and the public internet, so a bug in it cannot walk to whatever
+        # the node is serving and write the library by another route.
+        #
+        # dropCapabilities is deliberately NOT set. It looks safe — nothing
+        # here binds a privileged port — but Navidrome runs as root against a
+        # /data directory root does not own, so it relies on CAP_DAC_OVERRIDE
+        # to write its SQLite DB. Dropping ALL takes that away and the DB opens
+        # read-only, which is a crash loop, not a degradation. Dropping caps
+        # here means first giving /data an owner the container runs as.
+        networkPolicy: true
         strategy:
           type: Recreate
         image:
