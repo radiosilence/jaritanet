@@ -68,7 +68,14 @@ export function createGateway(
 set -euo pipefail
 
 # Install rathole
-curl -fsSL "https://github.com/rapiz1/rathole/releases/download/${gateway.ratholeVersion}/rathole-x86_64-unknown-linux-gnu.zip" -o /tmp/rathole.zip
+# Arch-detected: this box is ARM now, and a hardcoded x86_64 URL 404s, which
+# fails cloud-init at this line and takes everything after it with it.
+case "$(uname -m)" in
+  x86_64) RATHOLE_TRIPLE=x86_64-unknown-linux-gnu ;;
+  aarch64) RATHOLE_TRIPLE=aarch64-unknown-linux-musl ;;
+  *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+curl -fsSL "https://github.com/rapiz1/rathole/releases/download/${gateway.ratholeVersion}/rathole-$RATHOLE_TRIPLE.zip" -o /tmp/rathole.zip
 apt-get update && apt-get install -y unzip
 unzip /tmp/rathole.zip -d /usr/local/bin/
 chmod +x /usr/local/bin/rathole
