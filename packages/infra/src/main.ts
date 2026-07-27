@@ -21,13 +21,13 @@ import {
   createRedirectMiddleware,
 } from "./modules/ingress.ts";
 import { createCilium } from "./modules/cilium.ts";
-import { createHysteriaPod } from "./modules/hysteria-pod.ts";
+import { createHysteria } from "./modules/hysteria.ts";
 import { createMcpGateway } from "./modules/mcp-gateway.ts";
 import { createProfileServer } from "./modules/profiles.ts";
 import type { SingboxNode } from "./modules/singbox.ts";
-import { createTailscalePod } from "./modules/tailscale-pod.ts";
+import { createTailscale } from "./modules/tailscale.ts";
 import { createUnbound } from "./modules/unbound.ts";
-import { createXrayPod } from "./modules/xray-pod.ts";
+import { createXray } from "./modules/xray.ts";
 import { createService } from "./templates/service.ts";
 
 export default async function () {
@@ -40,9 +40,10 @@ export default async function () {
   let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
   let gatewayConf: z.infer<typeof GatewayConfSchema> | undefined;
   let gatewayIp: pulumi.Output<string> | undefined;
-  // The systemd transports a pre-cluster deploy left on the box. Every pod that
-  // binds a host port is ordered after them being disabled.
-  let legacyUnits: pulumi.Resource | undefined;
+  // Ordering for the transport DaemonSets: the legacy daemons must be gone
+  // before anything tries to bind their ports, and the node must carry the
+  // entry label before a DaemonSet has anywhere to schedule.
+  let transportDeps: pulumi.Resource[] = [];
 
   // The primary gateway's transport parameters, from whichever of the two
   // implementations is in play — SSH-provisioned units, or pods in its own
@@ -91,7 +92,9 @@ export default async function () {
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     gatewayK3s = gw.k3s;
-    legacyUnits = gw.legacyUnits;
+    transportDeps = [gw.legacyUnits, gw.vpnEntryLabel].filter(
+      (r) => r !== undefined,
+    );
 
     if (gw.xray && gatewayConf.xray) {
       reality = {
@@ -252,58 +255,56 @@ export default async function () {
 
   createRedirectMiddleware(provider, nsName, traefikRelease);
 
-  // --- The gateway's own transports, as pods on the box they front ---
+  // --- The gateway's own transports, in the cluster on the box they front ---
   // All hostNetwork, so xray owns the host's :443 and relays anything that is
   // not a VPN client to 127.0.0.1:8443 — Traefik's hostPort, just above. That
   // loopback only means the host's when the pod shares its netns, which is also
   // what lets unbound answer 127.0.0.1:53 for tunnelled clients and tailscale0
   // exist where the other two dial 100.x.
   //
-  // Ordered after the systemd units a pre-cluster deploy left on the box: they
-  // still hold these ports, and dropping a remote Command from the program does
-  // not stop them (see gateway.ts).
+  // All DaemonSets selecting the entry label, so which node carries an entry is
+  // a property of the node — see transportDeps for the ordering they need.
   if (clusterOnGateway && gatewayConf) {
-    const podDeps = legacyUnits ? [legacyUnits] : [];
-    createUnbound(provider, nsName, podDeps);
+    createUnbound(provider, nsName, transportDeps);
 
     if (gatewayConf.tailnet && env.TS_AUTHKEY) {
-      createTailscalePod(
+      createTailscale(
         provider,
         nsName,
         gatewayConf.tailnet,
         pulumi.secret(env.TS_AUTHKEY),
-        podDeps,
+        transportDeps,
       );
     }
 
     if (gatewayConf.xray) {
-      const pod = createXrayPod(
+      const t = createXray(
         provider,
         nsName,
         gatewayConf.xray,
         users,
-        podDeps,
+        transportDeps,
       );
       reality = {
-        publicKey: pod.publicKey,
+        publicKey: t.publicKey,
         serverNames: gatewayConf.xray.serverNames,
-        shortId: pod.shortId,
-        uuids: pod.uuids,
+        shortId: t.shortId,
+        uuids: t.uuids,
       };
     }
 
     if (gatewayConf.hysteria) {
-      const pod = createHysteriaPod(
+      const t = createHysteria(
         provider,
         nsName,
         gatewayConf.hysteria,
         users,
-        podDeps,
+        transportDeps,
       );
       hysteria = {
         altPorts: gatewayConf.hysteria.altPorts,
-        obfsPassword: pod.obfsPassword,
-        passwords: pod.passwords,
+        obfsPassword: t.obfsPassword,
+        passwords: t.passwords,
         port: gatewayConf.hysteria.port,
         sni: gatewayConf.hysteria.sni,
       };

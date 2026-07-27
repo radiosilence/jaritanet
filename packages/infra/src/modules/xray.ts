@@ -1,11 +1,10 @@
-import * as command from "@pulumi/command";
-import type * as hcloud from "@pulumi/hcloud";
+import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { XrayConfSchema } from "../conf.schemas.ts";
 import type { VpnUser } from "../env.schema.ts";
-import { type Connection, resourcePrefix } from "./vps.ts";
+import { realityKeypair, sha256hex, VPN_ENTRY_LABEL } from "../util.ts";
 
 // A guest may address the public internet and nothing else. Narrower rules were
 // a mistake: the exit loopbacks were blocked only on their own port range
@@ -27,207 +26,241 @@ export const GUEST_DENY_CIDRS = [
 ];
 
 /**
- * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
+ * Xray-core (VLESS-Vision-REALITY), in the cluster on the node it fronts.
  *
- * Xray takes :443; traffic that doesn't match a client is relayed to `dest`
- * (the local rathole https port → in-cluster Traefik), matched clients are
- * proxied out. Keys are minted on first boot and never leave the box: the
- * x25519 private key stays in /usr/local/etc/xray, and one REALITY UUID is
- * minted per user (`email: <name>`) so a user is revoked by dropping them from
- * the clients list. Guests (reality-only) are blackholed server-side to the
- * tailnet CIDR and the exit loopbacks — a hard block, not a profile omission.
+ * Behaviourally the same inbound as the systemd unit in xray-systemd.ts — same
+ * :443, same guest blackhole, same `dest` handoff — with one deliberate change:
+ * the REALITY keypair, the shortId and every client UUID are Pulumi-held rather
+ * than minted on the box. That is what makes this a container at all. An on-box
+ * key cannot follow a rescheduled pod, and reading it back over SSH is the
+ * coupling this whole move exists to remove. The cost is that the private key
+ * now lives in Pulumi state as well as on the machine using it (see
+ * realityKeypair).
  *
- * `user`-scoped routing only resolves once the inbound sniffs the flow, so the
- * inbound enables sniffing with `routeOnly` (route on the sniffed destination
- * without rewriting it). Outbounds are tagged (`direct` freedom, `block`
- * blackhole) and routing ends in an explicit `direct` default, so a non-guest
- * (matching no rule) proxies out cleanly instead of relying on ordering.
- * Returns the shared REALITY params plus each user's per-node UUID.
+ * `hostNetwork` is required, not incidental. The inbound has to see real client
+ * source addresses, it has to own the host's :443, and `dest` is a *loopback*
+ * address — 127.0.0.1:8443, which is Traefik's hostPort. Inside a pod netns that
+ * would be the pod's own loopback and every non-client TLS handshake would fail.
+ *
+ * A DaemonSet, not a Deployment: with hostNetwork two replicas can never share a
+ * node, so "one per matching node" is the shape, and it makes the port exclusion
+ * a property of the primitive rather than something `strategy: Recreate` has to
+ * work around.
+ *
+ * Runs as root with NET_BIND_SERVICE rather than as the image's uid 65532: a
+ * capability added to a non-root container lands in the permitted set but not
+ * the ambient one, and `allowPrivilegeEscalation: false` closes the file-caps
+ * route as well, so a non-root xray cannot bind :443 at all.
+ *
+ * Nothing here is needed for hardware crypto. `xray version` reports a plain
+ * `go1.26.1 linux/amd64` build, and Go picks AES-NI and AVX2 for AES-GCM and
+ * ChaCha20 by runtime CPU detection rather than at build time. Those are CPU
+ * instructions: no device, no capability, and seccomp filters syscalls, not
+ * instructions, so `RuntimeDefault` cannot cost anything here. Written down so
+ * nobody later "fixes" throughput by granting privileges it never needed.
  */
 export function createXray(
-  connection: Connection,
-  server: hcloud.Server,
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
   xray: z.infer<typeof XrayConfSchema>,
   users: VpnUser[],
-  name = "",
+  dependsOn: pulumi.Resource[] = [],
 ) {
-  const p = resourcePrefix(name);
-  const shortId = new random.RandomId(`${p}xray-short-id`, { byteLength: 8 });
+  const shortId = new random.RandomId("xray-short-id", { byteLength: 8 });
 
-  // One UUID per user, keyed on the (stable) user name so adding/removing a user
-  // only churns that user's resource. `email` tags the client for routing rules.
-  const clients = users.map((u) => ({
-    role: u.role,
-    name: u.name,
-    uuid: new random.RandomUuid(`${p}xray-uuid-${u.name}`),
-  }));
+  // 32 bytes of state, from which the x25519 pair is derived on every run.
+  // Generating the pair itself would mint a new key each deploy and invalidate
+  // every client profile with it.
+  const seed = new random.RandomBytes("xray-reality-seed", { length: 32 });
+  const keypair = seed.hex.apply((hex) =>
+    realityKeypair(Buffer.from(hex, "hex")),
+  );
+
+  // One UUID per user, keyed on the (stable) user name so adding or removing a
+  // user only churns that user's resource. `email` tags the client for routing.
   const uuids: Record<string, pulumi.Output<string>> = {};
-  for (const c of clients) uuids[c.name] = c.uuid.result;
-
-  const clientsJson = pulumi
-    .all(clients.map((c) => c.uuid.result))
-    .apply((ids) =>
-      JSON.stringify(
-        clients.map((c, i) => ({
-          id: ids[i],
-          email: c.name,
-          flow: "xtls-rprx-vision",
-        })),
-      ),
-    );
+  for (const u of users) {
+    uuids[u.name] = new random.RandomUuid(`xray-uuid-${u.name}`).result;
+  }
 
   // Guest hard-block, keyed on the client's `email` (= user name), which is the
   // per-user dimension Xray gives us and hy2 does not. Admins match no guest
-  // rule and fall through to `direct`.
-  //
-  // These are IP rules, so they are only worth anything with a domainStrategy
-  // that resolves: under `AsIs` an IP rule never matches a request whose
-  // destination is a *domain*, and a guest editing their own profile to dial a
-  // hostname they control — A record pointing into the tailnet — walked straight
-  // past this into the mesh. `IPIfNonMatch` resolves after a non-matching round
-  // and matches again, which is what makes the rule mean what it looks like.
-  const guests = clients.filter((c) => c.role === "guest").map((c) => c.name);
-  const guestsList = JSON.stringify(guests);
-  const guestRules = guests.length
-    ? `
-      { "user": ${guestsList}, "ip": ${JSON.stringify(GUEST_DENY_CIDRS)}, "outboundTag": "block" },`
-    : "";
+  // rule and fall through to `direct`. See xray.ts for why `IPIfNonMatch` is
+  // load-bearing: under `AsIs` these IP rules never match a destination given
+  // as a domain, and a guest pointing an A record into the tailnet walks past.
+  const guests = users.filter((u) => u.role === "guest").map((u) => u.name);
 
-  const install = new command.remote.Command(
-    `${p}xray-install`,
+  const config = pulumi
+    .all([keypair, shortId.hex, pulumi.all(users.map((u) => uuids[u.name]))])
+    .apply(([kp, sid, ids]) =>
+      JSON.stringify(
+        {
+          log: { loglevel: "warning" },
+          inbounds: [
+            {
+              listen: "0.0.0.0",
+              port: 443,
+              protocol: "vless",
+              settings: {
+                clients: users.map((u, i) => ({
+                  id: ids[i],
+                  email: u.name,
+                  flow: "xtls-rprx-vision",
+                })),
+                decryption: "none",
+              },
+              streamSettings: {
+                network: "tcp",
+                security: "reality",
+                realitySettings: {
+                  show: false,
+                  dest: xray.dest,
+                  xver: 0,
+                  serverNames: xray.serverNames,
+                  privateKey: kp.privateKey,
+                  shortIds: [sid],
+                },
+              },
+              // `user`-scoped routing only resolves once the inbound sniffs the
+              // flow. `routeOnly` routes on the sniffed destination without
+              // rewriting it.
+              sniffing: {
+                enabled: true,
+                destOverride: ["http", "tls", "quic"],
+                routeOnly: true,
+              },
+            },
+          ],
+          outbounds: [
+            { protocol: "freedom", tag: "direct" },
+            { protocol: "blackhole", tag: "block" },
+          ],
+          routing: {
+            domainStrategy: "IPIfNonMatch",
+            rules: [
+              ...(guests.length
+                ? [
+                    {
+                      user: guests,
+                      ip: GUEST_DENY_CIDRS,
+                      outboundTag: "block",
+                    },
+                  ]
+                : []),
+              // Explicit default, so a non-guest matching no rule proxies out
+              // cleanly rather than relying on ordering.
+              { network: "tcp,udp", outboundTag: "direct" },
+            ],
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+  const secret = new k8s.core.v1.Secret(
+    "xray-config",
     {
-      connection,
-      create: pulumi.interpolate`set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
-export DEBIAN_FRONTEND=noninteractive
-XRAY_VERSION=$(printf '%s' "${xray.version}" | sed 's/^v//')
-
-# Official XTLS installer: sets up the systemd unit, a dedicated user,
-# CAP_NET_BIND_SERVICE for :443, plus geodata and log dirs.
-bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version "$XRAY_VERSION"
-
-# Mint the REALITY keypair once; the private key never leaves the box.
-if [ ! -f /usr/local/etc/xray/private.key ]; then
-  /usr/local/bin/xray x25519 > /tmp/xray-keypair.txt
-  sed -n '1p' /tmp/xray-keypair.txt | awk '{print $NF}' > /usr/local/etc/xray/private.key
-  sed -n '2p' /tmp/xray-keypair.txt | awk '{print $NF}' > /usr/local/etc/xray/public.key
-  rm -f /tmp/xray-keypair.txt
-fi`,
-      triggers: [xray.version],
+      metadata: { name: "xray", namespace },
+      stringData: { "config.json": config },
     },
-    { dependsOn: [server] },
+    { provider },
   );
 
-  // Read back the minted public key so clients can be configured.
-  const publicKey = new command.remote.Command(
-    `${p}xray-public-key`,
+  const app = "xray";
+  new k8s.apps.v1.DaemonSet(
+    app,
     {
-      connection,
-      create: "cat /usr/local/etc/xray/public.key",
-      triggers: [install.id],
-    },
-    { dependsOn: [install] },
-  );
-
-  // Render config.json on the box, injecting the private key from disk so
-  // it stays off the wire and out of Pulumi state.
-  const config = new command.remote.Command(
-    `${p}xray-config`,
-    {
-      connection,
-      create: pulumi.interpolate`set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
-PRIV=$(cat /usr/local/etc/xray/private.key)
-cat > /usr/local/etc/xray/config.json << XRAY_EOF
-{
-  "log": { "loglevel": "warning" },
-  "inbounds": [
-    {
-      "listen": "0.0.0.0",
-      "port": 443,
-      "protocol": "vless",
-      "settings": {
-        "clients": ${clientsJson},
-        "decryption": "none"
+      metadata: { name: app, namespace },
+      spec: {
+        selector: { matchLabels: { app } },
+        // maxUnavailable 1 / maxSurge 0 is the DaemonSet default, set here
+        // because it is load-bearing rather than incidental: the old pod must be
+        // deleted before the replacement is created, or the new one waits
+        // forever on a :443 the old one still holds. Traefik sat 20 days on a
+        // stale pod for exactly this reason, silently ignoring chart bumps.
+        updateStrategy: {
+          type: "RollingUpdate",
+          rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
+        },
+        template: {
+          metadata: {
+            labels: { app },
+            // A mounted Secret changing does not restart xray, which reads its
+            // config once at exec. Without this a rotated UUID would be in the
+            // Secret and not in the running process.
+            annotations: {
+              "jaritanet/config": sha256hex(config).apply((h) =>
+                h.slice(0, 16),
+              ),
+            },
+          },
+          spec: {
+            // See above: real source addresses, the host's :443, and a `dest`
+            // that has to mean the host's loopback.
+            hostNetwork: true,
+            // The host's resolver is unbound on this same box, not the cluster.
+            dnsPolicy: "Default",
+            automountServiceAccountToken: false,
+            // Entries are chosen per node, not per cluster: `lady` joins soon
+            // and must not start answering :443 by virtue of being a node.
+            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
+            containers: [
+              {
+                name: app,
+                // Tracks `xray.version`, so the pinned core is stated once and
+                // the image cannot drift from the version the config targets.
+                // The published tags carry no leading `v`.
+                image: `ghcr.io/xtls/xray-core:${xray.version.replace(/^v/, "")}`,
+                args: ["-config", "/etc/xray/config.json"],
+                // A CPU *request* and no CPU limit. A limit is enforced by CFS
+                // throttling — once the quota is spent the process is stopped
+                // until the next 100ms window, which on a tunnel is periodic
+                // latency spikes and stalled transfers rather than a clean
+                // slowdown. A request is a scheduler share: it guarantees this a
+                // floor when k3s, Traefik and the MCP stack are all busy, and
+                // lets it burst into whatever is idle. 200m because REALITY's
+                // AES-GCM at this box's uplink is a fraction of a core, but it
+                // must never be the thing that loses a scheduling contest.
+                //
+                // Memory keeps a real limit — it is not compressible, and OOM is
+                // better than swapping the whole cluster to death. 512Mi because
+                // buffers scale with concurrent streams: rathole, which only
+                // shuffles bytes, was OOMKilled at 64Mi and needed 256Mi, and
+                // this holds TLS state per connection on top of that.
+                resources: {
+                  requests: { cpu: "200m" },
+                  limits: { memory: "512Mi" },
+                },
+                volumeMounts: [
+                  { name: "config", mountPath: "/etc/xray", readOnly: true },
+                ],
+                securityContext: {
+                  runAsUser: 0,
+                  allowPrivilegeEscalation: false,
+                  seccompProfile: { type: "RuntimeDefault" },
+                  capabilities: {
+                    drop: ["ALL"],
+                    // :443 is privileged. Nothing else here touches the host.
+                    add: ["NET_BIND_SERVICE"],
+                  },
+                },
+              },
+            ],
+            volumes: [
+              { name: "config", secret: { secretName: secret.metadata.name } },
+            ],
+          },
+        },
       },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "reality",
-        "realitySettings": {
-          "show": false,
-          "dest": "${xray.dest}",
-          "xver": 0,
-          "serverNames": ${JSON.stringify(xray.serverNames)},
-          "privateKey": "$PRIV",
-          "shortIds": ["${shortId.hex}"]
-        }
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": ["http", "tls", "quic"],
-        "routeOnly": true
-      }
-    }
-  ],
-  "outbounds": [
-    { "protocol": "freedom", "tag": "direct" },
-    { "protocol": "blackhole", "tag": "block" }
-  ],
-  "routing": {
-    "domainStrategy": "IPIfNonMatch",
-    "rules": [${guestRules}
-      { "network": "tcp,udp", "outboundTag": "direct" }
-    ]
-  }
-}
-XRAY_EOF
-systemctl restart xray`,
-      triggers: [
-        clientsJson,
-        guestsList,
-        GUEST_DENY_CIDRS.join(),
-        shortId.hex,
-        xray.serverNames.join(),
-        xray.dest,
-        publicKey.stdout,
-      ],
     },
-    { dependsOn: [publicKey] },
+    { provider, dependsOn },
   );
 
   return {
-    config,
-    publicKey: publicKey.stdout,
+    // Not a secret, and a stack output: clients need it to dial the inbound.
+    // Without unsecret it inherits the seed's secretness through the derivation.
+    publicKey: pulumi.unsecret(keypair.apply((kp) => kp.publicKey)),
     shortId: shortId.hex,
     uuids,
   };

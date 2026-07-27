@@ -2,6 +2,17 @@ import * as crypto from "node:crypto";
 import type * as pulumi from "@pulumi/pulumi";
 
 /**
+ * Marks a node as an entry point for the VPN transports.
+ *
+ * The DaemonSets carrying xray, hysteria, tailscale and unbound select on this
+ * rather than on a hostname, so which machine serves an entry is a property of
+ * that machine. When `lady` joins the cluster, or an edge does, giving it an
+ * entry is a label on the node — not another module and not a config list here.
+ * The label is applied by whoever owns the node (see gateway.ts).
+ */
+export const VPN_ENTRY_LABEL = "jaritanet.dev/vpn-entry";
+
+/**
  * The name a REALITY SNI is known by in the client picker: `www.google.co.uk`
  * → `google`. Outbound tags have to be unique, so schemas that accept a list of
  * SNIs reject one whose labels collide rather than emit a broken profile.

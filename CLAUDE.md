@@ -56,13 +56,14 @@ The project uses Lefthook for pre-commit validation:
 Everything deploys in one `pulumi up` from `packages/infra/`:
 
 - **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server; hosts the entry transports and the gateway `unbound` DNS cache
-- **`src/modules/hysteria.ts`** — Hysteria2 (QUIC/UDP) transport with Salamander obfuscation, on the gateway + edges
-- **`src/modules/xray.ts`** — optional Xray VLESS-REALITY (TCP), sharing :443 with rathole on the gateway
-- **`src/modules/{xray,hysteria,tailscale}-pod.ts`**, **`unbound.ts`** — the same four components as `hostNetwork` pods, used instead of the SSH modules once `gateway.k3s` puts a cluster on the gateway itself
+- **`src/modules/hysteria.ts`** — Hysteria2 (QUIC/UDP) transport with Salamander obfuscation
+- **`src/modules/xray.ts`** — Xray VLESS-REALITY (TCP), sharing :443 with rathole
+- **`src/modules/unbound.ts`** — the gateway's caching DNS resolver
+- **`src/modules/{xray,hysteria,tailscale}-systemd.ts`** — the same three transports installed over SSH as systemd units. Only path an edge has; a gateway uses it only without `gateway.k3s`
 - **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
 - **`src/modules/edge.ts`** — standalone VPN edge boxes (hy2 + REALITY + tailnet relay, no rathole/proxy)
 - **`src/modules/exit.ts`** — in-cluster ss-rust egress nodes, reached through the rathole tunnel (deterministic loopback ports)
-- **`src/modules/tailscale.ts`** — joins the gateway/edges to the tailnet as a relay (`--accept-routes=false` is load-bearing)
+- **`src/modules/tailscale.ts`** — joins a node to the tailnet as a relay (`--accept-routes=false` is load-bearing)
 - **`src/modules/singbox.ts`** — builds the sing-box client profile from all nodes and delivers it to the file server (SSH, content-hashed, Telegram notify)
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates (schemas + tests alongside)
@@ -94,7 +95,7 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
 - **Gateway** — Hetzner (HCLOUD_TOKEN) when set, else direct mode.
-- **Transports as pods** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are Deployments there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback) with `strategy: Recreate` (a host port is exclusive, so a rolling update deadlocks). Their keys and passwords are Pulumi-held rather than minted on the box — an on-box secret cannot survive a pod being rescheduled, and reading one back over SSH is the coupling the move exists to remove. The SSH modules stay: they still serve the edges.
+- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.dev/vpn-entry` node label, so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` modules stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
 
 ## GitHub Actions
 
