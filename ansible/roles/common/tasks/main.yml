@@ -87,6 +87,14 @@
   when: grub_timeout is defined
   notify: update grub
 
+# Run the handler here rather than at play end. /etc/default/grub is only input;
+# without update-grub the running config keeps whatever it had. If the play
+# failed in between, the next run would find the file already correct, report no
+# change, never notify — and grub.cfg would stay stale forever while the source
+# of truth claims otherwise.
+- name: Apply the GRUB change before anything else can fail
+  ansible.builtin.meta: flush_handlers
+
 - name: Enable BBR congestion control + fq qdisc
   # Matches the gateway VPS. Default cubic collapses on loss; BBR holds the pipe
   # open — helps the rathole client→gateway leg and the exit's own egress.
