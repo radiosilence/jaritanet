@@ -49,8 +49,15 @@ export function createCilium(
         nodePort: { enabled: true },
         // k3s keeps its CNI plugins and config outside the usual /opt and /etc
         // locations, and Cilium writes its conflist to whatever it is told.
+        //
+        // binPath is `data/cni`, not `data/<hash>/bin`: the latter holds k3s's
+        // own binaries and containerd does not scan it, so a plugin installed
+        // there is invisible. The failure is quiet and misleading — Cilium
+        // reports healthy and sets NetworkUnavailable=False, while kubelet
+        // holds the node NotReady with "cni plugin not initialized" and every
+        // pod stays Pending.
         cni: {
-          binPath: "/var/lib/rancher/k3s/data/current/bin",
+          binPath: "/var/lib/rancher/k3s/data/cni",
           confPath: "/var/lib/rancher/k3s/agent/etc/cni/net.d",
         },
       },
