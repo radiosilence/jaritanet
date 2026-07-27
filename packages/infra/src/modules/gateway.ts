@@ -21,6 +21,11 @@ import { createXray } from "./xray.ts";
  *
  * `users` is the per-user VPN roster threaded into the entry transports (Xray
  * clients + hy2 userpass); see xray.ts / hysteria.ts for role enforcement.
+ *
+ * With `k3s` set the box runs its own cluster, and the transports, the DNS
+ * cache and the tailnet relay are pods deployed from main.ts instead — so
+ * nothing here installs them, and whatever a previous deploy left running as a
+ * systemd unit is disabled first.
  */
 export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
@@ -143,6 +148,35 @@ systemctl enable rathole
 
   createNetworkTuning("gateway", connection, server);
 
+  // With a cluster on this box the transports are pods (see modules/*-pod.ts);
+  // without one they are systemd units installed over SSH, which is also what
+  // every edge still uses. Both paths bind the same host ports, so exactly one
+  // of them may exist.
+  const sshTransports = !gateway.k3s;
+
+  // Dropping a remote Command from the Pulumi program runs nothing on the
+  // machine, so a gateway that already has these units keeps running them —
+  // and xray would still hold :443 when the pod tries to bind it. Deliberately
+  // not `tailscale logout`: the pod inherits /var/lib/tailscale and with it the
+  // node identity, so logging out here would register a second machine.
+  const legacyUnits = gateway.k3s
+    ? new command.remote.Command(
+        "gateway-legacy-units",
+        {
+          connection,
+          create: `set -uo pipefail
+for unit in xray hysteria-server tailscaled unbound; do
+  systemctl disable --now "$unit" >/dev/null 2>&1 || true
+done
+systemctl list-units --plain --no-legend 'hysteria-server@*' | awk '{print $1}' | while read -r unit; do
+  systemctl disable --now "$unit" >/dev/null 2>&1 || true
+done`,
+          triggers: ["legacy-units-v1"],
+        },
+        { dependsOn: [server] },
+      )
+    : undefined;
+
   // Caching DNS forwarder on loopback. Clients dial 127.0.0.1:53 *at this box*
   // through the tunnel (a DNS server with detour=entry-select), so unbound has
   // zero public attack surface — reachable only from inside the tunnel. It
@@ -151,11 +185,12 @@ systemctl enable rathole
   // gateway→resolver is TLS. Prefetch + serve-expired keep the hot set warm, so
   // a client-cache miss is answered from this Germany-local cache in one tunnel
   // RTT instead of a round trip to the upstream from the client's location.
-  new command.remote.Command(
-    "gateway-unbound",
-    {
-      connection,
-      create: `set -euo pipefail
+  if (sshTransports) {
+    new command.remote.Command(
+      "gateway-unbound",
+      {
+        connection,
+        create: `set -euo pipefail
 # Pulumi SSHes in the moment the server answers, which is long before the box
 # is actually usable. Two separate waits are needed:
 #   1. cloud-init, or directories these scripts write into do not exist yet;
@@ -202,10 +237,11 @@ forward-zone:
 EOF
 systemctl enable unbound
 systemctl restart unbound`,
-      triggers: ["unbound-v2"],
-    },
-    { dependsOn: [server] },
-  );
+        triggers: ["unbound-v2"],
+      },
+      { dependsOn: [server] },
+    );
+  }
 
   // When Xray is enabled it owns the public :443 and uses rathole as its
   // decoy backend, so rathole's https bind moves to a local-only port.
@@ -263,18 +299,20 @@ RATHOLE_EOF`,
     );
   }
 
-  const xray = gateway.xray
-    ? createXray(connection, server, gateway.xray, users)
-    : undefined;
+  const xray =
+    gateway.xray && sshTransports
+      ? createXray(connection, server, gateway.xray, users)
+      : undefined;
 
-  const hysteria = gateway.hysteria
-    ? createHysteria(connection, server, gateway.hysteria, users)
-    : undefined;
+  const hysteria =
+    gateway.hysteria && sshTransports
+      ? createHysteria(connection, server, gateway.hysteria, users)
+      : undefined;
 
   // Tailnet relay: only when configured and an auth key is present, so
   // enabling `tailnet` in config before the secret is set is a safe no-op.
   const tailscale =
-    gateway.tailnet && env.TS_AUTHKEY
+    gateway.tailnet && env.TS_AUTHKEY && sshTransports
       ? createTailscale(
           connection,
           server,
@@ -298,6 +336,7 @@ RATHOLE_EOF`,
   return {
     hysteria,
     k3s,
+    legacyUnits,
     ratholeToken,
     server,
     sshKey,

@@ -23,6 +23,7 @@ import type * as pulumi from "@pulumi/pulumi";
 export function createUnbound(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
+  dependsOn: pulumi.Resource[] = [],
 ) {
   const config = new k8s.core.v1.ConfigMap(
     "unbound-config",
@@ -121,6 +122,6 @@ forward-zone:
         },
       },
     },
-    { provider },
+    { provider, dependsOn },
   );
 }

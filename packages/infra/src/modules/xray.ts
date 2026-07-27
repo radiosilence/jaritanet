@@ -13,7 +13,7 @@ import { type Connection, resourcePrefix } from "./vps.ts";
 // for localhost on Linux — reachable, and said nothing about the rest of the
 // gateway's own stack. Enumerating what a guest may not touch is the losing
 // side of that argument, so this is every address that isn't the internet.
-const GUEST_DENY_CIDRS = [
+export const GUEST_DENY_CIDRS = [
   "100.64.0.0/10", // tailnet
   "fd7a:115c:a1e0::/48",
   "127.0.0.0/8", // the gateway itself, incl. the exit loopbacks
