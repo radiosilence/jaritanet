@@ -52,7 +52,12 @@ export function createIngress(
           websecure: {
             expose: { default: true },
             port: 8443,
-            hostPort: 443,
+            // 8443, not 443: xray owns :443 on this host and relays anything
+            // that is not a VPN client to `dest` — which is this. Binding 443
+            // here would collide with it and take both down. When the cluster
+            // was on a different machine, rathole bridged that gap; co-located,
+            // the gap does not exist.
+            hostPort: 8443,
           },
         },
         service: {

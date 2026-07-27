@@ -131,6 +131,16 @@ config:
             required: false
             hint: "32 hex characters"
   jaritanet:gateway:
+    # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
+    # cheaper and actually in stock, unlike the CX line. 8GB because this box now
+    # carries the cluster as well as the transports.
+    serverType: cax21
+    # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
+    # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
+    # Cilium's version must match the k8s minor: 1.19 supports 1.33-1.36.
+    k3s:
+      version: v1.36.2+k3s1
+      ciliumVersion: 1.19.6
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https), so real visitors still get the site.
     #
@@ -169,14 +179,10 @@ config:
   # just ss-rust + rathole; the gateway reaches it over the rathole tunnel.
   # `name` is all you set (drives the picker tag exit-<name> + resource names);
   # the loopback port is auto-derived from the name.
-  jaritanet:exits:
-    # oldboy — the home k8s cluster. Egresses your home residential IP.
-    - name: oldboy
-      # A Hetzner (or any) VPS exit is the same two daemons via cloud-init.
-      # NOT WIRED YET — substrate `vps` is unimplemented (k8s only for now):
-      # - name: fin
-      #   substrate: vps
-      #   location: hel1
+  # Exits were ss-rust in the home cluster, reached over rathole. oldboy is
+  # retired, so there are none until a second node exists — at which point an
+  # exit is just a pod on it, with no tunnel involved.
+  jaritanet:exits: []
   jaritanet:services:
     navidrome:
       hostname: ''

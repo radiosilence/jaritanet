@@ -5,6 +5,15 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      deleteUnreachable:
+        description: >-
+          Drop Kubernetes resources from state when their cluster is
+          unreachable. For a cluster that has been replaced or retired — never
+          for one that is merely down, since it deletes live resources from
+          state.
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -194,6 +203,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          PULUMI_K8S_DELETE_UNREACHABLE: ${{ inputs.deleteUnreachable && 'true' || '' }}
           KUBE_HOST: ${{ secrets.KUBE_HOST }}
           KUBE_API_PORT: ${{ secrets.KUBE_API_PORT }}
           KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}

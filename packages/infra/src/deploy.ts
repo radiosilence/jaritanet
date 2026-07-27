@@ -100,10 +100,27 @@ if (mode !== "preview" && mode !== "up") {
   throw new Error(`expected "preview" or "up", got "${mode ?? ""}"`);
 }
 
-const stack = await automation.LocalWorkspace.createOrSelectStack({
-  stackName: STACK,
-  workDir: WORK_DIR,
-});
+const stack = await automation.LocalWorkspace.createOrSelectStack(
+  {
+    stackName: STACK,
+    workDir: WORK_DIR,
+  },
+  {
+    // Off unless a run explicitly asks for it. Refresh reads every Kubernetes
+    // resource, so when a cluster is gone — replaced, rebuilt, or simply
+    // switched off — refresh fails and no deploy can proceed at all, even for
+    // resources that have nothing to do with Kubernetes.
+    //
+    // Set for one run, this drops the unreachable resources from state so they
+    // are recreated on the new cluster. Left on permanently it would do the
+    // same for a cluster that was briefly unreachable, quietly deleting live
+    // resources from state — which is why it is an input rather than a default.
+    envVars: {
+      PULUMI_K8S_DELETE_UNREACHABLE:
+        process.env.PULUMI_K8S_DELETE_UNREACHABLE ?? "",
+    },
+  },
+);
 
 await stack.setAllConfig(
   Object.fromEntries(
