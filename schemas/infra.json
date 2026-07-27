@@ -120,6 +120,10 @@
             "k3s": {
               "type": "object",
               "properties": {
+                "apiViaTailnet": {
+                  "default": false,
+                  "type": "boolean"
+                },
                 "ciliumVersion": {
                   "default": "1.19.6",
                   "type": "string"
