@@ -194,6 +194,14 @@ export const K3sConfSchema = z.object({
 
 export const GatewayConfSchema = z.object({
   hysteria: HysteriaConfSchema.optional(),
+  /**
+   * What the box is called — in Hetzner, and by default on the tailnet.
+   *
+   * Separate from the Pulumi resource name, which stays `gateway` so the state
+   * mapping survives a rename. The machine can be called whatever it is; the
+   * slot it fills is still "the gateway".
+   */
+  name: z.string().default("sympathy"),
   image: z.string().default("ubuntu-24.04"),
   k3s: K3sConfSchema.optional(),
   location: z.string().default("nbg1"),

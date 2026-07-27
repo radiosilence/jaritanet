@@ -97,14 +97,30 @@ systemctl daemon-reload
 systemctl enable rathole
 `;
 
-  const server = new hcloud.Server("gateway", {
-    firewallIds: [firewall.id.apply((id) => Number(id))],
-    image: gateway.image,
-    location: gateway.location,
-    serverType: gateway.serverType,
-    sshKeys: [hcloudSshKey.id.apply((id) => id.toString())],
-    userData: serverConfig,
-  });
+  const server = new hcloud.Server(
+    "gateway",
+    {
+      firewallIds: [firewall.id.apply((id) => Number(id))],
+      image: gateway.image,
+      location: gateway.location,
+      name: gateway.name,
+      serverType: gateway.serverType,
+      sshKeys: [hcloudSshKey.id.apply((id) => id.toString())],
+      userData: serverConfig,
+    },
+    {
+      // hcloud treats serverType as an in-place resize, which Hetzner rejects
+      // across architectures: "server type has incompatible architecture". x86
+      // to ARM is a new machine, so say so rather than letting Pulumi attempt an
+      // update that can never succeed.
+      replaceOnChanges: ["serverType"],
+      // And the old one has to go first — Hetzner server names are unique, so
+      // the default create-then-delete would collide with itself. This is also
+      // the honest description of what happens: the REALITY private key is
+      // minted on-box and dies with it, so every client profile rotates.
+      deleteBeforeReplace: true,
+    },
+  );
 
   const connection = {
     host: server.ipv4Address,
