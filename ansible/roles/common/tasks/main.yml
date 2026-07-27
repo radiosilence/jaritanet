@@ -50,7 +50,11 @@
     dest: /etc/dkms/broadcom-sta.conf
     content: |
       # Managed by ansible — see roles/common/tasks/main.yml.
-      AUTOINSTALL="no"
+      #
+      # Empty, NOT "no". dkms autoinstall tests `[[ ! $AUTOINSTALL ]]` and skips
+      # the module only when the value is an empty string — so AUTOINSTALL="no"
+      # is a non-empty string and means yes. (/usr/sbin/dkms, autoinstall().)
+      AUTOINSTALL=""
     owner: root
     group: root
     mode: "0644"
