@@ -238,6 +238,11 @@ config:
     files:
       hostname: ''
       args:
+        # Serves a read-only mount to the internet and nothing else — it has no
+        # business reaching the node, the LAN or another pod. No capability
+        # dropping: nginx binds :80 inside the container, which needs
+        # NET_BIND_SERVICE even as root once ALL is dropped.
+        networkPolicy: true
         strategy:
           type: Recreate
         image:
@@ -268,6 +273,11 @@ config:
     blit:
       hostname: ''
       args:
+        # Public-facing, so confine egress to DNS and the internet. No
+        # capability dropping: the image is distroless, so what it needs at
+        # runtime cannot be checked from here, and guessing that is what took
+        # Navidrome down (see #166/#168).
+        networkPolicy: true
         replicas: 2
         healthCheck: {}
         limits:
