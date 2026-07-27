@@ -135,6 +135,10 @@ config:
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
     # carries the cluster as well as the transports.
     name: sympathy
+    # nbg1 had no CAX capacity ("resource_unavailable" at placement). ARM stock
+    # moves around, so this is a knob to try rather than a decision — fsn1 and
+    # hel1 are the other CAX locations.
+    location: fsn1
     serverType: cax21
     # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
     # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
