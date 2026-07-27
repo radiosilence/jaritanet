@@ -72,6 +72,7 @@ export default async function () {
         name: "primary",
         server: gw.vpsIp,
         hysteria: {
+          altPorts: gatewayConf.hysteria.altPorts,
           obfsPassword: gw.hysteria.obfsPassword,
           passwords: gw.hysteria.passwords,
           port: gatewayConf.hysteria.port,
@@ -105,6 +106,7 @@ export default async function () {
         // needs the name. The A record stays for humans.
         server: e.vpsIp,
         hysteria: {
+          altPorts: edge.hysteria.altPorts,
           obfsPassword: e.hysteria.obfsPassword,
           passwords: e.hysteria.passwords,
           port: edge.hysteria.port,

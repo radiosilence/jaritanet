@@ -5,6 +5,7 @@ const node = {
   name: "primary",
   server: "1.2.3.4",
   hysteria: {
+    altPorts: [3478],
     obfsPassword: "obfs",
     passwords: { jc: "jc-hy2" },
     port: 443,
@@ -74,5 +75,48 @@ describe("buildProfile roles", () => {
     // No outbound anywhere carries the ss PSK for a guest.
     const json = JSON.stringify(p);
     expect(json).not.toContain("ss-psk");
+  });
+});
+
+describe("buildProfile hy2 ports", () => {
+  const admin = { name: "jc", role: "admin" } as const;
+
+  it("gives every listening port its own outbound, main port untagged", () => {
+    const p = buildProfile(admin, [node], "ts.net");
+    const t = tags(p);
+    expect(t).toContain("hy2-primary");
+    expect(t).toContain("hy2-primary-3478");
+
+    const outs = p.outbounds as { tag: string; server_port?: number }[];
+    expect(outs.find((o) => o.tag === "hy2-primary")?.server_port).toBe(443);
+    expect(outs.find((o) => o.tag === "hy2-primary-3478")?.server_port).toBe(
+      3478,
+    );
+  });
+
+  it("puts alt ports in the urltest, so a blocked port fails over unattended", () => {
+    const p = buildProfile(admin, [node], "ts.net");
+    const auto = (p.outbounds as { tag: string; outbounds?: string[] }[]).find(
+      (o) => o.tag === "auto",
+    );
+    expect(auto?.outbounds).toEqual([
+      "hy2-primary",
+      "hy2-primary-3478",
+      "reality-primary",
+    ]);
+  });
+
+  it("emits only the main port when a node has no alt ports", () => {
+    const bare = { ...node, hysteria: { ...node.hysteria, altPorts: [] } };
+    const t = tags(buildProfile(admin, [bare], "ts.net"));
+    expect(t).toContain("hy2-primary");
+    expect(t).not.toContain("hy2-primary-3478");
+  });
+
+  it("keeps hy2 off a guest profile whatever ports the node serves", () => {
+    const json = JSON.stringify(
+      buildProfile({ name: "guest1", role: "guest" }, [node], "ts.net"),
+    );
+    expect(json).not.toContain("3478");
   });
 });

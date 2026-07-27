@@ -51,6 +51,9 @@ export function createHysteria(
     special: false,
   });
 
+  // systemd instance per alt port; the port is recoverable from the name.
+  const altInstances = hysteria.altPorts.map((port) => `alt-${port}`);
+
   const install = new command.remote.Command(
     `${p}hysteria-install`,
     {
@@ -78,8 +81,14 @@ fi`,
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
-cat > /etc/hysteria/config.yaml << HY_EOF
-listen: :${hysteria.port}
+# Every listener is the same server on a different port, so the config is
+# written by one function and the extras ride the installer's
+# hysteria-server@.service template unit (reads /etc/hysteria/<instance>.yaml).
+# Separate instances rather than a DNAT port-hop: no nat table to persist
+# across reboots, and each port fails independently.
+write_config() {
+cat > "$1" << HY_EOF
+listen: :$2
 tls:
   cert: /etc/hysteria/cert.pem
   key: /etc/hysteria/key.pem
@@ -92,12 +101,34 @@ auth:
   userpass:
 ${userpassBlock}
 HY_EOF
+}
+
+write_config /etc/hysteria/config.yaml ${hysteria.port}
 systemctl enable hysteria-server
-systemctl restart hysteria-server`,
+systemctl restart hysteria-server
+
+# Drop instances that are no longer configured, or a removed alt port keeps
+# listening until someone reboots the box.
+WANTED="${altInstances.join(" ")}"
+for f in /etc/hysteria/alt-*.yaml; do
+  [ -e "$f" ] || continue
+  n=$(basename "$f" .yaml)
+  case " $WANTED " in
+    *" $n "*) ;;
+    *) systemctl disable --now "hysteria-server@$n" || true; rm -f "$f" ;;
+  esac
+done
+
+for n in $WANTED; do
+  write_config "/etc/hysteria/$n.yaml" "\${n#alt-}"
+  systemctl enable "hysteria-server@$n"
+  systemctl restart "hysteria-server@$n"
+done`,
       triggers: [
         userpassBlock,
         obfsPassword.result,
         pulumi.interpolate`${hysteria.port}`,
+        hysteria.altPorts.join(),
       ],
     },
     { dependsOn: [install] },
