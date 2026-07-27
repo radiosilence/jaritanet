@@ -295,7 +295,7 @@ config:
           memory: 1024Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-b9a7e4d
+          tag: sha-e8e6682
           pullPolicy: "Always"
         httpPort: 3000
   jaritanet:zones:
