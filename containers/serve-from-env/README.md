@@ -20,15 +20,20 @@ the requested path is never logged.
 
 ## Behaviour
 
-| Request                  | Response                                    |
-| ------------------------ | ------------------------------------------- |
+| Request                        | Response                                    |
+| ------------------------------ | ------------------------------------------- |
 | `GET`/`HEAD` a key             | its content, `no-store`                     |
 | `GET /healthz`, `GET /_health` | `ok` — unless `ROUTES` defines the path     |
 | anything else                  | 404, or 405 for methods other than GET/HEAD |
 
-Paths match exactly and must start with `/`. A string value is served verbatim
-with its content type taken from the extension; any other JSON value is
-serialised and served as `application/json`.
+Paths must start with `/` and match exactly — byte for byte against the request
+target, with no percent-decoding, so a key is reachable only as spelled. A string
+value is served verbatim with its content type taken from the extension; any
+other JSON value is serialised and served as `application/json`.
+
+Keys are never registered as router patterns, so nothing in `ROUTES` can be read
+as a capture or a wildcard: `/{x}.json` is a path, matches only itself, and can't
+panic the router at boot.
 
 Bad input — unset, not an object, empty, unparseable, a relative path — fails at
 startup rather than answering 404 to every client.
