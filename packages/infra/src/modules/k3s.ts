@@ -78,6 +78,17 @@ curl -sfL https://get.k3s.io | \
     --tls-san ${apiHost} \
     --write-kubeconfig-mode 0600" \
   sh -s -
+# k3s ships the standard CNI plugins in data/cni, but writes no CNI section
+# into containerd's config when flannel is disabled — so containerd falls back
+# to its own default bin dir, /opt/cni/bin, and never looks at k3s's. Cilium
+# installs cilium-cni to that default and is fine; every pod sandbox also needs
+# loopback, which is not, and without it every pod fails to create its sandbox
+# on a node that reports Ready. Symlinks rather than copies, so a k3s upgrade
+# moves the plugins and these follow.
+mkdir -p /opt/cni/bin
+for plugin in /var/lib/rancher/k3s/data/cni/*; do
+  ln -sfn "$plugin" "/opt/cni/bin/$(basename "$plugin")"
+done
 # The installer returns before the API is up; everything downstream reads the
 # kubeconfig, so wait for it to actually serve rather than racing it.
 for i in $(seq 1 60); do
