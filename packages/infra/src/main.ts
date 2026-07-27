@@ -22,7 +22,7 @@ import {
 import { createCilium } from "./modules/cilium.ts";
 import { createMcpGateway } from "./modules/mcp-gateway.ts";
 import { createProfileServer } from "./modules/profiles.ts";
-import { createSingboxDelivery, type SingboxNode } from "./modules/singbox.ts";
+import type { SingboxNode } from "./modules/singbox.ts";
 import { createService } from "./templates/service.ts";
 
 export default async function () {
@@ -337,44 +337,13 @@ export default async function () {
     );
   }
 
-  // --- sing-box client profile: generate + deliver + notify, all in Pulumi ---
-  // Builds the profile from the nodes, writes it to the file server over SSH
-  // (change-detected by content hash), and notifies Telegram on change.
-  if (
-    nodes.length > 0 &&
-    env.SINGBOX_SLUG &&
-    env.FILES_HOSTNAME &&
-    env.TAILNET_MAGICDNS_SUFFIX &&
-    env.OLDBOY_HOST &&
-    env.SSH_PRIVATE_KEY
-  ) {
-    createSingboxDelivery(users, nodes, {
-      filesHostname: env.FILES_HOSTNAME,
-      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
-      oldboy: {
-        host: env.OLDBOY_HOST,
-        privateKey: pulumi.secret(env.SSH_PRIVATE_KEY),
-        user: env.OLDBOY_USER,
-      },
-      exits,
-      slug: env.SINGBOX_SLUG,
-      telegram:
-        env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
-          ? {
-              botToken: pulumi.secret(env.TELEGRAM_BOT_TOKEN),
-              chatId: env.TELEGRAM_CHAT_ID,
-            }
-          : undefined,
-    });
-  }
-
   return {
     ...(gatewayProvider && { gatewayProvider }),
     namespace,
     services: Object.fromEntries(services),
     ...(dnsTarget && { vpsIp: dnsTarget }),
     // Per-user credentials + share URLs are now delivered as individual sing-box
-    // profiles (see createSingboxDelivery), so only the shared, non-secret
+    // profiles (see createProfileServer), so only the shared, non-secret
     // REALITY params are surfaced as stack outputs.
     // So the cluster can be reached with kubectl without SSHing in first:
     //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet

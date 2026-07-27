@@ -1,8 +1,7 @@
-import * as crypto from "node:crypto";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "../env.schema.ts";
-import { sha256hex, sniLabel } from "../util.ts";
+import { sniLabel } from "../util.ts";
 
 /**
  * One node in the client profile — the primary gateway or an edge. Credentials
@@ -70,13 +69,6 @@ type ResolvedExit = {
 // Fragmentation stalls cost far more throughput than 1280's slightly smaller
 // packets, so on unknown networks this maximises *real* throughput + latency.
 const TUN_MTU = 1280;
-
-// Force-rewrite lever for the delivered profiles. Part of every profile's
-// triggers, so bumping it re-writes all of them on the next deploy. Needed when
-// the on-disk files drift from Pulumi's state — e.g. after the create-before-
-// delete clobber bug rm'd them while state still thought they existed. Bump to
-// recover; leave it otherwise (content changes trigger rewrites on their own).
-const PROFILE_REV = "2";
 
 // The same server on each of its listening ports — which port survives is a
 // property of the client's network, not of the node (see HysteriaConfSchema),
@@ -359,134 +351,6 @@ export function buildProfile(
       auto_detect_interface: true,
     },
   };
-}
-
-type DeliveryOpts = {
-  slug: string;
-  filesHostname: string;
-  magicdnsSuffix: string;
-  oldboy: { host: string; user: string; privateKey: pulumi.Output<string> };
-  telegram?: { botToken: pulumi.Output<string>; chatId: string };
-  exits?: Exit[];
-};
-
-/**
- * Per-user profile slug: an unguessable path is the only thing guarding a
- * profile, so each user's file lives at a name derived from the (secret) base
- * slug + user name. Deterministic (stable across deploys) but unguessable
- * without the base slug. Slug-scheme changes orphan the old paths — the sweep
- * in createSingboxDelivery removes those so they 404 instead of serving stale
- * credentials to clients still subscribed to a dead URL.
- */
-function userSlug(baseSlug: string, name: string): string {
-  return crypto
-    .createHash("sha256")
-    .update(`${baseSlug}:${name}`)
-    .digest("hex")
-    .slice(0, 32);
-}
-
-/**
- * Generates one profile per user and delivers each to the file server, replacing
- * the old ansible role. Each user's write is its own Pulumi resource keyed on the
- * user name, with a `delete` that unlinks the file — so removing a user from
- * VPN_USERS and redeploying actually revokes their profile on disk. The
- * `sha256(profile)` trigger is per-user change-detection; one Telegram notify
- * fires when any profile changes, grouping every user's URL. Profiles ride
- * `stdin`, never the command string, so credentials stay out of args and state.
- */
-export function createSingboxDelivery(
-  users: VpnUser[],
-  nodes: SingboxNode[],
-  opts: DeliveryOpts,
-) {
-  const connection = {
-    host: opts.oldboy.host,
-    user: opts.oldboy.user,
-    privateKey: opts.oldboy.privateKey,
-  };
-  const destDir = "/srv/files/.sfm";
-
-  const delivered = users.map((user) => {
-    const profileJson = pulumi
-      .all([pulumi.output(nodes), pulumi.output(opts.exits ?? [])])
-      .apply(([resolvedNodes, resolvedExits]) =>
-        JSON.stringify(
-          buildProfile(
-            user,
-            resolvedNodes as ResolvedNode[],
-            opts.magicdnsSuffix,
-            resolvedExits as ResolvedExit[],
-          ),
-          null,
-          2,
-        ),
-      );
-    const profileHash = sha256hex(profileJson);
-
-    const slug = userSlug(opts.slug, user.name);
-    const dest = `${destDir}/${slug}.json`;
-
-    const write = new command.remote.Command(
-      `singbox-profile-${user.name}`,
-      {
-        connection,
-        create: `mkdir -p ${destDir} && cat > ${dest} && chmod 644 ${dest}`,
-        delete: `rm -f ${dest}`,
-        stdin: profileJson,
-        triggers: [profileHash, PROFILE_REV],
-      },
-      // `dest` is a deterministic per-user path, so a content change *replaces*
-      // this resource. Delete-before-replace is mandatory: the default
-      // (create-then-delete) would write the new profile and then `rm` the same
-      // path when deleting the old resource — silently clobbering it. Deleting
-      // first keeps the file present after a content change, while user removal
-      // still revokes it.
-      { deleteBeforeReplace: true },
-    );
-
-    return {
-      user,
-      write,
-      profileHash,
-      url: `https://${opts.filesHostname}/.sfm/${slug}.json`,
-    };
-  });
-
-  // Sweep superseded profiles: after the current set is written, any *.json in
-  // the delivery dir that isn't a live slug is removed, so a rotated URL 404s.
-  // Without this, a client subscribed to a pre-rotation URL keeps "updating"
-  // from a file whose credentials were revoked — a silent, permanent outage.
-  const liveSlugs = users.map((u) => userSlug(opts.slug, u.name));
-  new command.remote.Command(
-    "singbox-profile-sweep",
-    {
-      connection,
-      create: `mkdir -p ${destDir} && find ${destDir} -maxdepth 1 -name '*.json' ${liveSlugs
-        .map((s) => `! -name '${s}.json'`)
-        .join(" ")} -delete`,
-      triggers: [liveSlugs.join()],
-    },
-    { dependsOn: delivered.map((d) => d.write) },
-  );
-
-  // One notify for the whole roster, fired when any profile changes.
-  if (opts.telegram && delivered.length) {
-    notifyProfileUrls(
-      delivered.map((d) => ({
-        name: d.user.name,
-        role: d.user.role,
-        url: d.url,
-      })),
-      opts.telegram,
-      sha256hex(
-        pulumi.all(delivered.map((d) => d.profileHash)).apply((h) => h.join()),
-      ),
-      delivered.map((d) => d.write),
-    );
-  }
-
-  return delivered;
 }
 
 /**
