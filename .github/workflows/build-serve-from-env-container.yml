@@ -1,0 +1,25 @@
+name: Build Serve-From-Env Container
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+    paths:
+      - "containers/serve-from-env/**"
+      - ".github/workflows/build-serve-from-env-container.yml"
+
+jobs:
+  publish:
+    name: Build and Publish
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@28e962429b331f0e39905f70ae10211b1db66349 # main
+    with:
+      working-directory: "./containers/serve-from-env"
+      image: "serve-from-env"
+    secrets:
+      PASSWORD: ${{ secrets.GITHUB_TOKEN }}

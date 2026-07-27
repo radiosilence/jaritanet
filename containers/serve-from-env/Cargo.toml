@@ -1,0 +1,17 @@
+[package]
+name = "serve-from-env"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1.0"
+tiny_http = "0.12"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+# A panicking worker thread would otherwise die quietly and the server would
+# lose capacity with nothing in the logs. Aborting turns that into a restart.
+panic = "abort"
+strip = true
