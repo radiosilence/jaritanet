@@ -370,6 +370,20 @@ through (`entry-select`). Egress = where your traffic leaves the internet
 (`exit-select`): either **direct** (at the gateway) or via an **exit node** that
 NATs out its own IP — e.g. the home cluster, egressing the residential IP.
 
+**`exit-oldboy` is IPv4-only, by circumstance rather than choice.** The house
+has no IPv6 at all — oldboy holds two ULAs (one of them Tailscale's) and no
+global-unicast address, and v6 egress fails with *Network is unreachable*, i.e.
+there is no route rather than a blocked one. So an application with a hardcoded
+IPv6 endpoint does not work through this exit and does work on direct egress,
+which reads as "the VPN is broken" and cost real debugging hours in July before
+the exit turned out to be the variable. Telegram was the observed casualty.
+
+Nothing in the cluster can fix that: dual-stack CNI would hand pods addresses
+with nowhere to route. The alternatives are NAT64/DNS64 at the gateway or IPv6
+from the ISP, and neither is worth it for an exit whose entire purpose is
+presenting a residential **IPv4** address. Accepted deliberately — if something
+you rely on breaks only through the exit, suspect this first.
+
 An exit is a substrate-agnostic unit — **rathole client + ss-rust** — as a k8s
 Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. Add one via the
 `exits` config list:
