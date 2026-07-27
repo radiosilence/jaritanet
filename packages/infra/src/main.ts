@@ -100,7 +100,10 @@ export default async function () {
       }
       nodes.push({
         name: edge.name,
-        server: hostname,
+        // The literal IP, not `hostname`: the profile detours every resolver
+        // through the tunnel, so resolving an edge's name needs the tunnel that
+        // needs the name. The A record stays for humans.
+        server: e.vpsIp,
         hysteria: {
           obfsPassword: e.hysteria.obfsPassword,
           passwords: e.hysteria.passwords,

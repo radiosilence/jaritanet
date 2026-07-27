@@ -121,7 +121,7 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare account id |
 | `ACME_EMAIL` | Yes | Let's Encrypt account email (Traefik) |
 | `KUBE_HOST` / `KUBE_API_PORT` / `KUBE_TOKEN` | Yes | K8s API access (host = tailnet IP, token base64) |
-| `NAVIDROME_HOSTNAME` / `FILES_HOSTNAME` / `BLIT_HOSTNAME` | Yes | Service hostnames (`BLIT_HOSTNAME` is also injected as the REALITY `serverName`) |
+| `NAVIDROME_HOSTNAME` / `FILES_HOSTNAME` / `BLIT_HOSTNAME` | Yes | Service hostnames |
 
 **Tailscale**
 
