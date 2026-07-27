@@ -196,13 +196,6 @@ jobs:
           run-install: true
           install-args: --frozen-lockfile
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
       # Stack configuration, external-IP detection and the update itself all
       # happen inside deploy.ts, so preview.yml runs the identical code path.
       - name: Deploy

@@ -39,13 +39,6 @@ jobs:
           run-install: true
           install-args: --frozen-lockfile
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
       # Identical entrypoint to the deploy in ci-cd.yml, differing only in the
       # verb — which is the point. Config is written to the checked-out
       # Pulumi.main.yaml, not the shared stack, so PRs can't leak into each
