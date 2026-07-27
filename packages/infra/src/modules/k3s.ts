@@ -84,30 +84,30 @@ for i in $(seq 1 60); do
   k3s kubectl get --raw /readyz >/dev/null 2>&1 && break
   sleep 5
 done
-k3s kubectl get --raw /readyz >/dev/null`,
+k3s kubectl get --raw /readyz >/dev/null
+# Printed last so it is this command's stdout: the config and the cluster it
+# describes then come from the same execution.
+cat /etc/rancher/k3s/k3s.yaml`,
       triggers: [k3s.version, pulumi.output(apiHost)],
     },
     { dependsOn: [server] },
   );
 
-  // k3s writes `server: https://127.0.0.1:6443`, which is true on the box and
-  // useless anywhere else. Rewritten to the tailnet name the cert already
-  // covers, so the config works from CI without disabling verification.
-  const raw = new command.remote.Command(
-    `${p}k3s-kubeconfig`,
-    {
-      connection,
-      create: "cat /etc/rancher/k3s/k3s.yaml",
-      triggers: [install.id],
-    },
-    { dependsOn: [install] },
-  );
-
+  // The kubeconfig is the install command's own stdout, not a separate read.
+  // As two resources they could disagree: reinstalling k3s regenerates its CA,
+  // but a read whose trigger had not changed kept serving the old one — which
+  // presents as "x509: certificate signed by unknown authority" against a
+  // cluster that is up and reachable. One execution cannot drift from itself.
+  //
+  // k3s writes `server: https://127.0.0.1:6443`, true on the box and useless
+  // anywhere else, so it is rewritten to the name the cert already covers.
   const kubeconfig = pulumi
-    .all([raw.stdout, pulumi.output(apiHost)])
+    .all([install.stdout, pulumi.output(apiHost)])
     .apply(([cfg, host]) =>
       pulumi.secret(
-        cfg.replace("https://127.0.0.1:6443", `https://${host}:6443`),
+        cfg
+          .slice(cfg.indexOf("apiVersion:"))
+          .replace("https://127.0.0.1:6443", `https://${host}:6443`),
       ),
     );
 
