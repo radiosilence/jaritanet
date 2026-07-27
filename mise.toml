@@ -2,3 +2,4 @@
 aube = "1"
 node = "24"
 pulumi = "latest"
+rust = "1"
