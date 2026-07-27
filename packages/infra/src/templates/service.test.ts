@@ -247,6 +247,58 @@ describe("service template", () => {
       expect(spec.ingress).toBeUndefined();
     });
 
+    it("fixes ownership of writable mounts, never read-only ones", async () => {
+      const { createService } = await import("./service.ts");
+      const withVolumes = (over: Record<string, unknown> = {}) =>
+        ServiceArgsSchema.parse({
+          image: { repository: "navidrome", tag: "1" },
+          httpPort: 4533,
+          persistence: [
+            {
+              name: "music",
+              storage: "2Ti",
+              hostPath: "/mnt/music",
+              mountPath: "/music",
+              readOnly: true,
+              nodeAffinityHostname: "oldboy",
+            },
+            {
+              name: "data",
+              storage: "20Gi",
+              hostPath: "/home/nd/data",
+              mountPath: "/data",
+              readOnly: false,
+              nodeAffinityHostname: "oldboy",
+            },
+          ],
+          ...over,
+        });
+
+      createService(mockProvider, "asroot", withVolumes());
+      createService(
+        mockProvider,
+        "asuser",
+        withVolumes({ securityContext: { runAsUser: 1001, runAsGroup: 1002 } }),
+      );
+
+      const spec = async (name: string) =>
+        (await waitFor("Deployment", `${name}-deployment`)).inputs.spec.template
+          .spec;
+
+      // Nothing to fix when the pod runs as whatever the image says.
+      expect((await spec("asroot")).initContainers).toBeUndefined();
+
+      const init = (await spec("asuser")).initContainers[0];
+      const cmd = init.command[2];
+      expect(cmd).toContain("/data");
+      // A recursive chown across a 2Ti library on every start would be a
+      // catastrophe, and the mount would reject the write anyway.
+      expect(cmd).not.toContain("/music");
+      expect(cmd).toContain("1001:1002");
+      // Must stay root: it is the thing granting the app its ownership.
+      expect(init.securityContext.runAsUser).toBe(0);
+    });
+
     it("drops capabilities only where asked", async () => {
       const { createService } = await import("./service.ts");
       createService(mockProvider, "caps", args());
