@@ -17,6 +17,8 @@ use tiny_http::{Header, Method, Request, Response, Server};
 /// so the concern is head-of-line blocking rather than capacity.
 const WORKERS: usize = 4;
 
+const HEALTH_PATHS: [&str; 2] = ["/healthz", "/_health"];
+
 struct Route {
     body: String,
     content_type: &'static str,
@@ -60,12 +62,16 @@ fn parse_routes(raw: &str) -> Result<HashMap<String, Route>, String> {
         })
         .collect::<Result<_, _>>()?;
 
-    // A probe target, unless ROUTES already defines one. Living in the table
-    // rather than in the handler is what makes it overridable.
-    routes.entry("/healthz".into()).or_insert(Route {
-        body: "ok\n".into(),
-        content_type: "text/plain; charset=utf-8",
-    });
+    // Probe targets, unless ROUTES already defines them — both spellings,
+    // because which one a chart reaches for is not worth a deploy to discover.
+    // Living in the table rather than in the handler is what makes them
+    // overridable.
+    for path in HEALTH_PATHS {
+        routes.entry(path.into()).or_insert(Route {
+            body: "ok\n".into(),
+            content_type: "text/plain; charset=utf-8",
+        });
+    }
     Ok(routes)
 }
 
@@ -245,20 +251,30 @@ mod tests {
     }
 
     #[test]
-    fn is_healthy_and_rejects_writes() {
+    fn is_healthy_on_every_spelling_and_rejects_writes() {
         let r = routes();
-        assert_eq!(route(&Method::Get, "/healthz", &r).0, 200);
+        for path in HEALTH_PATHS {
+            let (status, matched) = route(&Method::Get, path, &r);
+            assert_eq!(
+                (status, matched.map(|m| m.body.as_str())),
+                (200, Some("ok\n")),
+                "{path}"
+            );
+        }
         assert_eq!(route(&Method::Post, "/deadbeef.json", &r).0, 405);
     }
 
     #[test]
-    fn lets_a_route_override_healthz() {
-        let r = parse_routes(r#"{"/healthz": "mine"}"#).expect("parses");
-        let (status, matched) = route(&Method::Get, "/healthz", &r);
-        assert_eq!(
-            (status, matched.map(|m| m.body.as_str())),
-            (200, Some("mine"))
-        );
+    fn lets_a_route_override_a_health_path() {
+        for path in HEALTH_PATHS {
+            let r = parse_routes(&format!(r#"{{"{path}": "mine"}}"#)).expect("parses");
+            let (status, matched) = route(&Method::Get, path, &r);
+            assert_eq!(
+                (status, matched.map(|m| m.body.as_str())),
+                (200, Some("mine")),
+                "{path}"
+            );
+        }
     }
 
     /// The wire behaviour the routing table can't prove: framing, and that a

@@ -22,9 +22,9 @@ the requested path is never logged.
 
 | Request                  | Response                                    |
 | ------------------------ | ------------------------------------------- |
-| `GET`/`HEAD` a key       | its content, `no-store`                     |
-| `GET /healthz`           | `ok` — unless `ROUTES` defines the path      |
-| anything else            | 404, or 405 for methods other than GET/HEAD |
+| `GET`/`HEAD` a key             | its content, `no-store`                     |
+| `GET /healthz`, `GET /_health` | `ok` — unless `ROUTES` defines the path     |
+| anything else                  | 404, or 405 for methods other than GET/HEAD |
 
 Paths match exactly and must start with `/`. A string value is served verbatim
 with its content type taken from the extension; any other JSON value is
