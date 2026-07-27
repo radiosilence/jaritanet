@@ -14,7 +14,7 @@ import { sha256hex } from "../util.ts";
  */
 export function createIngress(
   provider: k8s.Provider,
-  namespace: string,
+  namespace: pulumi.Input<string>,
   traefik: z.infer<typeof TraefikConfSchema>,
   vpsIp: pulumi.Output<string> | undefined,
   ratholeToken: pulumi.Output<string> | undefined,
@@ -229,7 +229,10 @@ export function createIngressRoute(
   provider: k8s.Provider,
   serviceName: string,
   hostname: string,
-  namespace: string,
+  namespace: pulumi.Input<string>,
+  // IngressRoute is a kind the Traefik chart installs. Without this the CRD may
+  // not exist yet: "no matches for kind IngressRoute in version traefik.io/v1alpha1".
+  traefik?: pulumi.Resource,
 ) {
   new k8s.apiextensions.CustomResource(
     `${serviceName}-ingress-route`,
@@ -259,7 +262,7 @@ export function createIngressRoute(
         },
       },
     },
-    { provider },
+    { provider, dependsOn: traefik ? [traefik] : [] },
   );
 
   // HTTP -> HTTPS redirect
@@ -293,7 +296,7 @@ export function createIngressRoute(
         ],
       },
     },
-    { provider },
+    { provider, dependsOn: traefik ? [traefik] : [] },
   );
 }
 
@@ -302,7 +305,9 @@ export function createIngressRoute(
  */
 export function createRedirectMiddleware(
   provider: k8s.Provider,
-  namespace: string,
+  namespace: pulumi.Input<string>,
+  // As with IngressRoute: Middleware is a CRD the chart brings.
+  traefik?: pulumi.Resource,
 ) {
   new k8s.apiextensions.CustomResource(
     "redirect-https",
@@ -320,7 +325,7 @@ export function createRedirectMiddleware(
         },
       },
     },
-    { provider },
+    { provider, dependsOn: traefik ? [traefik] : [] },
   );
 }
 
@@ -332,7 +337,7 @@ export function createRedirectMiddleware(
  */
 export function createIpWatcher(
   provider: k8s.Provider,
-  namespace: string,
+  namespace: pulumi.Input<string>,
   githubToken: string,
   githubRepo: string,
 ) {

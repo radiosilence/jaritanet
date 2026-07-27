@@ -84,7 +84,7 @@ export function mcpRegistry(
  */
 export function createMcpGateway(
   provider: k8s.Provider,
-  namespace: string,
+  namespace: pulumi.Input<string>,
   conf: z.infer<typeof McpGatewayConfSchema>,
   secrets: {
     githubClientId: pulumi.Input<string>;

@@ -1,4 +1,5 @@
 import * as k8s from "@pulumi/kubernetes";
+import type * as pulumi from "@pulumi/pulumi";
 
 /**
  * The gateway's caching DNS resolver, as a pod rather than an apt install.
@@ -19,7 +20,10 @@ import * as k8s from "@pulumi/kubernetes";
  * Replaces an SSH command that apt-installed unbound and wrote a heredoc — one
  * of five that ran in parallel and fought each other for the dpkg lock.
  */
-export function createUnbound(provider: k8s.Provider, namespace: string) {
+export function createUnbound(
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
+) {
   const config = new k8s.core.v1.ConfigMap(
     "unbound-config",
     {
