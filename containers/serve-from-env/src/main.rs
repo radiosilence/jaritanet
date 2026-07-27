@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::process;
 use std::sync::Arc;
 use std::thread;
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -131,14 +132,23 @@ fn header(name: &str, value: &str) -> Header {
 }
 
 fn main() {
-    let routes = Arc::new(
-        parse_routes(&env::var("ROUTES").expect("ROUTES is unset")).expect("ROUTES is unusable"),
-    );
-    let port: u16 = env::var("PORT")
-        .ok()
-        .map_or(Ok(8080), |p| p.parse())
-        .expect("PORT is not a port");
-    let server = Arc::new(Server::http(("0.0.0.0", port)).expect("cannot bind"));
+    // A misconfiguration is the expected way for this to fail, so it gets one
+    // legible line rather than a panic's file, line and backtrace note.
+    if let Err(e) = run() {
+        eprintln!("serve-from-env: {e}");
+        process::exit(1);
+    }
+}
+
+fn run() -> Result<(), String> {
+    let raw = env::var("ROUTES").map_err(|_| "ROUTES is unset")?;
+    let routes = Arc::new(parse_routes(&raw)?);
+    let port: u16 = match env::var("PORT") {
+        Ok(p) => p.parse().map_err(|_| format!("PORT is not a port: {p}"))?,
+        Err(_) => 8080,
+    };
+    let server =
+        Arc::new(Server::http(("0.0.0.0", port)).map_err(|e| format!("cannot bind :{port}: {e}"))?);
     println!("serving {} routes on :{port}", routes.len());
 
     let workers: Vec<_> = (0..WORKERS)
@@ -154,6 +164,7 @@ fn main() {
     for worker in workers {
         let _ = worker.join();
     }
+    Ok(())
 }
 
 #[cfg(test)]
