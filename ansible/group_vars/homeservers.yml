@@ -19,3 +19,14 @@ syncthing:
 
 samba:
   enabled: true
+
+# Roll the kernel forward within the LTS. The GA series (6.8 on 24.04) is pinned
+# for the life of the release, so this is the only way to a newer kernel short of
+# a distro upgrade. Takes effect on the next reboot; the GA kernel stays in /boot
+# as a fallback.
+hwe_kernel: true
+
+# Draw the GRUB menu for a few seconds before booting the newest kernel, so an
+# older one can be picked when a new kernel and 2014 hardware disagree. This box
+# reboots roughly twice a year; the seconds are not worth optimising away.
+grub_timeout: 5
