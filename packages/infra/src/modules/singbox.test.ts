@@ -34,14 +34,14 @@ describe("buildProfile roles", () => {
       exits,
     );
     const t = tags(p);
-    expect(t).toContain("hy2-primary");
-    expect(t).toContain("reality-primary");
+    expect(t).toContain("hy2-primary-443");
+    expect(t).toContain("reality-primary-google");
     expect(t).toContain("exit-select");
     expect(t).toContain("exit-home");
     expect(p.route.final).toBe("exit-select");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
-      (o) => o.tag === "reality-primary",
+      (o) => o.tag === "reality-primary-google",
     );
     expect(realityOut?.uuid).toBe("uuid-jc");
 
@@ -60,15 +60,14 @@ describe("buildProfile roles", () => {
       exits,
     );
     const t = tags(p);
-    expect(t).toContain("reality-primary");
-    expect(t).not.toContain("hy2-primary");
-    expect(t).not.toContain("hy2b-primary");
+    expect(t).toContain("reality-primary-google");
+    expect(t).not.toContain("hy2-primary-443");
     expect(t).not.toContain("exit-select");
     expect(t).not.toContain("exit-home");
     expect(p.route.final).toBe("entry-select");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
-      (o) => o.tag === "reality-primary",
+      (o) => o.tag === "reality-primary-google",
     );
     expect(realityOut?.uuid).toBe("uuid-guest1");
 
@@ -84,11 +83,13 @@ describe("buildProfile hy2 ports", () => {
   it("gives every listening port its own outbound, main port untagged", () => {
     const p = buildProfile(admin, [node], "ts.net");
     const t = tags(p);
-    expect(t).toContain("hy2-primary");
+    expect(t).toContain("hy2-primary-443");
     expect(t).toContain("hy2-primary-3478");
 
     const outs = p.outbounds as { tag: string; server_port?: number }[];
-    expect(outs.find((o) => o.tag === "hy2-primary")?.server_port).toBe(443);
+    expect(outs.find((o) => o.tag === "hy2-primary-443")?.server_port).toBe(
+      443,
+    );
     expect(outs.find((o) => o.tag === "hy2-primary-3478")?.server_port).toBe(
       3478,
     );
@@ -100,9 +101,9 @@ describe("buildProfile hy2 ports", () => {
       (o) => o.tag === "auto",
     );
     expect(auto?.outbounds).toEqual([
-      "hy2-primary",
+      "hy2-primary-443",
       "hy2-primary-3478",
-      "reality-primary",
+      "reality-primary-google",
       "reality-primary-bing",
     ]);
   });
@@ -110,7 +111,7 @@ describe("buildProfile hy2 ports", () => {
   it("emits only the main port when a node has no alt ports", () => {
     const bare = { ...node, hysteria: { ...node.hysteria, altPorts: [] } };
     const t = tags(buildProfile(admin, [bare], "ts.net"));
-    expect(t).toContain("hy2-primary");
+    expect(t).toContain("hy2-primary-443");
     expect(t).not.toContain("hy2-primary-3478");
   });
 
@@ -136,7 +137,7 @@ describe("buildProfile REALITY identities", () => {
       uuid?: string;
       tls?: { server_name?: string };
     }[];
-    const first = outs.find((o) => o.tag === "reality-primary");
+    const first = outs.find((o) => o.tag === "reality-primary-google");
     const second = outs.find((o) => o.tag === "reality-primary-bing");
 
     expect(first?.tls?.server_name).toBe("www.google.co.uk");
@@ -153,10 +154,10 @@ describe("buildProfile REALITY identities", () => {
     );
     // Reality-only, but no longer a single point of failure.
     expect(auto?.outbounds).toEqual([
-      "reality-primary",
+      "reality-primary-google",
       "reality-primary-bing",
     ]);
-    expect(tags(p)).not.toContain("hy2-primary");
+    expect(tags(p)).not.toContain("hy2-primary-443");
   });
 
   it("skips the urltest when a guest node serves one identity", () => {
@@ -165,6 +166,6 @@ describe("buildProfile REALITY identities", () => {
     const entry = (p.outbounds as { tag: string; default?: string }[]).find(
       (o) => o.tag === "entry-select",
     );
-    expect(entry?.default).toBe("reality-primary");
+    expect(entry?.default).toBe("reality-primary-google");
   });
 });

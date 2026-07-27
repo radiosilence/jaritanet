@@ -341,11 +341,16 @@ pushes every user's URL to Telegram. So: edit config, push, get a working URL.
 
 With multiple gateways, `entry-select` becomes nested: it chooses `auto-all`
 (fastest node anywhere) or a per-host group. Each host is its own selector
-(`helsinki`, `primary`, …) holding that node's `auto-<name>` + `hy2-<name>` +
-`reality-<name>`, so you pick a location and can drill in to force a transport.
-Leaf outbound tags are prefixed per host (tags must be globally unique); the
-grouping is what you navigate. (`exit-select` — the egress axis — is separate;
-see below.)
+(`helsinki`, `primary`, …) holding that node's `auto-<name>` and every leaf
+under it, so you pick a location and can drill in to force one exact path.
+
+A leaf is named for the thing a hostile network blocks individually, which
+differs by transport: hy2 varies by **port** (`hy2-<node>-443`, `-3478`,
+`-4500`) since its SNI is cosmetic and never reaches the wire, while REALITY
+varies by **SNI** (`reality-<node>-google`, `-bing`, …) on TCP/443 alone, since
+the name it claims is the whole disguise. Tags carry the node prefix because
+they must be globally unique; the grouping is what you navigate. (`exit-select`
+— the egress axis — is separate; see below.)
 
 **Why edges can use an external REALITY decoy** (unlike the primary): an edge
 fronts no site of its own, so there's no own-domain to break by forwarding
@@ -496,13 +501,16 @@ Live tradeoffs worth knowing, not necessarily bugs:
   gating SSH would shrink the attack surface but adds lockout risk on a box
   whose whole job is being reachable, so it's left open by choice. 2333 must
   stay open regardless: the home client dials in from a dynamic NATed IP.
-- **hy2 defaults to adaptive congestion control (BBR), with Brutal opt-in.**
-  The daily-driver `hy2-*` outbound (and the `auto` urltest) carry no bandwidth
-  hints, so they stay adaptive and friendly on variable/metered links. A
-  separate `hy2b-*` variant carries 1G/1G hints → Brutal (fixed-rate, ignores
-  loss) and sits in the selector for manual use on a known-fat hostile pipe.
-  Brutal is deliberately *not* the default: on a slow link it blasts loss into a
-  small pipe and feels worse. Reality has no such knob — its speed is all MTU.
+- **hy2 uses adaptive congestion control (BBR) everywhere; Brutal is not
+  offered.** Setting bandwidth hints switches Hysteria2 to Brutal, which paces
+  to a fixed rate and ignores loss — it stomps through lossy censored *fat*
+  links, and on a slow or metered one it blasts loss into a small pipe and feels
+  worse. A `hy2b-*` variant carrying 1G/1G hints used to sit in the selector for
+  manual use, and was dropped: the rate was a guess rather than a measured line,
+  which is the case where Brutal hurts, and being manual-pick-only it never
+  entered the urltest that does the actual work. Re-add it tuned to a real
+  measurement if a fat hostile link ever justifies it. Reality has no such knob —
+  its speed is all MTU.
 - **The tun stack is `mixed` (kernel TCP + gVisor UDP), and that's load-bearing
   for nesting another VPN inside this one.** A common use is nesting a UDP-based
   corporate VPN (e.g. AWS Client VPN, OpenVPN/UDP) inside the tunnel to shield
