@@ -2,4 +2,6 @@
 aube = "1"
 node = "24"
 pulumi = "latest"
-rust = "1"
+# rustfmt and clippy are not in the minimal profile mise installs by default,
+# and the containers job needs both.
+rust = { version = "1", components = "rustfmt,clippy" }

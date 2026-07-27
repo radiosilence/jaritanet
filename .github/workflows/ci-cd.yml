@@ -128,7 +128,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Type Check
-        run: aube run typecheck:infra && aube run typecheck:containers
+        run: aube run typecheck:infra
 
   test:
     name: Test
@@ -175,7 +175,10 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [test, lint, format, typecheck, containers]
+    # Not `containers`: the deploy neither builds nor consumes the container
+    # images — they are published by their own workflow and pinned by tag — so
+    # gating on them would block infra deploys for an unrelated red.
+    needs: [test, lint, format, typecheck]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
       (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
