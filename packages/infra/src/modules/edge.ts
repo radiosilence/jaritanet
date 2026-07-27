@@ -82,7 +82,9 @@ export function createEdge(
     server,
     XrayConfSchema.parse({
       dest: edge.reality.dest,
-      serverName: edge.reality.serverName,
+      // One name, not a list: an edge's dest IS the site it mimics, so a second
+      // SNI would be one dest cannot serve a real cert for.
+      serverNames: [edge.reality.serverName],
     }),
     users,
     name,

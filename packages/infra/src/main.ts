@@ -80,7 +80,7 @@ export default async function () {
         },
         reality: {
           publicKey: gw.xray.publicKey,
-          serverName: gatewayConf.xray.serverName,
+          serverNames: gatewayConf.xray.serverNames,
           shortId: gw.xray.shortId,
           uuids: gw.xray.uuids,
         },
@@ -114,7 +114,7 @@ export default async function () {
         },
         reality: {
           publicKey: e.xray.publicKey,
-          serverName: edge.reality.serverName,
+          serverNames: [edge.reality.serverName],
           shortId: e.xray.shortId,
           uuids: e.xray.uuids,
         },
@@ -290,7 +290,7 @@ export default async function () {
     // REALITY params are surfaced as stack outputs.
     ...(xray && {
       xrayPublicKey: xray.publicKey,
-      xrayServerName: conf.gateway?.xray?.serverName,
+      xrayServerNames: conf.gateway?.xray?.serverNames,
       xrayShortId: xray.shortId,
     }),
   };

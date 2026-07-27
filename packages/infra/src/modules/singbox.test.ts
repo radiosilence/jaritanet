@@ -13,7 +13,7 @@ const node = {
   },
   reality: {
     publicKey: "pk",
-    serverName: "sni.example",
+    serverNames: ["www.google.co.uk", "www.bing.com"],
     shortId: "sid",
     uuids: { guest1: "uuid-guest1", jc: "uuid-jc" },
   },
@@ -34,14 +34,14 @@ describe("buildProfile roles", () => {
       exits,
     );
     const t = tags(p);
-    expect(t).toContain("hy2-primary");
-    expect(t).toContain("reality-primary");
+    expect(t).toContain("hy2-primary-443");
+    expect(t).toContain("reality-primary-google");
     expect(t).toContain("exit-select");
     expect(t).toContain("exit-home");
     expect(p.route.final).toBe("exit-select");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
-      (o) => o.tag === "reality-primary",
+      (o) => o.tag === "reality-primary-google",
     );
     expect(realityOut?.uuid).toBe("uuid-jc");
 
@@ -60,15 +60,14 @@ describe("buildProfile roles", () => {
       exits,
     );
     const t = tags(p);
-    expect(t).toContain("reality-primary");
-    expect(t).not.toContain("hy2-primary");
-    expect(t).not.toContain("hy2b-primary");
+    expect(t).toContain("reality-primary-google");
+    expect(t).not.toContain("hy2-primary-443");
     expect(t).not.toContain("exit-select");
     expect(t).not.toContain("exit-home");
     expect(p.route.final).toBe("entry-select");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
-      (o) => o.tag === "reality-primary",
+      (o) => o.tag === "reality-primary-google",
     );
     expect(realityOut?.uuid).toBe("uuid-guest1");
 
@@ -84,11 +83,13 @@ describe("buildProfile hy2 ports", () => {
   it("gives every listening port its own outbound, main port untagged", () => {
     const p = buildProfile(admin, [node], "ts.net");
     const t = tags(p);
-    expect(t).toContain("hy2-primary");
+    expect(t).toContain("hy2-primary-443");
     expect(t).toContain("hy2-primary-3478");
 
     const outs = p.outbounds as { tag: string; server_port?: number }[];
-    expect(outs.find((o) => o.tag === "hy2-primary")?.server_port).toBe(443);
+    expect(outs.find((o) => o.tag === "hy2-primary-443")?.server_port).toBe(
+      443,
+    );
     expect(outs.find((o) => o.tag === "hy2-primary-3478")?.server_port).toBe(
       3478,
     );
@@ -100,16 +101,17 @@ describe("buildProfile hy2 ports", () => {
       (o) => o.tag === "auto",
     );
     expect(auto?.outbounds).toEqual([
-      "hy2-primary",
+      "hy2-primary-443",
       "hy2-primary-3478",
-      "reality-primary",
+      "reality-primary-google",
+      "reality-primary-bing",
     ]);
   });
 
   it("emits only the main port when a node has no alt ports", () => {
     const bare = { ...node, hysteria: { ...node.hysteria, altPorts: [] } };
     const t = tags(buildProfile(admin, [bare], "ts.net"));
-    expect(t).toContain("hy2-primary");
+    expect(t).toContain("hy2-primary-443");
     expect(t).not.toContain("hy2-primary-3478");
   });
 
@@ -118,5 +120,52 @@ describe("buildProfile hy2 ports", () => {
       buildProfile({ name: "guest1", role: "guest" }, [node], "ts.net"),
     );
     expect(json).not.toContain("3478");
+  });
+});
+
+describe("buildProfile REALITY identities", () => {
+  const admin = { name: "jc", role: "admin" } as const;
+  const guest = { name: "guest1", role: "guest" } as const;
+  const oneSni = {
+    ...node,
+    reality: { ...node.reality, serverNames: ["www.google.co.uk"] },
+  };
+
+  it("gives each SNI its own outbound on the same credentials", () => {
+    const outs = buildProfile(admin, [node], "ts.net").outbounds as {
+      tag: string;
+      uuid?: string;
+      tls?: { server_name?: string };
+    }[];
+    const first = outs.find((o) => o.tag === "reality-primary-google");
+    const second = outs.find((o) => o.tag === "reality-primary-bing");
+
+    expect(first?.tls?.server_name).toBe("www.google.co.uk");
+    expect(second?.tls?.server_name).toBe("www.bing.com");
+    // Same inbound, so the credentials must not diverge with the identity.
+    expect(second?.uuid).toBe("uuid-jc");
+    expect(first?.uuid).toBe(second?.uuid);
+  });
+
+  it("gives a guest a urltest, so an intercepted SNI fails over unattended", () => {
+    const p = buildProfile(guest, [node], "ts.net");
+    const auto = (p.outbounds as { tag: string; outbounds?: string[] }[]).find(
+      (o) => o.tag === "auto",
+    );
+    // Reality-only, but no longer a single point of failure.
+    expect(auto?.outbounds).toEqual([
+      "reality-primary-google",
+      "reality-primary-bing",
+    ]);
+    expect(tags(p)).not.toContain("hy2-primary-443");
+  });
+
+  it("skips the urltest when a guest node serves one identity", () => {
+    const p = buildProfile(guest, [oneSni], "ts.net");
+    expect(tags(p)).not.toContain("auto");
+    const entry = (p.outbounds as { tag: string; default?: string }[]).find(
+      (o) => o.tag === "entry-select",
+    );
+    expect(entry?.default).toBe("reality-primary-google");
   });
 });

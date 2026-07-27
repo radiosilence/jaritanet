@@ -135,7 +135,7 @@ cat > /usr/local/etc/xray/config.json << XRAY_EOF
           "show": false,
           "dest": "${xray.dest}",
           "xver": 0,
-          "serverNames": ["${xray.serverName}"],
+          "serverNames": ${JSON.stringify(xray.serverNames)},
           "privateKey": "$PRIV",
           "shortIds": ["${shortId.hex}"]
         }
@@ -164,7 +164,7 @@ systemctl restart xray`,
         clientsJson,
         guestsList,
         shortId.hex,
-        xray.serverName,
+        xray.serverNames.join(),
         xray.dest,
         publicKey.stdout,
       ],
