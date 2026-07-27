@@ -116,15 +116,15 @@ systemctl enable rathole
       userData: serverConfig,
     },
     {
-      // hcloud treats serverType as an in-place resize, which Hetzner rejects
-      // across architectures: "server type has incompatible architecture". x86
-      // to ARM is a new machine, so say so rather than letting Pulumi attempt an
-      // update that can never succeed.
-      replaceOnChanges: ["serverType"],
-      // And the old one has to go first — Hetzner server names are unique, so
-      // the default create-then-delete would collide with itself. This is also
-      // the honest description of what happens: the REALITY private key is
-      // minted on-box and dies with it, so every client profile rotates.
+      // NOT replaceOnChanges for serverType: within one architecture hcloud
+      // resizes in place, which keeps the IP and the on-box REALITY key — so no
+      // client profile changes. Only a cross-architecture move (x86 to ARM)
+      // needs a new machine, and Hetzner rejects that as a resize with
+      // "server type has incompatible architecture".
+      //
+      // deleteBeforeReplace still matters for the cases that *do* replace
+      // (image, location, ssh key): Hetzner server names are unique, so the
+      // default create-then-delete would collide with itself.
       deleteBeforeReplace: true,
     },
   );

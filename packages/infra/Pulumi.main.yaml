@@ -135,11 +135,12 @@ config:
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
     # carries the cluster as well as the transports.
     name: sympathy
-    # nbg1 had no CAX capacity ("resource_unavailable" at placement). ARM stock
-    # moves around, so this is a knob to try rather than a decision — fsn1 and
-    # hel1 are the other CAX locations.
-    location: fsn1
-    serverType: cax21
+    # cx33: 4 vCPU / 8GB, x86 like the box already running, so this is an
+    # in-place resize rather than a new machine — the IP and the on-box REALITY
+    # key survive, and no client profile has to change. CAX (ARM) was the plan
+    # until it turned out to be unavailable in every location.
+    location: nbg1
+    serverType: cx33
     # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
     # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
     # Cilium's version must match the k8s minor: 1.19 supports 1.33-1.36.
