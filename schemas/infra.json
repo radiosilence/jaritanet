@@ -145,15 +145,19 @@
                   "default": "127.0.0.1:8443",
                   "type": "string"
                 },
-                "serverName": {
-                  "type": "string"
+                "serverNames": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
                 },
                 "version": {
                   "default": "v26.3.27",
                   "type": "string"
                 }
               },
-              "required": ["serverName"]
+              "required": ["serverNames"]
             }
           }
         },
@@ -169,7 +173,7 @@
               "type": "string"
             },
             "image": {
-              "$ref": "#/$defs/__schema2"
+              "$ref": "#/$defs/__schema3"
             },
             "hydraTag": {
               "default": "v2.2.0",
@@ -184,7 +188,7 @@
                 "cpu": "500m",
                 "memory": "256Mi"
               },
-              "$ref": "#/$defs/__schema3"
+              "$ref": "#/$defs/__schema4"
             },
             "postgresStorageClass": {
               "type": "string"
@@ -196,43 +200,43 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "$ref": "#/$defs/__schema4"
-                  },
-                  "name": {
                     "$ref": "#/$defs/__schema5"
                   },
-                  "image": {
+                  "name": {
                     "$ref": "#/$defs/__schema6"
                   },
-                  "args": {
+                  "image": {
                     "$ref": "#/$defs/__schema7"
                   },
-                  "port": {
+                  "args": {
                     "$ref": "#/$defs/__schema8"
                   },
-                  "path": {
+                  "port": {
                     "$ref": "#/$defs/__schema9"
                   },
-                  "credentialHeader": {
+                  "path": {
                     "$ref": "#/$defs/__schema10"
                   },
-                  "fields": {
+                  "credentialHeader": {
                     "$ref": "#/$defs/__schema11"
                   },
-                  "public": {
+                  "fields": {
                     "$ref": "#/$defs/__schema12"
                   },
-                  "graphqlPath": {
+                  "public": {
                     "$ref": "#/$defs/__schema13"
                   },
-                  "keyHelpUrl": {
+                  "graphqlPath": {
                     "$ref": "#/$defs/__schema14"
                   },
-                  "keyHint": {
+                  "keyHelpUrl": {
                     "$ref": "#/$defs/__schema15"
                   },
-                  "verify": {
+                  "keyHint": {
                     "$ref": "#/$defs/__schema16"
+                  },
+                  "verify": {
+                    "$ref": "#/$defs/__schema17"
                   }
                 },
                 "required": ["id", "name", "image"]
@@ -395,10 +399,10 @@
                     "maximum": 4294967295
                   },
                   "image": {
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema3"
                   },
                   "limits": {
-                    "$ref": "#/$defs/__schema3"
+                    "$ref": "#/$defs/__schema4"
                   },
                   "persistence": {
                     "default": [],
@@ -615,6 +619,9 @@
       }
     },
     "__schema2": {
+      "type": "string"
+    },
+    "__schema3": {
       "type": "object",
       "properties": {
         "pullPolicy": {
@@ -629,7 +636,7 @@
       },
       "required": ["repository", "tag"]
     },
-    "__schema3": {
+    "__schema4": {
       "type": "object",
       "properties": {
         "cpu": {
@@ -642,9 +649,6 @@
         }
       }
     },
-    "__schema4": {
-      "type": "string"
-    },
     "__schema5": {
       "type": "string"
     },
@@ -652,24 +656,27 @@
       "type": "string"
     },
     "__schema7": {
+      "type": "string"
+    },
+    "__schema8": {
       "default": [],
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "__schema8": {
+    "__schema9": {
       "default": 8080,
       "type": "number"
     },
-    "__schema9": {
+    "__schema10": {
       "default": "/mcp",
       "type": "string"
     },
-    "__schema10": {
+    "__schema11": {
       "type": "string"
     },
-    "__schema11": {
+    "__schema12": {
       "type": "array",
       "items": {
         "type": "object",
@@ -705,11 +712,8 @@
         "required": ["id", "label", "header"]
       }
     },
-    "__schema12": {
-      "type": "boolean"
-    },
     "__schema13": {
-      "type": "string"
+      "type": "boolean"
     },
     "__schema14": {
       "type": "string"
@@ -718,6 +722,9 @@
       "type": "string"
     },
     "__schema16": {
+      "type": "string"
+    },
+    "__schema17": {
       "type": "object",
       "properties": {
         "query": {

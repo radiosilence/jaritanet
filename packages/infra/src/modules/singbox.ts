@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "../env.schema.ts";
-import { sha256hex } from "../util.ts";
+import { sha256hex, sniLabel } from "../util.ts";
 
 /**
  * One node in the client profile — the primary gateway or an edge. Credentials
@@ -22,7 +22,7 @@ export type SingboxNode = {
   };
   reality: {
     publicKey: pulumi.Input<string>;
-    serverName: string;
+    serverNames: string[];
     shortId: pulumi.Input<string>;
     uuids: Record<string, pulumi.Input<string>>;
   };
@@ -41,7 +41,7 @@ type ResolvedNode = {
   };
   reality: {
     publicKey: string;
-    serverName: string;
+    serverNames: string[];
     shortId: string;
     uuids: Record<string, string>;
   };
@@ -115,16 +115,27 @@ const hy2Brutal = (n: ResolvedNode, password: string) => ({
 });
 const hy2Ports = (n: ResolvedNode) => [n.hysteria.port, ...n.hysteria.altPorts];
 const hy2Tags = (n: ResolvedNode) => hy2Ports(n).map((p) => hy2Tag(n, p));
-const reality = (n: ResolvedNode, uuid: string) => ({
+// One outbound per borrowed identity, all the same inbound: same UUID, key and
+// shortId, differing only in the name the ClientHello claims. Which identity
+// survives is a property of the network (see XrayConfSchema), so they all sit
+// in the urltest and the client settles on one that isn't being intercepted.
+// First name keeps the bare tag, as with hy2's main port.
+const realityTag = (n: ResolvedNode, sni: string) =>
+  sni === n.reality.serverNames[0]
+    ? `reality-${n.name}`
+    : `reality-${n.name}-${sniLabel(sni)}`;
+const realityTags = (n: ResolvedNode) =>
+  n.reality.serverNames.map((sni) => realityTag(n, sni));
+const reality = (n: ResolvedNode, uuid: string, sni: string) => ({
   type: "vless",
-  tag: `reality-${n.name}`,
+  tag: realityTag(n, sni),
   server: n.server,
   server_port: 443,
   uuid,
   flow: "xtls-rprx-vision",
   tls: {
     enabled: true,
-    server_name: n.reality.serverName,
+    server_name: sni,
     utls: { enabled: true, fingerprint: "chrome" },
     reality: {
       enabled: true,
@@ -185,15 +196,19 @@ export function buildProfile(
 
   // Transports available to this user per node: reality always; hy2 admin-only.
   const autoTags = (n: ResolvedNode) =>
-    isAdmin ? [...hy2Tags(n), `reality-${n.name}`] : [`reality-${n.name}`];
-  const pickTags = (n: ResolvedNode) =>
+    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+  // Leaf outbounds in picker order — the manual drill-in under a node's group.
+  const entryTags = (n: ResolvedNode) =>
     isAdmin
-      ? [`auto-${n.name}`, ...hy2Tags(n), `hy2b-${n.name}`, `reality-${n.name}`]
-      : [`reality-${n.name}`];
+      ? [...hy2Tags(n), `hy2b-${n.name}`, ...realityTags(n)]
+      : realityTags(n);
+  const pickTags = (n: ResolvedNode) => [`auto-${n.name}`, ...entryTags(n)];
 
   const outbounds: Record<string, unknown>[] = [];
   for (const n of nodes) {
-    outbounds.push(reality(n, n.reality.uuids[user.name]));
+    for (const sni of n.reality.serverNames) {
+      outbounds.push(reality(n, n.reality.uuids[user.name], sni));
+    }
     if (isAdmin) {
       // hy2's server auth is `userpass`, so the client's password must be
       // `<name>:<password>` — the server splits on the first colon to look the
@@ -205,22 +220,16 @@ export function buildProfile(
   }
   if (nodes.length === 1) {
     const n = nodes[0];
-    const t = n.name;
-    if (isAdmin) {
-      outbounds.push(urltest("auto", autoTags(n)));
+    const candidates = autoTags(n);
+    if (candidates.length > 1) {
+      outbounds.push(urltest("auto", candidates));
       outbounds.push(
-        selector(
-          "entry-select",
-          ["auto", ...hy2Tags(n), `hy2b-${t}`, `reality-${t}`],
-          "auto",
-        ),
+        selector("entry-select", ["auto", ...entryTags(n)], "auto"),
       );
     } else {
-      // Reality-only: no urltest to pick between transports, so entry-select is
-      // just the single reality outbound.
-      outbounds.push(
-        selector("entry-select", [`reality-${t}`], `reality-${t}`),
-      );
+      // One candidate, so nothing for a urltest to choose between: a guest on a
+      // node serving a single REALITY identity.
+      outbounds.push(selector("entry-select", candidates, candidates[0]));
     }
   } else {
     for (const n of nodes) {

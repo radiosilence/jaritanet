@@ -13,7 +13,7 @@ const node = {
   },
   reality: {
     publicKey: "pk",
-    serverName: "sni.example",
+    serverNames: ["www.google.co.uk", "www.bing.com"],
     shortId: "sid",
     uuids: { guest1: "uuid-guest1", jc: "uuid-jc" },
   },
@@ -103,6 +103,7 @@ describe("buildProfile hy2 ports", () => {
       "hy2-primary",
       "hy2-primary-3478",
       "reality-primary",
+      "reality-primary-bing",
     ]);
   });
 
@@ -118,5 +119,52 @@ describe("buildProfile hy2 ports", () => {
       buildProfile({ name: "guest1", role: "guest" }, [node], "ts.net"),
     );
     expect(json).not.toContain("3478");
+  });
+});
+
+describe("buildProfile REALITY identities", () => {
+  const admin = { name: "jc", role: "admin" } as const;
+  const guest = { name: "guest1", role: "guest" } as const;
+  const oneSni = {
+    ...node,
+    reality: { ...node.reality, serverNames: ["www.google.co.uk"] },
+  };
+
+  it("gives each SNI its own outbound on the same credentials", () => {
+    const outs = buildProfile(admin, [node], "ts.net").outbounds as {
+      tag: string;
+      uuid?: string;
+      tls?: { server_name?: string };
+    }[];
+    const first = outs.find((o) => o.tag === "reality-primary");
+    const second = outs.find((o) => o.tag === "reality-primary-bing");
+
+    expect(first?.tls?.server_name).toBe("www.google.co.uk");
+    expect(second?.tls?.server_name).toBe("www.bing.com");
+    // Same inbound, so the credentials must not diverge with the identity.
+    expect(second?.uuid).toBe("uuid-jc");
+    expect(first?.uuid).toBe(second?.uuid);
+  });
+
+  it("gives a guest a urltest, so an intercepted SNI fails over unattended", () => {
+    const p = buildProfile(guest, [node], "ts.net");
+    const auto = (p.outbounds as { tag: string; outbounds?: string[] }[]).find(
+      (o) => o.tag === "auto",
+    );
+    // Reality-only, but no longer a single point of failure.
+    expect(auto?.outbounds).toEqual([
+      "reality-primary",
+      "reality-primary-bing",
+    ]);
+    expect(tags(p)).not.toContain("hy2-primary");
+  });
+
+  it("skips the urltest when a guest node serves one identity", () => {
+    const p = buildProfile(guest, [oneSni], "ts.net");
+    expect(tags(p)).not.toContain("auto");
+    const entry = (p.outbounds as { tag: string; default?: string }[]).find(
+      (o) => o.tag === "entry-select",
+    );
+    expect(entry?.default).toBe("reality-primary");
   });
 });
