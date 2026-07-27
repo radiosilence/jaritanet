@@ -90,7 +90,13 @@ k3s kubectl get --raw /readyz >/dev/null
 cat /etc/rancher/k3s/k3s.yaml`,
       triggers: [k3s.version, pulumi.output(apiHost)],
     },
-    { dependsOn: [server] },
+    {
+      dependsOn: [server],
+      // This command's stdout ends with the kubeconfig, which carries a
+      // cluster-admin client certificate and key. Pulumi persists every
+      // resource output to state, so without this it is stored in the clear.
+      additionalSecretOutputs: ["stdout"],
+    },
   );
 
   // The kubeconfig is the install command's own stdout, not a separate read.
