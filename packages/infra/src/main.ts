@@ -92,9 +92,7 @@ export default async function () {
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     gatewayK3s = gw.k3s;
-    transportDeps = [gw.legacyUnits, gw.vpnEntryLabel].filter(
-      (r) => r !== undefined,
-    );
+    transportDeps = [gw.vpnEntryLabel].filter((r) => r !== undefined);
 
     if (gw.xray && gatewayConf.xray) {
       reality = {
