@@ -167,10 +167,16 @@ ${exitClientEntries}`;
                   command: ["/app/rathole"],
                   image: "rapiz1/rathole:latest",
                   name: "rathole",
+                  // 64Mi got this OOMKilled (exit 137) roughly every few days.
+                  // Every restart drops the tunnel, and with it all public
+                  // ingress and every exit — this one pod is the whole path
+                  // home. Buffers scale with concurrent streams, so a media
+                  // service plus exit traffic is nothing like the idle
+                  // footprint the original limit was presumably sized from.
                   resources: {
                     limits: {
                       cpu: "100m",
-                      memory: "64Mi",
+                      memory: "256Mi",
                     },
                   },
                   volumeMounts: [
