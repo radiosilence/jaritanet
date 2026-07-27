@@ -47,19 +47,15 @@ export function createCilium(
         // What Traefik needs; see above.
         hostPort: { enabled: true },
         nodePort: { enabled: true },
-        // k3s keeps its CNI plugins and config outside the usual /opt and /etc
-        // locations, and Cilium writes its conflist to whatever it is told.
-        //
-        // binPath is `data/cni`, not `data/<hash>/bin`: the latter holds k3s's
-        // own binaries and containerd does not scan it, so a plugin installed
-        // there is invisible. The failure is quiet and misleading — Cilium
-        // reports healthy and sets NetworkUnavailable=False, while kubelet
-        // holds the node NotReady with "cni plugin not initialized" and every
-        // pod stays Pending.
-        cni: {
-          binPath: "/var/lib/rancher/k3s/data/cni",
-          confPath: "/var/lib/rancher/k3s/agent/etc/cni/net.d",
-        },
+        // No `cni` override: k3s with --flannel-backend=none writes no CNI
+        // section into containerd's config at all, so containerd falls back to
+        // its own defaults — /opt/cni/bin and /etc/cni/net.d — and those are
+        // already the chart's defaults too. Pointing Cilium at k3s's own
+        // directories (which most k3s+cilium advice still says to do, from
+        // before containerd 2.x) installs the plugin somewhere containerd never
+        // looks. It fails silently in the worst way: Cilium reports healthy and
+        // sets NetworkUnavailable=False while kubelet holds the node NotReady
+        // with "cni plugin not initialized" and every pod stays Pending.
       },
     },
     { dependsOn, provider },
