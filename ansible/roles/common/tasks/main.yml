@@ -51,6 +51,19 @@
       - ffmpeg
     state: present
 
+# The GA kernel series is pinned for the life of the release (24.04 stays on
+# 6.8, patched but never moved), so the only way to a newer kernel without a
+# distro upgrade is the HWE stack. Version comes from the host rather than a
+# literal, so this keeps meaning the right thing across a release upgrade.
+#
+# Installing it does not remove the GA kernel: both stay in /boot and GRUB can
+# fall back, which matters on hardware old enough to dislike a new one.
+- name: Install the HWE kernel
+  ansible.builtin.apt:
+    name: "linux-generic-hwe-{{ ansible_distribution_version }}"
+    state: present
+  when: hwe_kernel | default(false) | bool
+
 - name: Enable BBR congestion control + fq qdisc
   # Matches the gateway VPS. Default cubic collapses on loss; BBR holds the pipe
   # open — helps the rathole client→gateway leg and the exit's own egress.

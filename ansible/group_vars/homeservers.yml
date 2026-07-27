@@ -19,3 +19,9 @@ syncthing:
 
 samba:
   enabled: true
+
+# Roll the kernel forward within the LTS. The GA series (6.8 on 24.04) is pinned
+# for the life of the release, so this is the only way to a newer kernel short of
+# a distro upgrade. Takes effect on the next reboot; the GA kernel stays in /boot
+# as a fallback.
+hwe_kernel: true
