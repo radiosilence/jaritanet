@@ -258,6 +258,16 @@ export function createMcpGateway(
       spec: {
         backoffLimit: 5,
         template: {
+          metadata: {
+            // Postgres' NetworkPolicy admits app=mcp-gateway and
+            // app=mcp-gateway-hydra only, and a Job's pod otherwise carries
+            // nothing but job-name and controller-uid. Without this the
+            // migration is dropped rather than refused, so it presents as a
+            // dial timeout to a Service that plainly has endpoints. It went
+            // unnoticed while the cluster ran flannel, which enforces no
+            // policy at all; Cilium does.
+            labels: { app: "mcp-gateway-hydra" },
+          },
           spec: {
             restartPolicy: "OnFailure",
             containers: [
