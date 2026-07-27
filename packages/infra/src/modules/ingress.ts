@@ -80,10 +80,19 @@ export function createIngress(
           enabled: true,
           size: "128Mi",
         },
-        // Single node with hostPort — can't rolling update because the
-        // old pod holds the port. Kill it first, then start the new one.
-        deployment: {
-          strategy: "Recreate",
+        // Single node with hostPort: the replacement pod cannot bind :80/:443
+        // while the old one holds them, so the chart's default (maxUnavailable
+        // 0, maxSurge 1) deadlocks — the new pod stays Pending forever and the
+        // old one is never allowed to leave. Traefik sat 20 days on a stale pod
+        // that way, silently ignoring chart bumps.
+        //
+        // Old pod goes first, then the new one binds. That is a few seconds of
+        // no ingress per deploy, which is the price of one node and a hostPort.
+        // This key is `updateStrategy`, NOT `deployment.strategy` — the latter
+        // is not in the chart's values and was accepted and ignored.
+        updateStrategy: {
+          type: "RollingUpdate",
+          rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
         },
         resources: {
           limits: {
