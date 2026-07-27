@@ -177,8 +177,27 @@ like a VPN.
 
 | Transport | Wire | DPI stance | Role |
 |---|---|---|---|
-| **Hysteria2** | QUIC over UDP/443 + Salamander obfs | Defeats protocol fingerprinting; still high-entropy UDP, so vulnerable to "unclassified UDP" heuristics and UDP-hostile networks | Daily driver — fast, loss-tolerant |
+| **Hysteria2** | QUIC over UDP/443, /3478 and /4500 + Salamander obfs | Defeats protocol fingerprinting; still high-entropy UDP, so vulnerable to "unclassified UDP" heuristics and UDP-hostile networks | Daily driver — fast, loss-tolerant |
 | **VLESS-Vision-REALITY** | TCP/443, mimics a real TLS 1.3 session | Strong — passes as genuine HTTPS, survives active probing | Fallback for UDP-blocked / censored networks |
+
+**Why hy2 listens on two ports.** No single UDP port survives every network,
+and the two failure modes are mirror images. Any FortiGate doing TLS inspection
+blocks QUIC on `udp/443` as a matter of course — it cannot deep-inspect QUIC, so
+it kills it to force browsers back to TCP TLS it *can* inspect. Measured on a
+filtered pub network: `udp/443` handshakes hang, while STUN to `udp/3478` and
+`udp/19302` both answer, so UDP egress itself was never the problem.
+
+The alternates are chosen as ports a restrictive network must permit *on
+purpose*, not ones it forgot about — an allowlist is what we're up against, so
+an obscure port is worth nothing. `3478` is STUN, open anywhere WhatsApp and
+Teams calls work; `4500` is IPsec NAT-T, open anywhere staff VPNs work. The
+places that block VoIP to stop those calls (Egypt, UAE, Saudi) invert it
+exactly: `3478` dies first and `443` lives. Serving all three and letting the
+client's urltest find the survivor beats betting on any one of them. Keep the
+list short — each port is another probe on every switch and another row in the
+picker. They are separate `hysteria-server@` systemd instances, not a
+DNAT port-hop: no nat table to persist across reboots, and each port fails
+independently. Alt ports are `gateway.hysteria.altPorts` (same key on an edge).
 
 **Why REALITY is slow on lossy links:** it's TCP, and tunnelled app traffic is
 mostly TCP, so you stack TCP-in-TCP. Two retransmit + congestion loops fight

@@ -45,6 +45,9 @@ export function createEdge(
       inboundRule("SSH", 22),
       inboundRule("HTTPS / REALITY", 443),
       inboundRule("Hysteria2 QUIC", edge.hysteria.port, "udp"),
+      ...edge.hysteria.altPorts.map((port) =>
+        inboundRule(`Hysteria2 QUIC (alt ${port})`, port, "udp"),
+      ),
     ],
   });
 
