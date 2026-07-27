@@ -67,10 +67,14 @@ export function createHysteria(
 #      it lets go, and the vendor install scripts give no way to pass a timeout.
 # Both are idempotent and return immediately once the box has settled.
 cloud-init status --wait >/dev/null 2>&1 || true
-for _ in $(seq 1 120); do
-  fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break
-  sleep 5
-done
+# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
+# lock for minutes; every apt call exits 100 until it lets go. Telling apt
+# itself to wait is the only approach that also covers the vendor install
+# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
+# A polling loop here cannot help those, and fuser is not even installed on
+# the minimal cloud image anyway.
+mkdir -p /etc/apt/apt.conf.d
+printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
 export DEBIAN_FRONTEND=noninteractive
 apt-get update && apt-get install -y openssl
 # Official installer: binary + hysteria-server.service systemd unit.
@@ -101,10 +105,14 @@ fi`,
 #      it lets go, and the vendor install scripts give no way to pass a timeout.
 # Both are idempotent and return immediately once the box has settled.
 cloud-init status --wait >/dev/null 2>&1 || true
-for _ in $(seq 1 120); do
-  fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break
-  sleep 5
-done
+# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
+# lock for minutes; every apt call exits 100 until it lets go. Telling apt
+# itself to wait is the only approach that also covers the vendor install
+# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
+# A polling loop here cannot help those, and fuser is not even installed on
+# the minimal cloud image anyway.
+mkdir -p /etc/apt/apt.conf.d
+printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
 # Every listener is the same server on a different port, so the config is
 # written by one function and the extras ride the installer's
 # hysteria-server@.service template unit (reads /etc/hysteria/<instance>.yaml).
