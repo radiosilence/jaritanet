@@ -51,6 +51,50 @@
       - ffmpeg
     state: present
 
+# The GA kernel series is pinned for the life of the release (24.04 stays on
+# 6.8, patched but never moved), so the only way to a newer kernel without a
+# distro upgrade is the HWE stack. Version comes from the host rather than a
+# literal, so this keeps meaning the right thing across a release upgrade.
+#
+# Installing it does not remove the GA kernel: both stay in /boot and GRUB can
+# fall back, which matters on hardware old enough to dislike a new one.
+- name: Install the HWE kernel
+  ansible.builtin.apt:
+    name: "linux-generic-hwe-{{ ansible_distribution_version }}"
+    state: present
+  when: hwe_kernel | default(false) | bool
+
+# Boots the newest kernel unattended (GRUB_DEFAULT=0 sorts newest first) but
+# draws the menu first, so an older entry can be chosen when a new kernel does
+# not agree with the hardware.
+#
+# Both keys have to move together: the style here is `hidden`, which waits out
+# GRUB_TIMEOUT without ever drawing the menu — setting the timeout alone looks
+# like it worked right up until the boot where it matters.
+#
+# Not strictly required (a failed boot leaves recordfail set, which forces the
+# menu regardless) but this box reboots about twice a year, so a few seconds is
+# not a cost worth optimising away.
+- name: Show the GRUB menu briefly before booting the default kernel
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+  loop:
+    - { key: "GRUB_TIMEOUT_STYLE", value: "menu" }
+    - { key: "GRUB_TIMEOUT", value: "{{ grub_timeout }}" }
+  when: grub_timeout is defined
+  notify: update grub
+
+# Run the handler here rather than at play end. /etc/default/grub is only input;
+# without update-grub the running config keeps whatever it had. If the play
+# failed in between, the next run would find the file already correct, report no
+# change, never notify — and grub.cfg would stay stale forever while the source
+# of truth claims otherwise.
+- name: Apply the GRUB change before anything else can fail
+  ansible.builtin.meta: flush_handlers
+
 - name: Enable BBR congestion control + fq qdisc
   # Matches the gateway VPS. Default cubic collapses on loss; BBR holds the pipe
   # open — helps the rathole client→gateway leg and the exit's own egress.
