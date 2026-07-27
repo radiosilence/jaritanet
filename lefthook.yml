@@ -10,3 +10,7 @@ pre-commit:
       stage_fixed: true
     typecheck-infra:
       run: aube run typecheck:infra
+    rust:
+      glob: "containers/**/*.rs"
+      run: cd containers/serve-from-env && cargo fmt && cargo clippy --all-targets -- -D warnings
+      stage_fixed: true

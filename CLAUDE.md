@@ -125,9 +125,11 @@ Rewrites go through the YAML document API and mutate the existing scalar, so a b
 
 Triggered on ansible/ changes. Connects via Tailscale, runs playbooks, updates GitHub secrets. Roles are tagged with their own name; the workflow diffs the push and runs only the changed roles (`--tags`), falling back to a full run on shared-file changes. `workflow_dispatch` takes a `tags` input for targeted manual runs. CI runs use the Mitogen strategy (env-only) for speed.
 
-### Container Builds (`build-files-container.yml`)
+### Container Builds (`build-files-container.yml`, `build-serve-from-env-container.yml`)
 
-Builds and publishes the file server container on changes to `containers/files/`.
+Builds and publishes each container on changes to its own directory. The Rust
+one is checked and tested by the `containers` job in `ci-cd.yml` (fmt, clippy,
+`cargo test`), which gates the deploy.
 
 ## Ansible Infrastructure
 
@@ -175,6 +177,10 @@ Three-stage deployment targeting different host groups:
 ## Container Services
 
 - `containers/files/` - Nginx-based file server with CORS and compression
+- `containers/serve-from-env/` - Serves `$ROUTES` (`{"<path>": <content>}`) and
+  nothing else; static musl binary on `scratch`. Built for the sing-box
+  profiles, whose paths are secret and whose bodies Pulumi already holds as
+  strings — so there is no volume to mount and no file to go stale.
 
 ## Utility Scripts
 
