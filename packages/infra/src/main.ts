@@ -4,7 +4,6 @@ import { conf } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { env, vpnUsers } from "./env.ts";
 import type { VpnUser } from "./env.schema.ts";
-import { getKubeconfig } from "./kubeconfig.ts";
 import {
   createBlueskyRecords,
   createFastmailRecords,
@@ -160,21 +159,17 @@ export default async function () {
   }
 
   // --- Kubernetes provider ---
-  // The gateway's own cluster when it runs one, otherwise the KUBE_* secrets
-  // that ansible pushes for the home box. Same `pulumi up` that creates the
-  // server produces this kubeconfig, so there is no secret round-trip — see
-  // modules/k3s.ts.
-  const kubeconfig: pulumi.Input<string> =
-    gatewayK3s?.kubeconfig ??
-    JSON.stringify(
-      getKubeconfig({
-        host: env.KUBE_HOST,
-        port: env.KUBE_API_PORT,
-        token: atob(env.KUBE_TOKEN),
-      }),
-      null,
-      2,
-    );
+  // The cluster runs on the gateway itself, and the same `pulumi up` that
+  // creates the server produces this kubeconfig — no secret round-trip, and
+  // nothing for a human to rotate. See modules/k3s.ts.
+  //
+  // Replaces a hand-built kubeconfig pointing at microk8s on the home box,
+  // which reached it with a service-account token ansible pushed into GitHub
+  // secrets and trusted whatever certificate it was handed.
+  if (!gatewayK3s) {
+    throw new Error("gateway.k3s is required: it provides the cluster");
+  }
+  const kubeconfig = gatewayK3s.kubeconfig;
 
   const provider = new k8s.Provider(
     "provider",
