@@ -141,7 +141,7 @@ Three-stage deployment targeting different host groups:
 
 2. **Homeserver Configuration** (`hosts: homeservers`)
    - MicroK8s cluster setup with configurable addons
-   - NFS and Samba file sharing
+   - Samba file sharing (read-only, tailnet + LAN only)
    - Syncthing for file synchronization
    - Media downloader services (yt-dlp, get-iplayer)
 
@@ -155,7 +155,7 @@ Three-stage deployment targeting different host groups:
 - **`users/`** - User accounts and SSH key management
 - **`github/`** - GitHub CLI and authentication setup
 - **`tailscale/`** - VPN mesh network connectivity
-- **`nfs/`** - Network file system exports
+- **`nfs/`** - Teardown only. NFS exported every share `rw` to `*`, so anything that could reach 2049 — including cluster pods, via an internet-facing service on the same host — could write all media and `/srv/files`. SMB covers the use case read-only; the role remains so the package stays gone.
 - **`samba/`** - SMB file sharing
 - **`syncthing/`** - P2P file sync service
 - **`downloader/`** - Media download tools (yt-dlp, get-iplayer, aria2)

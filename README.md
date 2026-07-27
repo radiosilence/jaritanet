@@ -31,7 +31,7 @@ graph TB
 
             subgraph "Host Services"
                 Tailscale[Tailscale VPN]
-                Storage[NFS/Samba Storage]
+                Storage[Samba Storage]
                 Sync[Syncthing]
             end
         end
@@ -197,4 +197,4 @@ Updates are auto-committed and trigger a deploy.
 
 ## Server Management
 
-Ansible playbooks provision and configure the homeserver (MicroK8s, Tailscale, NFS/Samba, Syncthing, SSH hardening). See `ansible/` directory.
+Ansible playbooks provision and configure the homeserver (MicroK8s, Tailscale, Samba, Syncthing, SSH hardening). See `ansible/` directory.
