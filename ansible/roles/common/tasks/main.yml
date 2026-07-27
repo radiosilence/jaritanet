@@ -64,6 +64,29 @@
     state: present
   when: hwe_kernel | default(false) | bool
 
+# Boots the newest kernel unattended (GRUB_DEFAULT=0 sorts newest first) but
+# draws the menu first, so an older entry can be chosen when a new kernel does
+# not agree with the hardware.
+#
+# Both keys have to move together: the style here is `hidden`, which waits out
+# GRUB_TIMEOUT without ever drawing the menu — setting the timeout alone looks
+# like it worked right up until the boot where it matters.
+#
+# Not strictly required (a failed boot leaves recordfail set, which forces the
+# menu regardless) but this box reboots about twice a year, so a few seconds is
+# not a cost worth optimising away.
+- name: Show the GRUB menu briefly before booting the default kernel
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+  loop:
+    - { key: "GRUB_TIMEOUT_STYLE", value: "menu" }
+    - { key: "GRUB_TIMEOUT", value: "{{ grub_timeout }}" }
+  when: grub_timeout is defined
+  notify: update grub
+
 - name: Enable BBR congestion control + fq qdisc
   # Matches the gateway VPS. Default cubic collapses on loss; BBR holds the pipe
   # open — helps the rathole client→gateway leg and the exit's own egress.

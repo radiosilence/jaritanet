@@ -25,3 +25,8 @@ samba:
 # a distro upgrade. Takes effect on the next reboot; the GA kernel stays in /boot
 # as a fallback.
 hwe_kernel: true
+
+# Draw the GRUB menu for a few seconds before booting the newest kernel, so an
+# older one can be picked when a new kernel and 2014 hardware disagree. This box
+# reboots roughly twice a year; the seconds are not worth optimising away.
+grub_timeout: 5
