@@ -172,9 +172,30 @@ export const TailnetConfSchema = z.object({
   tag: z.string().default("tag:server"),
 });
 
+/**
+ * A Kubernetes control plane on the gateway itself, so one `pulumi up` creates
+ * the box, installs k3s and deploys into it — replacing the ansible → GitHub
+ * secrets → workflow round-trip the home cluster needed.
+ *
+ * `cilium` is not optional in practice: k3s is installed with
+ * `--flannel-backend=none` so Cilium can own networking, which means the node
+ * stays NotReady until Cilium is deployed. It is also the whole point — flannel
+ * has no policy engine, so every NetworkPolicy in this repo is inert under it
+ * (see docs/architecture.md).
+ *
+ * Cilium's version has to match the cluster's: 1.19 supports k8s 1.33–1.36,
+ * 1.18 supports 1.30–1.33. Moving `version` without checking that is how you
+ * get a cluster with no working network.
+ */
+export const K3sConfSchema = z.object({
+  ciliumVersion: z.string().default("1.19.6"),
+  version: z.string().default("v1.36.2+k3s1"),
+});
+
 export const GatewayConfSchema = z.object({
   hysteria: HysteriaConfSchema.optional(),
   image: z.string().default("ubuntu-24.04"),
+  k3s: K3sConfSchema.optional(),
   location: z.string().default("nbg1"),
   ratholeVersion: z.string().default("v0.5.0"),
   serverType: z.string().default("cx23"),
