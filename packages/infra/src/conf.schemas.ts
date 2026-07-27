@@ -323,6 +323,18 @@ export const BlueskyConfSchema = z.object({
   did: z.string(),
 });
 
+/**
+ * Where each user's sing-box profile is served from.
+ *
+ * Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials", so
+ * a filtered network — exactly the network a VPN profile is wanted on — blocks
+ * the device from fetching its own subscription.
+ */
+export const ProfilesConfSchema = z.object({
+  hostname: z.string(),
+  image: z.string(),
+});
+
 export const ConfSchema = z.object({
   bluesky: BlueskyConfSchema,
   cloudflare: CloudflareConfSchema,
@@ -335,6 +347,7 @@ export const ConfSchema = z.object({
   managedBy: z.string().default("jaritanet"),
   mcpGateway: McpGatewayConfSchema.optional(),
   namespace: z.string().default("jaritanet"),
+  profiles: ProfilesConfSchema.optional(),
   services: ServicesMapSchema,
   traefik: TraefikConfSchema,
   zones: ZonesConfSchema,

@@ -472,34 +472,59 @@ export function createSingboxDelivery(
 
   // One notify for the whole roster, fired when any profile changes.
   if (opts.telegram && delivered.length) {
-    const notifyUsers = pulumi
-      .all(delivered.map((d) => d.profileHash))
-      .apply(() =>
-        JSON.stringify(
-          delivered.map((d) => ({
-            name: d.user.name,
-            role: d.user.role,
-            url: d.url,
-          })),
-        ),
-      );
-    const notifyHash = sha256hex(
-      pulumi.all(delivered.map((d) => d.profileHash)).apply((h) => h.join()),
-    );
-    new command.local.Command(
-      "singbox-notify",
-      {
-        create: "node --experimental-strip-types scripts/notify-singbox.ts",
-        environment: {
-          VPN_NOTIFY_USERS: notifyUsers,
-          TELEGRAM_BOT_TOKEN: opts.telegram.botToken,
-          TELEGRAM_CHAT_ID: opts.telegram.chatId,
-        },
-        triggers: [notifyHash],
-      },
-      { dependsOn: delivered.map((d) => d.write) },
+    notifyProfileUrls(
+      delivered.map((d) => ({
+        name: d.user.name,
+        role: d.user.role,
+        url: d.url,
+      })),
+      opts.telegram,
+      sha256hex(
+        pulumi.all(delivered.map((d) => d.profileHash)).apply((h) => h.join()),
+      ),
+      delivered.map((d) => d.write),
     );
   }
 
   return delivered;
+}
+
+/**
+ * Tells Telegram where each user's profile now lives.
+ *
+ * Separate from how the profiles get served because that has changed — the
+ * notification is the same either way, and it is the only thing that tells a
+ * human their subscription URL moved.
+ *
+ * `trigger` is a hash of the profile content: an unchanged deploy must stay
+ * silent, or the notification becomes noise nobody reads on the deploy that
+ * matters.
+ */
+export function notifyProfileUrls(
+  users: { name: string; role: string; url: pulumi.Input<string> }[],
+  telegram: { botToken: pulumi.Output<string>; chatId: string },
+  trigger: pulumi.Input<string>,
+  dependsOn: pulumi.Resource[] = [],
+) {
+  const payload = pulumi
+    .all(users.map((u) => pulumi.output(u.url)))
+    .apply((urls) =>
+      JSON.stringify(
+        users.map((u, i) => ({ name: u.name, role: u.role, url: urls[i] })),
+      ),
+    );
+
+  return new command.local.Command(
+    "singbox-notify",
+    {
+      create: "node --experimental-strip-types scripts/notify-singbox.ts",
+      environment: {
+        VPN_NOTIFY_USERS: payload,
+        TELEGRAM_BOT_TOKEN: telegram.botToken,
+        TELEGRAM_CHAT_ID: telegram.chatId,
+      },
+      triggers: [trigger],
+    },
+    { dependsOn },
+  );
 }
