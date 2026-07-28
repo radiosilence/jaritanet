@@ -16,7 +16,9 @@ Code should be simple, elegant, and concise. Respect the "rule of three" - only 
 
 ## Overview
 
-JARITANET is an infrastructure-as-code monorepo using Pulumi to expose Kubernetes services via a Hetzner VPS gateway. Rathole tunnels TCP from the VPS to an in-cluster Traefik instance that handles TLS termination (Let's Encrypt via DNS-01) and hostname routing. Cloudflare provides DNS only (no proxy/tunnel).
+JARITANET is an infrastructure-as-code monorepo using Pulumi. One `pulumi up` provisions a Hetzner VPS, installs k3s on it, reads the kubeconfig back as an output, and deploys everything into that cluster — Traefik for TLS (Let's Encrypt via DNS-01) and hostname routing, the web services, and the VPN transports. Cilium is the CNI, so NetworkPolicies are actually enforced. Cloudflare provides DNS only (no proxy/tunnel).
+
+Rathole is only deployed when the cluster is somewhere other than the gateway; co-located it would tunnel a box to itself, so Xray relays to Traefik's hostPort directly.
 
 The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-REALITY and Hysteria2 share the VPS `:443`, optional edge boxes add entry points in other locations, and selectable exit nodes control egress IP. The sing-box client profile is generated and distributed by the same Pulumi run.
 

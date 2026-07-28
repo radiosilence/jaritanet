@@ -1,109 +1,86 @@
 # Architecture
 
 JARITANET is a personal anti-censorship + egress stack. A sing-box client picks
-**how it enters** (which gateway/transport) and **where it egresses**
-(direct, or via an exit node), all coordinated by one Pulumi program. Gateways
-are disposable VPSes; the home box sits behind NAT and never exposes a port.
-This doc covers the topology and transport layer; for the Pulumi package layout
-and secrets see the [README](../README.md).
+**how it enters** (which gateway/transport) and **where it egresses** (direct,
+or via an exit node), all coordinated by one Pulumi program. This doc covers the
+topology and transport layer; for the package layout and secrets see the
+[README](../README.md).
+
+Everything runs on one Hetzner VPS that hosts its own k3s cluster. The VPN
+transports, the DNS cache, the tailnet relay, Traefik and the web services are
+all workloads in it. The box itself runs k3s and sshd and nothing else.
 
 ## The whole system, end to end
 
-The path a connection takes: the shared `:443` split by protocol, the
-classification and egress decisions at the gateway, the rathole reverse-tunnel to
-home, and the three egress points.
-
-The gateway is the **hub**. The client picks how it *enters* (`entry-select` —
-a protocol today, a gateway once there's more than one) and where the gateway
-*egresses* it (`exit-select` — direct, or forwarded to an exit box). Everything
-transits the gateway; exits are just `ss-rust + rathole` boxes it forwards to.
+The gateway is the **hub**. A client picks how it *enters* (`entry-select`) and
+where it *egresses* (`exit-select`). Everything transits the gateway.
 
 ```mermaid
 flowchart TD
   CLIENT["sing-box client (VPN)"]
   VISITOR["public visitor / probe<br/>(no VLESS creds)"]
 
-  subgraph vps["Hetzner VPS — :443, split by protocol"]
-    XR["Xray VLESS-REALITY<br/>TCP :443"]
-    HY["Hysteria2 + Salamander<br/>UDP :443"]
-    FREE["freedom — direct egress"]
-  end
-
-  subgraph rh["rathole tunnel — single connection, multiplexed services"]
-    HTTPS_P["https service<br/>127.0.0.1:8443"]
-    EXIT_P["exit-home service<br/>127.0.0.1:9000"]
-    RC["rathole client<br/>(home k8s)"]
-    HTTPS_P -.-> RC
-    EXIT_P -.-> RC
-  end
-
-  subgraph home["oldboy — home k8s, behind NAT"]
-    TR["Traefik — TLS + routing"]
-    subgraph apps["home services — Deployment + Service, IngressRoute"]
-      ND["navidrome"]
-      BL["blit"]
-      FS["files"]
+  subgraph vps["sympathy — Hetzner VPS"]
+    subgraph entry["transports — DaemonSets, hostNetwork"]
+      XR["Xray VLESS-REALITY<br/>tcp :443"]
+      HY["Hysteria2 + Salamander<br/>udp :443 / :3478 / :4500"]
+      UB["unbound<br/>127.0.0.1:53"]
     end
-    SS["ss-rust exit"]
-    TR --> ND
+    TR["Traefik — TLS + routing<br/>hostPort 8443"]
+    subgraph apps["services — Deployment + Service + IngressRoute"]
+      BL["blit"]
+      MCP["mcp-gateway"]
+      PROF["singbox-profiles"]
+    end
+    FREE["direct egress"]
     TR --> BL
-    TR --> FS
+    TR --> MCP
+    TR --> PROF
   end
 
   VPSIP(("internet — VPS IP"))
-  HOMEIP(("internet — home IP"))
 
   CLIENT -->|reality| XR
   CLIENT -->|hy2| HY
+  CLIENT -.->|"DNS through the tunnel"| UB
   VISITOR -->|"HTTPS to blit.cc"| XR
 
-  XR -->|"unmatched → :8443"| HTTPS_P
-  XR -->|"matched, direct"| FREE
-  XR -->|"matched, exit → :9000"| EXIT_P
-  HY -->|"authenticated, direct"| FREE
-  HY -->|"authenticated, exit → :9000"| EXIT_P
-
-  RC -->|"https → Traefik"| TR
-  RC -->|"exit-home → ss-rust"| SS
-
+  XR -->|"unmatched → 127.0.0.1:8443"| TR
+  XR -->|"matched"| FREE
+  HY -->|"authenticated"| FREE
   FREE ==> VPSIP
-  SS ==> HOMEIP
+  UB ==>|"DoT :853"| VPSIP
 ```
 
-Egress is determined in two stages. On the shared `:443`, Xray (TCP) and
-Hysteria2 (UDP) classify the connection: a valid VPN client is proxied; an
-unmatched TLS connection — a real visitor or an active probe — is forwarded to
-`dest 127.0.0.1:8443`. A proxied client's `exit-select` then determines egress:
-`direct` leaves via `freedom` at the VPS IP without entering rathole, and a named
-exit has the VPS dial `127.0.0.1:<port>`. rathole performs no routing — it
-exposes a fixed set of named services (`https → Traefik`, `exit-home → ss-rust`),
-and the loopback port a connection arrives on selects the service. All services
-share a single rathole tunnel, one outbound connection from the home client to
-the VPS, rather than one tunnel per service. Both service binds
-(`127.0.0.1:8443`, `127.0.0.1:9000`) are loopback and absent from the firewall's
-inbound allow-list (`:22`, `:80`, `:443`, `:2333`, Hysteria2 UDP), so neither is
-reachable from the internet: Xray reaches `127.0.0.1:8443` locally, and an exit
-request reaches `127.0.0.1:9000` only after arriving through the tunnel.
+On the shared `:443`, Xray (TCP) and Hysteria2 (UDP) classify the connection: a
+valid VPN client is proxied; an unmatched TLS connection — a real visitor or an
+active probe — is forwarded to `dest 127.0.0.1:8443`, which is Traefik's
+`hostPort`. Both live in the host's network namespace, so that loopback address
+means what it says and never leaves the box. It is absent from the firewall's
+inbound allow-list (`:22`, `:80`, `:443`, `:6443`, Hysteria2's UDP ports), so
+nothing outside can reach it.
 
-Tailnet `100.x` isn't drawn here — it rides the same entry transports and the VPS
-dials it locally over `tailscale0`; see [Tailnet over the tunnel](#tailnet-over-the-tunnel-censorship-resistant-100x).
+Since the cluster is co-located with the gateway there is **no rathole**: it
+existed to reach a cluster behind NAT, and tunnelling a box to itself buys
+nothing. `modules/ingress.ts` still deploys a rathole client when the cluster is
+somewhere else, which is the configuration an exit node uses.
 
-The exit shown is oldboy (which also hosts the reverse-proxied home services),
-but an exit is just `ss-rust + rathole` — a future Hetzner VPS exit is the same
-two daemons via cloud-init, minus the services/tailnet-home roles. The sections
-below zoom into each part.
+Tailnet `100.x` isn't drawn here — it rides the same entry transports and the
+gateway dials it locally over `tailscale0`; see
+[Tailnet over the tunnel](#tailnet-over-the-tunnel-censorship-resistant-100x).
 
 ## The two data planes
 
 The VPS wears two hats at once:
 
-1. **Reverse proxy** for public home-hosted services (`blit.cc`, Navidrome,
-   files). Public visitors hit the VPS; their traffic is tunnelled down to the
-   home cluster over rathole. The home IP never appears in DNS and no home port
-   is ever opened — the rathole client dials *out*.
+1. **Reverse proxy** for the public services it hosts (`blit.cc`, the MCP
+   gateway, the profile server). Visitors hit `:443`, are classified as
+   non-clients, and are relayed to Traefik in the same cluster.
 2. **Censorship-resistant VPN egress** for the owner's devices. sing-box
    clients connect over Hysteria2 or VLESS-REALITY and egress to the open
-   internet directly from the VPS.
+   internet directly from the VPS. Measured at 1.0Gbit — `hostNetwork` means the
+   transports bind the real NIC with no translation in the path, so running them
+   as pods costs nothing.
 
 The neat part: those two jobs share TCP `:443` deliberately. A public visitor
 who doesn't hold a VLESS credential is treated by REALITY as untrusted and
@@ -120,17 +97,12 @@ flowchart LR
         BR["browser<br/>(no VLESS creds)"]
     end
 
-    subgraph vps["Hetzner VPS gateway"]
-        XR["Xray VLESS-REALITY<br/>TCP 443"]
-        HY["Hysteria2 + Salamander<br/>UDP 443"]
-        RH["rathole server<br/>ctrl 2333 / http 80 / https 127.0.0.1:8443"]
-        FREE["freedom outbound<br/>direct egress"]
-    end
-
-    subgraph home["oldboy — home, behind NAT"]
-        RHC["rathole client<br/>dials out"]
+    subgraph vps["sympathy — VPS + its own k3s"]
+        XR["Xray VLESS-REALITY<br/>tcp 443"]
+        HY["Hysteria2 + Salamander<br/>udp 443"]
         TR["Traefik<br/>TLS termination + routing"]
-        SVC["Navidrome · Blit · files"]
+        SVC["blit · mcp-gateway · profiles"]
+        FREE["direct egress"]
     end
 
     INET(("Open internet"))
@@ -143,9 +115,7 @@ flowchart LR
     HY --> FREE
     FREE --> INET
 
-    XR -->|"unmatched -> dest"| RH
-    RHC -. "outbound control + data" .-> RH
-    RH --> RHC --> TR --> SVC
+    XR -->|"unmatched → dest"| TR --> SVC
 ```
 
 ## Where the gateway's daemons run
@@ -195,26 +165,52 @@ or rebuilt. The REALITY key is *derived* from a stored 32-byte seed rather than
 generated per run (`realityKeypair`), or every deploy would replace the inbound
 and invalidate every client profile.
 
-Migrating a gateway that was provisioned the old way needs its daemons
-**uninstalled**, not stopped: Pulumi dropping a remote command from the program
-runs nothing on the machine, and a merely stopped unit is one package upgrade or
-postinst away from taking a port back from the pod holding it.
-`gateway-legacy-units` runs the vendor uninstalls for xray and Hysteria2 (which
-covers the templated `hysteria-server@` instances the alt ports run as), purges
-unbound, and every pod is ordered after it. It finishes by asserting the end
-state — no such binary left, and no non-container process on tcp/443, udp/443,
-udp/3478, udp/4500 or `127.0.0.1:53` — because the failure it is preventing is
-invisible from `kubectl`: the pod that loses a port race still reports Running.
+Migrating the one gateway that had been provisioned the old way was done by
+hand, and deliberately left no code behind. A teardown resource existed briefly
+and was removed: with `gateway.k3s` set nothing installs those daemons any more,
+so a rebuilt box never has them, and Pulumi cannot observe a box drifting back —
+a remote command is fire-and-forget — so it guaranteed nothing while still being
+able to fail on every deploy. It also delegated removal to two vendor uninstall
+scripts, one of which quietly declined, which is how it took the transports down
+without putting their replacements up.
 
-tailscale is the exception: `apt-get remove`, never `purge`. The pod inherits
-this node's tailnet identity from `/var/lib/tailscale`, and purge deletes that
-directory, so the relay would rejoin as a new machine needing a fresh authkey —
-the cluster up but unreachable. The teardown copies the state aside, removes the
-package, restores it if the packaging took it anyway, and fails loudly if the
-node key did not survive.
+The lesson worth keeping is the assertion it carried rather than the resource:
+the failure being guarded against is invisible from `kubectl`, because a pod
+that loses a port race still reports `Running` while a surviving host daemon
+serves the traffic. If a transport ever looks healthy and behaves wrongly, check
+which cgroup owns the socket before anything else.
 
 Edges keep the SSH path: they have no cluster, and one box per location running
 two daemons is not worth a control plane.
+
+## Two resolvers, and why they cannot be one
+
+unbound and coredns both answer DNS on this box and are not redundant, because
+their consumers want opposite things.
+
+**unbound serves VPN clients.** Their profile points DNS at `127.0.0.1:53` with
+a detour through the tunnel, so the query arrives at the *gateway's* loopback:
+nothing on the local network sees it, and unbound forwards upstream to
+Cloudflare over DoT. No lookup is ever in the clear, at either end. It also
+caches with prefetch and serve-expired, so a client miss is answered from a
+warm, Germany-local cache in one tunnel RTT rather than a fresh recursion from
+wherever the client is. Xray resolves destinations through it too, which is what
+`domainStrategy: IPIfNonMatch` needs.
+
+**coredns serves pods**, resolving Services and forwarding the rest to 1.1.1.1.
+
+Pointing clients at coredns would break both properties at once: upstream DNS
+would leave the box in plaintext, and client lookups would be answered against
+the cluster's search domains — so a user's request could resolve to an internal
+Service address and be routed into the cluster. unbound costs 13Mi to keep them
+apart.
+
+coredns needs `--resolv-conf` pointed somewhere real. Left alone, k3s hands it
+the host's `/etc/resolv.conf`, which on Ubuntu is systemd-resolved's stub at
+`127.0.0.53` — an address that means *the pod itself* inside coredns's network
+namespace, where nothing is listening. Every external name then returns SERVFAIL
+and no pod can reach the internet, while the VPN keeps working perfectly, since
+its transports never resolve anything.
 
 ## How `:443` is multiplexed
 
@@ -308,7 +304,7 @@ flowchart TD
     TN -->|yes| ENTRY["entry-select<br/>gateway → tailscale relay"]
     TN -->|no| EXIT["exit-select"]
     EXIT --> ED["exit-direct → entry-select<br/>(egress at the gateway)"]
-    EXIT --> EN["exit-oldboy, …<br/>(egress at an exit box)"]
+    EXIT --> EN["exit-&lt;name&gt;<br/>(egress at an exit box)"]
 ```
 
 Two route rules do the work: `100.x` → `entry-select` (tailnet egresses at the
@@ -350,7 +346,7 @@ membership: **no IP forwarding, no NAT, no subnet-router advertisement.**
 ```mermaid
 flowchart LR
     DEV["device<br/>(hostile net)"] -->|"100.x over hy2/reality"| VPS["VPS<br/>tailscale member"]
-    VPS -->|"dials 100.x over tailscale0"| HOME["oldboy & peers<br/>(tailnet mesh)"]
+    VPS -->|"dials 100.x over tailscale0"| HOME["tailnet peers"]
 ```
 
 Why this beats a Tailscale-hostile censor: the only leg crossing the hostile
@@ -384,11 +380,24 @@ through the tunnel, so the VPS resolves `*.ts.net` on the client's behalf. If a
 sing-box version doesn't honour `detour` on a DNS server, fall back to raw
 `100.x` IPs — and the native client covers names on open networks anyway.
 
-The profile is generated and delivered entirely by Pulumi — see
-`packages/infra/src/modules/singbox.ts`. `buildProfile` constructs the config
-as a TypeScript object (`JSON.stringify`, so it can't emit invalid JSON — no
-templating), and `createSingboxDelivery` writes it to the file server over SSH
-and notifies Telegram. Ansible is not involved; it only provisions the boxes.
+The profile is generated and served entirely by Pulumi. `buildProfile`
+(`modules/singbox.ts`) constructs the config as a TypeScript object
+(`JSON.stringify`, so it cannot emit invalid JSON — no templating), and
+`createProfileServer` (`modules/profiles.ts`) puts every user's profile into one
+Secret as a path→body table, served by `serve-from-env` at
+`p.radiosilence.dev/<slug>.json`.
+
+The routing table *is* the content, which is the point: a rotated slug stops
+existing rather than lingering as a file someone must remember to delete. It
+replaced writing the same JSON over SSH to a file server, which needed a
+specific machine to exist — the thing you cannot rely on while migrating.
+
+Served from `radiosilence.dev` rather than `blit.cc` deliberately: FortiGuard
+rated the latter "Other Adult Materials", so on a filtered network — precisely
+where a VPN profile is wanted — a device could not fetch its own subscription.
+(That rating has since been corrected on appeal. The domain split stays; being
+one category-database mistake away from undeliverable profiles is not a
+dependency worth keeping.)
 
 ## Edge nodes (multi-location)
 
@@ -443,13 +452,13 @@ through (`entry-select`). Egress = where your traffic leaves the internet
 (`exit-select`): either **direct** (at the gateway) or via an **exit node** that
 NATs out its own IP — e.g. the home cluster, egressing the residential IP.
 
-**`exit-oldboy` is IPv4-only, by circumstance rather than choice.** The house
-has no IPv6 at all — oldboy holds two ULAs (one of them Tailscale's) and no
-global-unicast address, and v6 egress fails with *Network is unreachable*, i.e.
-there is no route rather than a blocked one. So an application with a hardcoded
-IPv6 endpoint does not work through this exit and does work on direct egress,
-which reads as "the VPN is broken" and cost real debugging hours in July before
-the exit turned out to be the variable. Telegram was the observed casualty.
+**A residential exit is IPv4-only, by circumstance rather than choice**, and
+this is worth knowing before the next one exists. The house has no IPv6 at all,
+so v6 egress fails with *Network is unreachable* — no route, rather than a
+blocked one. An application with a hardcoded IPv6 endpoint therefore fails
+through such an exit and works on direct egress, which reads as "the VPN is
+broken" and cost real debugging hours in July before the exit turned out to be
+the variable. Telegram was the observed casualty.
 
 Nothing in the cluster can fix that: dual-stack CNI would hand pods addresses
 with nowhere to route. The alternatives are NAT64/DNS64 at the gateway or IPv6
@@ -463,7 +472,7 @@ Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. Add one via the
 
 ```yaml
 jaritanet:exits:
-  - name: home
+  - name: lady
     port: 9000
 ```
 
@@ -489,8 +498,7 @@ governs *direct* egress across all gateways; exits transit the primary.
 
 No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
 (connection-level), so there's no return-path routing to misconfigure on a
-remote box. The exit pod egresses normally; microk8s' CNI SNATs to the node IP,
-which is the home link. Topology is a pure function of the config lists,
+remote box. The exit pod egresses normally and the CNI SNATs to the node IP. Topology is a pure function of the config lists,
 expanded at `pulumi up`. (Making exits reachable via *any* gateway — the full
 entry × exit cross-product — needs edges to also run rathole; deferred. When
 multiple rathole gateways exist, `port` must be identical across them.)
@@ -501,11 +509,12 @@ The VPN is multi-tenant. The `VPN_USERS` GitHub secret is one comma-separated
 list where a trailing `+` marks an admin — `jc+,guest1` → `jc` admin, `guest1`
 guest. `env.ts` parses it into `{name, role}[]`; unset falls back to a single
 implicit owner-admin, so pre-RBAC deploys keep full access. Each user gets their
-own credentials and their own sing-box profile at `.sfm/<per-user-slug>.json`
-(slug derived from the base `SINGBOX_SLUG` + name — deterministic, so no orphans,
-but unguessable). Removing a user from the secret and redeploying deletes their
-profile file (each delivery is a Pulumi resource with a `delete` that unlinks it)
-and drops their credentials — a hard revoke.
+own credentials and their own sing-box profile at `p.radiosilence.dev/<slug>.json`
+(slug derived from the base `SINGBOX_SLUG` + name — deterministic, so a
+subscription URL is stable across deploys, but unguessable without the base).
+Removing a user from the secret and redeploying drops their route from the
+table, so the URL 404s rather than serving revoked credentials, and their
+identity disappears from Xray and hy2 — a hard revoke.
 
 | | Admin | Guest |
 |---|---|---|
@@ -600,32 +609,26 @@ Live tradeoffs worth knowing, not necessarily bugs:
   gating SSH would shrink the attack surface but adds lockout risk on a box
   whose whole job is being reachable, so it's left open by choice. 2333 must
   stay open regardless: the home client dials in from a dynamic NATed IP.
-- **The NetworkPolicies are declared but not enforced, because the CNI is
-  flannel.** `microk8s` here runs flannel (`/var/snap/microk8s/current/args/
-  cni-network/flannel.conflist`, and no Calico or Cilium pods exist). Flannel is
-  a pure overlay: it provides pod networking and has **no policy engine at all**,
-  so a NetworkPolicy is accepted by the API server, stored, listed by `kubectl
-  get netpol` — and implemented by nothing.
+- **The NetworkPolicies are enforced now, and the first thing they caught was
+  ours.** The old home cluster ran flannel, a pure overlay with **no policy
+  engine at all**: a NetworkPolicy was accepted by the API server, stored,
+  listed by `kubectl get netpol` — and implemented by nothing. Every policy in
+  this repo was decorative, proved empirically when a pod reached an address a
+  policy plainly denied.
 
-  Everything the pods carry is therefore latent: the egress confinement on
-  navidrome, blit and files, and the ingress restriction on files. They are
-  correct, and they begin working the moment an enforcing CNI is installed,
-  without a change to this repo. Until then they must not be counted as a
-  control, and in particular the "ingress restriction did not break the kubelet
-  probes" result proves nothing — nothing was being applied.
+  k3s here runs `--flannel-backend=none --disable-network-policy` with Cilium as
+  the CNI, so they mean something. The immediate consequence was a real outage:
+  Hydra's migration Job could not reach Postgres, because Postgres admits
+  `app=mcp-gateway` and `app=mcp-gateway-hydra` and a Job's pod carries nothing
+  but `job-name` and `controller-uid`. A denial drops rather than refuses, so it
+  presented as a dial timeout to a Service with healthy endpoints — the
+  hardest-to-read symptom of the lot.
 
-  What *is* enforced, and was never in doubt, is everything the kubelet and
-  container runtime own: `runAsUser`, dropped capabilities, `seccompProfile`,
-  `automountServiceAccountToken: false`, and read-only volume mounts. Those did
-  not need a CNI. Removing the unauthenticated NFS export was likewise real —
-  that was the concrete path a compromised pod had to the host, and it is gone.
+  Worth internalising: policies written under a non-enforcing CNI have never
+  been tested, so switching CNI is not a hardening step but a behavioural
+  change. Anything that talks to anything should be assumed broken until shown
+  otherwise.
 
-  The fix is an enforcing CNI. `microk8s enable ha-cluster` brings Calico but
-  also converts the datastore to dqlite for an HA property that means nothing on
-  one node. `microk8s enable cilium` is the narrower option — eBPF-based policy,
-  no datastore change. Either is a live CNI swap on the box that serves
-  everything, so it is its own piece of work, not a side effect of a hardening
-  PR.
 - **hy2 uses adaptive congestion control (BBR) everywhere; Brutal is not
   offered.** Setting bandwidth hints switches Hysteria2 to Brutal, which paces
   to a fixed rate and ignores loss — it stomps through lossy censored *fat*

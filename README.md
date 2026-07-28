@@ -2,69 +2,98 @@
 
 [![CI/CD](https://github.com/radiosilence/jaritanet/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/radiosilence/jaritanet/actions/workflows/ci-cd.yml)
 
-Infrastructure-as-code monorepo for exposing Kubernetes services via Traefik with automatic TLS. Optionally fronted by a Hetzner VPS gateway with Rathole tunnelling.
+Infrastructure-as-code monorepo for a single Hetzner VPS that runs its own Kubernetes cluster: public services behind Traefik with automatic TLS, and a censorship-resistant VPN, both as workloads in that cluster.
 
 ## Architecture
 
-A single Pulumi stack deploys everything: Traefik handles TLS termination (Let's Encrypt via DNS-01) and hostname routing inside the K8s cluster. An optional IP-watcher pod tracks the server's external IP and dispatches a deploy to refresh Cloudflare A records when it changes.
+One `pulumi up` creates the VPS, installs k3s on it, reads the kubeconfig back,
+and deploys everything into the cluster it just built. There is no secret
+round-trip and nothing for a human to rotate — the kubeconfig is an output of
+the same program that consumes it.
 
-The gateway also doubles as a censorship-resistant VPN (Hysteria2 + VLESS-REALITY), sharing `:443` with rathole — which relays any non-VPN traffic on to the in-cluster Traefik. See [`docs/architecture.md`](docs/architecture.md) for the full topology, transport choices, and the port-multiplexing trick.
+The box runs **k3s and sshd, and nothing else**. Xray, Hysteria2, unbound and
+tailscale are DaemonSets rather than systemd units; Traefik, the web services
+and the MCP gateway are ordinary Deployments. `hostNetwork` is what lets the
+VPN transports own the host's real ports while still being cluster workloads.
 
 ```mermaid
 graph TB
-    subgraph "External Access"
-        User[User] -->|HTTPS| Traefik
-    end
+    CLIENT["sing-box client"]
+    VISITOR["public visitor"]
 
-    subgraph "Server Infrastructure"
-        subgraph "oldboy - 2014 MacBook Pro"
-            subgraph "MicroK8s Cluster"
-                Traefik[Traefik Ingress] -->|TLS termination + routing| Services
-                IPWatcher[IP Watcher] -->|triggers deploy on IP change| GHA[GitHub Actions]
+    subgraph vps["sympathy — Hetzner VPS"]
+        subgraph host["host"]
+            SSHD["sshd :22<br/>the way back in"]
+            K3S["k3s"]
+        end
 
-                subgraph "Deployed Services"
-                    Services --> FileServer[File Server]
-                    Services --> Navidrome[Navidrome - Music]
-                    Services --> Blit[Blit - Web App]
-                end
+        subgraph k8s["k3s cluster — Cilium CNI"]
+            subgraph entry["VPN transports (DaemonSets, hostNetwork)"]
+                XR["Xray VLESS-REALITY<br/>tcp :443"]
+                HY["Hysteria2<br/>udp :443 / :3478 / :4500"]
+                UB["unbound<br/>127.0.0.1:53 — client DNS"]
+                TS["tailscale relay"]
             end
 
-            subgraph "Host Services"
-                Tailscale[Tailscale VPN]
-                Storage[Samba Storage]
-                Sync[Syncthing]
+            TR["Traefik<br/>TLS + routing, hostPort 8443"]
+            subgraph apps["services"]
+                BL["blit"]
+                MCP["mcp-gateway + hydra + postgres"]
+                PROF["singbox-profiles"]
             end
+            CD["coredns → 1.1.1.1<br/>pod DNS"]
         end
     end
 
-    subgraph "Cloudflare DNS"
-        DNS[A Records] -->|points to server IP| Traefik
-    end
+    INET(("open internet"))
+
+    CLIENT -->|reality| XR
+    CLIENT -->|hy2| HY
+    VISITOR -->|"HTTPS"| XR
+
+    XR -->|"unmatched → 127.0.0.1:8443"| TR
+    XR -->|"matched"| INET
+    HY -->|"authenticated"| INET
+    TR --> BL
+    TR --> MCP
+    TR --> PROF
 ```
 
-### Optional: VPS Gateway
+Xray owns `:443` and decides per connection: a valid VPN client is proxied out;
+anything else — a real visitor, or a censor's probe — is relayed to Traefik on
+`127.0.0.1:8443`. So the cover traffic hiding the proxy is the genuine site.
 
-When gateway credentials are configured, a VPS running Rathole acts as a stateless TCP relay. Your home IP disappears from DNS and all traffic routes through the VPS. Traefik keeps hostPort 443 as a fallback regardless — if the relay dies, port-forwarding still works.
+**Two resolvers, deliberately.** unbound answers VPN clients, which reach it at
+`127.0.0.1:53` *through* the tunnel, and forwards upstream over DoT — so no
+lookup crosses a hostile network and none leaves the gateway in the clear.
+coredns answers pods and forwards to 1.1.1.1. Merging them would route client
+traffic into cluster service names.
 
-Set `HCLOUD_TOKEN` and the deploy provisions a Hetzner VPS gateway; leave it
-unset for direct mode (DNS points at the home IP, Traefik serves on hostPort
-443). The gateway also doubles as the VPN entry hub — see
-[`docs/architecture.md`](docs/architecture.md).
+See [`docs/architecture.md`](docs/architecture.md) for the topology, transport
+choices and the `:443` multiplexing.
 
-| Mode | Trigger | Cost |
-|---|---|---|
-| Hetzner gateway | `HCLOUD_TOKEN` set | ~EUR3.85/mo (CX23) |
-| Direct | unset | free (home IP) |
+### The gateway is not optional any more
 
-```
-User -> VPS:443 -> Rathole tunnel -> Traefik -> Service
-```
+`HCLOUD_TOKEN` and `gateway.k3s` are both required: the cluster runs on the VPS
+the token provisions, so there is no cluster without it. The older direct mode —
+DNS pointed at a home box serving Traefik on hostPort 443 — went with oldboy.
+
+| | |
+|---|---|
+| Host | Hetzner CX33, Nuremberg (~EUR13/mo) |
+| Cluster | k3s, single node, Cilium CNI |
+| Storage | k3s local-path for PVCs; static local PVs with node affinity for existing media |
+
+A second node (`lady`, a Raspberry Pi) joins by dialling the VPS's public
+`:6443` — no tunnel needed. Media stays on its disk, which is what the static
+PV's `nodeAffinity` is for: it pins the pod to the box holding the files.
 
 ## How It Works
 
-1. **Traefik** terminates TLS using Let's Encrypt certs (DNS-01 via Cloudflare API) and routes by hostname.
+0. **k3s** is installed on the VPS by the same `pulumi up`, which reads its kubeconfig back as a command output and builds the Kubernetes provider from it. **Cilium** is the CNI — k3s runs with `--flannel-backend=none --disable-kube-proxy`, so until Cilium is installed the node is deliberately `NotReady`.
+1. **Traefik** terminates TLS using Let's Encrypt certs (DNS-01 via Cloudflare API) and routes by hostname, on hostPort 8443 because Xray owns 443.
 2. **Cloudflare DNS** A records point service hostnames at the server's external IP.
-3. **IP watcher** — an optional pod (enabled by `DEPLOY_TOKEN`) checks the external IP every 60s via Cloudflare's `1.1.1.1/cdn-cgi/trace` and, on change, dispatches a deploy to refresh the A records. Most useful in direct mode; with a gateway, DNS points at the VPS's static IP so it's a dormant fallback.
+3. **IP watcher** — an optional pod (enabled by `DEPLOY_TOKEN`) checks the external IP every 60s and dispatches a deploy on change. Dormant here: the VPS address is static. It stays for a future node whose address moves.
 4. **Deploys** trigger on push to `main` (package changes) or manual `workflow_dispatch` — there is no scheduled/cron reconcile.
 
 ## Topology configuration
@@ -76,21 +105,21 @@ The VPN topology is three config lists in `packages/infra/Pulumi.main.yaml`.
 what clients connect *through*; `entry-select` picks the protocol.
 
 **`exits`** — where the gateway *egresses* your traffic (`exit-select`). An exit
-is just `ss-rust + rathole`, reached over the gateway's rathole tunnel.
+is `ss-rust + rathole`, reached over a rathole tunnel, and it exists to present
+somebody else's IP — a residential one, typically.
 
 ```yaml
 jaritanet:exits:
-  - name: oldboy      # picker tag `exit-oldboy`; the name is just a label
+  - name: lady        # picker tag `exit-lady`; the name is just a label
 ```
 
 - **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
-- **`substrate`** decides *where it runs* (and thus which IP it egresses),
-  **not** the name:
-  - `k8s` (default) → the home MicroK8s cluster (the only one) → home IP.
-  - `vps` → provisions a dedicated box in `location` → that box's IP. *(Not
-    implemented yet — k8s only for now.)*
-- **`port`** (the gateway loopback port) is auto-derived from the name; only set
-  it to resolve a rare name-hash collision.
+- **`port`** (the gateway loopback port) is derived from the name; set it only
+  to resolve a rare hash collision.
+
+Currently empty. The exit that existed egressed oldboy's residential IP, and
+that machine is retired; `lady` can take the role when it arrives, since an
+exit only needs to be somewhere with an interesting address.
 
 **`edges`** — optional *additional* entry gateways (hy2 + REALITY), appearing in
 `entry-select`. Not needed with a single gateway; see
@@ -100,12 +129,29 @@ jaritanet:exits:
 
 Everything lives in a single Pulumi package at `packages/infra/`:
 
-- **`src/modules/gateway.ts`** — Hetzner VPS gateway: Xray/Hysteria2 entry + rathole + tailnet relay (optional)
-- **`src/modules/edge.ts`** — standalone VPN edge boxes in other locations (hy2 + REALITY + tailnet relay); add via `edges` in config. See [`docs/architecture.md`](docs/architecture.md#edge-nodes-multi-location)
-- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoutes, IP watcher
+**The cluster itself**
+
+- **`src/modules/k3s.ts`** — installs k3s over SSH and returns its kubeconfig as the same command's stdout, so config and cluster cannot drift apart
+- **`src/modules/cilium.ts`** — the CNI, with `kubeProxyReplacement` (which is what makes `hostPort` work at all)
+- **`src/modules/gateway.ts`** — the Hetzner VPS, its firewall, and the node label that marks it a VPN entry
+
+**VPN transports** — DaemonSets on the entry-labelled node, `hostNetwork`
+
+- **`src/modules/xray.ts`** — VLESS-Vision-REALITY on tcp/443, relaying non-clients to Traefik
+- **`src/modules/hysteria.ts`** — Hysteria2 on udp/443 plus alt ports, one container each
+- **`src/modules/tailscale.ts`** — tailnet relay, node state on the host so identity survives a redeploy
+- **`src/modules/unbound.ts`** — the client-facing resolver on `127.0.0.1:53`, DoT upstream
+- **`src/modules/*-systemd.ts`** — the pre-cluster implementations, still used by edges, which have no cluster
+
+**Services**
+
+- **`src/modules/ingress.ts`** — Traefik Helm chart, IngressRoutes, IP watcher, and a rathole client when the cluster is *not* co-located with the gateway
+- **`src/modules/mcp-gateway.ts`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
+- **`src/modules/profiles.ts`** — serves each user's sing-box profile from a Secret via `serve-from-env`; the routing table *is* the content, so a rotated slug stops existing rather than lingering as a stale file
+- **`src/modules/singbox.ts`** — builds the profiles (`buildProfile`) and notifies Telegram when they change
 - **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`src/modules/singbox.ts`** — builds the sing-box client profile from the nodes and delivers it to the file server over SSH (change-detected, Telegram notify)
-- **`src/modules/exit.ts`** — selectable egress exit node (ss-rust in-cluster), reached via the rathole tunnel, egressing its own IP. Add via `exits` in config
+- **`src/modules/edge.ts`** — standalone VPN boxes in other locations. See [`docs/architecture.md`](docs/architecture.md#edge-nodes-multi-location)
+- **`src/modules/exit.ts`** — selectable egress exit node, reached via a rathole tunnel
 - **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
 
 ## Secrets
@@ -120,28 +166,24 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 | `CLOUDFLARE_API_TOKEN` | Yes | DNS + Traefik ACME DNS-01 (DNS:Edit, Zone:Read) |
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare account id |
 | `ACME_EMAIL` | Yes | Let's Encrypt account email (Traefik) |
-| `KUBE_HOST` / `KUBE_API_PORT` / `KUBE_TOKEN` | Yes | K8s API access (host = tailnet IP, token base64) |
-| `NAVIDROME_HOSTNAME` / `FILES_HOSTNAME` / `BLIT_HOSTNAME` | Yes | Service hostnames |
+| `BLIT_HOSTNAME` / `MCP_HOSTNAME` / `MCP_AUTH_HOSTNAME` | Yes | Service hostnames |
+| `HCLOUD_TOKEN` | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
 | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_CLIENT_SECRET` / `TS_TAILNET` | No | Manage the tailnet policy file as code (see below). Unset = policy stays hand-managed |
 
 **Tailscale**
 
 | Secret | Required | Purpose |
 |---|---|---|
-| `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` | Yes | OAuth for CI to reach the K8s API over the tailnet (`tag:ci`) |
 | `TS_AUTHKEY` | No | OAuth client secret (`tskey-client-…`, `tag:server`) that joins the gateway/edges to the tailnet — enables the relay |
 
-**Gateway (optional — absent = direct mode)**
+CI no longer joins the tailnet. It reaches the API server on the VPS's public
+`:6443`, so a tailnet outage cannot fail a deploy — which it repeatedly did.
+
+**sing-box profiles (optional)**
 
 | Secret | Required | Purpose |
 |---|---|---|
-| `HCLOUD_TOKEN` | No | Hetzner API token — provisions the VPS gateway |
-
-**sing-box profile delivery (optional)**
-
-| Secret | Required | Purpose |
-|---|---|---|
-| `SINGBOX_SLUG` | No | Base secret for per-user profile paths (each user's slug is derived from it) |
+| `SINGBOX_SLUG` | No | Base secret for per-user profile paths (each user's slug is derived from it, so URLs are stable but unguessable) |
 | `TAILNET_MAGICDNS_SUFFIX` | No | Tailnet MagicDNS suffix baked into the profile |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | No | Telegram bot + chat for the per-user profile URL notify |
 | `VPN_USERS` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin. E.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
@@ -150,8 +192,7 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 
 | Secret | Required | Purpose |
 |---|---|---|
-| `SSH_PRIVATE_KEY` | Yes | SSH key to oldboy (ansible + Pulumi's profile delivery) |
-| `OLDBOY_HOST` / `OLDBOY_USER` / `OLDBOY_PASSWORD` | Yes | oldboy tailnet host, SSH user, sudo password |
+| `SSH_PRIVATE_KEY` | Yes | SSH key for the ansible target. Pulumi no longer uses it — nothing it deploys is configured over SSH except the k3s bootstrap, whose key it generates itself |
 | `SAMBA_PASSWORD` | Yes | Samba share password |
 | `GIT_SSH_KEY` | Yes | SSH key for git access during playbook runs |
 
@@ -170,7 +211,9 @@ Everything lives in a single Pulumi package at `packages/infra/`:
 gh secret set HCLOUD_TOKEN
 ```
 
-Next deploy provisions the VPS, deploys rathole, and flips DNS to the VPS IP. Remove the secret to fall back to direct mode.
+Next deploy provisions the VPS, installs k3s on it and deploys everything into
+it. Removing the secret does not fall back to anything: there is no cluster
+without the box.
 
 ## Development
 
@@ -189,16 +232,22 @@ Pre-commit hooks (via Lefthook) run oxlint, oxfmt, and type checking.
 
 ## Automated Updates
 
-The `update-apps.yml` workflow runs daily and checks for new versions of:
+The `update-apps.yml` workflow runs daily against `.github/tracked-versions.yml`
+— currently Navidrome, the Traefik chart, and the four MCP servers. A release
+tag is never trusted alone: the registry is asked whether the image actually
+published, including for entries already current, so a pin that stopped
+resolving is reported rather than discovered at the next pod restart.
 
-- **Navidrome** — Docker image tag from GitHub releases
-- **Traefik** — Helm chart version from GitHub releases
-
-Updates are auto-committed and trigger a deploy.
+The containers built from this repo (`serve-from-env`, `files`) are **not**
+tracked — they publish sha tags and cut no releases, so their pins move by hand.
+See #197.
 
 ## Server Management
 
-Ansible playbooks provision and configure the homeserver (MicroK8s, Tailscale, Samba, Syncthing, SSH hardening). See `ansible/` directory.
+Ansible provisions the *home* box only — Samba, Syncthing, SSH hardening and
+the media tooling. It has nothing to do with the gateway, which is configured
+entirely by Pulumi: the only thing that touches it over SSH is the k3s install,
+and that hands its kubeconfig straight back to the program. See `ansible/`.
 
 ## Tailnet policy as code
 
@@ -240,6 +289,5 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
 
 Step 5.4 is the trap: the gateway is a *relay*, so whatever it cannot reach,
 **you** cannot reach over the VPN either. The question is not how locked down it
-can be, but what you actually use the tailnet for — probably oldboy on a handful
-of ports. Getting it wrong locks you out of your own mesh, and a bad policy is
+can be, but what you actually use the tailnet for. Getting it wrong locks you out of your own mesh, and a bad policy is
 recoverable only from the admin console, which is no fun from a train.
