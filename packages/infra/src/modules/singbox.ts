@@ -119,7 +119,17 @@ const urltest = (tag: string, outbounds: string[]) => ({
   tag,
   outbounds,
   url: "https://www.gstatic.com/generate_204",
-  interval: "1m",
+  // 1m across nine candidates was ~540 handshakes an hour, and on cellular
+  // each wakeup holds the radio in a high-power RRC state for seconds
+  // afterwards, so the modem never reached deep idle. It bought nothing:
+  // which entry survives is a property of the *network*, and sing-box
+  // re-checks when the default interface changes — i.e. exactly when the
+  // answer can have changed. Between those events, re-probing a working path
+  // every minute only costs battery.
+  interval: "10m",
+  // Stop probing a group nobody is routing through. Without it, every
+  // per-node group keeps testing forever once a multi-node profile exists.
+  idle_timeout: "30m",
   tolerance: 100,
 });
 const selector = (tag: string, outbounds: string[], def: string) => ({

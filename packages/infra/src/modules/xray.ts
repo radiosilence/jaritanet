@@ -64,14 +64,24 @@ export function createXray(
   namespace: pulumi.Input<string>,
   xray: z.infer<typeof XrayConfSchema>,
   users: VpnUser[],
+  // Changing this reissues every credential here; see credentialRotation.
+  rotation: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
-  const shortId = new random.RandomId("xray-short-id", { byteLength: 8 });
+  const keepers = { rotation };
+
+  const shortId = new random.RandomId("xray-short-id", {
+    byteLength: 8,
+    keepers,
+  });
 
   // 32 bytes of state, from which the x25519 pair is derived on every run.
   // Generating the pair itself would mint a new key each deploy and invalidate
   // every client profile with it.
-  const seed = new random.RandomBytes("xray-reality-seed", { length: 32 });
+  const seed = new random.RandomBytes("xray-reality-seed", {
+    length: 32,
+    keepers,
+  });
   const keypair = seed.hex.apply((hex) =>
     realityKeypair(Buffer.from(hex, "hex")),
   );
@@ -80,7 +90,9 @@ export function createXray(
   // user only churns that user's resource. `email` tags the client for routing.
   const uuids: Record<string, pulumi.Output<string>> = {};
   for (const u of users) {
-    uuids[u.name] = new random.RandomUuid(`xray-uuid-${u.name}`).result;
+    uuids[u.name] = new random.RandomUuid(`xray-uuid-${u.name}`, {
+      keepers,
+    }).result;
   }
 
   // Guest hard-block, keyed on the client's `email` (= user name), which is the

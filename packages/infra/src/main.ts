@@ -281,6 +281,7 @@ export default async function () {
         nsName,
         gatewayConf.xray,
         users,
+        gatewayConf.credentialRotation,
         transportDeps,
       );
       reality = {
@@ -297,6 +298,7 @@ export default async function () {
         nsName,
         gatewayConf.hysteria,
         users,
+        gatewayConf.credentialRotation,
         transportDeps,
       );
       hysteria = {
