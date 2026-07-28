@@ -66,6 +66,15 @@ cloud-init status --wait >/dev/null 2>&1 || true
 # the minimal cloud image anyway.
 mkdir -p /etc/apt/apt.conf.d
 printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
+# Cluster DNS upstream. Without this k3s points kubelet — and so coredns —
+# at the host's /etc/resolv.conf, which on Ubuntu is systemd-resolved's stub
+# at 127.0.0.53. coredns runs in a pod network namespace, where that address
+# is its own loopback and nothing answers, so every external name returns
+# SERVFAIL and no pod can reach the internet. The host's real resolv.conf is
+# no better here: it listed tailscale's MagicDNS, which points at a daemon
+# that now lives in a pod.
+mkdir -p /etc/rancher/k3s
+printf 'nameserver 1.1.1.1\nnameserver 1.0.0.1\n' > /etc/rancher/k3s/resolv.conf
 # Idempotent: the installer is a no-op when the pinned version is already there.
 curl -sfL https://get.k3s.io | \
   INSTALL_K3S_VERSION="${k3s.version}" \
@@ -76,6 +85,7 @@ curl -sfL https://get.k3s.io | \
     --disable=traefik \
     --disable=servicelb \
     --tls-san ${apiHost} \
+    --resolv-conf /etc/rancher/k3s/resolv.conf \
     --write-kubeconfig-mode 0600" \
   sh -s -
 # k3s ships the standard CNI plugins in data/cni, but writes no CNI section
@@ -99,7 +109,9 @@ k3s kubectl get --raw /readyz >/dev/null
 # Printed last so it is this command's stdout: the config and the cluster it
 # describes then come from the same execution.
 cat /etc/rancher/k3s/k3s.yaml`,
-      triggers: [k3s.version, pulumi.output(apiHost)],
+      // The resolv-conf tag is part of the trigger because changing the
+      // command text alone does not re-run a remote command.
+      triggers: [k3s.version, pulumi.output(apiHost), "resolv-conf-v1"],
     },
     {
       dependsOn: [server],
