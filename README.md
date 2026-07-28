@@ -127,32 +127,44 @@ exit only needs to be somewhere with an interesting address.
 
 ## Package Structure
 
-Everything lives in a single Pulumi package at `packages/infra/`:
+One Pulumi program, assembled from packages that don't know it exists. A
+component package describes a thing you could run anywhere; `packages/infra`
+describes *this* deployment. Dependencies only ever point that way — nothing
+imports `infra`, and the only sideways import is `@jaritanet/k8s`.
 
-**The cluster itself**
+**`@jaritanet/hetzner`** — the machine
 
-- **`src/modules/k3s.ts`** — installs k3s over SSH and returns its kubeconfig as the same command's stdout, so config and cluster cannot drift apart
-- **`src/modules/cilium.ts`** — the CNI, with `kubeProxyReplacement` (which is what makes `hostPort` work at all)
-- **`src/modules/gateway.ts`** — the Hetzner VPS, its firewall, and the node label that marks it a VPN entry
+- **`k3s.ts`** — installs k3s over SSH and returns its kubeconfig as the same command's stdout, so config and cluster cannot drift apart
+- **`cilium.ts`** — the CNI, with `kubeProxyReplacement` (which is what makes `hostPort` work at all)
+- **`vps.ts`** — firewall rules and the sysctls the transports need (BBR, UDP buffers)
 
-**VPN transports** — DaemonSets on the entry-labelled node, `hostNetwork`
+**`@jaritanet/vpn`** — the transports. DaemonSets on the entry-labelled node, `hostNetwork`
 
-- **`src/modules/xray.ts`** — VLESS-Vision-REALITY on tcp/443, relaying non-clients to Traefik
-- **`src/modules/hysteria.ts`** — Hysteria2 on udp/443 plus alt ports, one container each
-- **`src/modules/tailscale.ts`** — tailnet relay, node state on the host so identity survives a redeploy
-- **`src/modules/unbound.ts`** — the client-facing resolver on `127.0.0.1:53`, DoT upstream
-- **`src/modules/*-systemd.ts`** — the pre-cluster implementations, still used by edges, which have no cluster
+- **`xray.ts`** — VLESS-Vision-REALITY on tcp/443, relaying non-clients to Traefik
+- **`hysteria.ts`** — Hysteria2 on udp/443 plus alt ports, one container each
+- **`tailscale.ts`** — tailnet relay, node state in a Secret so identity survives the node
+- **`unbound.ts`** — the client-facing resolver on `127.0.0.1:53`, DoT upstream
+- **`exit.ts`** — selectable egress exit node, reached via a rathole tunnel
+- **`singbox.ts`** / **`profiles.ts`** — builds each user's profile (`buildProfile`) and serves it from a Secret via `serve-from-env`; the routing table *is* the content, so a rotated slug stops existing rather than lingering as a stale file
+- **`*-systemd.ts`** — the same transports installed over SSH, still used by edges, which have no cluster. They take an SSH connection and opaque `dependsOn` rather than a typed server, so nothing here depends on a cloud provider
 
-**Services**
+**`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/mcp-gateway`**, **`@jaritanet/k8s`**
 
-- **`src/modules/ingress.ts`** — Traefik Helm chart, IngressRoutes, IP watcher, and a rathole client when the cluster is *not* co-located with the gateway
-- **`src/modules/mcp-gateway.ts`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
-- **`src/modules/profiles.ts`** — serves each user's sing-box profile from a Secret via `serve-from-env`; the routing table *is* the content, so a rotated slug stops existing rather than lingering as a stale file
-- **`src/modules/singbox.ts`** — builds the profiles (`buildProfile`) and notifies Telegram when they change
-- **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`src/modules/edge.ts`** — standalone VPN boxes in other locations. See [`docs/architecture.md`](docs/architecture.md#edge-nodes-multi-location)
-- **`src/modules/exit.ts`** — selectable egress exit node, reached via a rathole tunnel
-- **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates
+- **`ingress.ts`** — Traefik Helm chart, IngressRoutes, IP watcher, and a rathole client when the cluster is *not* co-located with the gateway
+- **`dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
+- **`mcp-gateway.ts`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
+- **`service.ts`** — K8s Deployment/Service/PV/PVC templates, plus the schemas and helpers the other packages share
+
+**`packages/infra`** — this stack
+
+- **`main.ts`** — orchestrates everything; **`gateway.ts`** / **`edge.ts`** compose a Hetzner box with transports on it
+- **`conf.schemas.ts`** — the config surface, assembled from the component schemas
+- **`env.ts`** — the only place `process.env` is read
+
+Packages are imported as TypeScript source: Node resolves a workspace symlink to
+its real path, which is outside `node_modules`, so type stripping applies and the
+deploy needs no build step. They are `private` for now — publishing needs a `tsc`
+emit and `@pulumi/pulumi` moved to a peer dependency.
 
 ## Secrets
 
@@ -186,6 +198,7 @@ CI no longer joins the tailnet. It reaches the API server on the VPS's public
 | `SINGBOX_SLUG` | No | Base secret for per-user profile paths (each user's slug is derived from it, so URLs are stable but unguessable) |
 | `TAILNET_MAGICDNS_SUFFIX` | No | Tailnet MagicDNS suffix baked into the profile |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | No | Telegram bot + chat for the per-user profile URL notify |
+| `VPN_ENTRY_LABEL` | Yes | Node label key marking a machine as a VPN entry, e.g. `jaritanet.radiosilence.dev/vpn-entry`. Read once and passed to both the command that labels the node and every transport's `nodeSelector`, so they cannot disagree — a selector matching no node schedules nothing while the cluster looks healthy. Required for that reason: a red deploy beats a silently dark VPN |
 | `VPN_USERS` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin. E.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 
 **Ansible / server provisioning (`run-playbook.yml`)**
@@ -223,7 +236,7 @@ aube run lint             # Lint with oxlint
 aube run lint:fix         # Lint and auto-fix
 aube run fmt              # Format with oxfmt
 aube run fmt:check        # Check formatting
-aube run typecheck:infra  # Type check
+aube run typecheck        # Type check every package
 aube run test             # Run tests
 ./scripts/gen-schemas.ts  # Generate JSON schemas
 ```

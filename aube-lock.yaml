@@ -11,33 +11,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1
-      '@pulumi/cloudflare':
-        specifier: 6.15.0
-        version: 6.15.0(typescript@6.0.3)
-      '@pulumi/command':
-        specifier: 1.2.1
-        version: 1.2.1(typescript@6.0.3)
-      '@pulumi/hcloud':
-        specifier: 1.35.0
-        version: 1.35.0(typescript@6.0.3)
-      '@pulumi/kubernetes':
-        specifier: 4.30.0
-        version: 4.30.0(typescript@6.0.3)
-      '@pulumi/pulumi':
-        specifier: 3.239.0
-        version: 3.239.0(typescript@6.0.3)
-      '@pulumi/random':
-        specifier: 4.20.0
-        version: 4.20.0(typescript@6.0.3)
-      '@pulumi/tls':
-        specifier: 5.4.0
-        version: 5.4.0(typescript@6.0.3)
       vite:
         specifier: ^6.0.0 || ^7.0.0 || ^8.0.0
         version: 8.0.13(@types/node@25.8.0)(yaml@2.9.0)
-      yaml:
-        specifier: 2.9.0
-        version: 2.9.0
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -70,11 +46,176 @@ importers:
         specifier: 4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/ui@4.1.6)(vite@8.0.13(@types/node@25.8.0)(yaml@2.9.0))
 
+  packages/dns:
+    dependencies:
+      '@pulumi/cloudflare':
+        specifier: 6.15.0
+        version: 6.15.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/hetzner:
+    dependencies:
+      '@pulumi/command':
+        specifier: 1.2.1
+        version: 1.2.1(typescript@6.0.3)
+      '@pulumi/hcloud':
+        specifier: 1.35.0
+        version: 1.35.0(typescript@6.0.3)
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/infra:
     dependencies:
+      '@jaritanet/dns':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/hetzner':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/ingress':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/mcp-gateway':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/vpn':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/command':
+        specifier: 1.2.1
+        version: 1.2.1(typescript@6.0.3)
+      '@pulumi/hcloud':
+        specifier: 1.35.0
+        version: 1.35.0(typescript@6.0.3)
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      '@pulumi/random':
+        specifier: 4.20.0
+        version: 4.20.0(typescript@6.0.3)
       '@pulumi/tailscale':
         specifier: ^0.29.0
         version: 0.29.0(typescript@6.0.3)
+      '@pulumi/tls':
+        specifier: 5.4.0
+        version: 5.4.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/ingress:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/k8s:
+    dependencies:
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/mcp-gateway:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      '@pulumi/random':
+        specifier: 4.20.0
+        version: 4.20.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/vpn:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/command':
+        specifier: 1.2.1
+        version: 1.2.1(typescript@6.0.3)
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      '@pulumi/random':
+        specifier: 4.20.0
+        version: 4.20.0(typescript@6.0.3)
+      '@pulumi/tls':
+        specifier: 5.4.0
+        version: 5.4.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
     devDependencies:
       ajv:
         specifier: ^8.20.0

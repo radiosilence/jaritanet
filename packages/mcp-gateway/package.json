@@ -1,0 +1,24 @@
+{
+  "name": "@jaritanet/mcp-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OAuth-fronted gateway for self-hosted MCP servers, with Hydra and Postgres",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@jaritanet/k8s": "workspace:*",
+    "@pulumi/kubernetes": "4.30.0",
+    "@pulumi/pulumi": "3.239.0",
+    "@pulumi/random": "4.20.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  }
+}

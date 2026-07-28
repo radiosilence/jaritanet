@@ -23,8 +23,27 @@ export const EnvSchema = z.object({
 
   // Per-user VPN access (RBAC). One comma-separated list; a trailing `+` marks
   // an admin. Absent → single implicit owner-admin (see main.ts). Parsed by
-  // parseVpnUsers below into a typed {name, role}[]; delivery is per-user.
+  // `parseVpnUsers` from @jaritanet/vpn into a typed {name, role}[].
   VPN_USERS: z.string().optional(),
+
+  // The node label key marking a machine as a VPN entry. One value reaches both
+  // the command that labels the node and the nodeSelector on every transport
+  // DaemonSet, so those cannot disagree — which is the whole reason it is read
+  // once, here, and passed down rather than defaulted in each place.
+  //
+  // Required rather than defaulted for the same reason. A wrong-but-present
+  // value is caught by the next preview, since relabelling a node and
+  // rescheduling the transports is a visible diff. An *absent* one would have
+  // to fall back to something, and a fallback that disagrees with the live
+  // node's label schedules zero pods onto a cluster reporting perfectly
+  // healthy — the VPN goes dark with nothing anywhere reporting a fault.
+  // Failing here costs a red deploy before a single resource is touched.
+  VPN_ENTRY_LABEL: z
+    .string()
+    .regex(
+      /^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?\/[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$/,
+      "VPN_ENTRY_LABEL must be a prefixed Kubernetes label key (<dns-subdomain>/<name>)",
+    ),
 
   // sing-box profile delivery (Pulumi generates + ships the profile). All
   // optional — absent any of them, delivery is skipped. Telegram is optional
@@ -35,46 +54,3 @@ export const EnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
 });
-
-/**
- * A VPN identity and its access tier. `admin` gets hy2 + reality on every node,
- * all exits, and tailnet 100.x; `guest` gets reality only, direct egress, no
- * tailnet — enforced hard server-side (see xray.ts), not by profile shape.
- */
-export const VpnUserSchema = z.object({
-  name: z.string(),
-  role: z.enum(["admin", "guest"]),
-});
-export type VpnUser = z.infer<typeof VpnUserSchema>;
-
-// Names double as Xray client emails, hy2 usernames, and the per-user profile
-// slug seed, so keep them to a filename-safe identifier charset.
-const NAME_RE = /^[a-z][a-z0-9_-]*$/i;
-
-/**
- * Parses the `VPN_USERS` secret ("jc+,guest1") into a typed user list. Splits on
- * comma, trims, and strips a trailing `+` to mark an admin (else guest). Empty
- * tokens (a stray trailing comma) are skipped. Throws on an invalid name or a
- * duplicate — a bad list should fail the deploy loudly, not silently drop a user.
- */
-export function parseVpnUsers(raw: string): VpnUser[] {
-  const users: VpnUser[] = [];
-  const seen = new Set<string>();
-  for (const token of raw.split(",")) {
-    const trimmed = token.trim();
-    if (!trimmed) continue;
-    const isAdmin = trimmed.endsWith("+");
-    const name = (isAdmin ? trimmed.slice(0, -1) : trimmed).trim();
-    if (!NAME_RE.test(name)) {
-      throw new Error(
-        `VPN_USERS: invalid user name "${name}" — must match ${NAME_RE}`,
-      );
-    }
-    if (seen.has(name)) {
-      throw new Error(`VPN_USERS: duplicate user name "${name}"`);
-    }
-    seen.add(name);
-    users.push({ name, role: isAdmin ? "admin" : "guest" });
-  }
-  return users;
-}

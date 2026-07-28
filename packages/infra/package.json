@@ -1,11 +1,25 @@
 {
   "name": "jaritanet-infra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The jaritanet stack: composes the component packages into one Pulumi program",
   "type": "module",
   "main": "./src/main.ts",
   "dependencies": {
-    "@pulumi/tailscale": "^0.29.0"
-  },
-  "devDependencies": {
-    "ajv": "^8.20.0"
+    "@jaritanet/dns": "workspace:*",
+    "@jaritanet/hetzner": "workspace:*",
+    "@jaritanet/ingress": "workspace:*",
+    "@jaritanet/k8s": "workspace:*",
+    "@jaritanet/mcp-gateway": "workspace:*",
+    "@jaritanet/vpn": "workspace:*",
+    "@pulumi/command": "1.2.1",
+    "@pulumi/hcloud": "1.35.0",
+    "@pulumi/kubernetes": "4.30.0",
+    "@pulumi/pulumi": "3.239.0",
+    "@pulumi/random": "4.20.0",
+    "@pulumi/tailscale": "^0.29.0",
+    "@pulumi/tls": "5.4.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
   }
 }

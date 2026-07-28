@@ -65,6 +65,10 @@ jobs:
           # to be wrong about, because the correct response to a real one is to
           # stop and think.
           VPN_USERS: ${{ secrets.VPN_USERS }}
+          # Required by EnvSchema, so a preview without it fails before it can
+          # produce a diff — and one produced from different inputs than the
+          # deploy predicts nothing anyway.
+          VPN_ENTRY_LABEL: ${{ secrets.VPN_ENTRY_LABEL }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
           SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
           TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}

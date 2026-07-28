@@ -141,11 +141,18 @@ DaemonSet default, written out because it is load-bearing) deletes the old pod
 before creating its replacement, which is the only order that can succeed on an
 exclusive port. Traefik sat 20 days on a stale pod for getting this wrong.
 
-They select on the `jaritanet.dev/vpn-entry` node label rather than a hostname,
-so serving an entry is a property of a node. `lady` joining the cluster does not
-make it a VPN entry, and making an edge one later is a label rather than another
-module. The gateway labels itself after k3s comes up; a missing label would be
-silent — the DaemonSet would just schedule nothing.
+They select on the `jaritanet.radiosilence.dev/vpn-entry` node label rather than a
+hostname, so serving an entry is a property of a node. `lady` joining the
+cluster does not make it a VPN entry, and making an edge one later is a label
+rather than another module. The gateway labels itself after k3s comes up.
+
+The key comes from `VPN_ENTRY_LABEL` and is read once, then passed to both the
+labelling command and every DaemonSet's `nodeSelector` — as a required argument,
+so the compiler rejects a call site that omits it. That is deliberate: the two
+must agree exactly, and a selector matching no node schedules nothing while the
+cluster reports perfectly healthy. The prefix is a subdomain we actually own;
+Kubernetes never resolves it, but a label key naming a domain belonging to
+somebody else is a claim we have no right to make.
 
 Two things they need from the node rather than from their own spec, both because
 `hostNetwork` means the node's networking is theirs: BBR and `fq`, and
