@@ -2,7 +2,6 @@ import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { UnboundConfSchema } from "./unbound.schemas.ts";
-import { VPN_ENTRY_LABEL } from "./entry.ts";
 
 /**
  * The gateway's caching DNS resolver, as a pod rather than an apt install.
@@ -27,6 +26,7 @@ export function createUnbound(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
   unbound: z.infer<typeof UnboundConfSchema>,
+  entryLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
   const config = new k8s.core.v1.ConfigMap(
@@ -99,7 +99,7 @@ forward-zone:
             // The cache belongs to whichever node terminates tunnels, since
             // that is where 127.0.0.1:53 is dialled from. Same label as the
             // transports, so a node either serves an entry or does not.
-            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
+            nodeSelector: { [entryLabel]: "true" },
             containers: [
               {
                 name: "unbound",

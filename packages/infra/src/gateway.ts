@@ -7,7 +7,6 @@ import {
   createHysteriaSystemd,
   createTailscaleSystemd,
   createXraySystemd,
-  VPN_ENTRY_LABEL,
   type VpnUser,
 } from "@jaritanet/vpn";
 import * as command from "@pulumi/command";
@@ -32,16 +31,25 @@ import type { GatewayConfSchema } from "./conf.schemas.ts";
  * nothing here installs them, and whatever a previous deploy left running as a
  * systemd unit is disabled first.
  *
- * `tailnetAuthKey` is passed in rather than read from the environment here: the
- * modules this composes take their inputs as arguments, and a function that
+ * Everything in `opts` is passed in rather than read from the environment here:
+ * the modules this composes take their inputs as arguments, and a function that
  * reaches for `process.env` halfway down cannot be tested or reused.
+ * `entryLabel` in particular is the same value the transport DaemonSets select
+ * on, so it arrives from one place instead of being spelled twice.
  */
 export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
   users: VpnUser[],
   exits: { name: string; port: number }[] = [],
-  magicdnsSuffix = "",
-  tailnetAuthKey?: string,
+  {
+    entryLabel,
+    magicdnsSuffix = "",
+    tailnetAuthKey,
+  }: {
+    entryLabel: string;
+    magicdnsSuffix?: string;
+    tailnetAuthKey?: string;
+  },
 ) {
   // rathole exists to reach a cluster behind NAT. With k3s on this box there is
   // nothing on the other side of the tunnel, so none of it gets installed — no
@@ -336,9 +344,9 @@ RATHOLE_EOF`,
         {
           connection,
           create: `set -euo pipefail
-k3s kubectl label node "$(hostname)" ${VPN_ENTRY_LABEL}=true --overwrite`,
-          delete: `k3s kubectl label node "$(hostname)" ${VPN_ENTRY_LABEL}- || true`,
-          triggers: [VPN_ENTRY_LABEL],
+k3s kubectl label node "$(hostname)" ${entryLabel}=true --overwrite`,
+          delete: `k3s kubectl label node "$(hostname)" ${entryLabel}- || true`,
+          triggers: [entryLabel],
         },
         { dependsOn: [k3s.install] },
       )

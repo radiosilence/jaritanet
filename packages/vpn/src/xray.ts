@@ -5,7 +5,6 @@ import type * as z from "zod";
 import type { XrayConfSchema } from "./xray.schemas.ts";
 import type { VpnUser } from "./users.ts";
 import { sha256hex } from "@jaritanet/k8s";
-import { VPN_ENTRY_LABEL } from "./entry.ts";
 import { realityKeypair } from "./reality.ts";
 
 // A guest may address the public internet and nothing else. Narrower rules were
@@ -66,6 +65,7 @@ export function createXray(
   namespace: pulumi.Input<string>,
   xray: z.infer<typeof XrayConfSchema>,
   users: VpnUser[],
+  entryLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
   const shortId = new random.RandomId("xray-short-id", { byteLength: 8 });
@@ -206,7 +206,7 @@ export function createXray(
             automountServiceAccountToken: false,
             // Entries are chosen per node, not per cluster: `lady` joins soon
             // and must not start answering :443 by virtue of being a node.
-            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
+            nodeSelector: { [entryLabel]: "true" },
             containers: [
               {
                 name: app,

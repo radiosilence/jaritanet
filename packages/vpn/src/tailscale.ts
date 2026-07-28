@@ -2,7 +2,6 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TailnetConfSchema } from "./tailscale.schemas.ts";
-import { VPN_ENTRY_LABEL } from "./entry.ts";
 
 /**
  * Joins the gateway to the tailnet from inside its own cluster, so it can relay
@@ -47,6 +46,7 @@ export function createTailscale(
   namespace: pulumi.Input<string>,
   tailnet: z.infer<typeof TailnetConfSchema>,
   authKey: pulumi.Output<string>,
+  entryLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
   const secret = new k8s.core.v1.Secret(
@@ -139,7 +139,7 @@ export function createTailscale(
             serviceAccountName: account.metadata.name,
             // A relay is a property of the node, not of the cluster — the same
             // label that decides which node serves the transports.
-            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
+            nodeSelector: { [entryLabel]: "true" },
             containers: [
               {
                 name: app,
