@@ -107,6 +107,10 @@
         "jaritanet:gateway": {
           "type": "object",
           "properties": {
+            "credentialRotation": {
+              "default": "1",
+              "type": "string"
+            },
             "hysteria": {
               "$ref": "#/$defs/__schema1"
             },
