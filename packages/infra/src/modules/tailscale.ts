@@ -93,6 +93,15 @@ export function createTailscale(
                   },
                   { name: "TS_HOSTNAME", value: tailnet.hostname },
                   { name: "TS_STATE_DIR", value: "/var/lib/tailscale" },
+                  // containerboot defaults to keeping node state in a
+                  // Kubernetes Secret, which needs an API token this pod
+                  // deliberately does not mount. Empty means "use the state
+                  // directory" — the host one above, which is what carries
+                  // this node's existing tailnet identity across the move off
+                  // systemd. Without it the container exits before starting:
+                  // "error initializing kube client ... serviceaccount/namespace:
+                  // no such file or directory".
+                  { name: "TS_KUBE_SECRET", value: "" },
                   // Kernel networking, not userspace: this node relays traffic
                   // for others rather than originating it, so it needs a real
                   // interface the host routes through.

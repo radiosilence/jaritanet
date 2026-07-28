@@ -4,6 +4,7 @@ import * as random from "@pulumi/random";
 import * as yaml from "yaml";
 import type * as z from "zod";
 import type { McpGatewayConfSchema } from "../conf.schemas.ts";
+import { cpuRequests } from "../util.ts";
 
 const SECRETS_NAME = "mcp-gateway-secrets";
 /** An env `valueFrom` pointing at a key in the stack's Secret. */
@@ -470,7 +471,10 @@ export function createMcpGateway(
                   initialDelaySeconds: 5,
                   periodSeconds: 10,
                 },
-                resources: { limits: conf.limits },
+                resources: {
+                  limits: conf.limits,
+                  ...cpuRequests(conf.limits?.cpu),
+                },
                 securityContext: { allowPrivilegeEscalation: false },
               },
             ],

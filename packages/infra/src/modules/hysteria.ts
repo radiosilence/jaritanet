@@ -178,8 +178,13 @@ ${userpassBlock}
               // state), so these are floors rather than generous ceilings.
               resources:
                 port < 1024
-                  ? { requests: { cpu: "200m" }, limits: { memory: "256Mi" } }
-                  : { requests: { cpu: "50m" }, limits: { memory: "128Mi" } },
+                  ? // The primary port carries the daily-driver traffic; the
+                    // alt ports exist so a blocked 443 has somewhere to fall
+                    // back to and normally carry nothing. QUIC buffers scale
+                    // with concurrent streams, hence the memory. No CPU limit,
+                    // for the reason in xray.ts.
+                    { requests: { cpu: "750m" }, limits: { memory: "768Mi" } }
+                  : { requests: { cpu: "100m" }, limits: { memory: "256Mi" } },
               volumeMounts: [
                 { name: "config", mountPath: "/etc/hysteria", readOnly: true },
               ],

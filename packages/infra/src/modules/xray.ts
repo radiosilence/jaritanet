@@ -229,8 +229,13 @@ export function createXray(
                 // shuffles bytes, was OOMKilled at 64Mi and needed 256Mi, and
                 // this holds TLS state per connection on top of that.
                 resources: {
-                  requests: { cpu: "200m" },
-                  limits: { memory: "512Mi" },
+                  // Re-encrypts every byte it relays, so this is the one
+                  // genuinely CPU-bound workload here — ~920Mbit measured
+                  // through the tunnel. No CPU limit deliberately: throttling
+                  // surfaces as periodic stalls, not a slowdown. The request
+                  // is what reserves share when something else bursts.
+                  requests: { cpu: "750m" },
+                  limits: { memory: "768Mi" },
                 },
                 volumeMounts: [
                   { name: "config", mountPath: "/etc/xray", readOnly: true },

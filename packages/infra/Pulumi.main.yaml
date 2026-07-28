@@ -16,8 +16,10 @@ config:
     authHostname: ''
     hydraTag: "v2.2.0"
     replicas: 2
+    # Routes and terminates OAuth rather than serving a file, so it gets more
+    # headroom than blit — but it measured 1m CPU idle, not 500m.
     limits:
-      cpu: "500m"
+      cpu: "250m"
       memory: "256Mi"
     image:
       # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
@@ -303,9 +305,13 @@ config:
         networkPolicy: true
         replicas: 2
         healthCheck: {}
+        # Measured: 1m CPU and 68Mi per replica for a static site. The old
+        # 1000m/1024Mi was a ceiling nobody had looked at, and since a limit
+        # without a request becomes the request, two replicas reserved half
+        # the node and the scheduler refused a VPN transport for lack of CPU.
         limits:
-          cpu: 1000m
-          memory: 1024Mi
+          cpu: 100m
+          memory: 192Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: sha-3855f05
