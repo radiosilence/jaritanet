@@ -75,3 +75,37 @@
   repo: radiosilence/tfl-mcp
   path: [config, "jaritanet:mcpGateway", mcps, { id: tfl }, image]
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
+
+# The internet-facing daemons. These terminate traffic from hostile networks,
+# so they are the entries where a stale pin actually costs something — and all
+# four were hardcoded in TypeScript until they moved into config so this file
+# could reach them.
+
+- app: Xray
+  repo: XTLS/Xray-core
+  path: [config, "jaritanet:gateway", xray, version]
+  value: "v{version}"
+  # The module strips the leading v — its image tags carry none.
+  image: "ghcr.io/xtls/xray-core:{version}"
+
+# Releases are tagged "app/v2.10.0"; everything before the first digit is
+# stripped, so the prefix costs nothing here.
+- app: Hysteria2
+  repo: apernet/hysteria
+  path: [config, "jaritanet:gateway", hysteria, image]
+  value: "docker.io/tobyxdd/hysteria:v{version}"
+
+- app: Tailscale
+  repo: tailscale/tailscale
+  path: [config, "jaritanet:gateway", tailnet, image]
+  value: "ghcr.io/tailscale/tailscale:v{version}"
+
+- app: Unbound
+  repo: klutchell/unbound
+  path: [config, "jaritanet:gateway", unbound, image]
+  value: "docker.io/klutchell/unbound:v{version}"
+
+# Deliberately absent: k3s and Cilium. Cilium's version has to match the
+# cluster's k8s minor, and k3s is the cluster — bumping either unattended
+# changes the thing every other entry is deployed onto. They move by hand,
+# together, with the compatibility matrix open.

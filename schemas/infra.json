@@ -31,7 +31,8 @@
                 "default": {
                   "altPorts": [3478, 4500],
                   "port": 443,
-                  "sni": "www.bing.com"
+                  "sni": "www.bing.com",
+                  "image": "docker.io/tobyxdd/hysteria:v2.10.0"
                 },
                 "$ref": "#/$defs/__schema1"
               },
@@ -153,8 +154,24 @@
                   "default": "jaritanet-gw",
                   "type": "string"
                 },
+                "image": {
+                  "default": "ghcr.io/tailscale/tailscale:v1.98.9",
+                  "type": "string"
+                },
                 "tag": {
                   "default": "tag:server",
+                  "type": "string"
+                }
+              }
+            },
+            "unbound": {
+              "default": {
+                "image": "docker.io/klutchell/unbound:v1.24.0"
+              },
+              "type": "object",
+              "properties": {
+                "image": {
+                  "default": "docker.io/klutchell/unbound:v1.24.0",
                   "type": "string"
                 }
               }
@@ -637,6 +654,10 @@
           "items": {
             "type": "number"
           }
+        },
+        "image": {
+          "default": "docker.io/tobyxdd/hysteria:v2.10.0",
+          "type": "string"
         },
         "port": {
           "default": 443,

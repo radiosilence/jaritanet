@@ -13,7 +13,10 @@ on:
       - "packages/infra/src/update-apps.ts"
       - "packages/infra/src/versions.ts"
   schedule:
-    - cron: "0 2 * * *"
+    # Three times a day, not once: these entries now include the daemons
+    # that terminate traffic from hostile networks, where the gap between a
+    # fix publishing and it being deployed is the thing being minimised.
+    - cron: "0 2,10,18 * * *"
   workflow_dispatch:
 
 # One run at a time. Editing any of the tracked files triggers a run, and

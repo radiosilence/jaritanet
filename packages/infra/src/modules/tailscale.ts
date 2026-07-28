@@ -4,8 +4,6 @@ import type * as z from "zod";
 import type { TailnetConfSchema } from "../conf.schemas.ts";
 import { VPN_ENTRY_LABEL } from "../util.ts";
 
-const IMAGE = "ghcr.io/tailscale/tailscale:v1.98.9";
-
 /**
  * Joins the gateway to the tailnet from inside its own cluster, so it can relay
  * client traffic into the mesh.
@@ -145,7 +143,7 @@ export function createTailscale(
             containers: [
               {
                 name: app,
-                image: IMAGE,
+                image: tailnet.image,
                 env: [
                   {
                     name: "TS_AUTHKEY",

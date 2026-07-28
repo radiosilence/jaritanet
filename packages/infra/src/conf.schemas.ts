@@ -155,6 +155,10 @@ export const XrayConfSchema = z.object({
  */
 export const HysteriaConfSchema = z.object({
   altPorts: z.array(z.number()).default([3478, 4500]),
+  // Not the project's own GHCR org, which publishes nothing: this is the
+  // image hysteria's install docs point at, on a maintainer's Docker Hub
+  // account. A weaker supply-chain position, accepted knowingly.
+  image: z.string().default("docker.io/tobyxdd/hysteria:v2.10.0"),
   port: z.number().default(443),
   sni: z.string().default("www.bing.com"),
 });
@@ -169,6 +173,7 @@ export const HysteriaConfSchema = z.object({
  */
 export const TailnetConfSchema = z.object({
   hostname: z.string().default("jaritanet-gw"),
+  image: z.string().default("ghcr.io/tailscale/tailscale:v1.98.9"),
   tag: z.string().default("tag:server"),
 });
 
@@ -206,6 +211,15 @@ export const K3sConfSchema = z.object({
   version: z.string().default("v1.36.2+k3s1"),
 });
 
+/**
+ * The gateway's caching resolver. Only the image is configurable — everything
+ * else about it is determined by the role (loopback only, DoT upstream), and a
+ * knob for it would be a way to get it wrong.
+ */
+export const UnboundConfSchema = z.object({
+  image: z.string().default("docker.io/klutchell/unbound:v1.24.0"),
+});
+
 export const GatewayConfSchema = z.object({
   hysteria: HysteriaConfSchema.optional(),
   /**
@@ -222,6 +236,9 @@ export const GatewayConfSchema = z.object({
   ratholeVersion: z.string().default("v0.5.0"),
   serverType: z.string().default("cx23"),
   tailnet: TailnetConfSchema.optional(),
+  unbound: UnboundConfSchema.default({
+    image: "docker.io/klutchell/unbound:v1.24.0",
+  }),
   xray: XrayConfSchema.optional(),
 });
 
@@ -239,6 +256,7 @@ export const EdgeConfSchema = z.object({
     altPorts: [3478, 4500],
     port: 443,
     sni: "www.bing.com",
+    image: "docker.io/tobyxdd/hysteria:v2.10.0",
   }),
   image: z.string().default("ubuntu-24.04"),
   location: z.string().default("hel1"),
