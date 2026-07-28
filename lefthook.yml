@@ -8,8 +8,8 @@ pre-commit:
     format:
       run: aube run fmt {staged_files} --no-error-on-unmatched-pattern
       stage_fixed: true
-    typecheck-infra:
-      run: aube run typecheck:infra
+    typecheck:
+      run: aube run typecheck
     rust:
       glob: "containers/**/*.rs"
       run: cd containers/serve-from-env && cargo fmt && cargo clippy --all-targets -- -D warnings

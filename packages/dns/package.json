@@ -1,0 +1,21 @@
+{
+  "name": "@jaritanet/dns",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cloudflare DNS records: service A records, Fastmail MX/DKIM, Bluesky ATProto",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pulumi/cloudflare": "6.15.0",
+    "@pulumi/pulumi": "3.239.0",
+    "zod": "4.4.3"
+  }
+}

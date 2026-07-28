@@ -1,0 +1,433 @@
+import * as k8s from "@pulumi/kubernetes";
+import * as pulumi from "@pulumi/pulumi";
+import type * as z from "zod";
+import type { TraefikConfSchema } from "./ingress.schemas.ts";
+import { sha256hex } from "@jaritanet/k8s";
+
+/**
+ * Deploys the ingress stack into the K8s cluster:
+ * - Traefik as the ingress controller with built-in ACME (Let's Encrypt via DNS-01)
+ * - Rathole client connecting back to the Hetzner gateway VPS
+ *
+ * Traefik handles TLS termination and hostname routing. Rathole tunnels
+ * ports 80+443 from the VPS to Traefik's service. No certs on the VPS.
+ */
+export function createIngress(
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
+  traefik: z.infer<typeof TraefikConfSchema>,
+  vpsIp: pulumi.Output<string> | undefined,
+  ratholeToken: pulumi.Output<string> | undefined,
+  cloudflareApiToken: string,
+  exits: { name: string; port: number }[] = [],
+) {
+  // Cloudflare API token for Traefik's DNS-01 ACME solver
+  const cfSecret = new k8s.core.v1.Secret(
+    "cloudflare-api-token",
+    {
+      metadata: { name: "cloudflare-api-token" },
+      stringData: {
+        "api-token": cloudflareApiToken,
+      },
+    },
+    { provider },
+  );
+
+  // Traefik via Helm — ingress controller with built-in Let's Encrypt
+  const traefikRelease = new k8s.helm.v3.Release(
+    "traefik",
+    {
+      chart: "traefik",
+      namespace,
+      repositoryOpts: {
+        repo: "https://traefik.github.io/charts",
+      },
+      values: {
+        ports: {
+          web: {
+            expose: { default: true },
+            port: 8000,
+            hostPort: 80,
+          },
+          websecure: {
+            expose: { default: true },
+            port: 8443,
+            // 8443, not 443: xray owns :443 on this host and relays anything
+            // that is not a VPN client to `dest` — which is this. Binding 443
+            // here would collide with it and take both down. When the cluster
+            // was on a different machine, rathole bridged that gap; co-located,
+            // the gap does not exist.
+            hostPort: 8443,
+          },
+        },
+        service: {
+          type: "ClusterIP",
+        },
+        // ACME certificate resolver using Cloudflare DNS-01
+        additionalArguments: [
+          `--certificatesresolvers.letsencrypt.acme.email=${traefik.acmeEmail}`,
+          "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json",
+          "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare",
+          "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53",
+        ],
+        env: [
+          {
+            name: "CF_DNS_API_TOKEN",
+            valueFrom: {
+              secretKeyRef: {
+                key: "api-token",
+                name: cfSecret.metadata.name,
+              },
+            },
+          },
+        ],
+        persistence: {
+          enabled: true,
+          size: "128Mi",
+        },
+        // Single node with hostPort: the replacement pod cannot bind :80/:443
+        // while the old one holds them, so the chart's default (maxUnavailable
+        // 0, maxSurge 1) deadlocks — the new pod stays Pending forever and the
+        // old one is never allowed to leave. Traefik sat 20 days on a stale pod
+        // that way, silently ignoring chart bumps.
+        //
+        // Old pod goes first, then the new one binds. That is a few seconds of
+        // no ingress per deploy, which is the price of one node and a hostPort.
+        // This key is `updateStrategy`, NOT `deployment.strategy` — the latter
+        // is not in the chart's values and was accepted and ignored.
+        updateStrategy: {
+          type: "RollingUpdate",
+          rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
+        },
+        resources: {
+          limits: {
+            cpu: "250m",
+            memory: "256Mi",
+          },
+        },
+      },
+      version: traefik.chartVersion,
+    },
+    { provider },
+  );
+
+  // Rathole client — only deployed when a gateway VPS exists.
+  // Without it, traffic reaches Traefik directly (e.g. via port forwarding).
+  if (vpsIp && ratholeToken) {
+    // Use the Helm release's generated service name and service ports (not container ports)
+    const traefikSvc = pulumi.interpolate`${traefikRelease.name}.${namespace}.svc.cluster.local`;
+
+    // Punch each k8s exit's ss-rust port out to the gateway (matched by name to
+    // the gateway's [server.services.exit-*] loopback bind). Same rathole tunnel
+    // that already carries Traefik — an exit is just another service on it.
+    const exitClientEntries = exits
+      .flatMap((e) => {
+        // Bare service name for the same reason as the gateway's: same
+        // namespace, and the namespace is an Output that must not reach a
+        // plain template literal.
+        const addr = `exit-${e.name}:${e.port}`;
+        return ["tcp", "udp"].map(
+          (proto) =>
+            `\n[client.services.exit-${e.name}-${proto}]\ntype = "${proto}"\nlocal_addr = "${addr}"\n`,
+        );
+      })
+      .join("");
+
+    const ratholeConfig = pulumi.interpolate`[client]
+remote_addr = "${vpsIp}:2333"
+default_token = "${ratholeToken}"
+
+[client.services.https]
+type = "tcp"
+local_addr = "${traefikSvc}:443"
+
+[client.services.http]
+type = "tcp"
+local_addr = "${traefikSvc}:80"
+${exitClientEntries}`;
+
+    const ratholeConfigHash = sha256hex(ratholeConfig);
+
+    const ratholeConfigMap = new k8s.core.v1.ConfigMap(
+      "rathole-client-config",
+      {
+        metadata: { name: "rathole-client" },
+        data: {
+          "client.toml": ratholeConfig,
+        },
+      },
+      { provider },
+    );
+
+    new k8s.apps.v1.Deployment(
+      "rathole-client",
+      {
+        metadata: {
+          labels: { app: "rathole-client" },
+        },
+        spec: {
+          replicas: 1,
+          selector: {
+            matchLabels: { app: "rathole-client" },
+          },
+          template: {
+            metadata: {
+              // Roll the client when the config changes (new/removed exit) —
+              // mounted ConfigMaps don't restart rathole on their own.
+              annotations: { "jaritanet/config-hash": ratholeConfigHash },
+              labels: { app: "rathole-client" },
+            },
+            spec: {
+              containers: [
+                {
+                  args: ["--client", "/etc/rathole/client.toml"],
+                  command: ["/app/rathole"],
+                  image: "rapiz1/rathole:latest",
+                  name: "rathole",
+                  // 64Mi got this OOMKilled (exit 137) roughly every few days.
+                  // Every restart drops the tunnel, and with it all public
+                  // ingress and every exit — this one pod is the whole path
+                  // home. Buffers scale with concurrent streams, so a media
+                  // service plus exit traffic is nothing like the idle
+                  // footprint the original limit was presumably sized from.
+                  resources: {
+                    limits: {
+                      cpu: "100m",
+                      memory: "256Mi",
+                    },
+                  },
+                  volumeMounts: [
+                    {
+                      mountPath: "/etc/rathole",
+                      name: "config",
+                    },
+                  ],
+                },
+              ],
+              volumes: [
+                {
+                  configMap: {
+                    name: ratholeConfigMap.metadata.name,
+                  },
+                  name: "config",
+                },
+              ],
+            },
+          },
+        },
+      },
+      { dependsOn: [traefikRelease], provider },
+    );
+  }
+
+  return { traefikRelease };
+}
+
+/**
+ * Creates a Traefik IngressRoute for a service.
+ * Each service gets its own IngressRoute CRD pointing at its K8s Service,
+ * with TLS handled by the shared letsencrypt cert resolver.
+ */
+export function createIngressRoute(
+  provider: k8s.Provider,
+  serviceName: string,
+  hostname: string,
+  namespace: pulumi.Input<string>,
+  // IngressRoute is a kind the Traefik chart installs. Without this the CRD may
+  // not exist yet: "no matches for kind IngressRoute in version traefik.io/v1alpha1".
+  traefik?: pulumi.Resource,
+) {
+  new k8s.apiextensions.CustomResource(
+    `${serviceName}-ingress-route`,
+    {
+      apiVersion: "traefik.io/v1alpha1",
+      kind: "IngressRoute",
+      metadata: {
+        name: `${serviceName}-ingress`,
+        namespace,
+      },
+      spec: {
+        entryPoints: ["websecure"],
+        routes: [
+          {
+            kind: "Rule",
+            match: `Host(\`${hostname}\`)`,
+            services: [
+              {
+                name: `${serviceName}-service`,
+                port: 80,
+              },
+            ],
+          },
+        ],
+        tls: {
+          certResolver: "letsencrypt",
+        },
+      },
+    },
+    { provider, dependsOn: traefik ? [traefik] : [] },
+  );
+
+  // HTTP -> HTTPS redirect
+  new k8s.apiextensions.CustomResource(
+    `${serviceName}-ingress-redirect`,
+    {
+      apiVersion: "traefik.io/v1alpha1",
+      kind: "IngressRoute",
+      metadata: {
+        name: `${serviceName}-redirect`,
+        namespace,
+      },
+      spec: {
+        entryPoints: ["web"],
+        routes: [
+          {
+            kind: "Rule",
+            match: `Host(\`${hostname}\`)`,
+            middlewares: [
+              {
+                name: "redirect-https",
+              },
+            ],
+            services: [
+              {
+                name: `${serviceName}-service`,
+                port: 80,
+              },
+            ],
+          },
+        ],
+      },
+    },
+    { provider, dependsOn: traefik ? [traefik] : [] },
+  );
+}
+
+/**
+ * Traefik Middleware for HTTP -> HTTPS redirect, shared across all services.
+ */
+export function createRedirectMiddleware(
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
+  // As with IngressRoute: Middleware is a CRD the chart brings.
+  traefik?: pulumi.Resource,
+) {
+  new k8s.apiextensions.CustomResource(
+    "redirect-https",
+    {
+      apiVersion: "traefik.io/v1alpha1",
+      kind: "Middleware",
+      metadata: {
+        name: "redirect-https",
+        namespace,
+      },
+      spec: {
+        redirectScheme: {
+          permanent: true,
+          scheme: "https",
+        },
+      },
+    },
+    { provider, dependsOn: traefik ? [traefik] : [] },
+  );
+}
+
+/**
+ * Deploys a lightweight pod that monitors the server's external IP.
+ * When the IP changes (e.g. ISP rotation, internet restored after outage),
+ * it triggers the CI/CD workflow to update DNS records.
+ * Only deployed if a GitHub deploy token is available.
+ */
+export function createIpWatcher(
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
+  githubToken: string,
+  githubRepo: string,
+) {
+  const script = `#!/bin/sh
+LAST_IP=""
+while true; do
+  IP=$(curl -4 -s --connect-timeout 5 https://1.1.1.1/cdn-cgi/trace 2>/dev/null | grep '^ip=' | cut -d= -f2)
+  if [ -n "$IP" ] && [ "$IP" != "$LAST_IP" ]; then
+    if [ -n "$LAST_IP" ]; then
+      echo "$(date): IP changed $LAST_IP -> $IP, triggering deploy"
+      curl -s -X POST \\
+        -H "Authorization: token $GITHUB_TOKEN" \\
+        -H "Accept: application/vnd.github.v3+json" \\
+        "https://api.github.com/repos/$GITHUB_REPO/actions/workflows/ci-cd.yml/dispatches" \\
+        -d '{"ref":"main"}'
+    else
+      echo "$(date): Initial IP: $IP"
+    fi
+    LAST_IP="$IP"
+  fi
+  sleep 60
+done
+`;
+
+  const configMap = new k8s.core.v1.ConfigMap(
+    "ip-watcher-script",
+    {
+      metadata: { name: "ip-watcher" },
+      data: { "watch.sh": script },
+    },
+    { provider },
+  );
+
+  const secret = new k8s.core.v1.Secret(
+    "ip-watcher-github-token",
+    {
+      metadata: { name: "ip-watcher-github" },
+      stringData: { token: githubToken },
+    },
+    { provider },
+  );
+
+  new k8s.apps.v1.Deployment(
+    "ip-watcher",
+    {
+      metadata: {
+        labels: { app: "ip-watcher" },
+      },
+      spec: {
+        replicas: 1,
+        selector: { matchLabels: { app: "ip-watcher" } },
+        template: {
+          metadata: { labels: { app: "ip-watcher" } },
+          spec: {
+            containers: [
+              {
+                name: "watcher",
+                image: "curlimages/curl:latest",
+                command: ["sh", "/scripts/watch.sh"],
+                env: [
+                  {
+                    name: "GITHUB_TOKEN",
+                    valueFrom: {
+                      secretKeyRef: {
+                        name: secret.metadata.name,
+                        key: "token",
+                      },
+                    },
+                  },
+                  { name: "GITHUB_REPO", value: githubRepo },
+                ],
+                resources: {
+                  limits: { cpu: "10m", memory: "16Mi" },
+                },
+                volumeMounts: [{ name: "scripts", mountPath: "/scripts" }],
+              },
+            ],
+            volumes: [
+              {
+                name: "scripts",
+                configMap: { name: configMap.metadata.name },
+              },
+            ],
+          },
+        },
+      },
+    },
+    { provider },
+  );
+}
