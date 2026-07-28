@@ -370,6 +370,14 @@ On the gateway this runs as a pod, which means the tailnet goes with the
 cluster. That is accepted rather than defended against: sshd on the public IP is
 the way back in, so nothing is built to keep tailscale up while k3s is down.
 
+Node state lives in a Kubernetes Secret, not on the node's disk, so the identity
+survives reprovisioning the box. The Secret is created empty by Pulumi and never
+written by it again — RBAC cannot scope `create` to a resource name, so a
+container minting its own would need create on every Secret in the namespace,
+which is where the VPN credentials live. Creating it up front buys a Role that
+names one object and grants get/update/patch on it. Pulumi ignores the contents
+from then on; containerboot owns them.
+
 The `TS_AUTHKEY` secret is an **OAuth client secret** (`tskey-client-…`, with
 the `auth_keys` scope and the tag), not a raw auth key — raw keys cap at 90-day
 expiry, OAuth secrets don't. OAuth-minted keys default to ephemeral, so the
