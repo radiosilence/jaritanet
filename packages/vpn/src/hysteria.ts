@@ -6,7 +6,6 @@ import type * as z from "zod";
 import type { HysteriaConfSchema } from "./hysteria.schemas.ts";
 import type { VpnUser } from "./users.ts";
 import { sha256hex } from "@jaritanet/k8s";
-import { VPN_ENTRY_LABEL } from "./entry.ts";
 
 // Hysteria2 publishes no images under the apernet org — `ghcr.io/apernet/
 // hysteria` does not exist. tobyxdd is the maintainer, and this is the image
@@ -51,6 +50,7 @@ export function createHysteria(
   namespace: pulumi.Input<string>,
   hysteria: z.infer<typeof HysteriaConfSchema>,
   users: VpnUser[],
+  entryLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
   const admins = users.filter((u) => u.role === "admin");
@@ -153,7 +153,7 @@ ${userpassBlock}
             automountServiceAccountToken: false,
             // Entries are chosen per node, not per cluster: `lady` joins soon
             // and must not start answering :443 by virtue of being a node.
-            nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
+            nodeSelector: { [entryLabel]: "true" },
             containers: ports.map((port) => ({
               name: `${app}-${port}`,
               image: hysteria.image,

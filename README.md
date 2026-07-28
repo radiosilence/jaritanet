@@ -198,6 +198,7 @@ CI no longer joins the tailnet. It reaches the API server on the VPS's public
 | `SINGBOX_SLUG` | No | Base secret for per-user profile paths (each user's slug is derived from it, so URLs are stable but unguessable) |
 | `TAILNET_MAGICDNS_SUFFIX` | No | Tailnet MagicDNS suffix baked into the profile |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | No | Telegram bot + chat for the per-user profile URL notify |
+| `VPN_ENTRY_LABEL` | Yes | Node label key marking a machine as a VPN entry, e.g. `jaritanet.radiosilence.dev/vpn-entry`. Read once and passed to both the command that labels the node and every transport's `nodeSelector`, so they cannot disagree — a selector matching no node schedules nothing while the cluster looks healthy. Required for that reason: a red deploy beats a silently dark VPN |
 | `VPN_USERS` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin. E.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 
 **Ansible / server provisioning (`run-playbook.yml`)**

@@ -1,4 +1,3 @@
-export { VPN_ENTRY_LABEL } from "./entry.ts";
 export { createExit, deriveExitPort, type ResolvedExit } from "./exit.ts";
 export { ExitConfSchema } from "./exit.schemas.ts";
 export { createHysteria } from "./hysteria.ts";

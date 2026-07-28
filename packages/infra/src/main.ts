@@ -84,13 +84,11 @@ export default async function () {
   if (env.HCLOUD_TOKEN) {
     gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
     // Exits surface on the gateway's rathole loopback (name + port).
-    const gw = createGateway(
-      gatewayConf,
-      users,
-      resolvedExits,
-      env.TAILNET_MAGICDNS_SUFFIX,
-      env.TS_AUTHKEY,
-    );
+    const gw = createGateway(gatewayConf, users, resolvedExits, {
+      entryLabel: env.VPN_ENTRY_LABEL,
+      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
+      tailnetAuthKey: env.TS_AUTHKEY,
+    });
     dnsTarget = gw.vpsIp;
     gatewayIp = gw.vpsIp;
     ratholeToken = gw.ratholeToken.result;
@@ -267,7 +265,13 @@ export default async function () {
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
   if (clusterOnGateway && gatewayConf) {
-    createUnbound(provider, nsName, gatewayConf.unbound, transportDeps);
+    createUnbound(
+      provider,
+      nsName,
+      gatewayConf.unbound,
+      env.VPN_ENTRY_LABEL,
+      transportDeps,
+    );
 
     if (gatewayConf.tailnet && env.TS_AUTHKEY) {
       createTailscale(
@@ -275,6 +279,7 @@ export default async function () {
         nsName,
         gatewayConf.tailnet,
         pulumi.secret(env.TS_AUTHKEY),
+        env.VPN_ENTRY_LABEL,
         transportDeps,
       );
     }
@@ -285,6 +290,7 @@ export default async function () {
         nsName,
         gatewayConf.xray,
         users,
+        env.VPN_ENTRY_LABEL,
         transportDeps,
       );
       reality = {
@@ -301,6 +307,7 @@ export default async function () {
         nsName,
         gatewayConf.hysteria,
         users,
+        env.VPN_ENTRY_LABEL,
         transportDeps,
       );
       hysteria = {
