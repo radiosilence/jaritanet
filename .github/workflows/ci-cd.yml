@@ -50,6 +50,8 @@ on:
         required: false
       VPN_USERS:
         required: false
+      VPN_ENTRY_LABEL:
+        required: true
       MCP_HOSTNAME:
         required: false
       MCP_AUTH_HOSTNAME:
@@ -127,7 +129,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Type Check
-        run: aube run typecheck:infra
+        run: aube run typecheck
 
   test:
     name: Test
@@ -215,6 +217,10 @@ jobs:
           # Per-user VPN roster (RBAC). "jc+,guest1" → jc admin, guest1 guest.
           # Unset → single implicit owner-admin.
           VPN_USERS: ${{ secrets.VPN_USERS }}
+          # Node label key marking a machine as a VPN entry. Read once and
+          # passed to both the labelling command and every transport's
+          # nodeSelector, so the two cannot drift apart.
+          VPN_ENTRY_LABEL: ${{ secrets.VPN_ENTRY_LABEL }}
           # sing-box profiles: Pulumi generates them and serves them from the
           # cluster. Skipped if the slug or magicdns suffix is unset.
           SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}

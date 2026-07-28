@@ -17,7 +17,7 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt --write",
     "fmt:check": "oxfmt --check",
-    "typecheck:infra": "tsc -p ./packages/infra/tsconfig.json",
+    "typecheck": "for p in packages/*/tsconfig.json; do echo \"→ $p\" && tsc -p \"$p\" || exit 1; done",
     "gen:schemas": "./scripts/gen-schemas.ts",
     "check:profiles": "./scripts/check-profiles.ts",
     "update:apps": "./packages/infra/src/update-apps.ts",
@@ -26,14 +26,6 @@
     "prepare": "lefthook install"
   },
   "dependencies": {
-    "@pulumi/cloudflare": "6.15.0",
-    "@pulumi/command": "1.2.1",
-    "@pulumi/hcloud": "1.35.0",
-    "@pulumi/kubernetes": "4.30.0",
-    "@pulumi/pulumi": "3.239.0",
-    "@pulumi/random": "4.20.0",
-    "@pulumi/tls": "5.4.0",
-    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
