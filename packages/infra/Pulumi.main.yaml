@@ -303,7 +303,10 @@ config:
         # runtime cannot be checked from here, and guessing that is what took
         # Navidrome down (see #166/#168).
         networkPolicy: true
-        replicas: 2
+        # One node means one failure domain: a second replica dies with the
+        # first, so it bought nothing. maxSurge still brings the new pod up
+        # before the old one goes, so deploys stay seamless.
+        replicas: 1
         healthCheck: {}
         # Measured: 1m CPU and 68Mi per replica for a static site. The old
         # 1000m/1024Mi was a ceiling nobody had looked at, and since a limit
