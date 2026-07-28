@@ -100,8 +100,13 @@
   path: [config, "jaritanet:gateway", tailnet, image]
   value: "ghcr.io/tailscale/tailscale:v{version}"
 
+# The image repo and the release repo are different projects here: klutchell
+# builds the container and cuts no GitHub releases, so it was unreadable and
+# failed the whole run. Upstream tags "release-1.25.2", which normalises to the
+# tag the image actually carries. If the build ever lags upstream the image
+# check catches it — that is what the check is for.
 - app: Unbound
-  repo: klutchell/unbound
+  repo: NLnetLabs/unbound
   path: [config, "jaritanet:gateway", unbound, image]
   value: "docker.io/klutchell/unbound:v{version}"
 
