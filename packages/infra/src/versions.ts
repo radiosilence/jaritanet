@@ -23,6 +23,7 @@ export const TrackedSchema = z.object({
   path: z.array(PathSegmentSchema).min(1),
   value: z.string(),
   image: z.string().optional(),
+  tagPrefix: z.string().optional(),
 });
 
 export const TrackedListSchema = z.array(TrackedSchema);
@@ -51,6 +52,17 @@ export type Decision =
  * whatever form it actually needs.
  */
 export const normaliseVersion = (tag: string) => tag.replace(/^\D*/, "");
+
+/**
+ * The newest release belonging to one component, given tags newest first.
+ *
+ * A repo publishing several things cuts prefixed releases — this one releases
+ * `serve-from-env-v1.2.0` and `files-v1.0.0` — and "the latest release" is then
+ * repo-wide, so without a prefix an entry would take the version of whatever
+ * released most recently and pin itself to an image that was never built.
+ */
+export const pickLatestTag = (tags: string[], prefix?: string) =>
+  (prefix ? tags.filter((tag) => tag.startsWith(prefix)) : tags)[0];
 
 export const applyTemplate = (template: string, version: string) =>
   template.replaceAll("{version}", version);

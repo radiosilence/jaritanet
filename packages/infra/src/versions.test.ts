@@ -7,6 +7,7 @@ import {
   decide,
   normaliseVersion,
   parseImageRef,
+  pickLatestTag,
   readAt,
   STRINGIFY_OPTIONS,
   TrackedListSchema,
@@ -33,6 +34,41 @@ describe("normaliseVersion", () => {
     ["v10.0.0-rc1", "10.0.0-rc1"],
   ])("%s -> %s", (tag, expected) => {
     expect(normaliseVersion(tag)).toBe(expected);
+  });
+});
+
+describe("pickLatestTag", () => {
+  // Newest first, as the releases API returns them, and both containers
+  // releasing from this one repo.
+  const tags = [
+    "files-v1.0.1",
+    "serve-from-env-v0.2.0",
+    "files-v1.0.0",
+    "serve-from-env-v0.1.0",
+  ];
+
+  it("takes the newest release of the component asked for", () => {
+    expect(pickLatestTag(tags, "serve-from-env-v")).toBe(
+      "serve-from-env-v0.2.0",
+    );
+    expect(pickLatestTag(tags, "files-v")).toBe("files-v1.0.1");
+  });
+
+  it("takes the newest of any component without a prefix", () => {
+    expect(pickLatestTag(tags)).toBe("files-v1.0.1");
+  });
+
+  it("finds nothing for a component that has never released", () => {
+    expect(pickLatestTag(tags, "blit-v")).toBeUndefined();
+    expect(pickLatestTag([], "files-v")).toBeUndefined();
+  });
+
+  // The prefix is what stops `files-v1.0.1` being read as serve-from-env's
+  // version and pinning it to an image that was never built.
+  it("does not confuse one component's release for another's", () => {
+    expect(
+      normaliseVersion(pickLatestTag(tags, "serve-from-env-v") ?? ""),
+    ).toBe("0.2.0");
   });
 });
 

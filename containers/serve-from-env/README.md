@@ -38,6 +38,17 @@ panic the router at boot.
 Bad input — unset, not an object, empty, unparseable, a relative path — fails at
 startup rather than answering 404 to every client.
 
+## Releasing
+
+Bump `version` in `Cargo.toml`. That is the whole release process: CI sees a
+version with no matching release, publishes the image, cuts
+`serve-from-env-v<version>`, and the version updater moves the pin in
+`Pulumi.main.yaml` on its next run — after confirming the image actually
+published.
+
+Tags are output, not input. Nothing reads a tag to decide what to build, so
+there is no second place to keep the number in step.
+
 ## Config
 
 - `ROUTES` — the routing table. Required.

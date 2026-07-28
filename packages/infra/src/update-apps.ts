@@ -26,6 +26,7 @@ import {
   decide,
   normaliseVersion,
   parseImageRef,
+  pickLatestTag,
   readAt,
   STRINGIFY_OPTIONS,
   TrackedListSchema,
@@ -94,15 +95,30 @@ async function imageExists(ref: string) {
   return manifest.status === 200;
 }
 
-async function latestTag(repo: string) {
+/**
+ * `releases/latest` is repo-wide, which is right until a repo releases more than
+ * one thing. With a prefix the list is read instead and filtered — skipping
+ * drafts and prereleases, which is what `releases/latest` does for us otherwise.
+ */
+async function latestTag(repo: string, prefix?: string) {
   try {
+    if (!prefix) {
+      const { stdout } = await run("gh", [
+        "api",
+        `repos/${repo}/releases/latest`,
+        "--jq",
+        ".tag_name",
+      ]);
+      return stdout.trim() || undefined;
+    }
     const { stdout } = await run("gh", [
       "api",
-      `repos/${repo}/releases/latest`,
+      "--paginate",
+      `repos/${repo}/releases`,
       "--jq",
-      ".tag_name",
+      ".[] | select(.draft == false and .prerelease == false) | .tag_name",
     ]);
-    return stdout.trim() || undefined;
+    return pickLatestTag(stdout.trim().split("\n").filter(Boolean), prefix);
   } catch {
     return undefined;
   }
@@ -189,7 +205,7 @@ const titles: string[] = [];
 const details: string[] = [];
 
 for (const entry of entries) {
-  const tag = await latestTag(entry.repo);
+  const tag = await latestTag(entry.repo, entry.tagPrefix);
   if (!tag) {
     warn(`${entry.app} — no readable release on ${entry.repo}`);
     failed.push(entry.app);

@@ -8,18 +8,78 @@ on:
   push:
     branches:
       - main
-    tags:
-      - v*
     paths:
       - "containers/files/**"
       - ".github/workflows/build-files-container.yml"
+  pull_request:
+    paths:
+      - "containers/files/**"
+      - ".github/workflows/build-files-container.yml"
+  workflow_dispatch:
 
 jobs:
+  # Same shape as serve-from-env, reading `VERSION` because an nginx config has
+  # no manifest to hold the number. Still one source of truth per container:
+  # copying the crate's version into a second file is how the two drift.
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Read the version, and ask whether it has been released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < containers/files/VERSION)
+          if [ -z "$version" ]; then
+            echo "containers/files/VERSION is empty" >&2
+            exit 1
+          fi
+          if gh release view "files-v$version" >/dev/null 2>&1; then
+            release=false
+          else
+            release=true
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "version $version, release $release"
+
   publish:
     name: Build and Publish
-    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@28e962429b331f0e39905f70ae10211b1db66349 # main
+    needs: [version]
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@dd9d9c97a8c1ee1e27f285a96cbb50b2b6c16e06 # native-arm-runners
     with:
       working-directory: "./containers/files"
       image: "jaritanet-files"
+      version: ${{ needs.version.outputs.release == 'true' && needs.version.outputs.version || '' }}
     secrets:
       PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    name: Release
+    needs: [version, publish]
+    if: needs.version.outputs.release == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Create the release, and its tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "files-v$VERSION" \
+            --title "files v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --generate-notes
