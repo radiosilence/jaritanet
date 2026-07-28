@@ -22,10 +22,19 @@ const IMAGE = "ghcr.io/tailscale/tailscale:v1.98.9";
  * class of reason — with hostNetwork, accepting MagicDNS would rewrite the
  * node's /etc/resolv.conf, and this box resolves through its own unbound.
  *
- * State lives on the host at the path the systemd tailscaled already used, so
- * a gateway migrating from that keeps its node identity instead of registering
- * a second machine. It is also why the migration must stop tailscaled without
- * logging it out (see gateway.ts).
+ * State lives in a Kubernetes Secret rather than on the host. The host path was
+ * right for the migration off systemd — it already held the identity, so the
+ * node rejoined as itself — but it tied that identity to one box's disk, which
+ * is the opposite of what a cluster whose nodes are reprovisionable should do.
+ * In a Secret the state survives the node.
+ *
+ * The Secret is created here, empty, so the Role can name it. RBAC cannot scope
+ * `create` to a resource name, so a container that made its own would need
+ * create on every Secret in the namespace — which is where the VPN credentials
+ * and the Postgres passwords live. Pre-creating it costs one resource and keeps
+ * the grant to get/update/patch on exactly one object. `ignoreChanges` on the
+ * contents because containerboot owns them from then on; Pulumi would otherwise
+ * blank the node key on every deploy.
  *
  * Losing the tailnet when the cluster breaks is accepted: sshd on the public IP
  * is the way back in, so nothing here is built to defend against it.
@@ -54,6 +63,54 @@ export function createTailscale(
   );
 
   const app = "tailscale";
+
+  // Created empty and never written by Pulumi again — see the note above.
+  const state = new k8s.core.v1.Secret(
+    "tailscale-state",
+    { metadata: { name: "tailscale-state", namespace } },
+    { provider, ignoreChanges: ["data", "stringData"] },
+  );
+
+  const account = new k8s.core.v1.ServiceAccount(
+    "tailscale",
+    { metadata: { name: app, namespace } },
+    { provider },
+  );
+
+  const role = new k8s.rbac.v1.Role(
+    "tailscale",
+    {
+      metadata: { name: app, namespace },
+      rules: [
+        {
+          apiGroups: [""],
+          resources: ["secrets"],
+          // By name: this pod terminates traffic from hostile networks, so a
+          // compromise should not read every other Secret in the namespace.
+          resourceNames: [state.metadata.name],
+          verbs: ["get", "update", "patch"],
+        },
+      ],
+    },
+    { provider },
+  );
+
+  new k8s.rbac.v1.RoleBinding(
+    "tailscale",
+    {
+      metadata: { name: app, namespace },
+      roleRef: {
+        apiGroup: "rbac.authorization.k8s.io",
+        kind: "Role",
+        name: role.metadata.name,
+      },
+      subjects: [
+        { kind: "ServiceAccount", name: account.metadata.name, namespace },
+      ],
+    },
+    { provider },
+  );
+
   return new k8s.apps.v1.DaemonSet(
     app,
     {
@@ -73,7 +130,9 @@ export function createTailscale(
             hostNetwork: true,
             // The host's resolver is unbound on this same box, not the cluster.
             dnsPolicy: "Default",
-            automountServiceAccountToken: false,
+            // Needed now: the state Secret is reached through the API. The
+            // Role behind this token covers one Secret by name.
+            serviceAccountName: account.metadata.name,
             // A relay is a property of the node, not of the cluster — the same
             // label that decides which node serves the transports.
             nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
@@ -92,23 +151,18 @@ export function createTailscale(
                     },
                   },
                   { name: "TS_HOSTNAME", value: tailnet.hostname },
-                  { name: "TS_STATE_DIR", value: "/var/lib/tailscale" },
-                  // containerboot defaults to keeping node state in a
-                  // Kubernetes Secret, which needs an API token this pod
-                  // deliberately does not mount. Empty means "use the state
-                  // directory" — the host one above, which is what carries
-                  // this node's existing tailnet identity across the move off
-                  // systemd. Without it the container exits before starting:
-                  // "error initializing kube client ... serviceaccount/namespace:
-                  // no such file or directory".
-                  { name: "TS_KUBE_SECRET", value: "" },
+                  // Node state in the cluster rather than on the node's disk.
+                  // TS_STATE_DIR is deliberately absent: setting both is
+                  // ambiguous, and the directory is the thing being moved away
+                  // from.
+                  { name: "TS_KUBE_SECRET", value: state.metadata.name },
                   // Kernel networking, not userspace: this node relays traffic
                   // for others rather than originating it, so it needs a real
                   // interface the host routes through.
                   { name: "TS_USERSPACE", value: "false" },
                   { name: "TS_ACCEPT_DNS", value: "false" },
-                  // The node persists in the state directory, so re-running
-                  // `up` on every restart only risks churning a working node.
+                  // The node persists in the state Secret, so re-running `up`
+                  // on every restart only risks churning a working node.
                   { name: "TS_AUTH_ONCE", value: "true" },
                   {
                     name: "TS_EXTRA_ARGS",
@@ -128,10 +182,7 @@ export function createTailscale(
                   requests: { cpu: "100m" },
                   limits: { memory: "256Mi" },
                 },
-                volumeMounts: [
-                  { name: "state", mountPath: "/var/lib/tailscale" },
-                  { name: "tun", mountPath: "/dev/net/tun" },
-                ],
+                volumeMounts: [{ name: "tun", mountPath: "/dev/net/tun" }],
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   seccompProfile: { type: "RuntimeDefault" },
@@ -144,13 +195,6 @@ export function createTailscale(
               },
             ],
             volumes: [
-              {
-                name: "state",
-                hostPath: {
-                  path: "/var/lib/tailscale",
-                  type: "DirectoryOrCreate",
-                },
-              },
               {
                 name: "tun",
                 hostPath: { path: "/dev/net/tun", type: "CharDevice" },
