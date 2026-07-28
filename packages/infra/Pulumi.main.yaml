@@ -189,7 +189,7 @@ config:
     # Caching resolver for VPN clients, reached at 127.0.0.1:53 through the
     # tunnel. Distinct from coredns, which serves pods.
     unbound:
-      image: docker.io/klutchell/unbound:v1.24.0
+      image: docker.io/klutchell/unbound:v1.25.2
   # Egress exit nodes — ss-rust in the home cluster, reached via the rathole
   # tunnel, egressing the home residential IP. Selectable in the client as
   # exit-<name>; exits transit the primary gateway.
