@@ -331,7 +331,7 @@ config:
         httpPort: 3000
   jaritanet:profiles:
     hostname: p.radiosilence.dev
-    image: ghcr.io/radiosilence/serve-from-env:sha-2741cd8
+    image: ghcr.io/radiosilence/serve-from-env:0.1.0
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
