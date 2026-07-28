@@ -132,9 +132,18 @@ Triggered on ansible/ changes. Connects via Tailscale, runs playbooks, updates G
 
 ### Container Builds (`build-files-container.yml`, `build-serve-from-env-container.yml`)
 
-Builds and publishes each container on changes to its own directory. The Rust
-one is checked and tested by the `containers` job in `ci-cd.yml` (fmt, clippy,
-`cargo test`), which gates the deploy.
+Builds and publishes each container on changes to its own directory, one job per
+architecture on a runner of that architecture (via `blit-workflows`) rather than
+emulating arm64 under QEMU. The Rust one is also checked by the `containers` job
+in `ci-cd.yml` (fmt, clippy, `cargo test`).
+
+Our containers are versioned and released from here, so the updater can track
+them like any upstream. The version lives in `containers/serve-from-env/Cargo.toml`
+and `containers/files/VERSION`; changing it is the release. CI publishes the
+image, cuts `serve-from-env-v<version>` / `files-v<version>`, and the updater
+moves the pin. Tags are output, not input — nothing reads one to decide what to
+build. Both containers releasing from one repo is why tracked entries need
+`tagPrefix`: "the latest release" is otherwise repo-wide.
 
 ## Ansible Infrastructure
 

@@ -10,6 +10,11 @@
 #          Defaults to `value` when that is already a full reference, so only
 #          entries writing a bare tag need to spell it out. Omit entirely when
 #          there is no image to check, as for a Helm chart.
+#   tagPrefix
+#          only consider releases whose tag starts with this. Needed when a repo
+#          releases more than one thing — this one releases both its containers —
+#          because "the latest release" is otherwise repo-wide, and an entry would
+#          take the version of whatever released last.
 #
 # {version} is the release tag with everything before its first digit stripped,
 # which covers both a leading `v` and a chart-name prefix. An entry puts back
@@ -27,6 +32,22 @@
   repo: traefik/traefik-helm-chart
   path: [config, "jaritanet:traefik", chartVersion]
   value: "{version}"
+
+# Our own containers, released from this repo when their version file changes —
+# so a fix to the thing handing out everyone's sing-box profile reaches the
+# cluster on the next updater run rather than when somebody remembers.
+- app: serve-from-env
+  repo: radiosilence/jaritanet
+  tagPrefix: serve-from-env-v
+  path: [config, "jaritanet:profiles", image]
+  value: "ghcr.io/radiosilence/serve-from-env:{version}"
+
+- app: Files
+  repo: radiosilence/jaritanet
+  tagPrefix: files-v
+  path: [config, "jaritanet:services", files, args, image, tag]
+  value: "{version}"
+  image: "ghcr.io/radiosilence/jaritanet-files:{version}"
 
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway
