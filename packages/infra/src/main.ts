@@ -291,6 +291,7 @@ export default async function () {
         gatewayConf.xray,
         users,
         env.VPN_ENTRY_LABEL,
+        gatewayConf.credentialRotation,
         transportDeps,
       );
       reality = {
@@ -308,6 +309,7 @@ export default async function () {
         gatewayConf.hysteria,
         users,
         env.VPN_ENTRY_LABEL,
+        gatewayConf.credentialRotation,
         transportDeps,
       );
       hysteria = {
