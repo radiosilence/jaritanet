@@ -26,7 +26,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 
 ### Development
 
-- `aube run typecheck:infra` - Type check infrastructure package
+- `aube run typecheck` - Type check every package
 - `aube run test` - Run tests (vitest on Node — Pulumi needs Node's v8)
 - `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
 - `aube run lint` - Lint code with oxlint
@@ -47,34 +47,39 @@ The project uses Lefthook for pre-commit validation:
 ### Package Management
 
 - Uses [aube](https://aube.en.dev) as the package manager and script runner (pnpm-style isolated `node_modules`, reads `aube-lock.yaml`)
-- Workspace-based monorepo with shared dependencies
+- Every package declares its own dependencies; the root holds only tooling
 - Run commands from root directory
 - Build-script allowlist and supply-chain defaults live in `aube-workspace.yaml`
 
 ## Architecture
 
+### Packages
+
+Components live in their own packages and know nothing about this deployment;
+`packages/infra` is the only thing that knows what jaritanet is. Nothing imports
+`infra`, and nothing imports sideways except from `@jaritanet/k8s`.
+
+- **`@jaritanet/k8s`** — Deployment/Service/PV/PVC templates and the primitives the others share (`ImageSchema`, `LimitsSchema`, `cpuRequests`, `sha256hex`)
+- **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Each has a DaemonSet form and a `-systemd` form; the latter takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
+- **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH and Cilium as the CNI
+- **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, the redirect middleware, the rathole client, and the external-IP watcher
+- **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
+- **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
+- **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `env.ts` is the only place `process.env` is read
+
+Packages are `private` and imported as TypeScript source — Node resolves a
+workspace symlink to its real path, which is outside `node_modules`, so type
+stripping applies and the deploy needs no build step. Publishing them is what
+the version and `exports` fields are for; it needs a `tsc` emit and
+`@pulumi/pulumi` moved to a peer dependency first.
+
 ### Single Pulumi Stack
 
-Everything deploys in one `pulumi up` from `packages/infra/`:
-
-- **`src/modules/gateway.ts`** — Hetzner VPS + firewall + Rathole server; hosts the entry transports and the gateway `unbound` DNS cache
-- **`src/modules/hysteria.ts`** — Hysteria2 (QUIC/UDP) transport with Salamander obfuscation
-- **`src/modules/xray.ts`** — Xray VLESS-REALITY (TCP), sharing :443 with rathole
-- **`src/modules/unbound.ts`** — the gateway's caching DNS resolver
-- **`src/modules/{xray,hysteria,tailscale}-systemd.ts`** — the same three transports installed over SSH as systemd units. Only path an edge has; a gateway uses it only without `gateway.k3s`
-- **`src/modules/ingress.ts`** — Traefik Helm chart, Rathole client, IngressRoute CRDs, IP watcher
-- **`src/modules/edge.ts`** — standalone VPN edge boxes (hy2 + REALITY + tailnet relay, no rathole/proxy)
-- **`src/modules/exit.ts`** — in-cluster ss-rust egress nodes, reached through the rathole tunnel (deterministic loopback ports)
-- **`src/modules/tailscale.ts`** — joins a node to the tailnet as a relay (`--accept-routes=false` is load-bearing)
-- **`src/modules/singbox.ts`** — builds the sing-box client profile from all nodes and delivers it to the file server (SSH, content-hashed, Telegram notify)
-- **`src/modules/dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`src/templates/service.ts`** — K8s Deployment/Service/PV/PVC templates (schemas + tests alongside)
-- **`src/main.ts`** — Orchestrates all modules
-- **`src/conf.ts`** / **`src/conf.schemas.ts`** — Unified Zod config schema
+Everything still deploys in one `pulumi up` from `packages/infra/`.
 
 ### Configuration System
 
-All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. Schema definitions in `*.schemas.ts` files, regenerated via gen-schemas script.
+All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. A component's schema lives with the component; `infra/src/conf.schemas.ts` re-exports them alongside the composed shapes (`GatewayConfSchema`, `EdgeConfSchema`) so the stack's config surface is described in one place, and regenerates via the gen-schemas script.
 
 `aube run check:profiles` runs the **real** sing-box binary (pinned to the oldest core the fleet is on, `MIN_CORE` in the script) over every profile shape via docker `check`. That is the only test that answers "will the devices accept this" — a schema cannot, since the published one is always the latest. Skips silently without a docker daemon.
 
@@ -92,12 +97,12 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 - **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
 - **Hysteria2** — QUIC/UDP transport with Salamander obfuscation; the fast, loss-tolerant daily-driver entry, on the gateway and every edge. Listens on `:443` plus `altPorts` (3478 STUN, 4500 IPsec NAT-T) as one process per port, because inspecting middleboxes block QUIC on 443 and VoIP-blocking regimes block 3478 — the client's urltest finds whichever survives. Admin-only: auth is a per-admin `userpass` map (guests get reality only), obfs is server-wide; both delivered inside admin sing-box profiles.
 - **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and rathole's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (Traefik's `:8443`, via rathole only when the cluster is elsewhere); matched clients are proxied out. One REALITY UUID per VPN user (`email: <name>`), delivered inside that user's sing-box profile (see RBAC). `serverNames` is a list, and deliberately contains none of our hostnames — content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain gets every handshake forged. The client carries one outbound per name in its urltest, so no single borrowed identity being blocked (google in China, an adult mis-rating in a pub) is fatal (see docs/architecture.md, Hardening notes).
-- **sing-box delivery** — `singbox.ts` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware), writes each to the file server over SSH (content-hashed, so unchanged deploys are silent), sweeps superseded slug files so rotated profile URLs 404 rather than serving stale credentials, and notifies Telegram with every user's URL on change.
+- **sing-box delivery** — `@jaritanet/vpn` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware), writes each to the file server over SSH (content-hashed, so unchanged deploys are silent), sweeps superseded slug files so rotated profile URLs 404 rather than serving stale credentials, and notifies Telegram with every user's URL on change.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
 - **Gateway** — Hetzner (HCLOUD_TOKEN) when set, else direct mode.
-- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.dev/vpn-entry` node label, so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` modules stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
+- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.dev/vpn-entry` node label, so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
 
 ## GitHub Actions
 

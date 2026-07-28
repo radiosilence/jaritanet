@@ -127,7 +127,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Type Check
-        run: aube run typecheck:infra
+        run: aube run typecheck
 
   test:
     name: Test

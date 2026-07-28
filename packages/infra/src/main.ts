@@ -1,34 +1,37 @@
-import * as k8s from "@pulumi/kubernetes";
-import * as pulumi from "@pulumi/pulumi";
-import type * as z from "zod";
-import { conf } from "./conf.ts";
-import { GatewayConfSchema } from "./conf.schemas.ts";
-import { env, vpnUsers } from "./env.ts";
-import type { VpnUser } from "./env.schema.ts";
 import {
   createBlueskyRecords,
   createFastmailRecords,
   createServiceRecord,
-} from "./modules/dns.ts";
-import { createEdge } from "./modules/edge.ts";
-import { createExit, deriveExitPort } from "./modules/exit.ts";
-import { createGateway } from "./modules/gateway.ts";
-import { createTailnetPolicy } from "./modules/tailnet-policy.ts";
+} from "@jaritanet/dns";
+import { createCilium } from "@jaritanet/hetzner";
 import {
   createIngress,
   createIngressRoute,
   createIpWatcher,
   createRedirectMiddleware,
-} from "./modules/ingress.ts";
-import { createCilium } from "./modules/cilium.ts";
-import { createHysteria } from "./modules/hysteria.ts";
-import { createMcpGateway } from "./modules/mcp-gateway.ts";
-import { createProfileServer } from "./modules/profiles.ts";
-import type { SingboxNode } from "./modules/singbox.ts";
-import { createTailscale } from "./modules/tailscale.ts";
-import { createUnbound } from "./modules/unbound.ts";
-import { createXray } from "./modules/xray.ts";
-import { createService } from "./templates/service.ts";
+} from "@jaritanet/ingress";
+import { createService } from "@jaritanet/k8s";
+import { createMcpGateway } from "@jaritanet/mcp-gateway";
+import {
+  createExit,
+  createHysteria,
+  createProfileServer,
+  createTailscale,
+  createUnbound,
+  createXray,
+  deriveExitPort,
+  type SingboxNode,
+  type VpnUser,
+} from "@jaritanet/vpn";
+import * as k8s from "@pulumi/kubernetes";
+import * as pulumi from "@pulumi/pulumi";
+import type * as z from "zod";
+import { conf } from "./conf.ts";
+import { GatewayConfSchema } from "./conf.schemas.ts";
+import { createEdge } from "./edge.ts";
+import { env, vpnUsers } from "./env.ts";
+import { createGateway } from "./gateway.ts";
+import { createTailnetPolicy } from "./tailnet-policy.ts";
 
 export default async function () {
   const { namespace } = conf;
@@ -86,6 +89,7 @@ export default async function () {
       users,
       resolvedExits,
       env.TAILNET_MAGICDNS_SUFFIX,
+      env.TS_AUTHKEY,
     );
     dnsTarget = gw.vpsIp;
     gatewayIp = gw.vpsIp;

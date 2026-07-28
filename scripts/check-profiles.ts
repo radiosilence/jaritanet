@@ -19,7 +19,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { buildProfile } from "../packages/infra/src/modules/singbox.ts";
+import { buildProfile } from "../packages/vpn/src/singbox.ts";
 
 /**
  * The oldest core a delivered profile must work on. Raising it is a deliberate
