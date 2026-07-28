@@ -51,18 +51,24 @@ export function createHysteria(
   hysteria: z.infer<typeof HysteriaConfSchema>,
   users: VpnUser[],
   entryLabel: string,
+  // Changing this reissues every credential here; see credentialRotation.
+  rotation: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
+  const keepers = { rotation };
+
   const admins = users.filter((u) => u.role === "admin");
   const passwords: Record<string, pulumi.Output<string>> = {};
   for (const a of admins) {
     passwords[a.name] = new random.RandomPassword(`hysteria-auth-${a.name}`, {
+      keepers,
       length: 32,
       special: false,
     }).result;
   }
 
   const obfsPassword = new random.RandomPassword("hysteria-obfs", {
+    keepers,
     length: 32,
     special: false,
   }).result;

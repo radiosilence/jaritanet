@@ -51,6 +51,22 @@ export const CloudflareConfSchema = z.object({
 });
 
 export const GatewayConfSchema = z.object({
+  /**
+   * Bump to reissue every VPN credential: REALITY keypair, shortId and per-user
+   * UUIDs, and hysteria's obfs and per-admin passwords.
+   *
+   * Revocation needed a mechanism. Removing a user from VPN_USERS drops *their*
+   * credential, but nothing reissued the shared ones, so a profile leaking —
+   * the URL is unauthenticated and the whole credential set is in the body —
+   * had no answer short of editing Pulumi state by hand. This is that answer:
+   * one value, every secret behind it, and the new profiles delivered by the
+   * run that changes it.
+   *
+   * Rotating the base slug (SINGBOX_SLUG) as well moves the URLs, but on its
+   * own it only hides the new profile — the leaked credentials keep working
+   * until this changes too.
+   */
+  credentialRotation: z.string().default("1"),
   hysteria: HysteriaConfSchema.optional(),
   /**
    * What the box is called — in Hetzner, and by default on the tailnet.
