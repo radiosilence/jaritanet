@@ -56,6 +56,15 @@ jobs:
           MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
           MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          # The only secret the deploy had that this did not, which made every
+          # preview run as a single implicit owner instead of the real roster —
+          # so xray and hysteria configs differed and the diff showed each
+          # user's credentials being replaced on a PR that touched neither. A
+          # preview produced from different inputs than the deploy predicts
+          # nothing, and a false credential rotation is the worst thing for it
+          # to be wrong about, because the correct response to a real one is to
+          # stop and think.
+          VPN_USERS: ${{ secrets.VPN_USERS }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
           SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
           TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}
