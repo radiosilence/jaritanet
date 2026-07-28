@@ -128,8 +128,14 @@ export function createTailscale(
           metadata: { labels: { app } },
           spec: {
             hostNetwork: true,
-            // The host's resolver is unbound on this same box, not the cluster.
-            dnsPolicy: "Default",
+            // Cluster DNS, not the host's: the state Secret is reached at
+            // kubernetes.default.svc, a name only coredns knows. "Default"
+            // was right while state lived on disk and the only lookups were
+            // tailscale's own control plane; it fails the moment the pod
+            // needs the API, with "lookup kubernetes.default.svc on 1.1.1.1:
+            // no such host". WithHostNet is the hostNetwork variant — plain
+            // ClusterFirst is silently ignored here.
+            dnsPolicy: "ClusterFirstWithHostNet",
             // Needed now: the state Secret is reached through the API. The
             // Role behind this token covers one Secret by name.
             serviceAccountName: account.metadata.name,
