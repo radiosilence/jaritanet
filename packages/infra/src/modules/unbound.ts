@@ -1,5 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
+import type * as z from "zod";
+import type { UnboundConfSchema } from "../conf.schemas.ts";
 import { VPN_ENTRY_LABEL } from "../util.ts";
 
 /**
@@ -24,6 +26,7 @@ import { VPN_ENTRY_LABEL } from "../util.ts";
 export function createUnbound(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
+  unbound: z.infer<typeof UnboundConfSchema>,
   dependsOn: pulumi.Resource[] = [],
 ) {
   const config = new k8s.core.v1.ConfigMap(
@@ -100,7 +103,7 @@ forward-zone:
             containers: [
               {
                 name: "unbound",
-                image: "docker.io/klutchell/unbound:v1.24.0",
+                image: unbound.image,
                 args: ["-d", "-c", "/etc/unbound/unbound.conf"],
                 // 320Mi, not 192Mi: the config above declares 64m of msg cache
                 // and 128m of rrset cache, so 192Mi was the cache size exactly,

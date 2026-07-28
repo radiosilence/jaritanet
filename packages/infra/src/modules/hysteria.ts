@@ -10,8 +10,6 @@ import { sha256hex, VPN_ENTRY_LABEL } from "../util.ts";
 // Hysteria2 publishes no images under the apernet org — `ghcr.io/apernet/
 // hysteria` does not exist. tobyxdd is the maintainer, and this is the image
 // hysteria's own installation docs and docker-compose example point at.
-const IMAGE = "docker.io/tobyxdd/hysteria:v2.10.0";
-
 /**
  * Hysteria2 (QUIC/UDP), in the cluster on the node it fronts.
  *
@@ -157,7 +155,7 @@ ${userpassBlock}
             nodeSelector: { [VPN_ENTRY_LABEL]: "true" },
             containers: ports.map((port) => ({
               name: `${app}-${port}`,
-              image: IMAGE,
+              image: hysteria.image,
               args: ["server", "-c", `/etc/hysteria/config-${port}.yaml`],
               // A CPU request and no CPU limit: a limit means CFS throttling,
               // which on a QUIC transport is periodic latency spikes and

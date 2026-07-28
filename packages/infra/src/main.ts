@@ -263,7 +263,7 @@ export default async function () {
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
   if (clusterOnGateway && gatewayConf) {
-    createUnbound(provider, nsName, transportDeps);
+    createUnbound(provider, nsName, gatewayConf.unbound, transportDeps);
 
     if (gatewayConf.tailnet && env.TS_AUTHKEY) {
       createTailscale(

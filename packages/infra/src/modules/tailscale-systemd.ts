@@ -29,7 +29,9 @@ import { type Connection, resourcePrefix } from "./vps.ts";
 export function createTailscaleSystemd(
   connection: Connection,
   server: hcloud.Server,
-  tailnet: z.infer<typeof TailnetConfSchema>,
+  // Omits `image`: this path apt-installs tailscaled, so a container
+  // reference means nothing to it.
+  tailnet: Omit<z.infer<typeof TailnetConfSchema>, "image">,
   authKey: pulumi.Output<string>,
   name = "",
 ) {
