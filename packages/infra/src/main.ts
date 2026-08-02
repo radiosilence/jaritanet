@@ -4,6 +4,7 @@ import {
   createServiceRecord,
 } from "@jaritanet/dns";
 import { createCilium } from "@jaritanet/hetzner";
+import { createSamba } from "@jaritanet/home";
 import {
   createIngress,
   createIngressRoute,
@@ -320,6 +321,15 @@ export default async function () {
         sni: gatewayConf.hysteria.sni,
       };
     }
+  }
+
+  // --- Home node: file shares and media tooling, on the box holding the disks
+  // Inert without a `home` block, which is the state until that machine exists.
+  // Nothing here selects the gateway: these carry no VPN entry label, so a
+  // DaemonSet with no matching node schedules nothing rather than landing
+  // somewhere it would fight the transports for a host port.
+  if (conf.home?.samba) {
+    createSamba(provider, nsName, conf.home.samba, conf.home.nodeLabel);
   }
 
   // IP watcher — triggers deploy when external IP changes

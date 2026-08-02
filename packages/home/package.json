@@ -1,0 +1,21 @@
+{
+  "name": "@jaritanet/home",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Home fileserver workloads: SMB shares, sync and media tooling as cluster services",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pulumi/kubernetes": "4.30.0",
+    "@pulumi/pulumi": "3.239.0",
+    "zod": "4.4.3"
+  }
+}

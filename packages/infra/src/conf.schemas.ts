@@ -18,6 +18,7 @@ import {
   ZonesConfSchema,
 } from "@jaritanet/dns";
 import { K3sConfSchema } from "@jaritanet/hetzner";
+import { SambaConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
 import { ServiceArgsSchema } from "@jaritanet/k8s";
 import { McpGatewayConfSchema, McpSchema } from "@jaritanet/mcp-gateway";
@@ -38,6 +39,7 @@ export {
   K3sConfSchema,
   McpGatewayConfSchema,
   McpSchema,
+  SambaConfSchema,
   TailnetConfSchema,
   TraefikConfSchema,
   UnboundConfSchema,
@@ -120,6 +122,26 @@ export const EdgeConfSchema = z.object({
   zone: z.string().default("radiosilence.dev"),
 });
 
+/**
+ * The home node and what it serves — file shares, sync, media tooling.
+ *
+ * Absent until there is a machine: no block, no resources, and the stack is
+ * unchanged. That is the point of it being optional rather than defaulted, as
+ * a default would schedule a DaemonSet against a label no node carries and
+ * report success while serving nothing.
+ *
+ * `nodeLabel` decides which machine serves files, so that is a property of the
+ * machine rather than a hostname written down here — the same argument the VPN
+ * entry label makes. Unlike that one it cannot be enforced from here: nothing
+ * in this program can label the node, because reaching the home box over SSH is
+ * exactly the coupling moving these services into the cluster removes. The
+ * label is applied once, by hand, when the node joins.
+ */
+export const HomeConfSchema = z.object({
+  nodeLabel: z.string().default("jaritanet.radiosilence.dev/file-node"),
+  samba: SambaConfSchema.optional(),
+});
+
 export const ServiceConfSchema = z.object({
   args: ServiceArgsSchema,
   hostname: z.string().optional(),
@@ -148,6 +170,7 @@ export const ConfSchema = z.object({
   externalIp: z.string().optional(),
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
+  home: HomeConfSchema.optional(),
   managedBy: z.string().default("jaritanet"),
   mcpGateway: McpGatewayConfSchema.optional(),
   namespace: z.string().default("jaritanet"),
