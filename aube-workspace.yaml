@@ -28,3 +28,8 @@ allowBuilds:
 enableGlobalVirtualStore: false
 
 jailBuilds: true
+
+# Workspace members. aube is pnpm-style and takes these from here; the
+# `workspaces` field in package.json is the npm/yarn convention and is ignored.
+packages:
+  - "packages/*"
