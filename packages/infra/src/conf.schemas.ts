@@ -18,7 +18,7 @@ import {
   ZonesConfSchema,
 } from "@jaritanet/dns";
 import { K3sConfSchema } from "@jaritanet/hetzner";
-import { SambaConfSchema } from "@jaritanet/home";
+import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
 import { ServiceArgsSchema } from "@jaritanet/k8s";
 import { McpGatewayConfSchema, McpSchema } from "@jaritanet/mcp-gateway";
@@ -40,6 +40,7 @@ export {
   McpGatewayConfSchema,
   McpSchema,
   SambaConfSchema,
+  SyncthingConfSchema,
   TailnetConfSchema,
   TraefikConfSchema,
   UnboundConfSchema,
@@ -140,6 +141,7 @@ export const EdgeConfSchema = z.object({
 export const HomeConfSchema = z.object({
   nodeLabel: z.string().default("jaritanet.radiosilence.dev/file-node"),
   samba: SambaConfSchema.optional(),
+  syncthing: SyncthingConfSchema.optional(),
 });
 
 export const ServiceConfSchema = z.object({

@@ -4,7 +4,7 @@ import {
   createServiceRecord,
 } from "@jaritanet/dns";
 import { createCilium } from "@jaritanet/hetzner";
-import { createSamba } from "@jaritanet/home";
+import { createSamba, createSyncthing } from "@jaritanet/home";
 import {
   createIngress,
   createIngressRoute,
@@ -330,6 +330,19 @@ export default async function () {
   // somewhere it would fight the transports for a host port.
   if (conf.home?.samba) {
     createSamba(provider, nsName, conf.home.samba, conf.home.nodeLabel);
+  }
+
+  if (conf.home?.syncthing) {
+    createSyncthing(provider, nsName, conf.home.syncthing, conf.home.nodeLabel);
+    // The web UI, published like any other service when a hostname is set.
+    const host = conf.home.syncthing.hostname;
+    if (host) {
+      const zone = conf.zones.find(
+        (z) => z.name === host.split(".").slice(-2).join("."),
+      );
+      if (dnsTarget && zone) createServiceRecord(dnsTarget, zone, host);
+      createIngressRoute(provider, "syncthing", host, nsName, traefikRelease);
+    }
   }
 
   // IP watcher — triggers deploy when external IP changes

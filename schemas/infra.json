@@ -252,6 +252,38 @@
                 }
               },
               "required": ["guestAccount", "shares"]
+            },
+            "syncthing": {
+              "type": "object",
+              "properties": {
+                "image": {
+                  "default": "docker.io/syncthing/syncthing:2.0.13",
+                  "type": "string"
+                },
+                "configPath": {
+                  "default": "/var/lib/syncthing",
+                  "type": "string"
+                },
+                "folders": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema4"
+                  }
+                },
+                "hostname": {
+                  "type": "string"
+                },
+                "gid": {
+                  "default": 1000,
+                  "type": "number"
+                },
+                "uid": {
+                  "default": 1000,
+                  "type": "number"
+                }
+              },
+              "required": ["folders"]
             }
           }
         },
@@ -267,7 +299,7 @@
               "type": "string"
             },
             "image": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "hydraTag": {
               "default": "v2.2.0",
@@ -282,7 +314,7 @@
                 "cpu": "500m",
                 "memory": "256Mi"
               },
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema6"
             },
             "postgresStorageClass": {
               "type": "string"
@@ -294,43 +326,43 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "$ref": "#/$defs/__schema6"
-                  },
-                  "name": {
                     "$ref": "#/$defs/__schema7"
                   },
-                  "image": {
+                  "name": {
                     "$ref": "#/$defs/__schema8"
                   },
-                  "args": {
+                  "image": {
                     "$ref": "#/$defs/__schema9"
                   },
-                  "port": {
+                  "args": {
                     "$ref": "#/$defs/__schema10"
                   },
-                  "path": {
+                  "port": {
                     "$ref": "#/$defs/__schema11"
                   },
-                  "credentialHeader": {
+                  "path": {
                     "$ref": "#/$defs/__schema12"
                   },
-                  "fields": {
+                  "credentialHeader": {
                     "$ref": "#/$defs/__schema13"
                   },
-                  "public": {
+                  "fields": {
                     "$ref": "#/$defs/__schema14"
                   },
-                  "graphqlPath": {
+                  "public": {
                     "$ref": "#/$defs/__schema15"
                   },
-                  "keyHelpUrl": {
+                  "graphqlPath": {
                     "$ref": "#/$defs/__schema16"
                   },
-                  "keyHint": {
+                  "keyHelpUrl": {
                     "$ref": "#/$defs/__schema17"
                   },
-                  "verify": {
+                  "keyHint": {
                     "$ref": "#/$defs/__schema18"
+                  },
+                  "verify": {
+                    "$ref": "#/$defs/__schema19"
                   }
                 },
                 "required": ["id", "name", "image"]
@@ -505,10 +537,10 @@
                     "type": "boolean"
                   },
                   "image": {
-                    "$ref": "#/$defs/__schema4"
+                    "$ref": "#/$defs/__schema5"
                   },
                   "limits": {
-                    "$ref": "#/$defs/__schema5"
+                    "$ref": "#/$defs/__schema6"
                   },
                   "persistence": {
                     "default": [],
@@ -736,15 +768,23 @@
         },
         "hostPath": {
           "type": "string"
-        },
-        "readOnly": {
-          "default": true,
-          "type": "boolean"
         }
       },
       "required": ["name", "hostPath"]
     },
     "__schema4": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "hostPath": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "hostPath"]
+    },
+    "__schema5": {
       "type": "object",
       "properties": {
         "pullPolicy": {
@@ -759,7 +799,7 @@
       },
       "required": ["repository", "tag"]
     },
-    "__schema5": {
+    "__schema6": {
       "type": "object",
       "properties": {
         "cpu": {
@@ -772,9 +812,6 @@
         }
       }
     },
-    "__schema6": {
-      "type": "string"
-    },
     "__schema7": {
       "type": "string"
     },
@@ -782,24 +819,27 @@
       "type": "string"
     },
     "__schema9": {
+      "type": "string"
+    },
+    "__schema10": {
       "default": [],
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "__schema10": {
+    "__schema11": {
       "default": 8080,
       "type": "number"
     },
-    "__schema11": {
+    "__schema12": {
       "default": "/mcp",
       "type": "string"
     },
-    "__schema12": {
+    "__schema13": {
       "type": "string"
     },
-    "__schema13": {
+    "__schema14": {
       "type": "array",
       "items": {
         "type": "object",
@@ -835,11 +875,8 @@
         "required": ["id", "label", "header"]
       }
     },
-    "__schema14": {
-      "type": "boolean"
-    },
     "__schema15": {
-      "type": "string"
+      "type": "boolean"
     },
     "__schema16": {
       "type": "string"
@@ -848,6 +885,9 @@
       "type": "string"
     },
     "__schema18": {
+      "type": "string"
+    },
+    "__schema19": {
       "type": "object",
       "properties": {
         "query": {
