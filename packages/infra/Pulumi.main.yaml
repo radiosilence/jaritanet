@@ -7,7 +7,7 @@ config:
   jaritanet:traefik:
     # acmeEmail injected from the ACME_EMAIL secret in CI (see ci-cd.yml)
     acmeEmail: ''
-    chartVersion: "41.0.2"
+    chartVersion: "41.1.1"
   jaritanet:mcpGateway:
     # hostname/authHostname injected in CI from MCP_HOSTNAME / MCP_AUTH_HOSTNAME
     # (kept out of this public repo). GitHub OAuth creds + allowlist come via
