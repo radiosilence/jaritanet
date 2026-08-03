@@ -12,6 +12,7 @@ const { data, error } = ConfSchema.safeParse({
   externalIp: config.get("externalIp"),
   fastmail: config.requireObject("fastmail"),
   gateway: config.getObject("gateway"),
+  home: config.getObject("home"),
   mcpGateway: config.getObject("mcpGateway"),
   profiles: config.getObject("profiles"),
   services: config.requireObject("services"),

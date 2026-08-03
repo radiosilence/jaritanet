@@ -105,6 +105,9 @@ importers:
       '@jaritanet/hetzner':
         specifier: workspace:*
         version: 0.0.0
+      '@jaritanet/home':
+        specifier: workspace:*
+        version: 0.0.0
       '@jaritanet/ingress':
         specifier: workspace:*
         version: 0.0.0

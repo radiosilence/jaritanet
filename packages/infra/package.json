@@ -8,6 +8,7 @@
   "dependencies": {
     "@jaritanet/dns": "workspace:*",
     "@jaritanet/hetzner": "workspace:*",
+    "@jaritanet/home": "workspace:*",
     "@jaritanet/ingress": "workspace:*",
     "@jaritanet/k8s": "workspace:*",
     "@jaritanet/mcp-gateway": "workspace:*",
