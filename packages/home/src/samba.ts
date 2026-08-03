@@ -6,6 +6,18 @@ import type { SambaConfSchema } from "./samba.schemas.ts";
 /** Where a share's hostPath is mounted inside the container. */
 const mountPath = (name: string) => `/shares/${name}`;
 
+/** One `[share]` stanza. Leading newline, so the sections separate themselves. */
+const shareBlock = (
+  share: z.infer<typeof SambaConfSchema>["shares"][number],
+) => `
+[${share.name}]
+  path = ${mountPath(share.name)}
+  browseable = yes
+  read only = ${share.readOnly ? "yes" : "no"}
+  guest ok = yes
+  guest only = yes
+`;
+
 /**
  * The whole server config, rendered rather than templated by the image.
  *
@@ -22,40 +34,30 @@ const mountPath = (name: string) => `/shares/${name}`;
  * it is the reason this is worth moving: share access becomes `kubectl logs`
  * rather than a file on a box you have to be inside to read.
  */
-const smbConf = (samba: z.infer<typeof SambaConfSchema>) =>
-  [
-    "[global]",
-    `  workgroup = ${samba.workgroup}`,
-    `  server string = ${samba.serverString}`,
-    "  server role = standalone server",
-    "  security = user",
-    // Unknown users become the guest account rather than being rejected, which
-    // is what makes these shares anonymous. `Bad User` maps only unknown names;
-    // a known name with a bad password still fails.
-    "  map to guest = Bad User",
-    `  guest account = ${samba.guestAccount}`,
-    // The control that actually runs: a hostNetwork pod bypasses the CNI, so no
-    // NetworkPolicy is in this path.
-    `  hosts allow = ${samba.allowedNetworks.join(" ")}`,
-    "  server min protocol = SMB2",
-    "  disable netbios = yes",
-    "  smb ports = 445",
-    "  load printers = no",
-    "  printing = bsd",
-    "  printcap name = /dev/null",
-    "  disable spoolss = yes",
-    "  logging = stdout@1",
-    "",
-    ...samba.shares.flatMap((share) => [
-      `[${share.name}]`,
-      `  path = ${mountPath(share.name)}`,
-      "  browseable = yes",
-      `  read only = ${share.readOnly ? "yes" : "no"}`,
-      "  guest ok = yes",
-      "  guest only = yes",
-      "",
-    ]),
-  ].join("\n");
+export const smbConf = (samba: z.infer<typeof SambaConfSchema>) => `[global]
+  workgroup = ${samba.workgroup}
+  server string = ${samba.serverString}
+  server role = standalone server
+  security = user
+  # Unknown users become the guest account rather than being rejected, which is
+  # what makes these shares anonymous. "Bad User" maps only unknown names; a
+  # known name with a bad password still fails.
+  map to guest = Bad User
+  guest account = ${samba.guestAccount}
+  # The control that actually runs. A hostNetwork pod bypasses the CNI, so no
+  # NetworkPolicy is in this path.
+  hosts allow = ${samba.allowedNetworks.join(" ")}
+  server min protocol = SMB2
+  # Drops nmbd along with 137, 138 and 139 — see above.
+  disable netbios = yes
+  smb ports = 445
+  load printers = no
+  printing = bsd
+  printcap name = /dev/null
+  disable spoolss = yes
+  # Share access is kubectl logs, not a file on the box.
+  logging = stdout@1
+${samba.shares.map(shareBlock).join("")}`;
 
 /**
  * Anonymous read-only SMB, as a DaemonSet on whichever node holds the disks.
