@@ -4,6 +4,7 @@ import {
   createServiceRecord,
 } from "@jaritanet/dns";
 import { createCilium } from "@jaritanet/hetzner";
+import { createSamba, createSyncthing } from "@jaritanet/home";
 import {
   createIngress,
   createIngressRoute,
@@ -319,6 +320,28 @@ export default async function () {
         port: gatewayConf.hysteria.port,
         sni: gatewayConf.hysteria.sni,
       };
+    }
+  }
+
+  // --- Home node: file shares and media tooling, on the box holding the disks
+  // Inert without a `home` block, which is the state until that machine exists.
+  // Nothing here selects the gateway: these carry no VPN entry label, so a
+  // DaemonSet with no matching node schedules nothing rather than landing
+  // somewhere it would fight the transports for a host port.
+  if (conf.home?.samba) {
+    createSamba(provider, nsName, conf.home.samba, conf.home.nodeLabel);
+  }
+
+  if (conf.home?.syncthing) {
+    createSyncthing(provider, nsName, conf.home.syncthing, conf.home.nodeLabel);
+    // The web UI, published like any other service when a hostname is set.
+    const host = conf.home.syncthing.hostname;
+    if (host) {
+      const zone = conf.zones.find(
+        (z) => z.name === host.split(".").slice(-2).join("."),
+      );
+      if (dnsTarget && zone) createServiceRecord(dnsTarget, zone, host);
+      createIngressRoute(provider, "syncthing", host, nsName, traefikRelease);
     }
   }
 
