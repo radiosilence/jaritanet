@@ -5,14 +5,21 @@ import * as z from "zod";
  * lives on a disk physically attached to one machine, so a claim that could be
  * satisfied anywhere would be describing something that is not true.
  *
- * `readOnly` defaults to true and is the reason this is worth containerising at
- * all — a read-only export needs no uid impersonation on writes and no
- * ownership rewriting, which is where containerised samba usually turns nasty.
+ * There is deliberately no `readOnly` switch. Every share is read-only, the
+ * mount is read-only, and that is not a default to be overridden — it is the
+ * property that makes this safe to serve anonymously. The read-write export
+ * this replaces was NFS, which handed write access to all media and to
+ * /srv/files to anything that could reach 2049, and was deleted rather than
+ * narrowed for that reason. A knob here is the shortest path back to it.
+ *
+ * It is also what keeps the container honest: a read-only export needs no uid
+ * impersonation on writes and no ownership rewriting, which is where
+ * containerised samba usually turns nasty. Things that write — the downloader,
+ * syncthing — do so as their own workloads against their own volumes.
  */
 export const SambaShareSchema = z.object({
   name: z.string(),
   hostPath: z.string(),
-  readOnly: z.boolean().default(true),
 });
 
 /**

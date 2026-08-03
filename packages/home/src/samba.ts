@@ -13,7 +13,7 @@ const shareBlock = (
 [${share.name}]
   path = ${mountPath(share.name)}
   browseable = yes
-  read only = ${share.readOnly ? "yes" : "no"}
+  read only = yes
   guest ok = yes
   guest only = yes
 `;
@@ -159,10 +159,13 @@ export function createSamba(
                     subPath: "smb.conf",
                     readOnly: true,
                   },
+                  // Read-only at the mount as well as in smb.conf. Two
+                  // independent statements of the same fact, so a config that
+                  // said otherwise still could not write.
                   ...samba.shares.map((share) => ({
                     name: `share-${share.name}`,
                     mountPath: mountPath(share.name),
-                    readOnly: share.readOnly,
+                    readOnly: true,
                   })),
                 ],
                 securityContext: {

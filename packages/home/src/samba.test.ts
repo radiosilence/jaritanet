@@ -36,10 +36,12 @@ describe("smbConf", () => {
     expect(conf).not.toContain("/mnt/kontent");
   });
 
-  it("carries a writable share through as read only = no", () => {
-    expect(
-      parse([{ name: "dl", hostPath: "/mnt/kontent/dl", readOnly: false }]),
-    ).toContain("read only = no");
+  it("has no way to export a share writable", () => {
+    // The read-write export this replaces was NFS, deleted rather than
+    // narrowed. There is no switch, so there is nothing to get wrong.
+    const conf = parse([music, { name: "dl", hostPath: "/mnt/kontent/dl" }]);
+    expect(conf).not.toContain("read only = no");
+    expect(conf.match(/read only = yes/g)).toHaveLength(2);
   });
 
   it("keeps stanzas separate when there are several", () => {
