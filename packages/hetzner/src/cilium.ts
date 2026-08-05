@@ -19,12 +19,24 @@ import type * as pulumi from "@pulumi/pulumi";
  * component rather than running two that overlap.
  *
  * `k8sServiceHost` — with no kube-proxy there is no ClusterIP for the API
- * server yet, so Cilium has to be told where it is directly. It is on this same
- * node, hence loopback.
+ * server yet, so Cilium has to be told where it is directly. It takes the same
+ * address the kubeconfig does, because this has to be true on every node rather
+ * than only on the one serving the API. Loopback was correct on the control
+ * plane and nowhere else: an agent runs no API server, listening on 6444 for
+ * the supervisor load balancer instead, so Cilium could not reach an apiserver
+ * and the node stayed NotReady with the CNI uninitialised — a failure that
+ * reads as a CNI fault while the cause is a value belonging to another machine.
+ *
+ * That ties this to `apiViaTailnet`: with it on, `apiHost` is a MagicDNS name,
+ * and this value has to resolve before there is a CNI — so before CoreDNS, from
+ * whatever the host's resolver happens to be. An IP has no such requirement.
+ * Turning that flag on is therefore a change to how Cilium bootstraps, not only
+ * to how the kubeconfig is addressed.
  */
 export function createCilium(
   provider: k8s.Provider,
   version: string,
+  apiHost: pulumi.Input<string>,
   dependsOn: pulumi.Resource[] = [],
 ) {
   return new k8s.helm.v3.Release(
@@ -42,7 +54,7 @@ export function createCilium(
         // than running its own allocator.
         ipam: { mode: "kubernetes" },
         kubeProxyReplacement: true,
-        k8sServiceHost: "127.0.0.1",
+        k8sServiceHost: apiHost,
         k8sServicePort: 6443,
         // What Traefik needs; see above.
         hostPort: { enabled: true },

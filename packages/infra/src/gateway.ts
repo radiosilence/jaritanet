@@ -353,6 +353,7 @@ k3s kubectl label node "$(hostname)" ${entryLabel}=true --overwrite`,
     : undefined;
 
   return {
+    apiHost,
     hysteria,
     k3s,
     vpnEntryLabel,
