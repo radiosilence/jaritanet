@@ -26,6 +26,12 @@ import type * as pulumi from "@pulumi/pulumi";
  * the supervisor load balancer instead, so Cilium could not reach an apiserver
  * and the node stayed NotReady with the CNI uninitialised — a failure that
  * reads as a CNI fault while the cause is a value belonging to another machine.
+ *
+ * That ties this to `apiViaTailnet`: with it on, `apiHost` is a MagicDNS name,
+ * and this value has to resolve before there is a CNI — so before CoreDNS, from
+ * whatever the host's resolver happens to be. An IP has no such requirement.
+ * Turning that flag on is therefore a change to how Cilium bootstraps, not only
+ * to how the kubeconfig is addressed.
  */
 export function createCilium(
   provider: k8s.Provider,
