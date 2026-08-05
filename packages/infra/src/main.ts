@@ -44,6 +44,9 @@ export default async function () {
   let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
   let gatewayConf: z.infer<typeof GatewayConfSchema> | undefined;
   let gatewayIp: pulumi.Output<string> | undefined;
+  // Where the API server answers. Cilium needs it too, and must agree with the
+  // kubeconfig — see createCilium.
+  let gatewayApiHost: ReturnType<typeof createGateway>["apiHost"] | undefined;
   // Ordering for the transport DaemonSets: the legacy daemons must be gone
   // before anything tries to bind their ports, and the node must carry the
   // entry label before a DaemonSet has anywhere to schedule.
@@ -95,6 +98,7 @@ export default async function () {
     ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     gatewayK3s = gw.k3s;
+    gatewayApiHost = gw.apiHost;
     transportDeps = [gw.vpnEntryLabel].filter((r) => r !== undefined);
 
     if (gw.xray && gatewayConf.xray) {
@@ -203,8 +207,8 @@ export default async function () {
   // --flannel-backend=none so Cilium can own networking and the
   // NetworkPolicies in this repo finally mean something.
   const cilium =
-    gatewayK3s && gatewayConf?.k3s
-      ? createCilium(provider, gatewayConf.k3s.ciliumVersion, [
+    gatewayK3s && gatewayConf?.k3s && gatewayApiHost
+      ? createCilium(provider, gatewayConf.k3s.ciliumVersion, gatewayApiHost, [
           gatewayK3s.install,
         ])
       : undefined;
