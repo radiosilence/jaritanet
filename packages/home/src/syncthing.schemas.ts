@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { AbsolutePath, Hostname } from "@jaritanet/k8s";
 
 /**
  * A synced tree. Same reasoning as a samba share: `hostPath`, because the disk
@@ -17,7 +18,7 @@ import * as z from "zod";
  */
 export const SyncthingFolderSchema = z.object({
   name: z.string(),
-  hostPath: z.string(),
+  hostPath: AbsolutePath,
 });
 
 /**
@@ -46,13 +47,13 @@ export const SyncthingConfSchema = z.object({
    * rather than the media drive: it is small, and it must survive the media
    * drive being unmounted or replaced.
    */
-  configPath: z.string().default("/var/lib/syncthing"),
+  configPath: AbsolutePath.default("/var/lib/syncthing"),
   folders: z.array(SyncthingFolderSchema).min(1),
   /**
    * Hostname for the web UI, behind Traefik. Omit and the UI is reachable only
    * on the LAN and the tailnet at `:8384`.
    */
-  hostname: z.string().optional(),
+  hostname: Hostname.optional(),
   gid: z.number().default(1000),
   uid: z.number().default(1000),
 });

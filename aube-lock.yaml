@@ -48,6 +48,9 @@ importers:
 
   packages/dns:
     dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
       '@pulumi/cloudflare':
         specifier: 6.15.0
         version: 6.15.0(typescript@6.0.3)
@@ -84,6 +87,9 @@ importers:
 
   packages/home:
     dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)

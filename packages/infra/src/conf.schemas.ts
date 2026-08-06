@@ -30,6 +30,7 @@ import {
   XrayConfSchema,
 } from "@jaritanet/vpn";
 import * as z from "zod";
+import { Hostname, HostPort, LabelKey } from "@jaritanet/k8s";
 
 export {
   BlueskyConfSchema,
@@ -50,7 +51,9 @@ export {
 };
 
 export const CloudflareConfSchema = z.object({
-  accountId: z.string(),
+  accountId: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/, "must be a 32-character Cloudflare account id"),
   /**
    * Edits DNS: the A records, and the TXT records Traefik writes to answer
    * Let's Encrypt's DNS-01 challenge. The `cloudflare:apiToken` provider key
@@ -75,7 +78,7 @@ export const TailnetAccountConfSchema = z.object({
    * The `*.ts.net` suffix. Not a secret — it is in the certificate
    * transparency logs the moment MagicDNS issues a cert.
    */
-  magicdnsSuffix: z.string().optional(),
+  magicdnsSuffix: Hostname.optional(),
   /** Tailnet name for policy-as-code, e.g. `example.com` or `tail1234.ts.net`. */
   name: z.string().optional(),
   /**
@@ -155,15 +158,15 @@ export const EdgeConfSchema = z.object({
   name: z.string(),
   reality: z
     .object({
-      dest: z.string().default("www.microsoft.com:443"),
-      serverName: z.string().default("www.microsoft.com"),
+      dest: HostPort.default("www.microsoft.com:443"),
+      serverName: Hostname.default("www.microsoft.com"),
     })
     .default({
       dest: "www.microsoft.com:443",
       serverName: "www.microsoft.com",
     }),
   serverType: z.string().default("cx23"),
-  zone: z.string().default("radiosilence.dev"),
+  zone: Hostname.default("radiosilence.dev"),
 });
 
 /**
@@ -182,14 +185,16 @@ export const EdgeConfSchema = z.object({
  * label is applied once, by hand, when the node joins.
  */
 export const HomeConfSchema = z.object({
-  nodeLabel: z.string().default("jaritanet.radiosilence.dev/file-node"),
+  nodeLabel: LabelKey.default("jaritanet.radiosilence.dev/file-node"),
   samba: SambaConfSchema.optional(),
   syncthing: SyncthingConfSchema.optional(),
 });
 
 export const ServiceConfSchema = z.object({
   args: ServiceArgsSchema,
-  hostname: z.string().optional(),
+  // Empty rather than absent is how a service says "built, but not published" —
+  // main.ts filters those out before creating a record or a route.
+  hostname: Hostname.or(z.literal("")).optional(),
 });
 
 export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
@@ -202,7 +207,7 @@ export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
  * the device from fetching its own subscription.
  */
 export const ProfilesConfSchema = z.object({
-  hostname: z.string(),
+  hostname: Hostname,
   image: z.string(),
   /**
    * Notifies on change, with every user's profile URL. Absent → no message,
@@ -211,7 +216,9 @@ export const ProfilesConfSchema = z.object({
   telegram: z
     .object({
       botToken: z.string(),
-      chatId: z.string(),
+      chatId: z
+        .string()
+        .regex(/^-?\d+$/, "must be a Telegram chat id (an integer)"),
     })
     .optional(),
 });
@@ -282,12 +289,7 @@ export const ConfSchema = z.object({
    * node's label schedules zero pods onto a cluster reporting perfectly
    * healthy — the VPN goes dark with nothing anywhere reporting a fault.
    */
-  vpnEntryLabel: z
-    .string()
-    .regex(
-      /^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?\/[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$/,
-      "vpnEntryLabel must be a prefixed Kubernetes label key (<dns-subdomain>/<name>)",
-    ),
+  vpnEntryLabel: LabelKey,
   /**
    * Per-user VPN access (RBAC). One comma-separated list; a trailing `+` marks
    * an admin. Absent → single implicit owner-admin (see main.ts). Parsed by

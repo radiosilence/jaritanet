@@ -11,5 +11,10 @@ import * as z from "zod";
 export const TailnetConfSchema = z.object({
   hostname: z.string().default("jaritanet-gw"),
   image: z.string().default("ghcr.io/tailscale/tailscale:v1.98.9"),
-  tag: z.string().default("tag:server"),
+  // A node cannot advertise a tag the policy does not define, and the prefix
+  // is what makes it a tag rather than a hostname.
+  tag: z
+    .string()
+    .regex(/^tag:[a-z][a-z0-9-]*$/, "must be a tailnet tag, e.g. tag:server")
+    .default("tag:server"),
 });
