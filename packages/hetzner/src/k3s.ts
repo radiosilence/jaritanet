@@ -42,6 +42,10 @@ export function createK3s(
   k3s: z.infer<typeof K3sConfSchema>,
   apiHost: pulumi.Input<string>,
   name = "",
+  // What the cluster, context and user are called in the kubeconfig handed
+  // back. k3s calls all three `default`; this package does not know what the
+  // cluster is, so the caller says.
+  clusterName = "default",
 ) {
   const p = resourcePrefix(name);
 
@@ -130,13 +134,30 @@ cat /etc/rancher/k3s/k3s.yaml`,
   //
   // k3s writes `server: https://127.0.0.1:6443`, true on the box and useless
   // anywhere else, so it is rewritten to the name the cert already covers.
+  //
+  // It also names the cluster, context and user `default`, which collides with
+  // every other kubeconfig on the machine reading this — merging one in either
+  // clobbers an existing `default` or renames it by hand every time, and
+  // `--context default` says nothing about which cluster it reached. Renamed
+  // here rather than after the fact for the same reason the address is: the
+  // output should be usable as it comes out.
+  //
+  // Anchored to `: default` at end of line so it cannot match inside the
+  // base64 certificate data, where the string can occur by chance. The optional
+  // `-` matters: `users:` writes its entry as `- name: default` while `clusters:`
+  // indents `name:` under the item, so a pattern expecting only whitespace
+  // renames five of the six and leaves the user behind.
   const kubeconfig = pulumi
     .all([install.stdout, pulumi.output(apiHost)])
     .apply(([cfg, host]) =>
       pulumi.secret(
         cfg
           .slice(cfg.indexOf("apiVersion:"))
-          .replace("https://127.0.0.1:6443", `https://${host}:6443`),
+          .replace("https://127.0.0.1:6443", `https://${host}:6443`)
+          .replace(
+            /^(\s*-?\s*(?:name|cluster|user|current-context):\s*)default$/gm,
+            `$1${clusterName}`,
+          ),
       ),
     );
 

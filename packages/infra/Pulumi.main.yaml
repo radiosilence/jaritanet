@@ -145,10 +145,14 @@ config:
     serverType: cx33
     # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
     # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
-    # Cilium's version must match the k8s minor: 1.19 supports 1.33-1.36.
+    # Cilium's version must match the k8s minor: 1.20 is e2e tested against
+    # 1.33-1.36. Take the range from Cilium's own requirements doc for the
+    # branch rather than from memory — outside it you are relying on Kubernetes'
+    # backward compatibility rather than anything tested, and the failure is a
+    # cluster that comes up healthy and moves no packets.
     k3s:
-      version: v1.36.2+k3s1
-      ciliumVersion: 1.19.6
+      version: v1.36.3+k3s1
+      ciliumVersion: 1.20.0
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (local rathole https), so real visitors still get the site.
     #

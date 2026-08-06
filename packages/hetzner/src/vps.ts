@@ -1,6 +1,6 @@
 import * as command from "@pulumi/command";
 import type * as hcloud from "@pulumi/hcloud";
-import type * as pulumi from "@pulumi/pulumi";
+import * as pulumi from "@pulumi/pulumi";
 
 /** SSH connection to a provisioned Hetzner VPS. */
 export type SshConnection = {
@@ -96,6 +96,91 @@ ${reload}`,
       // Rotating the key has to delete first.
       deleteBeforeReplace: true,
     },
+  );
+}
+
+/**
+ * Makes security patches actually take effect, rather than merely arrive.
+ *
+ * Cloud images enable `unattended-upgrades` for the security pocket, so patches
+ * install on their own — and then sit there. `Automatic-Reboot` ships false, so
+ * a new kernel is downloaded, installed, and never booted. The gateway was found
+ * running 6.8.0-117 with 6.8.0-136 on disk and `/run/reboot-required` set, which
+ * is the default configuration working exactly as documented and achieving
+ * nothing. A window is the half that was missing.
+ *
+ * Livepatch is the other half, and they are not substitutes. A window still
+ * leaves the interval between a CVE landing and 04:00, which is where local
+ * privilege escalation lives; livepatch closes that to hours by patching the
+ * running kernel. It in turn does not cover userspace, or fixes that restructure
+ * kernel data, and it only supports a kernel for so long before demanding a
+ * reboot — so the window is also what keeps livepatch able to keep working.
+ *
+ * Every box takes the same 04:00 window, which is deliberate while the fleet is
+ * a gateway and a home node: they serve different things, so one shared outage
+ * minute beats two staggered ones. It stops being right once edges exist —
+ * every VPN entry rebooting together is an outage rather than a blip, and the
+ * time wants to vary per box at that point.
+ *
+ * The token arrives as an environment variable rather than interpolated into
+ * the script: Pulumi persists resource inputs to state, and `pulumi.secret` on
+ * an input is what gets it encrypted there instead of stored in the clear.
+ */
+export function createAutomaticPatching(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+  proToken?: pulumi.Input<string>,
+) {
+  return new command.remote.Command(
+    `${name}-automatic-patching`,
+    {
+      connection,
+      environment: proToken ? { UBUNTU_PRO_TOKEN: proToken } : undefined,
+      create: `set -euo pipefail
+# Same wait the k3s install opens with, and needed here for the same reason:
+# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
+# lock for minutes, and \`pro attach\` shells out to apt. This command depends
+# only on the server, so on a freshly created box it races both — and since
+# changing the image replaces the server, a fresh box is the normal case rather
+# than the first-run one. Under \`set -e\` losing that race is a failed deploy.
+cloud-init status --wait >/dev/null 2>&1 || true
+mkdir -p /etc/apt/apt.conf.d
+printf 'DPkg::Lock::Timeout "600";\\n' > /etc/apt/apt.conf.d/99-lock-timeout
+
+cat > /etc/apt/apt.conf.d/51unattended-upgrades-local << 'EOF'
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+EOF
+# Written is not applied: apt merges apt.conf.d in lexical order, so assert the
+# value that actually resolves rather than the file that was just written.
+apt-config dump | grep -q 'Unattended-Upgrade::Automatic-Reboot "true"'
+
+if [ -n "\${UBUNTU_PRO_TOKEN:-}" ]; then
+  # Attaching twice is an error, so this is guarded rather than retried. The
+  # explicit enable is why attach does not auto-enable: livepatch is what this
+  # is for, and the rest of the entitlements should be a decision.
+  #
+  # The guard makes rotating the token a no-op: the box is already attached, so
+  # a new one is never presented. Rotation means \`pro detach --assume-yes\` on
+  # the box first, and is rare enough not to be worth detaching on every trigger
+  # change to support.
+  pro api u.pro.status.is_attached.v1 | grep -q '"is_attached": *true' \\
+    || pro attach "$UBUNTU_PRO_TOKEN" --no-auto-enable
+  pro enable livepatch --assume-yes || true
+  # Same reasoning as the sysctls: enable can report success on a kernel
+  # livepatch does not cover, and a security control believed to be on is worse
+  # than one known to be off.
+  pro status --format=json | python3 -c "
+import json, sys
+services = {s['name']: s['status'] for s in json.load(sys.stdin).get('services', [])}
+sys.exit(0 if services.get('livepatch') == 'enabled' else 1)
+"
+fi`,
+      triggers: [pulumi.output(proToken ?? ""), "patching-v1"],
+    },
+    { dependsOn: [server] },
   );
 }
 
