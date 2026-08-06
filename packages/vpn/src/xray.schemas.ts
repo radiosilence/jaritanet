@@ -21,7 +21,7 @@ import { sniLabel } from "./reality.ts";
  * entry is the client's default. Keys, shortIds and `dest` are shared across
  * all of them. Distinct first labels, since those name the client outbounds.
  *
- * `dest` defaults to the local rathole https port; point it at an external
+ * `dest` defaults to Traefik's local https port; point it at an external
  * "host:port" to use a different backend.
  */
 export const XrayConfSchema = z.object({

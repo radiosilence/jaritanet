@@ -39,10 +39,10 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Generate Schemas
-        run: aube run gen:schemas
+        run: mise run gen:schemas
 
       - name: Format
-        run: aube run fmt
+        run: mise run fmt
 
       - name: Commit Changes
         run: |

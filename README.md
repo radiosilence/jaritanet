@@ -74,7 +74,7 @@ choices and the `:443` multiplexing.
 
 ### The gateway is not optional any more
 
-`HCLOUD_TOKEN` and `gateway.k3s` are both required: the cluster runs on the VPS
+`gateway.hcloudToken` and `gateway.k3s` are both required: the cluster runs on the VPS
 the token provisions, so there is no cluster without it.
 
 | | |
@@ -92,20 +92,20 @@ PV's `nodeAffinity` is for: it pins the pod to the box holding the files.
 0. **k3s** is installed on the VPS by the same `pulumi up`, which reads its kubeconfig back as a command output and builds the Kubernetes provider from it. **Cilium** is the CNI — k3s runs with `--flannel-backend=none --disable-kube-proxy`, so until Cilium is installed the node is deliberately `NotReady`.
 1. **Traefik** terminates TLS using Let's Encrypt certs (DNS-01 via Cloudflare API) and routes by hostname, on hostPort 8443 because Xray owns 443.
 2. **Cloudflare DNS** A records point service hostnames at the server's external IP.
-3. **IP watcher** — an optional pod (enabled by `DEPLOY_TOKEN`) checks the external IP every 60s and dispatches a deploy on change. Dormant here: the VPS address is static. It stays for a future node whose address moves.
-4. **Deploys** trigger on push to `main` (package changes) or manual `workflow_dispatch` — there is no scheduled/cron reconcile.
+3. **Deploys** trigger on push to `main` (package changes) or manual `workflow_dispatch` — there is no scheduled/cron reconcile.
 
 ## Topology configuration
 
 The VPN topology is three config lists in `packages/infra/Pulumi.main.yaml`.
 
 **`gateway`** — the single entry hub (a Hetzner VPS). Runs Xray (VLESS-REALITY,
-`:443/tcp`), Hysteria2 (`:443/udp`), rathole, and the tailnet relay. This is
+`:443/tcp`), Hysteria2 (`:443/udp`), and the tailnet relay. This is
 what clients connect *through*; `entry-select` picks the protocol.
 
 **`exits`** — where the gateway *egresses* your traffic (`exit-select`). An exit
-is `ss-rust + rathole`, reached over a rathole tunnel, and it exists to present
-somebody else's IP — a residential one, typically.
+is an ss-rust server, and it exists to present somebody else's IP — a
+residential one, typically. How the gateway reaches one is being reworked: the
+tunnel it used was removed with the move onto a single co-located box.
 
 ```yaml
 jaritanet:exits:
@@ -142,13 +142,13 @@ imports `infra`, and the only sideways import is `@jaritanet/k8s`.
 - **`hysteria.ts`** — Hysteria2 on udp/443 plus alt ports, one container each
 - **`tailscale.ts`** — tailnet relay, node state in a Secret so identity survives the node
 - **`unbound.ts`** — the client-facing resolver on `127.0.0.1:53`, DoT upstream
-- **`exit.ts`** — selectable egress exit node, reached via a rathole tunnel
+- **`exit.ts`** — selectable egress exit node (ss-rust)
 - **`singbox.ts`** / **`profiles.ts`** — builds each user's profile (`buildProfile`) and serves it from a Secret via `serve-from-env`; the routing table *is* the content, so a rotated slug stops existing rather than lingering as a stale file
 - **`*-systemd.ts`** — the same transports installed over SSH, still used by edges, which have no cluster. They take an SSH connection and opaque `dependsOn` rather than a typed server, so nothing here depends on a cloud provider
 
 **`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/mcp-gateway`**, **`@jaritanet/k8s`**
 
-- **`ingress.ts`** — Traefik Helm chart, IngressRoutes, IP watcher, and a rathole client when the cluster is *not* co-located with the gateway
+- **`ingress.ts`** — Traefik Helm chart and IngressRoutes
 - **`dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`mcp-gateway.ts`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
 - **`service.ts`** — K8s Deployment/Service/PV/PVC templates, plus the schemas and helpers the other packages share
@@ -157,7 +157,7 @@ imports `infra`, and the only sideways import is `@jaritanet/k8s`.
 
 - **`main.ts`** — orchestrates everything; **`gateway.ts`** / **`edge.ts`** compose a Hetzner box with transports on it
 - **`conf.schemas.ts`** — the config surface, assembled from the component schemas
-- **`env.ts`** — the only place `process.env` is read
+- **`conf.ts`** — parses the whole config surface, secrets included, in one pass
 
 Packages are imported as TypeScript source: Node resolves a workspace symlink to
 its real path, which is outside `node_modules`, so type stripping applies and the
@@ -166,64 +166,71 @@ emit and `@pulumi/pulumi` moved to a peer dependency.
 
 ## Secrets
 
-### GitHub Actions Secrets
+Everything the deploy needs is stack configuration, secrets included — each one
+nested beside whatever consumes it, so `pulumi up` from a laptop needs a Pulumi
+login and nothing else.
 
-**Deploy (`ci-cd.yml`) — Pulumi core**
+Secrets inside structured config decrypt to ordinary strings: the `secure:`
+wrapper exists only in the stack file, and the `[secret]` in a deploy's output
+is the engine redacting its own stdout. That is what lets a credential sit in
+the block it belongs to instead of a flat key at the root.
 
-| Secret | Required | Purpose |
+```bash
+pulumi config set --path --secret gateway.hcloudToken
+pulumi config set --path tailnet.magicdnsSuffix example.ts.net
+```
+
+### GitHub Actions secrets
+
+CI holds one value, because it is the one the stack cannot hold — it is what
+reaches the stack in the first place.
+
+| Secret | Workflow | Purpose |
 |---|---|---|
-| `PULUMI_ACCESS_TOKEN` | Yes | Pulumi Cloud state |
-| `CLOUDFLARE_API_TOKEN` | Yes | DNS + Traefik ACME DNS-01 (DNS:Edit, Zone:Read) |
-| `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare account id |
-| `ACME_EMAIL` | Yes | Let's Encrypt account email (Traefik) |
-| `BLIT_HOSTNAME` / `MCP_HOSTNAME` / `MCP_AUTH_HOSTNAME` | Yes | Service hostnames |
-| `HCLOUD_TOKEN` | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
-| `SSH_PUBLIC_KEY` | No | Break-glass admin key, installed on the gateway and every edge (see below). Unset = nobody but Pulumi can SSH to them |
-| `UBUNTU_PRO_TOKEN` | No | Ubuntu Pro, for kernel livepatch on the gateway and every edge. Free for personal use on up to five machines. Unset = the reboot window is still set and only livepatch is skipped |
-| `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_CLIENT_SECRET` / `TS_TAILNET` | No | Manage the tailnet policy file as code (see below). Unset = policy stays hand-managed |
+| `PULUMI_ACCESS_TOKEN` | `ci-cd`, `preview` | Pulumi Cloud state |
+| `APP_PRIVATE_KEY` | `update-apps` | GitHub App key for version-bump commits (pairs with the `APP_ID` repo variable) |
 
-**Tailscale**
+### Stack configuration
 
-| Secret | Required | Purpose |
+Secrets are marked 🔒 — set those with `--secret`.
+
+| Path | Required | Purpose |
 |---|---|---|
-| `TS_AUTHKEY` | No | OAuth client secret (`tskey-client-…`, `tag:server`) that joins the gateway/edges to the tailnet — enables the relay |
+| `cloudflare.apiToken` 🔒 | Yes | DNS + Traefik ACME DNS-01 (DNS:Edit, Zone:Read) |
+| `cloudflare.accountId` | Yes | Cloudflare account id |
+| `gateway.hcloudToken` 🔒 | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
+| `adminSshKey` | No | Break-glass admin key for the gateway and every edge (see below). Unset = nobody but Pulumi can SSH to them. Not secret — it is the public half |
+| `ubuntuProToken` 🔒 | No | Ubuntu Pro, for kernel livepatch. Unset = the reboot window is still set and only livepatch is skipped |
+| `vpnEntryLabel` | Yes | Node label key marking a machine as a VPN entry, e.g. `jaritanet.radiosilence.dev/vpn-entry`. Read once and passed to both the command that labels the node and every transport's `nodeSelector`, so they cannot disagree — a selector matching no node schedules nothing while the cluster looks healthy. Required for that reason: a red deploy beats a silently dark VPN |
+| `vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
+| `tailnet.authKey` 🔒 | No | OAuth client secret (`tskey-client-…`, `tag:server`) joining the gateway and edges to the tailnet — enables the relay |
+| `tailnet.magicdnsSuffix` | No | MagicDNS suffix baked into the sing-box profiles |
+| `tailnet.name`, `tailnet.oauth.clientId` 🔒, `tailnet.oauth.clientSecret` 🔒 | No | Manage the tailnet policy file as code (see below). Unset = policy stays hand-managed |
+| `profiles.telegram.botToken` 🔒 / `.chatId` 🔒 | No | Telegram bot + chat for the per-user profile URL notify |
+| `mcpGateway.github.clientId` / `.clientSecret` 🔒 / `.allowed` | No | GitHub OAuth app and login allowlist. Absent → the MCP gateway is skipped |
+| `ipWatcher.deployToken` 🔒 | No | GitHub PAT (Actions:write) — enables the direct-mode IP-watcher pod |
 
-CI no longer joins the tailnet. It reaches the API server on the VPS's public
+The profile slug is generated by Pulumi and rotated by `gateway.credentialRotation`
+rather than held as a secret, so there is nothing to set for it.
+
+CI does not join the tailnet. It reaches the API server on the VPS's public
 `:6443`, so a tailnet outage cannot fail a deploy — which it repeatedly did.
-
-**sing-box profiles (optional)**
-
-| Secret | Required | Purpose |
-|---|---|---|
-| `SINGBOX_SLUG` | No | Base secret for per-user profile paths (each user's slug is derived from it, so URLs are stable but unguessable) |
-| `TAILNET_MAGICDNS_SUFFIX` | No | Tailnet MagicDNS suffix baked into the profile |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | No | Telegram bot + chat for the per-user profile URL notify |
-| `VPN_ENTRY_LABEL` | Yes | Node label key marking a machine as a VPN entry, e.g. `jaritanet.radiosilence.dev/vpn-entry`. Read once and passed to both the command that labels the node and every transport's `nodeSelector`, so they cannot disagree — a selector matching no node schedules nothing while the cluster looks healthy. Required for that reason: a red deploy beats a silently dark VPN |
-| `VPN_USERS` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin. E.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
-
-**Automation**
-
-| Secret | Required | Purpose |
-|---|---|---|
-| `SECRETS_PAT` | Yes | PAT for `update-secrets` (pushes generated kube secrets) |
-| `APP_PRIVATE_KEY` | Yes | GitHub App private key for `update-apps` (pairs with the `APP_ID` repo variable) |
-| `DEPLOY_TOKEN` | No | GitHub PAT (Actions:write) — enables the direct-mode IP-watcher pod |
 
 ### Enabling the gateway
 
 ```bash
 # console.hetzner.cloud > Project > Security > API Tokens
-gh secret set HCLOUD_TOKEN
+pulumi config set --path --secret gateway.hcloudToken
 ```
 
 Next deploy provisions the VPS, installs k3s on it and deploys everything into
-it. Removing the secret does not fall back to anything: there is no cluster
-without the box.
+it. Removing it does not fall back to anything: there is no cluster without the
+box.
 
 ### Break-glass SSH
 
 ```bash
-gh secret set SSH_PUBLIC_KEY < ~/.ssh/id_ed25519.pub
+pulumi config set adminSshKey "$(cat ~/.ssh/id_ed25519.pub)"
 ```
 
 Installs that key on the gateway and every edge, so `ssh root@<ip>` works. Only
@@ -236,14 +243,13 @@ be there beforehand.
 It arrives over SSH rather than through the server's `sshKeys` or `userData`,
 both of which Hetzner applies only at creation: setting either would replace the
 box, and with it the IP and the REALITY keypair every client profile carries.
-Rotating the key is therefore a normal deploy. Unsetting the secret removes it.
+Rotating the key is therefore a normal deploy. Unsetting it removes the key.
 
 The key lands in `/etc/ssh/admin_authorized_keys`, selected by an
 `sshd_config.d` drop-in, never in the `authorized_keys` Pulumi authenticates
 with — a mistake in that file locks the deploy out of the box it is deploying to.
 Replacing a box reinstalls it: the resource is triggered by the server's id as
 well as the key, so a rebuild cannot leave the new box without a way in.
-
 
 ### Automatic patching
 
@@ -252,7 +258,7 @@ Cloud images install security updates on their own and then leave them there:
 Every box gets a 04:00 reboot window so the patches it installs take effect.
 
 ```bash
-gh secret set UBUNTU_PRO_TOKEN   # from https://ubuntu.com/pro/dashboard
+pulumi config set --secret ubuntuProToken   # from https://ubuntu.com/pro/dashboard
 ```
 
 Adds livepatch on top, which applies high and critical kernel CVE fixes to the
@@ -268,14 +274,16 @@ new one. Run `pro detach --assume-yes` on it first.
 ## Development
 
 ```bash
-aube install              # Install dependencies
-aube run lint             # Lint with oxlint
-aube run lint:fix         # Lint and auto-fix
-aube run fmt              # Format with oxfmt
-aube run fmt:check        # Check formatting
-aube run typecheck        # Type check every package
-aube run test             # Run tests
-./scripts/gen-schemas.ts  # Generate JSON schemas
+mise run setup       # Toolchain, dependencies and git hooks
+mise run check       # Lint, format, typecheck and test — in parallel
+mise run lint:fix    # Lint and auto-fix
+mise run fmt         # Format with oxfmt
+mise run gen:schemas # Generate JSON schemas
+mise run preview     # Preview the stack
+mise run up          # Deploy it
+
+`check` declares the other four as `depends`, so mise fans them out across its
+job pool rather than running them in an order nothing requires.
 ```
 
 Pre-commit hooks (via Lefthook) run oxlint, oxfmt, and type checking.
@@ -323,7 +331,7 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
       advertise a tag the policy does not define**, so this must land first or
       the gateway drops off the tailnet on its next `tailscale up`.
    2. Mint a new auth key that is authorised for `tag:gateway` (admin console →
-      *Keys* → *Generate auth key* → set the tag) and replace `TS_AUTHKEY`. The
+      *Keys* → *Generate auth key* → set the tag) and replace `tailnet.authKey`. The
       existing key can only assign the tags it was created with, so reusing it
       cannot work.
    3. Set `gateway.tailnet.tag` to `tag:gateway` and deploy. The node

@@ -34,42 +34,6 @@ on:
     secrets:
       PULUMI_ACCESS_TOKEN:
         required: true
-      CLOUDFLARE_API_TOKEN:
-        required: true
-      CLOUDFLARE_ACCOUNT_ID:
-        required: true
-      HCLOUD_TOKEN:
-        required: false
-      SSH_PUBLIC_KEY:
-        required: false
-      UBUNTU_PRO_TOKEN:
-        required: false
-      TS_OAUTH_CLIENT_ID:
-        required: true
-      TS_OAUTH_SECRET:
-        required: true
-      BLIT_HOSTNAME:
-        required: true
-      NAVIDROME_HOSTNAME:
-        required: false
-      FILES_HOSTNAME:
-        required: false
-      TS_AUTHKEY:
-        required: false
-      VPN_USERS:
-        required: false
-      VPN_ENTRY_LABEL:
-        required: true
-      MCP_HOSTNAME:
-        required: false
-      MCP_AUTH_HOSTNAME:
-        required: false
-      GH_CLIENT_ID:
-        required: false
-      GH_CLIENT_SECRET:
-        required: false
-      GH_ALLOWED:
-        required: false
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -95,7 +59,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Lint
-        run: aube run lint
+        run: mise run lint
 
   format:
     name: Format
@@ -116,7 +80,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Format Check
-        run: aube run fmt:check
+        run: mise run fmt:check
 
   typecheck:
     name: Type Check
@@ -137,7 +101,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Type Check
-        run: aube run typecheck
+        run: mise run typecheck
 
   test:
     name: Test
@@ -158,14 +122,14 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Run Tests
-        run: aube run test
+        run: mise run test
 
       # The unit tests validate profile *shape* against sing-box's published
       # (latest) schema. This runs the real binary of the oldest core the fleet
       # is on, which is the only thing that answers "will the devices accept
       # this" — the question July's outage turned on.
       - name: Check profiles against the minimum sing-box core
-        run: aube run check:profiles
+        run: mise run check:profiles
 
   containers:
     name: Containers
@@ -209,41 +173,14 @@ jobs:
       # Stack configuration, external-IP detection and the update itself all
       # happen inside deploy.ts, so preview.yml runs the identical code path.
       - name: Deploy
-        run: aube run deploy
+        working-directory: packages/infra
+        run: pulumi up --yes --non-interactive --refresh -s "$STACK"
         env:
+          STACK: radiosilence/jaritanet/main
+          # The only value CI holds that the stack cannot, because it is what
+          # reaches the stack in the first place.
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
-          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          # Drops Kubernetes resources from state when their cluster is gone.
+          # An input rather than a default: left on, it would do the same to a
+          # cluster that was only briefly unreachable.
           PULUMI_K8S_DELETE_UNREACHABLE: ${{ inputs.deleteUnreachable && 'true' || '' }}
-          BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
-          NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
-          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
-          MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
-          MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-          # Break-glass admin key installed on the gateway and every edge, over
-          # SSH rather than at creation so rotating it never replaces a box.
-          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
-          # Livepatch on the gateway and every edge. Free for personal use.
-          UBUNTU_PRO_TOKEN: ${{ secrets.UBUNTU_PRO_TOKEN }}
-          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
-          # Per-user VPN roster (RBAC). "jc+,guest1" → jc admin, guest1 guest.
-          # Unset → single implicit owner-admin.
-          VPN_USERS: ${{ secrets.VPN_USERS }}
-          # Node label key marking a machine as a VPN entry. Read once and
-          # passed to both the labelling command and every transport's
-          # nodeSelector, so the two cannot drift apart.
-          VPN_ENTRY_LABEL: ${{ secrets.VPN_ENTRY_LABEL }}
-          # sing-box profiles: Pulumi generates them and serves them from the
-          # cluster. Skipped if the slug or magicdns suffix is unset.
-          SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
-          TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # MCP gateway: GitHub OAuth app creds + login allowlist (read by
-          # env.ts). Hostnames reach the program as stack config instead.
-          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
-          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
-          GH_ALLOWED: ${{ secrets.GH_ALLOWED }}

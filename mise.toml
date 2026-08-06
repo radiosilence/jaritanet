@@ -5,3 +5,71 @@ pulumi = "latest"
 # rustfmt and clippy are not in the minimal profile mise installs by default,
 # and the containers job needs both.
 rust = { version = "1", components = "rustfmt,clippy" }
+
+[env]
+# oxlint, oxfmt, tsc and vitest are workspace binaries. On PATH, a task can name
+# the tool it runs instead of forwarding through the package manager to a
+# package.json script that only forwards again.
+_.path = ["node_modules/.bin"]
+
+[tasks.setup]
+description = "Toolchain, dependencies and git hooks, from a fresh clone"
+# `prepare` installs lefthook, so the hooks come with the dependencies.
+run = "aube install"
+
+[tasks.lint]
+description = "Lint with oxlint"
+run = "oxlint"
+
+[tasks."lint:fix"]
+description = "Lint and auto-fix"
+run = "oxlint --fix"
+
+[tasks.fmt]
+description = "Format with oxfmt"
+run = "oxfmt --write"
+
+[tasks."fmt:check"]
+description = "Check formatting"
+run = "oxfmt --check"
+
+[tasks.typecheck]
+description = "Type check every package"
+run = 'for p in packages/*/tsconfig.json; do echo "→ $p" && tsc -p "$p" || exit 1; done'
+
+[tasks.test]
+description = "Run the test suite (vitest on Node — Pulumi needs Node's v8)"
+run = "vitest run"
+
+[tasks.check]
+description = "Everything CI checks"
+# No `run` of its own. These four are independent, so mise fans them out across
+# its job pool instead of running a list in an order nothing requires — and a
+# failure stops the dependents rather than the whole file.
+depends = ["lint", "fmt:check", "typecheck", "test"]
+
+[tasks."gen:schemas"]
+description = "Generate JSON schemas from the Zod definitions"
+# Sequential: the generator writes, then the formatter fixes what it wrote.
+run = ["./scripts/gen-schemas.ts", "oxfmt --write schemas"]
+
+[tasks."check:profiles"]
+description = "Validate every profile shape against the real sing-box binary (needs docker)"
+run = "./scripts/check-profiles.ts"
+
+[tasks."update:apps"]
+description = "Report or apply upstream version bumps"
+run = "./packages/infra/src/update-apps.ts"
+
+# Config lives in the stack, credentials included, so these need a Pulumi login
+# and nothing else. They wrap the CLI directly — what once made a shared
+# entrypoint worth having was config assembly, and there is none left to share.
+[tasks.preview]
+description = "Preview the stack"
+dir = "packages/infra"
+run = "pulumi preview"
+
+[tasks.up]
+description = "Deploy the stack"
+dir = "packages/infra"
+run = "pulumi up"

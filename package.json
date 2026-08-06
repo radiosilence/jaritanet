@@ -10,19 +10,6 @@
   ],
   "type": "module",
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
-    "fmt": "oxfmt --write",
-    "fmt:check": "oxfmt --check",
-    "typecheck": "for p in packages/*/tsconfig.json; do echo \"→ $p\" && tsc -p \"$p\" || exit 1; done",
-    "gen:schemas": "./scripts/gen-schemas.ts",
-    "check:profiles": "./scripts/check-profiles.ts",
-    "update:apps": "./packages/infra/src/update-apps.ts",
-    "deploy": "./packages/infra/src/deploy.ts up",
-    "preview": "./packages/infra/src/deploy.ts preview",
     "prepare": "lefthook install"
   },
   "dependencies": {

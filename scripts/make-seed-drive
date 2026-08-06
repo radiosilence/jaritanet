@@ -303,12 +303,16 @@ runcmd:
       # Local PVs: kubelet will not create a missing path, so these have to
       # exist. Only ones on the internal disk — anything under the media mount
       # must come from the drive, or an unmounted disk looks like an empty one.
-      mkdir -p /home/navidrome/data /srv/files
+      mkdir -p /home/navidrome/data /srv/files /var/lib/syncthing
       # chown, not \`install -o\`: install resolves the owner through the user
       # database and rejects a bare numeric id, so it fails on a uid that exists
       # only inside a container. Under \`set -e\` that took the rest of the step
       # with it.
       chown 1001:1002 /home/navidrome/data
+      # syncthing writes its key and certificate here on first start. kubelet
+      # creates a missing hostPath as root, and fsGroup does not apply to
+      # hostPath volumes, so without this the container cannot write and exits.
+      chown 1000:1000 /var/lib/syncthing
       # systemd-modules-load runs before cloud-init writes /etc/modules-load.d,
       # so the watchdog has no device to open on the very first boot. Loading it
       # here arms it now rather than one reboot from now.

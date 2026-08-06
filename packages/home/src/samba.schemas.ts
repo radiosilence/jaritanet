@@ -41,7 +41,7 @@ export const SambaShareSchema = z.object({
 export const SambaConfSchema = z.object({
   image: z
     .string()
-    .default("ghcr.io/servercontainers/samba:smbd-only-a4.21.4-s3.0.1-r0"),
+    .default("ghcr.io/servercontainers/samba:smbd-only-a3.24.1-s4.23.8-r0"),
   /** `hosts allow` — the tailnet and the LAN, never the internet. */
   allowedNetworks: z
     .array(z.string())

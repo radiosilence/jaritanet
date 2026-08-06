@@ -51,6 +51,44 @@ export {
 
 export const CloudflareConfSchema = z.object({
   accountId: z.string(),
+  /**
+   * Edits DNS: the A records, and the TXT records Traefik writes to answer
+   * Let's Encrypt's DNS-01 challenge. The `cloudflare:apiToken` provider key
+   * holds the same value — that one configures the provider, this one is
+   * handed to Traefik, and nothing can read the provider's copy back out.
+   */
+  apiToken: z.string().min(1),
+});
+
+/**
+ * The tailnet itself, as distinct from the relay that joins it.
+ *
+ * `gateway.tailnet` describes a *daemon* — which image, what to call the node.
+ * This describes the account that daemon authenticates against, which is why
+ * the edges and the profile server read it too. Neither is a sub-case of the
+ * other, so they are separate blocks rather than one with optional halves.
+ */
+export const TailnetAccountConfSchema = z.object({
+  /** Joins the gateway, every edge, and the in-cluster relay. */
+  authKey: z.string().optional(),
+  /**
+   * The `*.ts.net` suffix. Not a secret — it is in the certificate
+   * transparency logs the moment MagicDNS issues a cert.
+   */
+  magicdnsSuffix: z.string().optional(),
+  /** Tailnet name for policy-as-code, e.g. `example.com` or `tail1234.ts.net`. */
+  name: z.string().optional(),
+  /**
+   * Policy-as-code credentials. Absent, the policy stays hand-managed in the
+   * admin console and the Pulumi resource is never created. Needs the
+   * `policy_file` scope; see README.
+   */
+  oauth: z
+    .object({
+      clientId: z.string(),
+      clientSecret: z.string(),
+    })
+    .optional(),
 });
 
 export const GatewayConfSchema = z.object({
@@ -58,18 +96,24 @@ export const GatewayConfSchema = z.object({
    * Bump to reissue every VPN credential: REALITY keypair, shortId and per-user
    * UUIDs, and hysteria's obfs and per-admin passwords.
    *
-   * Revocation needed a mechanism. Removing a user from VPN_USERS drops *their*
+   * Revocation needed a mechanism. Removing a user from `vpnUsers` drops *their*
    * credential, but nothing reissued the shared ones, so a profile leaking —
    * the URL is unauthenticated and the whole credential set is in the body —
    * had no answer short of editing Pulumi state by hand. This is that answer:
    * one value, every secret behind it, and the new profiles delivered by the
    * run that changes it.
    *
-   * Rotating the base slug (SINGBOX_SLUG) as well moves the URLs, but on its
-   * own it only hides the new profile — the leaked credentials keep working
-   * until this changes too.
+   * The profile slug rotates off this value too, which moves the URLs — but a
+   * moved URL only hides the new profile. The leaked credentials keep working
+   * until the secrets behind them are reissued, which is what this does.
    */
   credentialRotation: z.string().default("1"),
+  /**
+   * Creates the VPS, and its presence is what decides there is a gateway at
+   * all — absent, the stack falls back to `externalIp`. The `hcloud:token`
+   * provider key holds the same value for the provider's own use.
+   */
+  hcloudToken: z.string().optional(),
   hysteria: HysteriaConfSchema.optional(),
   /**
    * What the box is called — in Hetzner, and by default on the tailnet.
@@ -82,7 +126,6 @@ export const GatewayConfSchema = z.object({
   image: z.string().default("ubuntu-26.04"),
   k3s: K3sConfSchema.optional(),
   location: z.string().default("nbg1"),
-  ratholeVersion: z.string().default("v0.5.0"),
   serverType: z.string().default("cx23"),
   tailnet: TailnetConfSchema.optional(),
   unbound: UnboundConfSchema.default({
@@ -161,23 +204,95 @@ export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
 export const ProfilesConfSchema = z.object({
   hostname: z.string(),
   image: z.string(),
+  /**
+   * Notifies on change, with every user's profile URL. Absent → no message,
+   * and the URLs are read from `pulumi stack output` instead.
+   */
+  telegram: z
+    .object({
+      botToken: z.string(),
+      chatId: z.string(),
+    })
+    .optional(),
 });
 
 export const ConfSchema = z.object({
+  /**
+   * Break-glass admin key, installed on the gateway and every edge over SSH
+   * rather than at creation, so rotating it never replaces a box. Absent → no
+   * resource. Not a secret: it is the public half.
+   *
+   * Shape-checked because the failure is silent and badly timed — a mangled
+   * key installs cleanly and is only discovered to be useless when k3s is down
+   * and SSH is the last way in.
+   */
+  adminSshKey: z
+    .string()
+    .refine(
+      (key) => key === "" || /^(ssh|ecdsa|sk)-\S+\s+\S+/.test(key),
+      "adminSshKey must be an OpenSSH public key line (`ssh-ed25519 AAAA…`)",
+    )
+    .optional(),
   bluesky: BlueskyConfSchema,
   cloudflare: CloudflareConfSchema,
   clusterDomain: z.string().default("cluster.local"),
   edges: z.array(EdgeConfSchema).default([]),
   exits: z.array(ExitConfSchema).default([]),
-  externalIp: z.string().optional(),
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
   home: HomeConfSchema.optional(),
   managedBy: z.string().default("jaritanet"),
-  mcpGateway: McpGatewayConfSchema.optional(),
+  /**
+   * `github` is this deployment's, not the component's: the gateway needs some
+   * OAuth app, and which one is a fact about who runs it. Extended here so the
+   * package keeps knowing nothing about jaritanet.
+   */
+  mcpGateway: McpGatewayConfSchema.extend({
+    github: z
+      .object({
+        /** Login allowlist, comma-separated. Not a secret — these are usernames. */
+        allowed: z.string().default(""),
+        clientId: z.string(),
+        clientSecret: z.string(),
+      })
+      .optional(),
+  }).optional(),
   namespace: z.string().default("jaritanet"),
   profiles: ProfilesConfSchema.optional(),
   services: ServicesMapSchema,
+  tailnet: TailnetAccountConfSchema.default({}),
   traefik: TraefikConfSchema,
+  /**
+   * Ubuntu Pro, for livepatch on the gateway and every edge. Free for personal
+   * use on up to five machines. Absent → the reboot window is still configured
+   * and only livepatch is skipped, because a box that boots its patches is the
+   * baseline and livepatch is the improvement on it.
+   */
+  ubuntuProToken: z.string().optional(),
+  /**
+   * The node label key marking a machine as a VPN entry. One value reaches both
+   * the command that labels the node and the nodeSelector on every transport
+   * DaemonSet, so those cannot disagree — which is the whole reason it is read
+   * once, here, and passed down rather than defaulted in each place.
+   *
+   * Required rather than defaulted for the same reason. A wrong-but-present
+   * value is caught by the next preview, since relabelling a node and
+   * rescheduling the transports is a visible diff. An *absent* one would have
+   * to fall back to something, and a fallback that disagrees with the live
+   * node's label schedules zero pods onto a cluster reporting perfectly
+   * healthy — the VPN goes dark with nothing anywhere reporting a fault.
+   */
+  vpnEntryLabel: z
+    .string()
+    .regex(
+      /^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?\/[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$/,
+      "vpnEntryLabel must be a prefixed Kubernetes label key (<dns-subdomain>/<name>)",
+    ),
+  /**
+   * Per-user VPN access (RBAC). One comma-separated list; a trailing `+` marks
+   * an admin. Absent → single implicit owner-admin (see main.ts). Parsed by
+   * `parseVpnUsers` from @jaritanet/vpn into a typed {name, role}[].
+   */
+  vpnUsers: z.string().optional(),
   zones: ZonesConfSchema,
 });

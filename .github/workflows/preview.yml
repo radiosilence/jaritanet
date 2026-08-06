@@ -39,54 +39,44 @@ jobs:
           run-install: true
           install-args: --frozen-lockfile
 
-      # Identical entrypoint to the deploy in ci-cd.yml, differing only in the
-      # verb — which is the point. Config is written to the checked-out
-      # Pulumi.main.yaml, not the shared stack, so PRs can't leak into each
-      # other's previews.
+      # --refresh is load-bearing: without it a preview never calls the cloud
+      # APIs, so a credential that has been revoked since the last deploy reads
+      # as fine and only fails once it is too late to be a preview.
       - name: Preview
-        run: aube run preview
+        working-directory: packages/infra
+        run: |
+          set -o pipefail
+          pulumi preview --non-interactive --diff --refresh -s "$STACK" 2>&1 | tee preview.txt
         env:
-          PREVIEW_COMMENT_PATH: ${{ runner.temp }}/preview.md
+          STACK: radiosilence/jaritanet/main
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
-          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
-          NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
-          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
-          MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
-          MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-          # The only secret the deploy had that this did not, which made every
-          # preview run as a single implicit owner instead of the real roster —
-          # so xray and hysteria configs differed and the diff showed each
-          # user's credentials being replaced on a PR that touched neither. A
-          # preview produced from different inputs than the deploy predicts
-          # nothing, and a false credential rotation is the worst thing for it
-          # to be wrong about, because the correct response to a real one is to
-          # stop and think.
-          VPN_USERS: ${{ secrets.VPN_USERS }}
-          # Required by EnvSchema, so a preview without it fails before it can
-          # produce a diff — and one produced from different inputs than the
-          # deploy predicts nothing anyway.
-          VPN_ENTRY_LABEL: ${{ secrets.VPN_ENTRY_LABEL }}
-          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
-          # Livepatch on the gateway and every edge. Free for personal use.
-          UBUNTU_PRO_TOKEN: ${{ secrets.UBUNTU_PRO_TOKEN }}
-          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
-          SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
-          TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
-          GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
-          GH_ALLOWED: ${{ secrets.GH_ALLOWED }}
+
+      # Truncated from the top: the resource summary a preview is read for sits
+      # at the end, and GitHub refuses a body beyond 65536 characters.
+      - name: Build comment
+        if: always()
+        run: |
+          LIMIT=60000
+          body=$(grep -vE '^(Downloading|Installing) plugin ' packages/infra/preview.txt)
+          {
+            echo '#### Pulumi preview — `radiosilence/jaritanet/main`'
+            if [ "${#body}" -gt "$LIMIT" ]; then
+              echo "> Truncated to the last $LIMIT characters — see the run for the whole preview."
+            fi
+            echo
+            echo '```'
+            printf '%s' "$body" | tail -c "$LIMIT"
+            echo
+            echo '```'
+          } > "$BODY"
+        env:
+          BODY: ${{ runner.temp }}/preview.md
 
       # Edited in place rather than appended, so a PR pushed to repeatedly
       # carries one comment showing the current preview instead of a pile of
       # superseded ones.
       - name: Comment preview on PR
+        if: always()
         run: gh pr comment "$PR" --body-file "$BODY" --edit-last --create-if-none
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

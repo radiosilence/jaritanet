@@ -16,7 +16,7 @@ export type VpnUser = z.infer<typeof VpnUserSchema>;
 const NAME_RE = /^[a-z][a-z0-9_-]*$/i;
 
 /**
- * Parses a roster secret ("jc+,guest1") into a typed user list. Splits on
+ * Parses a roster ("jc+,guest1") into a typed user list. Splits on
  * comma, trims, and strips a trailing `+` to mark an admin (else guest). Empty
  * tokens (a stray trailing comma) are skipped. Throws on an invalid name or a
  * duplicate — a bad list should fail the deploy loudly, not silently drop a user.
@@ -31,11 +31,11 @@ export function parseVpnUsers(raw: string): VpnUser[] {
     const name = (isAdmin ? trimmed.slice(0, -1) : trimmed).trim();
     if (!NAME_RE.test(name)) {
       throw new Error(
-        `VPN_USERS: invalid user name "${name}" — must match ${NAME_RE}`,
+        `invalid VPN user name "${name}" — must match ${NAME_RE}`,
       );
     }
     if (seen.has(name)) {
-      throw new Error(`VPN_USERS: duplicate user name "${name}"`);
+      throw new Error(`duplicate VPN user name "${name}"`);
     }
     seen.add(name);
     users.push({ name, role: isAdmin ? "admin" : "guest" });

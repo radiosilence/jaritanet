@@ -11,7 +11,7 @@ import { GUEST_DENY_CIDRS } from "./xray.ts";
  * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
  *
  * Xray takes :443; traffic that doesn't match a client is relayed to `dest`
- * (the local rathole https port → in-cluster Traefik), matched clients are
+ * (Traefik's local https port), matched clients are
  * proxied out. Keys are minted on first boot and never leave the box: the
  * x25519 private key stays in /usr/local/etc/xray, and one REALITY UUID is
  * minted per user (`email: <name>`) so a user is revoked by dropping them from

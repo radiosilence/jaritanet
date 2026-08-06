@@ -60,10 +60,9 @@ means what it says and never leaves the box. It is absent from the firewall's
 inbound allow-list (`:22`, `:80`, `:443`, `:6443`, Hysteria2's UDP ports), so
 nothing outside can reach it.
 
-Since the cluster is co-located with the gateway there is **no rathole**: it
-existed to reach a cluster behind NAT, and tunnelling a box to itself buys
-nothing. `modules/ingress.ts` still deploys a rathole client when the cluster is
-somewhere else, which is the configuration an exit node uses.
+There is no tunnel between the gateway and the cluster: they are the same box,
+and tunnelling one to itself buys nothing. Traefik binds a host port and Xray
+relays to it over loopback.
 
 Tailnet `100.x` isn't drawn here — it rides the same entry transports and the
 gateway dials it locally over `tailscale0`; see
@@ -146,7 +145,7 @@ hostname, so serving an entry is a property of a node. `lady` joining the
 cluster does not make it a VPN entry, and making an edge one later is a label
 rather than another module. The gateway labels itself after k3s comes up.
 
-The key comes from `VPN_ENTRY_LABEL` and is read once, then passed to both the
+The key comes from `vpnEntryLabel` and is read once, then passed to both the
 labelling command and every DaemonSet's `nodeSelector` — as a required argument,
 so the compiler rejects a call site that omits it. That is deliberate: the two
 must agree exactly, and a selector matching no node schedules nothing while the
@@ -239,7 +238,7 @@ disagree — the failure being a cluster that comes up looking healthy and moves
 no packets. So `CILIUM_K8S_SUPPORT` encodes Cilium's e2e-tested Kubernetes range
 per minor and `K3sConfSchema` asserts it while parsing, which makes a half-bump
 a red preview before a single resource is touched. Same reasoning as
-`VPN_ENTRY_LABEL` being required rather than defaulted: when the healthy-looking
+`vpnEntryLabel` being required rather than defaulted: when the healthy-looking
 failure is the expensive one, the config surface is where to catch it.
 
 An unknown Cilium minor fails rather than passes. A table that silently accepts
@@ -293,7 +292,7 @@ flowchart TD
     XR --> MATCH{"valid VLESS<br/>uuid + shortId?"}
     MATCH -->|yes| OUT
     MATCH -->|"no / active probe"| DEST["dest = 127.0.0.1:8443"]
-    DEST --> RH["rathole https"] --> TUN["tunnel to home"] --> TR["Traefik TLS + route"] --> SVC["service"]
+    DEST --> TR["Traefik TLS + route"] --> SVC["service"]
 ```
 
 A censor's active probe lands in the `no` branch: it gets a real TLS session to
@@ -446,7 +445,7 @@ which is where the VPN credentials live. Creating it up front buys a Role that
 names one object and grants get/update/patch on it. Pulumi ignores the contents
 from then on; containerboot owns them.
 
-The `TS_AUTHKEY` secret is an **OAuth client secret** (`tskey-client-…`, with
+The `tailnet.authKey` secret is an **OAuth client secret** (`tskey-client-…`, with
 the `auth_keys` scope and the tag), not a raw auth key — raw keys cap at 90-day
 expiry, OAuth secrets don't. OAuth-minted keys default to ephemeral, so the
 `up` command forces `ephemeral=false` to keep the relay persistent.
@@ -461,7 +460,7 @@ The profile is generated and served entirely by Pulumi. `buildProfile`
 (`JSON.stringify`, so it cannot emit invalid JSON — no templating), and
 `createProfileServer` (`modules/profiles.ts`) puts every user's profile into one
 Secret as a path→body table, served by `serve-from-env` at
-`p.radiosilence.dev/<slug>.json`.
+`<profile-host>/<slug>.json`.
 
 The routing table *is* the content, which is the point: a rotated slug stops
 existing rather than lingering as a file someone must remember to delete. It
@@ -479,7 +478,7 @@ dependency worth keeping.)
 
 Beyond the primary gateway, `edges` in config spins up standalone VPN boxes in
 other locations — each a Hetzner VPS running hy2 + REALITY + a tailnet relay,
-and nothing else (no rathole, no reverse proxy). Adding one is a config change:
+and nothing else (no reverse proxy). Adding one is a config change:
 
 ```yaml
 jaritanet:edges:
@@ -542,9 +541,8 @@ from the ISP, and neither is worth it for an exit whose entire purpose is
 presenting a residential **IPv4** address. Accepted deliberately — if something
 you rely on breaks only through the exit, suspect this first.
 
-An exit is a substrate-agnostic unit — **rathole client + ss-rust** — as a k8s
-Deployment (`modules/exit.ts`) today, or a cloud-init VPS later. Add one via the
-`exits` config list:
+An exit is an **ss-rust** server, as a k8s Deployment (`modules/exit.ts`) today,
+or a cloud-init VPS later. Add one via the `exits` config list:
 
 ```yaml
 jaritanet:exits:
@@ -552,43 +550,45 @@ jaritanet:exits:
     port: 9000
 ```
 
-It's reached through the **existing rathole tunnel**, not the tailnet. Each
-exit's ss-rust port is surfaced on the **primary gateway's loopback**
-(`127.0.0.1:<port>`) via a rathole service entry — the same pattern as the
-Reality decoy `dest`:
+Each exit's ss-rust port is expected on the **primary gateway's loopback**
+(`127.0.0.1:<port>`) — the same pattern as the Reality decoy `dest` — and the
+client's ss outbound detours through the primary so the inner address resolves
+at that end. What surfaces the port there is the open question: the reverse
+tunnel that used to do it went with the move onto a single co-located box.
 
 ```mermaid
 flowchart LR
     DEV["device"] -->|"detour: primary (hy2/reality)"| GW["primary gateway"]
-    GW -->|"127.0.0.1:<port> → rathole"| SS["ss-rust exit (k8s)"]
+    GW -->|"127.0.0.1:<port>"| SS["ss-rust exit (k8s)"]
     SS -->|"pod egress, CNI SNAT → node IP"| INET(("Internet"))
 ```
 
 The client's `exit-<name>` outbound is Shadowsocks to `127.0.0.1:<port>`,
 detouring through the **primary** gateway. In a detour chain the inner address
-resolves at the gateway end, so `127.0.0.1:<port>` means "this exit's rathole
-loopback on the primary." Exits pin to the primary because **it's the only node
-running rathole** — edges (also in `entry-select`) serve hy2/reality only, so
-routing an exit through an edge would dial a dead loopback. `entry-select` still
-governs *direct* egress across all gateways; exits transit the primary.
+resolves at the gateway end, so `127.0.0.1:<port>` means "this exit's loopback
+on the primary." Exits pin to the primary because it is the only node where
+those loopbacks exist — edges (also in `entry-select`) serve hy2/reality only,
+so routing an exit through an edge would dial a dead loopback. `entry-select`
+still governs *direct* egress across all gateways; exits transit the primary.
 
 No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
 (connection-level), so there's no return-path routing to misconfigure on a
 remote box. The exit pod egresses normally and the CNI SNATs to the node IP. Topology is a pure function of the config lists,
 expanded at `pulumi up`. (Making exits reachable via *any* gateway — the full
-entry × exit cross-product — needs edges to also run rathole; deferred. When
-multiple rathole gateways exist, `port` must be identical across them.)
+entry × exit cross-product — needs every gateway to surface the exit loopbacks;
+deferred. When more than one does, `port` must be identical across them.)
 
 ## Multi-user access (admin / guest)
 
-The VPN is multi-tenant. The `VPN_USERS` GitHub secret is one comma-separated
+The VPN is multi-tenant. The `vpnUsers` config value is one comma-separated
 list where a trailing `+` marks an admin — `jc+,guest1` → `jc` admin, `guest1`
-guest. `env.ts` parses it into `{name, role}[]`; unset falls back to a single
+guest. `conf.ts` parses it into `{name, role}[]`; unset falls back to a single
 implicit owner-admin, so pre-RBAC deploys keep full access. Each user gets their
-own credentials and their own sing-box profile at `p.radiosilence.dev/<slug>.json`
-(slug derived from the base `SINGBOX_SLUG` + name — deterministic, so a
-subscription URL is stable across deploys, but unguessable without the base).
-Removing a user from the secret and redeploying drops their route from the
+own credentials and their own sing-box profile at `<profile-host>/<slug>.json`
+(slug derived from a Pulumi-generated base + name — deterministic, so a
+subscription URL is stable across deploys, but unguessable without the base,
+which rotates with `gateway.credentialRotation`).
+Removing a user from `vpnUsers` and redeploying drops their route from the
 table, so the URL 404s rather than serving revoked credentials, and their
 identity disappears from Xray and hy2 — a hard revoke.
 
@@ -636,7 +636,7 @@ tap-to-copy `<code>` block plus a `copy_text` inline-keyboard button.
 ## Break-glass SSH
 
 Each box's only key is the ED25519 pair Pulumi generates for it, which lives in
-stack state and is never exported. `SSH_PUBLIC_KEY` adds a human's key on top,
+stack state and is never exported. `adminSshKey` adds a human's key on top,
 on the gateway and every edge.
 
 It buys one thing, and it is worth being precise about which. Reading host
@@ -672,7 +672,7 @@ drift — nothing asks to be fixed. That is how the 26.04 rebuild produced a
 gateway whose break-glass access had never been installed, and why
 `createNetworkTuning` and `createAutomaticPatching` take the same trigger.
 
-**Absent secret means no resource**, matching how `TS_AUTHKEY` gates the tailnet
+**Absent secret means no resource**, matching how `tailnet.authKey` gates the tailnet
 relay. Removing the secret deletes the key from the boxes on the next deploy.
 
 The reload is conditional on `ssh.service` being active: Ubuntu 24.04 activates
@@ -726,13 +726,11 @@ Live tradeoffs worth knowing, not necessarily bugs:
 - **hy2 uses `insecure=1` + a self-signed cert.** Fine in practice — Salamander
   wraps the whole handshake so the cert never appears on the wire, and the obfs
   password gates access — but there's no cert pinning.
-- **SSH (22) and rathole control (2333) are open to the world.** Both are
-  authenticated (SSH is key-only ED25519; rathole is 64-char token). Tailnet-
-  gating SSH would shrink the attack surface but adds lockout risk on a box
-  whose whole job is being reachable — and the tailnet is a pod on that cluster,
-  so gating it would remove exactly the access needed when the cluster is the
-  thing that broke. Left open by choice. 2333 must stay open regardless: the
-  home client dials in from a dynamic NATed IP.
+- **SSH (22) is open to the world.** Key-only ED25519, so it is authenticated,
+  but reachable. Tailnet-gating it would shrink the attack surface and adds
+  lockout risk on a box whose whole job is being reachable — and the tailnet is
+  a pod on that cluster, so gating it would remove exactly the access needed
+  when the cluster is the thing that broke. Left open by choice.
 - **The NetworkPolicies are enforced now, and the first thing they caught was
   ours.** The old home cluster ran flannel, a pure overlay with **no policy
   engine at all**: a NetworkPolicy was accepted by the API server, stored,

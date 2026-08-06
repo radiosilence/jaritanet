@@ -8,7 +8,6 @@ import { createSamba, createSyncthing } from "@jaritanet/home";
 import {
   createIngress,
   createIngressRoute,
-  createIpWatcher,
   createRedirectMiddleware,
 } from "@jaritanet/ingress";
 import { createService } from "@jaritanet/k8s";
@@ -28,17 +27,15 @@ import * as k8s from "@pulumi/kubernetes";
 import * as random from "@pulumi/random";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
-import { conf } from "./conf.ts";
+import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { createEdge } from "./edge.ts";
-import { env, vpnUsers } from "./env.ts";
 import { createGateway } from "./gateway.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
 export default async function () {
   const { namespace } = conf;
   let dnsTarget: pulumi.Output<string> | undefined;
-  let ratholeToken: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
   // Set when the gateway runs its own control plane; its kubeconfig then
   // replaces the KUBE_* secrets below.
@@ -60,19 +57,19 @@ export default async function () {
   let hysteria: SingboxNode["hysteria"] | undefined;
 
   // sing-box nodes for the edges. The primary is prepended once its transports
-  // are known — buildProfile treats nodes[0] as the rathole node that exits
-  // detour through, so the order is load-bearing.
+  // are known — buildProfile detours exits through nodes[0], so the order is
+  // load-bearing.
   const edgeNodes: SingboxNode[] = [];
 
-  // The VPN roster. No VPN_USERS → a single implicit owner-admin, so the
+  // The VPN roster. No `vpnUsers` → a single implicit owner-admin, so the
   // multi-user path is exercised uniformly and old single-owner deploys keep
   // full access. A trailing `+` in the secret marks an admin; the rest are guests.
   const users: VpnUser[] =
     vpnUsers.length > 0 ? vpnUsers : [{ name: "owner", role: "admin" }];
 
   // Resolve each exit's loopback port once (derived from the name unless set),
-  // so the identical port is used at the gateway bind, ss server, rathole
-  // client, and client outbound. Assert uniqueness — a clash means the user
+  // so the identical port is used at the ss server and the client outbound.
+  // Assert uniqueness — a clash means the user
   // should set an explicit `port` on one of the exits.
   const resolvedExits = conf.exits.map((e) => ({
     image: e.image,
@@ -86,20 +83,18 @@ export default async function () {
     );
   }
 
-  if (env.HCLOUD_TOKEN) {
+  if (conf.gateway?.hcloudToken) {
     gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
-    // Exits surface on the gateway's rathole loopback (name + port).
-    const gw = createGateway(gatewayConf, users, resolvedExits, {
-      adminSshKey: env.SSH_PUBLIC_KEY,
+    const gw = createGateway(gatewayConf, users, {
+      adminSshKey: conf.adminSshKey,
       clusterName: namespace,
-      proToken: env.UBUNTU_PRO_TOKEN,
-      entryLabel: env.VPN_ENTRY_LABEL,
-      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
-      tailnetAuthKey: env.TS_AUTHKEY,
+      proToken: conf.ubuntuProToken,
+      entryLabel: conf.vpnEntryLabel,
+      magicdnsSuffix: conf.tailnet.magicdnsSuffix,
+      tailnetAuthKey: conf.tailnet.authKey,
     });
     dnsTarget = gw.vpsIp;
     gatewayIp = gw.vpsIp;
-    ratholeToken = gw.ratholeToken.result;
     gatewayProvider = "hetzner";
     gatewayK3s = gw.k3s;
     gatewayApiHost = gw.apiHost;
@@ -124,17 +119,17 @@ export default async function () {
     }
 
     // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
-    // picker entry. Tailnet relay only when TS_AUTHKEY is present.
-    const edgeAuthKey = env.TS_AUTHKEY
-      ? pulumi.secret(env.TS_AUTHKEY)
+    // picker entry. Tailnet relay only when `tailnet.authKey` is present.
+    const edgeAuthKey = conf.tailnet.authKey
+      ? pulumi.secret(conf.tailnet.authKey)
       : undefined;
     for (const edge of conf.edges) {
       const e = createEdge(
         edge,
         users,
         edgeAuthKey,
-        env.SSH_PUBLIC_KEY,
-        env.UBUNTU_PRO_TOKEN,
+        conf.adminSshKey,
+        conf.ubuntuProToken,
       );
       const hostname = `${edge.name}.${edge.zone}`;
       const zone = conf.zones.find((z) => z.name === edge.zone);
@@ -162,18 +157,16 @@ export default async function () {
         },
       });
     }
-  } else if (conf.externalIp) {
-    dnsTarget = pulumi.output(conf.externalIp);
   }
 
   // Tailnet policy as code — only once an OAuth client exists, so this is a
   // no-op until the secrets are set (and even then the provider refuses to
   // touch a policy nobody has imported).
-  if (env.TS_OAUTH_CLIENT_ID && env.TS_OAUTH_CLIENT_SECRET && env.TS_TAILNET) {
+  if (conf.tailnet.oauth && conf.tailnet.name) {
     createTailnetPolicy(
-      pulumi.secret(env.TS_OAUTH_CLIENT_ID),
-      pulumi.secret(env.TS_OAUTH_CLIENT_SECRET),
-      env.TS_TAILNET,
+      pulumi.secret(conf.tailnet.oauth.clientId),
+      pulumi.secret(conf.tailnet.oauth.clientSecret),
+      conf.tailnet.name,
     );
   }
 
@@ -254,22 +247,17 @@ export default async function () {
   );
   const nsName = ns.metadata.name;
 
-  // Egress exit nodes: ss-rust in-cluster. The rathole client (in createIngress)
-  // punches each one's port out to the gateway loopback.
+  // Egress exit nodes: ss-rust in-cluster, bound to the gateway's loopback.
+  // Clients reach them by detouring through the primary, which is that host.
   const exits = resolvedExits.map((e) => createExit(provider, nsName, e));
 
-  // --- Ingress: Traefik, plus a rathole client only when the cluster is
-  // somewhere other than the gateway. Co-located, rathole would tunnel a box to
-  // itself: xray relays straight to Traefik's hostPort instead.
-  const clusterOnGateway = Boolean(gatewayK3s);
+  // --- Ingress: Traefik. The cluster runs on the gateway, so xray relays
+  // straight to Traefik's hostPort rather than through a tunnel.
   const { traefikRelease } = createIngress(
     provider,
     nsName,
     conf.traefik,
-    clusterOnGateway ? undefined : dnsTarget,
-    clusterOnGateway ? undefined : ratholeToken,
-    env.CLOUDFLARE_API_TOKEN,
-    resolvedExits,
+    conf.cloudflare.apiToken,
   );
 
   createRedirectMiddleware(provider, nsName, traefikRelease);
@@ -283,22 +271,22 @@ export default async function () {
   //
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
-  if (clusterOnGateway && gatewayConf) {
+  if (gatewayConf) {
     createUnbound(
       provider,
       nsName,
       gatewayConf.unbound,
-      env.VPN_ENTRY_LABEL,
+      conf.vpnEntryLabel,
       transportDeps,
     );
 
-    if (gatewayConf.tailnet && env.TS_AUTHKEY) {
+    if (gatewayConf.tailnet && conf.tailnet.authKey) {
       createTailscale(
         provider,
         nsName,
         gatewayConf.tailnet,
-        pulumi.secret(env.TS_AUTHKEY),
-        env.VPN_ENTRY_LABEL,
+        pulumi.secret(conf.tailnet.authKey),
+        conf.vpnEntryLabel,
         transportDeps,
       );
     }
@@ -309,7 +297,7 @@ export default async function () {
         nsName,
         gatewayConf.xray,
         users,
-        env.VPN_ENTRY_LABEL,
+        conf.vpnEntryLabel,
         gatewayConf.credentialRotation,
         transportDeps,
       );
@@ -327,7 +315,7 @@ export default async function () {
         nsName,
         gatewayConf.hysteria,
         users,
-        env.VPN_ENTRY_LABEL,
+        conf.vpnEntryLabel,
         gatewayConf.credentialRotation,
         transportDeps,
       );
@@ -363,11 +351,6 @@ export default async function () {
     }
   }
 
-  // IP watcher — triggers deploy when external IP changes
-  if (env.DEPLOY_TOKEN) {
-    createIpWatcher(provider, nsName, env.DEPLOY_TOKEN, env.GITHUB_REPOSITORY);
-  }
-
   // --- Services + DNS records + ingress routes ---
   const services = Object.entries(conf.services)
     .filter(([, { hostname }]) => hostname && hostname.trim() !== "")
@@ -384,6 +367,10 @@ export default async function () {
 
       createIngressRoute(provider, name, hostname!, nsName, traefikRelease);
 
+      // Not marked secret, though some hostnames are encrypted in config:
+      // hiding them is about the repository being public, and the state this
+      // lands in is not. Marking them would only mean `--show-secrets` to read
+      // an output back.
       return [name, { hostname, service: service.metadata.name }] as const;
     });
 
@@ -392,14 +379,13 @@ export default async function () {
   if (
     conf.mcpGateway?.hostname &&
     conf.mcpGateway.authHostname &&
-    env.GH_CLIENT_ID &&
-    env.GH_CLIENT_SECRET
+    conf.mcpGateway.github
   ) {
     const mg = conf.mcpGateway;
     createMcpGateway(provider, nsName, mg, {
-      githubClientId: env.GH_CLIENT_ID,
-      githubClientSecret: pulumi.secret(env.GH_CLIENT_SECRET),
-      githubAllowed: env.GH_ALLOWED ?? "",
+      githubClientId: mg.github!.clientId,
+      githubClientSecret: pulumi.secret(mg.github!.clientSecret),
+      githubAllowed: mg.github!.allowed,
     });
     // Two public hostnames: the gateway and Hydra's public API. Admin stays
     // in-cluster (no ingress route).
@@ -426,7 +412,7 @@ export default async function () {
   // The primary is a node too: clients connect by IP, and its REALITY decoy is
   // its own reverse-proxied site (unlike edges, which use an external one). It
   // leads the list because buildProfile detours exits through nodes[0], the
-  // only node running rathole.
+  // host whose loopback the exits are bound to.
   const nodes: SingboxNode[] = [
     ...(gatewayIp && reality && hysteria
       ? [{ name: "primary", server: gatewayIp, hysteria, reality }]
@@ -434,7 +420,7 @@ export default async function () {
     ...edgeNodes,
   ];
 
-  if (conf.profiles && nodes.length > 0 && env.TAILNET_MAGICDNS_SUFFIX) {
+  if (conf.profiles && nodes.length > 0 && conf.tailnet.magicdnsSuffix) {
     // Generated rather than carried as a secret, and rotated by the same value
     // that reissues every other VPN credential. It was the one credential
     // outside that mechanism — a separate thing to hold, in a separate place,
@@ -452,17 +438,16 @@ export default async function () {
 
     createProfileServer(provider, nsName, users, nodes, {
       slug: singboxSlug.result,
-      magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
+      magicdnsSuffix: conf.tailnet.magicdnsSuffix,
       image: conf.profiles.image,
       exits,
       hostname: conf.profiles.hostname,
-      telegram:
-        env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
-          ? {
-              botToken: pulumi.secret(env.TELEGRAM_BOT_TOKEN),
-              chatId: env.TELEGRAM_CHAT_ID,
-            }
-          : undefined,
+      telegram: conf.profiles.telegram
+        ? {
+            botToken: pulumi.secret(conf.profiles.telegram.botToken),
+            chatId: conf.profiles.telegram.chatId,
+          }
+        : undefined,
     });
 
     const host = conf.profiles.hostname;
