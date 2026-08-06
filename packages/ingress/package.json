@@ -2,7 +2,7 @@
   "name": "@jaritanet/ingress",
   "version": "0.0.0",
   "private": true,
-  "description": "Traefik ingress with DNS-01 ACME, a rathole tunnel client and an external-IP watcher",
+  "description": "Traefik ingress with DNS-01 ACME",
   "license": "ISC",
   "author": "James Cleveland <jc@blit.cc>",
   "files": [

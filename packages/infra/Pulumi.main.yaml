@@ -1,24 +1,40 @@
 # yaml-language-server: $schema=../../schemas/infra.json
-# cloudflare:apiToken and hcloud:token are set via env vars in CI
-# (CLOUDFLARE_API_TOKEN and HCLOUD_TOKEN). No need to encrypt them here.
 #
-# `${VAR}` is substituted from the environment by deploy.ts before the stack is
-# read, so this public repo carries no hostnames. An unset variable becomes an
-# empty string, and a service with an empty hostname is skipped — which is how
-# one stays undeployed.
+# Everything the deploy needs, credentials included — nothing is injected from
+# the environment. Secrets nest beside whatever consumes them, because a secret
+# inside structured config decrypts to an ordinary string in the program, so one
+# Zod parse still validates the whole block.
+#
+# What makes committing the ciphertext safe is the secrets provider, not the
+# encryption on its own: this stack uses Pulumi Cloud's, so only the service
+# holds the key. Running it under PULUMI_CONFIG_PASSPHRASE instead would write
+# an `encryptionsalt` here and turn every blob — including all of git history,
+# which cannot be un-published — into an offline cracking target against a
+# single password. Don't.
+#
+# The service hostnames are encrypted, which is not the same claim as private:
+# every one of them carries a certificate, so it is already in the public
+# Certificate Transparency logs and can be found by anyone who goes looking.
+# What this buys is that a public repository does not hand out the list — the
+# drive-by case, not the determined one. blit.cc stays in the clear because it
+# is the apex and fronts a public site, so there is nothing to withhold.
+#
+# Encrypting them here is only worth anything while the rest of the repository
+# agrees: a hostname repeated in a doc or a comment undoes it silently.
 config:
   jaritanet:cloudflare:
-    accountId: ${CLOUDFLARE_ACCOUNT_ID}
+    accountId: 365e5168438376dc99d7ee2aedef4624
+    apiToken:
+      secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
   jaritanet:traefik:
-    # acmeEmail injected from the ACME_EMAIL secret in CI (see ci-cd.yml)
-    acmeEmail: ${ACME_EMAIL}
+    acmeEmail: jc@blit.cc
     chartVersion: "41.1.1"
   jaritanet:mcpGateway:
-    # hostname/authHostname injected in CI from MCP_HOSTNAME / MCP_AUTH_HOSTNAME
-    # (kept out of this public repo). GitHub OAuth creds + allowlist come via
-    # GH_CLIENT_ID / GH_CLIENT_SECRET / GH_ALLOWED env in CI.
-    hostname: ${MCP_HOSTNAME}
-    authHostname: ${MCP_AUTH_HOSTNAME}
+    # GitHub OAuth credentials and the login allowlist come from stack config.
+    hostname:
+      secure: AAABADHN+GrfSd0qTwQAuaJp3u9RRiCJf/3Ki4LWnL2HYjO6XupTDBd6qw==
+    authHostname:
+      secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
     hydraTag: "v2.2.0"
     replicas: 2
     # Routes and terminates OAuth rather than serving a file, so it gets more
@@ -137,6 +153,11 @@ config:
             secret: true
             required: false
             hint: "32 hex characters"
+    github:
+      clientId: Ov23li4FvfOrmoadwJfH
+      clientSecret:
+        secure: AAABAD8e8FYYbQJwlY3iLFFc0rtqNQpsQo9K4kA1FqyW9JjSfHPFv4zbtLaZgetjgsZ/25gSRPG1p89Jwq5BC45m/rmzJC6t
+      allowed: radiosilence
   jaritanet:gateway:
     # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
@@ -162,7 +183,7 @@ config:
       ciliumVersion: 1.20.0
       upgradeControllerVersion: v0.20.1
     # xray shares :443; traffic that doesn't match a client falls back to
-    # dest (local rathole https), so real visitors still get the site.
+    # dest (Traefik's local https port), so real visitors still get the site.
     #
     # These are DELIBERATELY not our own domains. Content-filtering middleboxes
     # (FortiGate et al) decide what to TLS-intercept from the SNI's reputation
@@ -202,11 +223,13 @@ config:
     # tunnel. Distinct from coredns, which serves pods.
     unbound:
       image: docker.io/klutchell/unbound:v1.25.2
-  # Egress exit nodes — ss-rust in the home cluster, reached via the rathole
+    hcloudToken:
+      secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
+  # Egress exit nodes — ss-rust in the cluster, reached via the
   # tunnel, egressing the home residential IP. Selectable in the client as
   # exit-<name>; exits transit the primary gateway.
   # Egress exit nodes — where the gateway forwards your traffic out. Each is
-  # just ss-rust + rathole; the gateway reaches it over the rathole tunnel.
+  # just ss-rust; how the gateway reaches it is being reworked.
   # `name` is all you set (drives the picker tag exit-<name> + resource names);
   # the loopback port is auto-derived from the name.
   # None until a second node exists, at which point an exit is just a pod on it
@@ -245,7 +268,8 @@ config:
   jaritanet:exits: []
   jaritanet:services:
     navidrome:
-      hostname: ${NAVIDROME_HOSTNAME}
+      hostname:
+        secure: AAABAOdacdl4CcEW/0b8Wssi5aAAtgT36tDzLCGgrCDnUsySnEuGoId0I0g4
       args:
         httpPort: 4533
         # Public-facing, on the host that holds the media: confine egress to
@@ -287,7 +311,7 @@ config:
           timeoutSeconds: 10
         limits:
           cpu: 2000m
-          memory: 8Gi
+          memory: 4Gi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
@@ -307,7 +331,8 @@ config:
             readOnly: false
             nodeAffinityHostname: lady
     files:
-      hostname: ${FILES_HOSTNAME}
+      hostname:
+        secure: AAABAHFob6VSSPAryzCz1JmtWNQ9d4CnjpAHx14AgwDb75eRTy4FPmcrmYOXagsN1+RQNzPF
       args:
         # Serves a read-only mount to the internet and nothing else — it has no
         # business reaching the node, the LAN or another pod. No capability
@@ -347,7 +372,7 @@ config:
             readOnly: true
             nodeAffinityHostname: lady
     blit:
-      hostname: ${BLIT_HOSTNAME}
+      hostname: blit.cc
       args:
         # Public-facing, so confine egress to DNS and the internet. No
         # capability dropping: the image is distroless, so what it needs at
@@ -375,8 +400,14 @@ config:
           pullPolicy: "Always"
         httpPort: 3000
   jaritanet:profiles:
-    hostname: p.radiosilence.dev
+    hostname:
+      secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
     image: ghcr.io/radiosilence/serve-from-env:0.1.0
+    telegram:
+      botToken:
+        secure: AAABAG1Dqy8QBBuB3QXADxbmJXDhzq7ZRvXoV4LlNZ8LuSXajDoE7AvgtWvJnhIEaXGRPOR46RFiItpup9yJXNsRTXRNS3EvFSEY6vJU
+      chatId:
+        secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
@@ -403,3 +434,17 @@ config:
     spfDomain: spf.messagingengine.com
   jaritanet:bluesky:
     did: did:plc:d32vuqlfqjttwbckkxgxgbgl
+  cloudflare:apiToken:
+    secure: AAABAAyTRwr6D9teTdgbWk2MOdcUtBUT/zaZgs+cbWPCz/IM9cFaXfhfhiHZi7RsdeujvCnJ46u9elLdSxd7pbYBfN+K1rReI1xJqHFP2cXRO4+pMA==
+  hcloud:token:
+    secure: AAABALtD7dj7hUYrd1dLznzw5u+hjfJj5fCpMv7fRmoXKOKxtlczVbxdWKzmDhHWJHHfQkj6Z8qoxgZqIatPwDZAvi+CDQS+OqDUhBLRSXl815dDWd8jB+/p6cHE2YTK
+  jaritanet:ubuntuProToken:
+    secure: AAABAH2gQiEnQhHzpwyAv7u//nuy08yl3yc+yd3rsTHew4jidd45Xp9MzYSUOWcSrw9d3PljUTjmnl/Aw6w=
+  jaritanet:vpnEntryLabel: jaritanet.radiosilence.dev/vpn-entry
+  jaritanet:adminSshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIOKFd98fp579BSC4svd/E8h1Bs5aeu9Iv5qix40+WmI jc@blit.cc
+  jaritanet:tailnet:
+    authKey:
+      secure: AAABAHHEFdY4pkm19ZNne0Fjgr9duPAupHEbIzImLx+fyDkzM9orfPmEfR653IN9pFyLcjjg0Mh8AWDXLIU5rDCVp3dfrdNdYZfhPOTzlbH8N/LJJaQWYnLlI25hQqGRe0b6pwgYV51DO/nrFaOdSPnTL8zXX7r5fJDL8id95pdOPA==
+    magicdnsSuffix: zonkey-jazz.ts.net
+  jaritanet:vpnUsers:
+    secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc

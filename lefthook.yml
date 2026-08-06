@@ -3,13 +3,13 @@ pre-commit:
   commands:
     lint:
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
-      run: aube run lint:fix {staged_files}
+      run: mise run lint:fix {staged_files}
       stage_fixed: true
     format:
-      run: aube run fmt {staged_files} --no-error-on-unmatched-pattern
+      run: mise run fmt {staged_files} --no-error-on-unmatched-pattern
       stage_fixed: true
     typecheck:
-      run: aube run typecheck
+      run: mise run typecheck
     rust:
       glob: "containers/**/*.rs"
       run: cd containers/serve-from-env && cargo fmt && cargo clippy --all-targets -- -D warnings

@@ -59,7 +59,7 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Update tracked versions
-        run: aube run update:apps
+        run: mise run update:apps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           # The app installation can open an issue but is refused when amending
