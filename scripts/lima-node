@@ -1,0 +1,70 @@
+#!/bin/bash
+# Joins a throwaway Lima VM to the cluster as a k3s agent.
+#
+# Useful for exercising the agent join path without hardware — which is how the
+# loopback `k8sServiceHost` in #213 was found, on a laptop rather than on a node
+# that had just been flashed and could not be logged into.
+#
+# ## The parts that are not obvious
+#
+# **Lima rather than OrbStack or Rancher Desktop.** The latter two only stand up
+# their own single-node cluster; neither can join an existing one as an agent.
+# Lima also boots a stock Ubuntu cloud image, so the kernel matches what the
+# fleet actually runs — which matters because Cilium is particular about kernel
+# config (BPF, BTF), and a custom hypervisor kernel is a variable this is meant
+# to be free of.
+#
+# **The node joins the tailnet before k3s.** An agent dials out to the API, so
+# joining works from anywhere — but `kubectl logs` and `exec` go the other way,
+# server to kubelet on :10250. Behind NAT that silently hangs. Giving the node a
+# tailnet address and telling kubelet to advertise it with `--node-ip` fixes the
+# return path, and does not depend on any VPN client running on the laptop.
+#
+# `--accept-dns=false` because letting tailscale rewrite resolv.conf inside a
+# Kubernetes node picks a fight with CoreDNS.
+#
+# **Tainted at install time, not after.** A window in which the scheduler can
+# place real workloads on a laptop that will close its lid and leave is a window
+# worth not having.
+#
+# Needs a tailscale auth key in TS_AUTHKEY: non-ephemeral (an ephemeral node is
+# dropped from the tailnet when it goes offline, taking the address kubelet
+# advertises with it) and tagged, since tagged nodes have no key expiry.
+#
+# Usage: TS_AUTHKEY=tskey-auth-… scripts/lima-node [name]
+# Remove with: limactl delete -f <name> && kubectl delete node lima-<name>
+set -euo pipefail
+
+NAME="${1:-ladymac}"
+CONTEXT="${KUBE_CONTEXT:-jaritanet}"
+: "${TS_AUTHKEY:?set TS_AUTHKEY to a non-ephemeral, tagged tailscale auth key}"
+
+SERVER="$(kubectl --context "$CONTEXT" config view --minify \
+  -o jsonpath='{.clusters[0].cluster.server}')"
+VERSION="$(kubectl --context "$CONTEXT" get nodes \
+  -l node-role.kubernetes.io/control-plane \
+  -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}')"
+TOKEN="$(scripts/k3s-node-token "$CONTEXT")"
+
+limactl start --name="$NAME" --vm-type=vz --cpus=2 --memory=4 --tty=false \
+  template://ubuntu-lts
+
+limactl shell "$NAME" -- sudo sh -c '
+set -e
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/$(lsb_release -cs).noarmor.gpg \
+  > /usr/share/keyrings/tailscale-archive-keyring.gpg
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/$(lsb_release -cs).tailscale-keyring.list \
+  > /etc/apt/sources.list.d/tailscale.list
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tailscale'
+
+limactl shell "$NAME" -- sudo tailscale up \
+  --auth-key="$TS_AUTHKEY" --hostname="$NAME" --accept-dns=false
+NODE_IP="$(limactl shell "$NAME" -- tailscale ip -4)"
+
+limactl shell "$NAME" -- sudo sh -c "curl -sfL https://get.k3s.io \
+  | INSTALL_K3S_VERSION=$VERSION K3S_URL=$SERVER K3S_TOKEN=$TOKEN \
+    INSTALL_K3S_EXEC='agent --node-ip=$NODE_IP --node-taint scratch=true:NoSchedule' sh -"
+
+echo "joined as lima-$NAME at $NODE_IP; watch it with:"
+echo "  kubectl --context $CONTEXT get node lima-$NAME -w"

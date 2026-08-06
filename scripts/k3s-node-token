@@ -1,0 +1,36 @@
+#!/bin/bash
+# Prints the k3s join token, read off the control-plane node through the API.
+#
+# The token is minted by k3s on the box and nothing in the stack reads it back,
+# so it exists in exactly one place: /var/lib/rancher/k3s/server/token on the
+# server. Pulumi cannot hand it over, and SSH is not an option either — the only
+# key on the box is the ED25519 pair Pulumi generates and keeps in state (#212).
+# A privileged pod with a hostPath mount is what is left.
+#
+# Do not mount .../k3s/server and read `node-token`: it is a symlink to the
+# *absolute* path /var/lib/rancher/k3s/server/token, which resolves inside the
+# container's own filesystem and fails. Mount the parent and read server/token.
+#
+# Usage: scripts/k3s-node-token [context] [node]
+set -euo pipefail
+
+CONTEXT="${1:-jaritanet}"
+NODE="${2:-$(kubectl --context "$CONTEXT" get nodes \
+  -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[0].metadata.name}')}"
+
+kubectl --context "$CONTEXT" run "k3s-token-$RANDOM" \
+  --image=busybox:1.36 --restart=Never --rm -i --quiet \
+  --overrides="$(cat <<JSON
+{"spec":{
+  "nodeName":"$NODE",
+  "tolerations":[{"operator":"Exists"}],
+  "containers":[{
+    "name":"reader","image":"busybox:1.36",
+    "command":["cat","/host/server/token"],
+    "securityContext":{"privileged":true},
+    "volumeMounts":[{"name":"h","mountPath":"/host","readOnly":true}]
+  }],
+  "volumes":[{"name":"h","hostPath":{"path":"/var/lib/rancher/k3s","type":"Directory"}}]
+}}
+JSON
+)" 2>/dev/null | grep -m1 -E '^K10'
