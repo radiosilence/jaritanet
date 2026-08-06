@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { AbsolutePath } from "@jaritanet/k8s";
 
 /**
  * One exported share. `hostPath` is a path on the node, not a PVC: the media
@@ -19,7 +20,7 @@ import * as z from "zod";
  */
 export const SambaShareSchema = z.object({
   name: z.string(),
-  hostPath: z.string(),
+  hostPath: AbsolutePath,
 });
 
 /**

@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { Hostname, Port } from "@jaritanet/k8s";
 
 /**
  * Hysteria2 (QUIC/UDP) on the entry node. Loss-tolerant congestion control
@@ -18,11 +19,11 @@ import * as z from "zod";
  * each port is another probe on every switch and another row in the picker.
  */
 export const HysteriaConfSchema = z.object({
-  altPorts: z.array(z.number()).default([3478, 4500]),
+  altPorts: z.array(Port).default([3478, 4500]),
   // Not the project's own GHCR org, which publishes nothing: this is the
   // image hysteria's install docs point at, on a maintainer's Docker Hub
   // account. A weaker supply-chain position, accepted knowingly.
   image: z.string().default("docker.io/tobyxdd/hysteria:v2.10.0"),
-  port: z.number().default(443),
-  sni: z.string().default("www.bing.com"),
+  port: Port.default(443),
+  sni: Hostname.default("www.bing.com"),
 });

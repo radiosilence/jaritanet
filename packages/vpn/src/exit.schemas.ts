@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { Port } from "@jaritanet/k8s";
 
 /**
  * A selectable egress exit node: an ss-rust server whose IP the traffic leaves
@@ -22,6 +23,6 @@ export const ExitConfSchema = z.object({
   image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:v1.24.0"),
   method: z.string().default("aes-256-gcm"),
   name: z.string(),
-  port: z.number().optional(),
+  port: Port.optional(),
   substrate: z.enum(["k8s"]).default("k8s"),
 });

@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { sniLabel } from "./reality.ts";
+import { HostPort } from "@jaritanet/k8s";
 
 /**
  * Xray-core (VLESS-Vision-REALITY) on the entry node, sharing :443 with
@@ -25,7 +26,7 @@ import { sniLabel } from "./reality.ts";
  * "host:port" to use a different backend.
  */
 export const XrayConfSchema = z.object({
-  dest: z.string().default("127.0.0.1:8443"),
+  dest: HostPort.default("127.0.0.1:8443"),
   serverNames: z
     .array(z.string())
     .min(1)
