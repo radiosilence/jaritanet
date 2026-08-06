@@ -50,7 +50,13 @@ const node = {
 };
 const edge = { ...node, name: "helsinki", server: "5.6.7.8" };
 const exits = [
-  { name: "home", port: 9000, method: "aes-128-gcm", password: "ss-psk" },
+  {
+    name: "home",
+    port: 9000,
+    method: "aes-128-gcm",
+    password: "ss-psk",
+    server: "100.74.66.121",
+  },
 ];
 
 describe("delivered profiles are valid sing-box configs", () => {

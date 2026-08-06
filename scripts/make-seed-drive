@@ -35,8 +35,22 @@
 # agent, and the k3s join token is read from the cluster at build time.
 #
 # Reads SEED_TS_AUTHKEY, SEED_PASSWORD, SEED_PRO_TOKEN and the optional
-# SEED_MOUNT_DEV/SEED_MOUNT_POINT from the environment; mise
+# SEED_MOUNT_DEV/SEED_MOUNT_POINT/SEED_NODE_LABELS from the environment; mise
 # loads them from the gitignored .env (see mise.toml).
+#
+# ## What a node declares about itself
+#
+# Node labels are applied as the agent joins, and each one selects a workload in
+# `Pulumi.main.yaml` — lady's `file-node` puts samba/syncthing/navidrome on the
+# disks. A label that goes missing is silent: the DaemonSet selecting it
+# schedules nowhere and the cluster reports itself perfectly healthy. (The exit
+# label is the exception, and no longer needs to be here: the stack applies that
+# one itself over the API. See `createExit`.)
+#
+# They default to the `jaritanet.radiosilence.dev/*` labels the node already
+# carries, read from the cluster, so a reflash rebuilds the machine it was
+# rather than a blank one. SEED_NODE_LABELS (space-separated `key=value`)
+# overrides that, and is how a machine that has never joined gets any.
 #
 # Usage: scripts/make-seed-drive <device> <hostname> [--no-join]
 #   scripts/make-seed-drive /dev/disk4 lady
@@ -267,8 +281,27 @@ YAML
     # What this machine is, declared as it joins rather than applied by a human
     # afterwards — which is the same argument the config makes for selecting on
     # a label rather than a hostname, carried one step further.
+    #
+    # Defaulted from the labels the node currently carries, because a reflash is
+    # normally a rebuild of a machine that already exists and the truth is on it.
+    # Writing them down here instead would be a second copy to keep in step, and
+    # an env var is worse still: it lives in a gitignored file, so the labels
+    # survive exactly as long as one shell does. Losing them is silent — the
+    # DaemonSets that select them schedule nowhere and the cluster reports
+    # itself healthy.
+    #
+    # Only our own prefix: kubernetes.io/* and the upgrade controller's plan
+    # hashes are the cluster's to set, and re-declaring them at join is at best
+    # noise and at worst a stale hash. SEED_NODE_LABELS overrides, which is how
+    # a machine that has never joined gets any.
+    NODE_LABELS="${SEED_NODE_LABELS:-$(
+      kubectl --context "$CONTEXT" get node "$HOSTNAME" -o go-template='
+        {{range $k, $v := .metadata.labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' \
+        2>/dev/null | grep '^jaritanet\.radiosilence\.dev/' | tr '\n' ' '
+    )}"
+    echo "node labels: ${NODE_LABELS:-(none — set SEED_NODE_LABELS if it needs any)}" >&2
     LABEL_ARGS=""
-    for label in ${SEED_NODE_LABELS:-}; do
+    for label in $NODE_LABELS; do
       LABEL_ARGS="$LABEL_ARGS --node-label $label"
     done
     cat <<YAML
@@ -286,8 +319,11 @@ YAML
 #
 # The k3s version is pinned to the server's rather than left to \`latest\`, so a
 # release landing between now and first boot cannot put the agent ahead of the
-# control plane. No VPN entry label and no taint: which machine serves a VPN
-# entry is a property of that machine, and this one is a workload node.
+# control plane. No VPN *entry* label and no taint: which machine serves an
+# entry is a property of that machine, and this one is a workload node. A VPN
+# *exit* is the opposite and does belong here (see SEED_NODE_LABELS) — an entry
+# is fungible, any box with a public address will do, while an exit exists
+# solely to present this machine's own.
 runcmd:
   # systemd-fsck preens by default and drops to an emergency shell for anything
   # it will not fix unsupervised — on a headless box that is a machine sat

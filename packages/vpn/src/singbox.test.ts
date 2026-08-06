@@ -19,7 +19,13 @@ const node = {
   },
 };
 const exits = [
-  { name: "home", port: 9000, method: "aes-128-gcm", password: "ss-psk" },
+  {
+    name: "home",
+    port: 9000,
+    method: "aes-128-gcm",
+    password: "ss-psk",
+    server: "100.74.66.121",
+  },
 ];
 
 const tags = (p: ReturnType<typeof buildProfile>) =>
@@ -74,6 +80,30 @@ describe("buildProfile roles", () => {
     // No outbound anywhere carries the ss PSK for a guest.
     const json = JSON.stringify(p);
     expect(json).not.toContain("ss-psk");
+  });
+});
+
+describe("buildProfile exit axis", () => {
+  const admin = { name: "jc", role: "admin" } as const;
+  const edge = { ...node, name: "edge1", server: "5.6.7.8" };
+  const exitOut = (nodes: (typeof node)[]) =>
+    (
+      buildProfile(admin, nodes, "ts.net", exits).outbounds as {
+        tag: string;
+        server?: string;
+        detour?: string;
+      }[]
+    ).find((o) => o.tag === "exit-home");
+
+  it("dials the exit node's own address, not a loopback on the entry", () => {
+    expect(exitOut([node])?.server).toBe("100.74.66.121");
+  });
+
+  // The two axes are independent: the exit is reached over the tailnet, which
+  // every entry is a member of, so an exit must not pin to nodes[0].
+  it("detours through entry-select whatever the entry count", () => {
+    expect(exitOut([node])?.detour).toBe("entry-select");
+    expect(exitOut([node, edge])?.detour).toBe("entry-select");
   });
 });
 

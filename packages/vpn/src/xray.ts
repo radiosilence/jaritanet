@@ -8,15 +8,17 @@ import { sha256hex } from "@jaritanet/k8s";
 import { realityKeypair } from "./reality.ts";
 
 // A guest may address the public internet and nothing else. Narrower rules were
-// a mistake: the exit loopbacks were blocked only on their own port range
-// (20000-29999, see deriveExitPort in exit.ts), which left 0.0.0.0 — a synonym
-// for localhost on Linux — reachable, and said nothing about the rest of the
-// gateway's own stack. Enumerating what a guest may not touch is the losing
-// side of that argument, so this is every address that isn't the internet.
+// a mistake: exits were blocked only on their own port range (20000-29999, see
+// deriveExitPort in exit.ts), which left 0.0.0.0 — a synonym for localhost on
+// Linux — reachable, and said nothing about the rest of the gateway's own
+// stack. Enumerating what a guest may not touch is the losing side of that
+// argument, so this is every address that isn't the internet. Exits now live at
+// tailnet addresses, so the first entry denies them as a consequence rather
+// than as a rule of its own.
 export const GUEST_DENY_CIDRS = [
-  "100.64.0.0/10", // tailnet
+  "100.64.0.0/10", // tailnet, incl. every exit
   "fd7a:115c:a1e0::/48",
-  "127.0.0.0/8", // the gateway itself, incl. the exit loopbacks
+  "127.0.0.0/8", // the gateway itself
   "0.0.0.0/8",
   "::1/128",
   "10.0.0.0/8",
