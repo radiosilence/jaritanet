@@ -117,8 +117,9 @@ jaritanet:exits:
 - **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
 - **`nodeLabel`** picks the machine that egresses. Nothing in the program can
   reach a cloud-init-seeded node to apply it, so it is declared as the node
-  joins, via `SEED_NODE_LABELS` in `scripts/make-seed-drive`. A selector
-  matching no node schedules nothing while the cluster reports healthy.
+  joins, by `scripts/make-seed-drive` — which defaults to the labels the node
+  already carries, so a reflash keeps them. A selector matching no node
+  schedules nothing while the cluster reports healthy.
 - **`server`** is that node's tailnet address — an address, not a name, because
   it resolves at the entry end of a detour where MagicDNS does not exist. It is
   *pinned, not stable*: a re-registration moves it, and the exit then dials

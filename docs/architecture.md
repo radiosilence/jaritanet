@@ -577,12 +577,31 @@ than pinning to the primary: the two axes are genuinely independent, and the
 full entry × exit cross-product comes for free. (The predecessor pinned to the
 primary only because that was the one node terminating the reverse tunnel.)
 
+That membership is therefore load-bearing rather than optional. `createEdge`
+gates tailscale on `tailnet.authKey`, and an entry without a tailnet reaches no
+exit at all while the profile goes on offering every pair — so an `exits` list
+with no `authKey` fails the preview instead.
+
+**Composable across entries, but an edge cannot host an exit.** Adding a
+Helsinki edge tomorrow needs no change here and none to the exit: it joins
+`entry-select`, it is a tailnet member, and it reaches every exit. Hosting one is
+a different question. An exit is a `hostNetwork` DaemonSet, so it lands only on a
+**cluster node**, and edges are standalone Hetzner boxes with systemd transports
+that never join — `createEdge` does not call `createK3s`. The two sets are
+disjoint today, in both directions: an edge cannot host an exit, and a NATed home
+node can never be an entry, which is fundamental rather than a gap. Giving an
+edge an egress identity as well as an entry one needs either joining edges to the
+cluster or an `-systemd` exit variant beside the transports that already have
+one.
+
 `nodeLabel` decides which machine egresses — the same argument the VPN entry
 label makes. Nothing in this program can reach a cloud-init-seeded box to apply
-it, so it is declared as the node joins, by `SEED_NODE_LABELS` in
-`scripts/make-seed-drive`. Applying it by hand afterwards works and is drift: a
-reflash loses it, and the exit then schedules nowhere while the cluster reports
-itself healthy.
+it, so it is declared as the node joins, by `scripts/make-seed-drive`. That
+script defaults a node's labels to the `jaritanet.radiosilence.dev/*` ones it
+already carries, read from the cluster, so a reflash rebuilds the machine it was
+rather than a blank one; `SEED_NODE_LABELS` overrides, for a machine that has
+never joined. Applying a label by hand and stopping there is drift — the reflash
+loses it, the exit schedules nowhere, and the cluster reports itself healthy.
 
 `server` is **pinned, not stable**. A tailnet address survives reboots but not a
 re-registration — sympathy's moved from `100.69.78.57` to `100.78.67.16` in #238

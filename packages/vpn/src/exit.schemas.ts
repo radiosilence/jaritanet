@@ -11,11 +11,23 @@ import { LabelKey, Port } from "@jaritanet/k8s";
  * seeded from cloud-init has no connection in this program — so it is declared
  * as the node joins, by `SEED_NODE_LABELS` in `scripts/make-seed-drive`.
  *
- * `server` is where an entry dials the exit — its tailnet address, since every
- * gateway and edge is a tailnet member and the home node has no inbound port.
- * An address rather than a name because it resolves at the *entry* end of a
- * detour, where MagicDNS does not exist: the client's resolvers are all
- * tunnelled and the gateway's unbound knows nothing of the tailnet.
+ * `server` is where an entry dials the exit — its tailnet address, since the
+ * home node has no inbound port. An address rather than a name because it
+ * resolves at the *entry* end of a detour, where MagicDNS does not exist: the
+ * client's resolvers are all tunnelled and the gateway's unbound knows nothing
+ * of the tailnet.
+ *
+ * That makes a tailnet a hard requirement of the exit axis, not a nicety: an
+ * entry's membership is gated on `tailnet.authKey`, and an entry without one
+ * reaches no exit at all while the profile goes on offering every pair. Asserted
+ * in main rather than left to be discovered.
+ *
+ * An exit can only run on a **cluster node**, since it is a DaemonSet. Edges are
+ * standalone boxes with systemd transports and never join, so the machines that
+ * can be an entry and the machines that can host an exit are disjoint sets today
+ * — in both directions, as a NATed home node can never be an entry. Giving an
+ * edge an exit needs either cluster membership or a `-systemd` exit beside the
+ * other transports.
  *
  * It is **pinned, not stable**. A tailnet address survives reboots but not a
  * re-registration: sympathy's moved from `100.69.78.57` to `100.78.67.16` when

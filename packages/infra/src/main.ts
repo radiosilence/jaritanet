@@ -83,6 +83,15 @@ export default async function () {
       "two exits share a node and a port — set an explicit `port` on the clashing exit",
     );
   }
+  // Exits are reached over the tailnet, and every entry's membership is gated on
+  // this key (see createEdge). Without it the profile still offers every
+  // entry × exit pair and not one of them can connect, so this is a red preview
+  // rather than an exit axis that is present and dead.
+  if (resolvedExits.length && !conf.tailnet.authKey) {
+    throw new Error(
+      "exits need `tailnet.authKey`: an entry with no tailnet cannot reach one",
+    );
+  }
 
   if (conf.gateway?.hcloudToken) {
     gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});

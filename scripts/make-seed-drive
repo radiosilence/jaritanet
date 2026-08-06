@@ -40,18 +40,16 @@
 #
 # ## What a node declares about itself
 #
-# SEED_NODE_LABELS is a space-separated `key=value` list, applied as the agent
-# joins. Every one of them selects a workload in `Pulumi.main.yaml`, so a label
-# missing here is a DaemonSet that schedules nowhere while the cluster reports
-# itself healthy — and the same label applied by hand afterwards is drift that
-# a reflash silently loses. What lady is:
+# Node labels are applied as the agent joins, and each one selects a workload in
+# `Pulumi.main.yaml` — lady's `file-node` puts samba/syncthing/navidrome on the
+# disks, her `vpn-exit` puts the ss-rust egress exit on the residential link.
+# A label that goes missing is silent: the DaemonSet selecting it schedules
+# nowhere and the cluster reports itself perfectly healthy.
 #
-#   SEED_NODE_LABELS='jaritanet.radiosilence.dev/file-node=true \
-#                     jaritanet.radiosilence.dev/vpn-exit=true'
-#
-# file-node puts samba/syncthing/navidrome on the disks; vpn-exit puts the
-# ss-rust egress exit on the residential link, which is the whole point of it
-# running there rather than anywhere cheaper.
+# They default to the `jaritanet.radiosilence.dev/*` labels the node already
+# carries, read from the cluster, so a reflash rebuilds the machine it was
+# rather than a blank one. SEED_NODE_LABELS (space-separated `key=value`)
+# overrides that, and is how a machine that has never joined gets any.
 #
 # Usage: scripts/make-seed-drive <device> <hostname> [--no-join]
 #   scripts/make-seed-drive /dev/disk4 lady
@@ -282,8 +280,27 @@ YAML
     # What this machine is, declared as it joins rather than applied by a human
     # afterwards — which is the same argument the config makes for selecting on
     # a label rather than a hostname, carried one step further.
+    #
+    # Defaulted from the labels the node currently carries, because a reflash is
+    # normally a rebuild of a machine that already exists and the truth is on it.
+    # Writing them down here instead would be a second copy to keep in step, and
+    # an env var is worse still: it lives in a gitignored file, so the labels
+    # survive exactly as long as one shell does. Losing them is silent — the
+    # DaemonSets that select them schedule nowhere and the cluster reports
+    # itself healthy.
+    #
+    # Only our own prefix: kubernetes.io/* and the upgrade controller's plan
+    # hashes are the cluster's to set, and re-declaring them at join is at best
+    # noise and at worst a stale hash. SEED_NODE_LABELS overrides, which is how
+    # a machine that has never joined gets any.
+    NODE_LABELS="${SEED_NODE_LABELS:-$(
+      kubectl --context "$CONTEXT" get node "$HOSTNAME" -o go-template='
+        {{range $k, $v := .metadata.labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' \
+        2>/dev/null | grep '^jaritanet\.radiosilence\.dev/' | tr '\n' ' '
+    )}"
+    echo "node labels: ${NODE_LABELS:-(none — set SEED_NODE_LABELS if it needs any)}" >&2
     LABEL_ARGS=""
-    for label in ${SEED_NODE_LABELS:-}; do
+    for label in $NODE_LABELS; do
       LABEL_ARGS="$LABEL_ARGS --node-label $label"
     done
     cat <<YAML
