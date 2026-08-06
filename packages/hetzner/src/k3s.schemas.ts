@@ -12,12 +12,13 @@ import { checkCiliumSupport } from "./compat.ts";
  * has no policy engine, so every NetworkPolicy is inert under it
  * (see docs/architecture.md).
  *
- * Cilium's version has to match the cluster's, and `version` and `ciliumVersion`
- * reach the fleet by entirely separate paths — an install argument and an
- * upgrade Plan against the nodes, a Helm chart version against the cluster — so
- * only this schema is in a position to notice they disagree. `CILIUM_K8S_SUPPORT`
- * holds the table and parsing enforces it, which makes a half-bump a red preview
- * before a single resource is touched.
+ * Cilium's version has to match the cluster's, and the two reach the fleet by
+ * entirely separate paths — `version` as an install argument and an upgrade
+ * Plan against the nodes, `ciliumVersion` as a Helm chart version against the
+ * cluster — so nothing downstream is in a position to notice they disagree.
+ * `CILIUM_K8S_SUPPORT` holds the table and parsing enforces it, which makes a
+ * half-bump a red preview rather than a cluster that comes up healthy and moves
+ * no packets.
  */
 export const K3sConfSchema = z
   .object({
@@ -42,7 +43,7 @@ export const K3sConfSchema = z
      * version updater tracks it; see .github/tracked-versions.yml.
      */
     upgradeControllerVersion: z.string().default("v0.20.1"),
-    version: z.string().default("v1.36.2+k3s1"),
+    version: z.string().default("v1.36.3+k3s1"),
   })
   // `.check` rather than `.superRefine`: the latter wraps the object in a pipe,
   // which makes every field look reused to `z.toJSONSchema` and turns the

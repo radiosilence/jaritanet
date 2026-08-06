@@ -4,6 +4,8 @@ export { createK3s } from "./k3s.ts";
 export { K3sConfSchema } from "./k3s.schemas.ts";
 export { createK3sUpgrades } from "./upgrades.ts";
 export {
+  createAdminSshAccess,
+  createAutomaticPatching,
   createNetworkTuning,
   inboundRule,
   resourcePrefix,

@@ -145,11 +145,15 @@ config:
     serverType: cx33
     # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
     # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
-    # Cilium's version must match the k8s minor, and parsing enforces it — see
-    # CILIUM_K8S_SUPPORT. Both reach the fleet from here: version via an
-    # upgrade Plan, ciliumVersion via Helm.
+    # Cilium's version must match the k8s minor, and parsing enforces it against
+    # CILIUM_K8S_SUPPORT — take a new row from Cilium's own requirements doc for
+    # that branch rather than from memory. Outside the tested range you are
+    # relying on Kubernetes' backward compatibility rather than on anything
+    # tested, and the failure is a cluster that comes up healthy and moves no
+    # packets. Both values reach the fleet from here: version via an upgrade
+    # Plan, ciliumVersion via Helm.
     k3s:
-      version: v1.36.2+k3s1
+      version: v1.36.3+k3s1
       ciliumVersion: 1.20.0
       upgradeControllerVersion: v0.20.1
     # xray shares :443; traffic that doesn't match a client falls back to
@@ -182,7 +186,7 @@ config:
     # The image is a maintainer's Docker Hub account rather than the project's
     # own org, which publishes none — see conf.schemas.ts.
     hysteria:
-      image: docker.io/tobyxdd/hysteria:v2.11.0
+      image: docker.io/tobyxdd/hysteria:v2.12.0
     # Tailnet relay: joins the VPS to the tailnet so clients can reach 100.x
     # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
     # no-op until the secret exists.
@@ -324,8 +328,11 @@ config:
         # 1000m/1024Mi was a ceiling nobody had looked at, and since a limit
         # without a request becomes the request, two replicas reserved half
         # the node and the scheduler refused a VPN transport for lack of CPU.
+        # CPU is 5x that: nano-web processes every file before it binds, which
+        # under 100m outlasted the liveness probe. Requests are a tenth of the
+        # limit, so the burst is borrowed rather than held.
         limits:
-          cpu: 100m
+          cpu: 500m
           memory: 192Mi
         image:
           repository: "ghcr.io/radiosilence/blit"

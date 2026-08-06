@@ -5,6 +5,28 @@ export const EnvSchema = z.object({
   DEPLOY_TOKEN: z.string().optional(),
   GITHUB_REPOSITORY: z.string().default("radiosilence/jaritanet"),
   HCLOUD_TOKEN: z.string().optional(),
+
+  // Break-glass admin key, installed on the gateway and every edge. Absent →
+  // no resource, same idiom as TS_AUTHKEY gating the tailnet relay.
+  //
+  // Shape-checked because the failure is silent and badly timed: a mangled key
+  // installs cleanly and is only discovered to be useless when k3s is down and
+  // SSH is the last way in. Empty is allowed — an unset repository secret
+  // reaches the program as "".
+  SSH_PUBLIC_KEY: z
+    .string()
+    .refine(
+      (key) => key === "" || /^(ssh|ecdsa|sk)-\S+\s+\S+/.test(key),
+      "SSH_PUBLIC_KEY must be an OpenSSH public key line (`ssh-ed25519 AAAA…`)",
+    )
+    .optional(),
+
+  // Ubuntu Pro, for livepatch on the gateway and every edge. Free for personal
+  // use on up to five machines. Absent → the reboot window is still configured
+  // and only livepatch is skipped, because a box that boots its patches is the
+  // baseline and livepatch is the improvement on it.
+  UBUNTU_PRO_TOKEN: z.string().optional(),
+
   TS_AUTHKEY: z.string().optional(),
 
   // Tailnet policy-as-code. Absent, the policy stays hand-managed in the admin

@@ -1,4 +1,6 @@
 import {
+  createAdminSshAccess,
+  createAutomaticPatching,
   createK3s,
   createNetworkTuning,
   inboundRule,
@@ -42,10 +44,16 @@ export function createGateway(
   users: VpnUser[],
   exits: { name: string; port: number }[] = [],
   {
+    adminSshKey,
+    clusterName,
+    proToken,
     entryLabel,
     magicdnsSuffix = "",
     tailnetAuthKey,
   }: {
+    adminSshKey?: string;
+    clusterName: string;
+    proToken?: string;
     entryLabel: string;
     magicdnsSuffix?: string;
     tailnetAuthKey?: string;
@@ -165,6 +173,17 @@ systemctl enable rathole
   };
 
   createNetworkTuning("gateway", connection, server);
+
+  createAutomaticPatching(
+    "gateway",
+    connection,
+    server,
+    proToken ? pulumi.secret(proToken) : undefined,
+  );
+
+  if (adminSshKey) {
+    createAdminSshAccess("gateway", connection, server, adminSshKey);
+  }
 
   // With a cluster on this box the transports are pods (see modules/*-pod.ts);
   // without one they are systemd units installed over SSH, which is also what
@@ -329,7 +348,7 @@ RATHOLE_EOF`,
       : server.ipv4Address;
 
   const k3s = gateway.k3s
-    ? createK3s(connection, server, gateway.k3s, apiHost)
+    ? createK3s(connection, server, gateway.k3s, apiHost, "", clusterName)
     : undefined;
 
   // Marks this node as one that serves VPN entries; the transport DaemonSets

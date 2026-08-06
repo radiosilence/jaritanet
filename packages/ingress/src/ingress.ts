@@ -38,6 +38,9 @@ export function createIngress(
     "traefik",
     {
       chart: "traefik",
+      // Above the 300s default, so a cold cluster pulling every image for the
+      // first time isn't cut off. A timeout here fails the whole update.
+      timeout: 900,
       namespace,
       repositoryOpts: {
         repo: "https://traefik.github.io/charts",
@@ -61,7 +64,11 @@ export function createIngress(
           },
         },
         service: {
-          type: "ClusterIP",
+          // `service.spec.type`, not `service.type` — same trap as
+          // updateStrategy below. Left at the chart's LoadBalancer default it
+          // never gets an address (k3s runs --disable=servicelb) and Helm waits
+          // for one until it times out. hostPorts mean no load balancer is needed.
+          spec: { type: "ClusterIP" },
         },
         // ACME certificate resolver using Cloudflare DNS-01
         additionalArguments: [
