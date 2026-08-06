@@ -124,6 +124,7 @@ printf 'instance-id: %s-%s\nlocal-hostname: %s\n' \
 hostname: $HOSTNAME
 manage_etc_hosts: true
 timezone: ${SEED_TIMEZONE:-Europe/London}
+locale: ${SEED_LOCALE:-en_GB.UTF-8}
 
 # No \`default\` entry, so the image's stock \`ubuntu\` user is never created.
 users:
@@ -175,6 +176,10 @@ YAML
   # A media drive, by label rather than device: USB enumeration order is not
   # stable, and pointing a library at whatever came up first is its own bad day.
   #
+  # Pass 0: no boot-time fsck. btrfs has none to run — `btrfs check` is an
+  # offline tool that is explicitly not meant to be automated — and it recovers
+  # on mount from its own log.
+  #
   # `nofail` because a headless node that will not boot until a USB disk shows
   # up is worse than one whose storage pods wait. That is safe here: the volumes
   # are local PVs, and kubelet refuses to create a missing path rather than
@@ -186,7 +191,7 @@ YAML
     cat <<YAML
 
 mounts:
-  - [ "LABEL=$SEED_MOUNT_LABEL", "${SEED_MOUNT_POINT:-/mnt/kontent}", auto, "defaults,nofail,x-systemd.device-timeout=10", "0", "2" ]
+  - [ "LABEL=$SEED_MOUNT_LABEL", "${SEED_MOUNT_POINT:-/mnt/kontent}", auto, "defaults,nofail,x-systemd.device-timeout=10", "0", "0" ]
 YAML
   fi
 
@@ -240,6 +245,22 @@ YAML
 # control plane. No VPN entry label and no taint: which machine serves a VPN
 # entry is a property of that machine, and this one is a workload node.
 runcmd:
+  # systemd-fsck preens by default and drops to an emergency shell for anything
+  # it will not fix unsupervised — on a headless box that is a machine sat
+  # waiting at a console nobody can see. Repairing unattended is the better of
+  # two imperfect options when the alternative is not booting.
+  - - sh
+    - -c
+    - |
+      set -eu
+      printf 'GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT fsck.repair=yes"\n' \\
+        > /etc/default/grub.d/99-fsck-repair.cfg
+      update-grub
+      # Local PVs: kubelet will not create a missing path, so these have to
+      # exist. Only ones on the internal disk — anything under the media mount
+      # must come from the drive, or an unmounted disk looks like an empty one.
+      install -d -o 1001 -g 1002 /home/navidrome/data
+      install -d /srv/files
   - - sh
     - -c
     - |
