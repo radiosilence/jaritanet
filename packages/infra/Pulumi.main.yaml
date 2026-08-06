@@ -261,10 +261,14 @@ config:
   # her address is a consumer ISP's, which no Hetzner range can be.
   #
   # `server` is her tailnet address — how an entry reaches a box behind NAT with
-  # no forwarded port — and is stable per node. `nodeLabel` must already be on
-  # the node: nothing here can reach a cloud-init-seeded box to apply it, so it
-  # goes on by hand when the node joins:
-  #   kubectl label node lady jaritanet.radiosilence.dev/vpn-exit=true
+  # no forwarded port. Pinned rather than stable: a re-registration moves it and
+  # the exit then dials nobody, with everything still reporting healthy, so it
+  # is re-read from `kubectl get node lady -o wide` when that happens.
+  #
+  # `nodeLabel` must already be on the node. Nothing here can reach a
+  # cloud-init-seeded box to apply it, so it is declared as she joins, by
+  # SEED_NODE_LABELS in scripts/make-seed-drive.
+  #
   # The port is derived from the name; only set `port` to break a hash clash.
   jaritanet:exits:
     - name: lady

@@ -578,8 +578,24 @@ full entry × exit cross-product comes for free. (The predecessor pinned to the
 primary only because that was the one node terminating the reverse tunnel.)
 
 `nodeLabel` decides which machine egresses — the same argument the VPN entry
-label makes — and like the file-server label it is applied by hand when the node
-joins, because nothing in this program can reach a cloud-init-seeded box.
+label makes. Nothing in this program can reach a cloud-init-seeded box to apply
+it, so it is declared as the node joins, by `SEED_NODE_LABELS` in
+`scripts/make-seed-drive`. Applying it by hand afterwards works and is drift: a
+reflash loses it, and the exit then schedules nowhere while the cluster reports
+itself healthy.
+
+`server` is **pinned, not stable**. A tailnet address survives reboots but not a
+re-registration — sympathy's moved from `100.69.78.57` to `100.78.67.16` in #238
+when its identity left the DaemonSet's Secret for systemd state — and the
+failure is quiet: the DaemonSet stays healthy, the profile stays valid, and the
+entry dials an address nobody answers on. Reading it from the Node's
+`InternalIP` would be self-correcting (a seeded agent joins with
+`--node-ip=$(tailscale ip -4)`, so it is already there) and is deliberately not
+done: it would make every preview depend on that Node object existing, putting
+the gateway's deploy behind a home box being in the cluster. On a rebuild — the
+gateway being restored, the home node not yet rejoined — that is the wrong
+failure. So it is written down, and re-read by hand if an exit ever
+re-registers.
 
 No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
 (connection-level), so there's no return-path routing to misconfigure on a

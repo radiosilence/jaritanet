@@ -106,6 +106,15 @@ export function createExit(
             // The node's resolver, not the cluster's: ss-rust resolves the
             // destination names its clients send it, and those should be
             // answered where the traffic egresses, not in Germany.
+            //
+            // This only resolves anything *because* of hostNetwork above, and
+            // the two cannot be separated. A seeded agent sets no
+            // `--resolv-conf`, so `Default` hands the pod the host's
+            // /etc/resolv.conf — `nameserver 127.0.0.53`, the systemd-resolved
+            // stub — which answers only where that address is a real listener,
+            // i.e. the host's namespace. Drop hostNetwork and it becomes the
+            // pod's own loopback with nothing behind it, which is the SERVFAIL
+            // trap k3s.ts already documents for coredns.
             dnsPolicy: "Default",
             automountServiceAccountToken: false,
             nodeSelector: { [exit.nodeLabel]: "true" },

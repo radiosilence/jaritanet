@@ -115,12 +115,14 @@ jaritanet:exits:
 ```
 
 - **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
-- **`nodeLabel`** picks the machine that egresses. Apply it by hand
-  (`kubectl label node lady <label>=true`); nothing in the program can reach a
-  cloud-init-seeded node to do it, and a selector matching no node schedules
-  nothing while the cluster reports healthy.
+- **`nodeLabel`** picks the machine that egresses. Nothing in the program can
+  reach a cloud-init-seeded node to apply it, so it is declared as the node
+  joins, via `SEED_NODE_LABELS` in `scripts/make-seed-drive`. A selector
+  matching no node schedules nothing while the cluster reports healthy.
 - **`server`** is that node's tailnet address — an address, not a name, because
-  it resolves at the entry end of a detour where MagicDNS does not exist.
+  it resolves at the entry end of a detour where MagicDNS does not exist. It is
+  *pinned, not stable*: a re-registration moves it, and the exit then dials
+  nobody, so update it from `kubectl get node <name> -o wide` if that happens.
 - **`port`** (the host port on the exit node) is derived from the name; set it
   only to resolve a rare hash collision.
 

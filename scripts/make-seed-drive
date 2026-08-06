@@ -35,8 +35,23 @@
 # agent, and the k3s join token is read from the cluster at build time.
 #
 # Reads SEED_TS_AUTHKEY, SEED_PASSWORD, SEED_PRO_TOKEN and the optional
-# SEED_MOUNT_DEV/SEED_MOUNT_POINT from the environment; mise
+# SEED_MOUNT_DEV/SEED_MOUNT_POINT/SEED_NODE_LABELS from the environment; mise
 # loads them from the gitignored .env (see mise.toml).
+#
+# ## What a node declares about itself
+#
+# SEED_NODE_LABELS is a space-separated `key=value` list, applied as the agent
+# joins. Every one of them selects a workload in `Pulumi.main.yaml`, so a label
+# missing here is a DaemonSet that schedules nowhere while the cluster reports
+# itself healthy — and the same label applied by hand afterwards is drift that
+# a reflash silently loses. What lady is:
+#
+#   SEED_NODE_LABELS='jaritanet.radiosilence.dev/file-node=true \
+#                     jaritanet.radiosilence.dev/vpn-exit=true'
+#
+# file-node puts samba/syncthing/navidrome on the disks; vpn-exit puts the
+# ss-rust egress exit on the residential link, which is the whole point of it
+# running there rather than anywhere cheaper.
 #
 # Usage: scripts/make-seed-drive <device> <hostname> [--no-join]
 #   scripts/make-seed-drive /dev/disk4 lady
@@ -286,8 +301,11 @@ YAML
 #
 # The k3s version is pinned to the server's rather than left to \`latest\`, so a
 # release landing between now and first boot cannot put the agent ahead of the
-# control plane. No VPN entry label and no taint: which machine serves a VPN
-# entry is a property of that machine, and this one is a workload node.
+# control plane. No VPN *entry* label and no taint: which machine serves an
+# entry is a property of that machine, and this one is a workload node. A VPN
+# *exit* is the opposite and does belong here (see SEED_NODE_LABELS) — an entry
+# is fungible, any box with a public address will do, while an exit exists
+# solely to present this machine's own.
 runcmd:
   # systemd-fsck preens by default and drops to an emergency shell for anything
   # it will not fix unsupervised — on a headless box that is a machine sat
