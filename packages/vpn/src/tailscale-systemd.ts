@@ -34,6 +34,12 @@ export function createTailscaleSystemd(
   { name = "", dependsOn = [] }: SystemdOpts = {},
 ) {
   const p = resourcePrefix(name);
+
+  // The flags below are appended here, so a key that already carries them
+  // produces `preauthorized=true?ephemeral=false` and tailscale refuses to
+  // parse it. Stripping is cheap; the failure is not, because it leaves the box
+  // off the tailnet — which is now what pod networking rides on.
+  const bareKey = pulumi.output(authKey).apply((k) => k.split("?")[0]);
   return new command.remote.Command(
     `${p}tailscale-up`,
     {
@@ -60,7 +66,7 @@ if ! command -v tailscale >/dev/null 2>&1; then
   curl -fsSL https://tailscale.com/install.sh | sh
 fi
 tailscale up \
-  --auth-key="${authKey}?ephemeral=false&preauthorized=true" \
+  --auth-key="${bareKey}?ephemeral=false&preauthorized=true" \
   --hostname="${tailnet.hostname}" \
   --advertise-tags="${tailnet.tag}" \
   --accept-routes=false \
