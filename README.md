@@ -203,14 +203,6 @@ CI no longer joins the tailnet. It reaches the API server on the VPS's public
 | `VPN_ENTRY_LABEL` | Yes | Node label key marking a machine as a VPN entry, e.g. `jaritanet.radiosilence.dev/vpn-entry`. Read once and passed to both the command that labels the node and every transport's `nodeSelector`, so they cannot disagree — a selector matching no node schedules nothing while the cluster looks healthy. Required for that reason: a red deploy beats a silently dark VPN |
 | `VPN_USERS` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin. E.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 
-**Ansible / server provisioning (`run-playbook.yml`)**
-
-| Secret | Required | Purpose |
-|---|---|---|
-| `SSH_PRIVATE_KEY` | Yes | SSH key for the ansible target. Pulumi no longer uses it — nothing it deploys is configured over SSH except the k3s bootstrap, whose key it generates itself |
-| `SAMBA_PASSWORD` | Yes | Samba share password |
-| `GIT_SSH_KEY` | Yes | SSH key for git access during playbook runs |
-
 **Automation**
 
 | Secret | Required | Purpose |
@@ -301,14 +293,6 @@ resolving is reported rather than discovered at the next pod restart.
 The containers built from this repo (`serve-from-env`, `files`) are **not**
 tracked — they publish sha tags and cut no releases, so their pins move by hand.
 See #197.
-
-## Server Management
-
-Ansible provisions the *home* box only — Samba, Syncthing, SSH hardening and
-the media tooling. It has nothing to do with the gateway, which is configured
-entirely by Pulumi, over an SSH key it generates itself — the k3s install (which
-hands its kubeconfig straight back to the program), the network sysctls, and the
-break-glass admin key. See `ansible/`.
 
 ## Tailnet policy as code
 

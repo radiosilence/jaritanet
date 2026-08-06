@@ -144,7 +144,7 @@ config:
     location: nbg1
     serverType: cx33
     # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
-    # reads its kubeconfig and deploys into it — no ansible, no KUBE_* secrets.
+    # reads its kubeconfig and deploys into it.
     # Cilium's version must match the k8s minor, and parsing enforces it against
     # CILIUM_K8S_SUPPORT — take a new row from Cilium's own requirements doc for
     # that branch rather than from memory. Outside the tested range you are
