@@ -1,19 +1,24 @@
 # yaml-language-server: $schema=../../schemas/infra.json
 # cloudflare:apiToken and hcloud:token are set via env vars in CI
 # (CLOUDFLARE_API_TOKEN and HCLOUD_TOKEN). No need to encrypt them here.
+#
+# `${VAR}` is substituted from the environment by deploy.ts before the stack is
+# read, so this public repo carries no hostnames. An unset variable becomes an
+# empty string, and a service with an empty hostname is skipped — which is how
+# one stays undeployed.
 config:
   jaritanet:cloudflare:
-    accountId: ''
+    accountId: ${CLOUDFLARE_ACCOUNT_ID}
   jaritanet:traefik:
     # acmeEmail injected from the ACME_EMAIL secret in CI (see ci-cd.yml)
-    acmeEmail: ''
+    acmeEmail: ${ACME_EMAIL}
     chartVersion: "41.1.1"
   jaritanet:mcpGateway:
     # hostname/authHostname injected in CI from MCP_HOSTNAME / MCP_AUTH_HOSTNAME
     # (kept out of this public repo). GitHub OAuth creds + allowlist come via
     # GH_CLIENT_ID / GH_CLIENT_SECRET / GH_ALLOWED env in CI.
-    hostname: ''
-    authHostname: ''
+    hostname: ${MCP_HOSTNAME}
+    authHostname: ${MCP_AUTH_HOSTNAME}
     hydraTag: "v2.2.0"
     replicas: 2
     # Routes and terminates OAuth rather than serving a file, so it gets more
@@ -240,7 +245,7 @@ config:
   jaritanet:exits: []
   jaritanet:services:
     navidrome:
-      hostname: ''
+      hostname: ${NAVIDROME_HOSTNAME}
       args:
         httpPort: 4533
         # Public-facing, on the host that holds the media: confine egress to
@@ -302,7 +307,7 @@ config:
             readOnly: false
             nodeAffinityHostname: lady
     files:
-      hostname: ''
+      hostname: ${FILES_HOSTNAME}
       args:
         # Serves a read-only mount to the internet and nothing else — it has no
         # business reaching the node, the LAN or another pod. No capability
@@ -342,7 +347,7 @@ config:
             readOnly: true
             nodeAffinityHostname: lady
     blit:
-      hostname: ''
+      hostname: ${BLIT_HOSTNAME}
       args:
         # Public-facing, so confine egress to DNS and the internet. No
         # capability dropping: the image is distroless, so what it needs at
