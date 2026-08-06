@@ -205,6 +205,9 @@ Three-stage deployment targeting different host groups:
 
 - **`scripts/gen-schemas.ts`** - Converts Zod schemas to JSON Schema format
 - **`scripts/update-secrets`** - Updates GitHub repository secrets from `ansible/github-secrets.json`
+- **`scripts/k3s-node-token`** - Prints the k3s join token, read off the control-plane node through the API. The token exists only on that box and nothing in the stack reads it back, so a privileged pod is the way in until SSH exists
+- **`scripts/make-seed-drive`** - Builds the cloud-init seed drive that provisions a bare-metal node. A node is flashed with Ubuntu's cloud image directly rather than booted from an installer, which avoids betting on the boot order and BIOS password of a second-hand machine; the config arrives separately on a FAT32 volume labelled `CIDATA`, because macOS cannot write the image's ext4 root
+- **`scripts/lima-node`** - Joins a throwaway Lima VM to the cluster as a k3s agent, on the tailnet so the control plane can reach its kubelet back. Exercises the agent join path without hardware
 
 ## Development Notes
 
