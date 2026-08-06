@@ -18,7 +18,6 @@ Code should be simple, elegant, and concise. Respect the "rule of three" - only 
 
 JARITANET is an infrastructure-as-code monorepo using Pulumi. One `pulumi up` provisions a Hetzner VPS, installs k3s on it, reads the kubeconfig back as an output, and deploys everything into that cluster — Traefik for TLS (Let's Encrypt via DNS-01) and hostname routing, the web services, and the VPN transports. Cilium is the CNI, so NetworkPolicies are actually enforced. Cloudflare provides DNS only (no proxy/tunnel).
 
-Rathole is only deployed when the cluster is somewhere other than the gateway; co-located it would tunnel a box to itself, so Xray relays to Traefik's hostPort directly.
 
 The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-REALITY and Hysteria2 share the VPS `:443`, optional edge boxes add entry points in other locations, and selectable exit nodes control egress IP. The sing-box client profile is generated and distributed by the same Pulumi run.
 
@@ -26,14 +25,15 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 
 ### Development
 
-- `aube run typecheck` - Type check every package
-- `aube run test` - Run tests (vitest on Node — Pulumi needs Node's v8)
+- `mise run typecheck` - Type check every package
+- `mise run test` - Run tests (vitest on Node — Pulumi needs Node's v8)
 - `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
-- `aube run lint` - Lint code with oxlint
-- `aube run lint:fix` - Lint and auto-fix with oxlint
-- `aube run fmt` - Format code with oxfmt
-- `aube run fmt:check` - Check formatting with oxfmt
-- `aube run preview` / `aube run deploy` - Drive the stack through `src/deploy.ts`, the same entrypoint CI uses. Both rewrite the local `Pulumi.main.yaml` from the environment first, so run them with CI's secrets or not at all.
+- `mise run lint` - Lint code with oxlint
+- `mise run lint:fix` - Lint and auto-fix with oxlint
+- `mise run fmt` - Format code with oxfmt
+- `mise run fmt:check` - Check formatting with oxfmt
+- `mise run preview` / `mise run up` - Wrap the Pulumi CLI. Config comes from the stack, credentials included, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
+- `mise run check` - Lint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
 - `./packages/infra/src/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
 ### Git Hooks
@@ -62,10 +62,10 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/k8s`** — Deployment/Service/PV/PVC templates and the primitives the others share (`ImageSchema`, `LimitsSchema`, `cpuRequests`, `sha256hex`)
 - **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Each has a DaemonSet form and a `-systemd` form; the latter takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
-- **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, the redirect middleware, the rathole client, and the external-IP watcher
+- **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
-- **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `env.ts` is the only place `process.env` is read
+- **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `conf.ts` parses the whole config surface, secrets included, in one pass
 
 Packages are `private` and imported as TypeScript source — Node resolves a
 workspace symlink to its real path, which is outside `node_modules`, so type
@@ -81,28 +81,26 @@ Everything still deploys in one `pulumi up` from `packages/infra/`.
 
 All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. A component's schema lives with the component; `infra/src/conf.schemas.ts` re-exports them alongside the composed shapes (`GatewayConfSchema`, `EdgeConfSchema`) so the stack's config surface is described in one place, and regenerates via the gen-schemas script.
 
-`aube run check:profiles` runs the **real** sing-box binary (pinned to the oldest core the fleet is on, `MIN_CORE` in the script) over every profile shape via docker `check`. That is the only test that answers "will the devices accept this" — a schema cannot, since the published one is always the latest. Skips silently without a docker daemon.
+`mise run check:profiles` runs the **real** sing-box binary (pinned to the oldest core the fleet is on, `MIN_CORE` in the script) over every profile shape via docker `check`. That is the only test that answers "will the devices accept this" — a schema cannot, since the published one is always the latest. Skips silently without a docker daemon.
 
 `schemas/sing-box.json` is different: it is sing-box's own published schema, vendored (`curl -o schemas/sing-box.json https://sing-box.sagernet.org/schema.json`) so `singbox.schema.test.ts` can validate every generated profile offline. A profile that fails to parse fails on every device at once, so this check belongs in CI rather than on the fleet.
 
 ### Service Flow
 
 External traffic follows this path:
-`https://hostname` -> Gateway VPS (Rathole) -> K8s cluster (Rathole client) -> Traefik (TLS + routing) -> service
+`https://hostname` -> gateway VPS -> Xray `:443` -> Traefik hostPort (TLS + routing) -> service
 
 Without a gateway, Traefik serves directly via hostPort 443 and DNS points at the server's detected external IP.
 
 ### Key Components
 
-- **Rathole** — Rust-based TCP tunnel. Server on VPS, client in K8s. Stateless relay, no TLS/routing knowledge.
 - **Hysteria2** — QUIC/UDP transport with Salamander obfuscation; the fast, loss-tolerant daily-driver entry, on the gateway and every edge. Listens on `:443` plus `altPorts` (3478 STUN, 4500 IPsec NAT-T) as one process per port, because inspecting middleboxes block QUIC on 443 and VoIP-blocking regimes block 3478 — the client's urltest finds whichever survives. Admin-only: auth is a per-admin `userpass` map (guests get reality only), obfs is server-wide; both delivered inside admin sing-box profiles.
-- **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and rathole's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (Traefik's `:8443`, via rathole only when the cluster is elsewhere); matched clients are proxied out. One REALITY UUID per VPN user (`email: <name>`), delivered inside that user's sing-box profile (see RBAC). `serverNames` is a list, and deliberately contains none of our hostnames — content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain gets every handshake forged. The client carries one outbound per name in its urltest, so no single borrowed identity being blocked (google in China, an adult mis-rating in a pub) is fatal (see docs/architecture.md, Hardening notes).
+- **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and Traefik's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (Traefik's `:8443`); matched clients are proxied out. One REALITY UUID per VPN user (`email: <name>`), delivered inside that user's sing-box profile (see RBAC). `serverNames` is a list, and deliberately contains none of our hostnames — content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain gets every handshake forged. The client carries one outbound per name in its urltest, so no single borrowed identity being blocked (google in China, an adult mis-rating in a pub) is fatal (see docs/architecture.md, Hardening notes).
 - **sing-box delivery** — `@jaritanet/vpn` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware), writes each to the file server over SSH (content-hashed, so unchanged deploys are silent), sweeps superseded slug files so rotated profile URLs 404 rather than serving stale credentials, and notifies Telegram with every user's URL on change.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
-- **IP watcher** — Pod that checks external IP every 60s via Cloudflare's 1.1.1.1/cdn-cgi/trace and triggers deploy on change.
-- **Gateway** — Hetzner (HCLOUD_TOKEN) when set, else direct mode.
-- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `VPN_ENTRY_LABEL`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
+- **Gateway** — Hetzner. `gateway.hcloudToken` and `gateway.k3s` are both required: the box provides the cluster.
+- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `vpnEntryLabel`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
 - **k3s upgrades** — Rancher's system-upgrade-controller, deployed from its pinned release manifests, plus a server Plan and an agent Plan both reading `k3s.version`. Reach comes from cluster membership rather than a route to the box, which is the only thing that works for a node joined from a cloud-init seed: Pulumi never created it, holds no key for it and has no address for it, so break-glass SSH does not help either. The server Plan cordons rather than drains — the gateway is the only server, so a drain would evict the cluster to nowhere — and agents drain, which leaves the DaemonSet transports running. `k3s.version` and `k3s.ciliumVersion` reach the fleet by separate paths (Plan vs Helm) and must pair, so `CILIUM_K8S_SUPPORT` in `@jaritanet/hetzner` encodes Cilium's tested Kubernetes ranges and `K3sConfSchema` fails to parse a half-bump — a red preview instead of a cluster that comes up healthy and moves no packets.
 
 ## GitHub Actions
@@ -112,11 +110,11 @@ Without a gateway, Traefik serves directly via hostPort 443 and DNS points at th
 Triggered on pushes and pull requests affecting package files, manually via `workflow_dispatch`, or as a reusable workflow (`workflow_call`, with the Pulumi/Cloudflare/Hetzner secrets):
 
 1. **Test** - Type checks, lints, runs vitest suite
-2. **Deploy** (main branch only) - `aube run deploy`, a single `pulumi up` deploying everything
+2. **Deploy** (main branch only) - a single `pulumi up` deploying everything
 
 ### Preview (`preview.yml`)
 
-Runs `aube run preview` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge.
+Runs `pulumi preview --refresh` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge. The refresh is what makes it call the cloud APIs, so a credential revoked since the last deploy fails here rather than mid-deploy.
 
 Both verbs enter `packages/infra/src/deploy.ts` (Pulumi Automation API), which applies stack config from the environment and then previews or updates. Sharing an entrypoint is the point: a preview produced by different machinery than the deploy predicts nothing. Config is written to the checked-out `Pulumi.main.yaml` rather than the shared stack, so one PR's injected hostnames never reach another's preview.
 
@@ -171,6 +169,6 @@ build. Both containers releasing from one repo is why tracked entries need
 - Type checking must pass before commits (Lefthook)
 - oxlint handles linting, oxfmt handles code formatting
 - The system runs on minimal hardware (2014 MacBook Pro)
-- No direct firewall port exposure on home network — Rathole client connects outbound
+- No inbound ports on the home network — the home node joins the cluster outbound, over the tailnet
 - Tailscale provides secure access to internal Kubernetes cluster for CI/CD
 - Secrets managed through GitHub repository secrets and Pulumi configuration

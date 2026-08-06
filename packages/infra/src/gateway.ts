@@ -14,16 +14,15 @@ import {
 import * as command from "@pulumi/command";
 import * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
-import * as random from "@pulumi/random";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { GatewayConfSchema } from "./conf.schemas.ts";
 
 /**
- * Provisions a Hetzner VPS running rathole as a TCP relay.
+ * Provisions the Hetzner VPS the cluster and the transports run on.
  * The VPS is completely stateless — no certs, no proxy config.
  * It just tunnels ports 80/443 from the public internet to
- * the rathole client running inside the K8s cluster.
+ * the transports and the k3s control plane, all installed over SSH.
  *
  * `users` is the per-user VPN roster threaded into the entry transports (Xray
  * clients + hy2 userpass); see @jaritanet/vpn for role enforcement.
@@ -42,7 +41,6 @@ import type { GatewayConfSchema } from "./conf.schemas.ts";
 export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
   users: VpnUser[],
-  exits: { name: string; port: number }[] = [],
   {
     adminSshKey,
     clusterName,
@@ -59,16 +57,6 @@ export function createGateway(
     tailnetAuthKey?: string;
   },
 ) {
-  // rathole exists to reach a cluster behind NAT. With k3s on this box there is
-  // nothing on the other side of the tunnel, so none of it gets installed — no
-  // binary, no unit, no config, no open 2333. It is also what broke the last
-  // deploy: writing /etc/rathole/server.toml before cloud-init had created it.
-  const ratholeEnabled = !gateway.k3s;
-
-  const ratholeToken = new random.RandomPassword("rathole-token", {
-    length: 64,
-  });
-
   const sshKey = new tls.PrivateKey("gateway-ssh-key", {
     algorithm: "ED25519",
   });
@@ -82,7 +70,6 @@ export function createGateway(
       inboundRule("SSH", 22),
       inboundRule("HTTP", 80),
       inboundRule("HTTPS", 443),
-      ...(ratholeEnabled ? [inboundRule("Rathole control channel", 2333)] : []),
       // Only when the API server has no tailnet to hide behind. With Tailscale
       // configured the kubeconfig points at a MagicDNS name and 6443 never
       // needs a public rule at all — so adding the Pi (and its tailnet) closes
@@ -101,46 +88,6 @@ export function createGateway(
     ],
   });
 
-  const serverConfig = pulumi.interpolate`#!/bin/bash
-set -euo pipefail
-
-# Install rathole
-# Arch-detected: this box is ARM now, and a hardcoded x86_64 URL 404s, which
-# fails cloud-init at this line and takes everything after it with it.
-case "$(uname -m)" in
-  x86_64) RATHOLE_TRIPLE=x86_64-unknown-linux-gnu ;;
-  aarch64) RATHOLE_TRIPLE=aarch64-unknown-linux-musl ;;
-  *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-esac
-curl -fsSL "https://github.com/rapiz1/rathole/releases/download/${gateway.ratholeVersion}/rathole-$RATHOLE_TRIPLE.zip" -o /tmp/rathole.zip
-apt-get update && apt-get install -y unzip
-unzip /tmp/rathole.zip -d /usr/local/bin/
-chmod +x /usr/local/bin/rathole
-rm /tmp/rathole.zip
-
-# Write config (token will be updated via remote command)
-mkdir -p /etc/rathole
-
-# Systemd unit
-cat > /etc/systemd/system/rathole.service << 'UNIT'
-[Unit]
-Description=Rathole Server
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-ExecStart=/usr/local/bin/rathole --server /etc/rathole/server.toml
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-systemctl daemon-reload
-systemctl enable rathole
-`;
-
   const server = new hcloud.Server(
     "gateway",
     {
@@ -150,7 +97,9 @@ systemctl enable rathole
       name: gateway.name,
       serverType: gateway.serverType,
       sshKeys: [hcloudSshKey.id.apply((id) => id.toString())],
-      userData: ratholeEnabled ? serverConfig : "#!/bin/bash\ntrue\n",
+      // Nothing to provision at creation: everything is installed over SSH
+      // afterwards, so it can be changed without replacing the box.
+      userData: "#!/bin/bash\ntrue\n",
     },
     {
       // NOT replaceOnChanges for serverType: within one architecture hcloud
@@ -257,62 +206,6 @@ systemctl restart unbound`,
     );
   }
 
-  // When Xray is enabled it owns the public :443 and uses rathole as its
-  // decoy backend, so rathole's https bind moves to a local-only port.
-  const httpsBind = gateway.xray ? "127.0.0.1:8443" : "0.0.0.0:443";
-
-  // Each exit's ss-rust port, surfaced on this gateway's loopback via rathole —
-  // same pattern as the Reality decoy dest. The port is stable + identical
-  // across gateways, so one client ss outbound reaches this exit via any entry.
-  // A tcp *and* udp service on the same port so ss carries UDP (rathole muxes
-  // udp datagrams over the control channel — no extra public port).
-  const exitServices = exits
-    .flatMap((e) =>
-      ["tcp", "udp"].map(
-        (proto) =>
-          `\n[server.services.exit-${e.name}-${proto}]\ntype = "${proto}"\nbind_addr = "127.0.0.1:${e.port}"\n`,
-      ),
-    )
-    .join("");
-
-  // Write rathole config via SSH (supports updates without replacing the server)
-  const ratholeConfig = pulumi.interpolate`[server]
-bind_addr = "0.0.0.0:2333"
-default_token = "${ratholeToken.result}"
-
-[server.services.https]
-type = "tcp"
-bind_addr = "${httpsBind}"
-
-[server.services.http]
-type = "tcp"
-bind_addr = "0.0.0.0:80"
-${exitServices}`;
-
-  if (ratholeEnabled) {
-    const configUpload = new command.remote.Command(
-      "rathole-config",
-      {
-        connection,
-        create: pulumi.interpolate`cat > /etc/rathole/server.toml << 'RATHOLE_EOF'
-${ratholeConfig}
-RATHOLE_EOF`,
-        triggers: [ratholeToken.result, httpsBind, exitServices],
-      },
-      { dependsOn: [server] },
-    );
-
-    new command.remote.Command(
-      "rathole-restart",
-      {
-        connection,
-        create: "systemctl restart rathole",
-        triggers: [configUpload.id],
-      },
-      { dependsOn: [configUpload] },
-    );
-  }
-
   const xray =
     gateway.xray && sshTransports
       ? createXraySystemd(connection, gateway.xray, users, {
@@ -376,7 +269,6 @@ k3s kubectl label node "$(hostname)" ${entryLabel}=true --overwrite`,
     hysteria,
     k3s,
     vpnEntryLabel,
-    ratholeToken,
     server,
     sshKey,
     tailscale,

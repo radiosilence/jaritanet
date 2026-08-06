@@ -19,7 +19,7 @@ import type { EdgeConfSchema } from "./conf.schemas.ts";
 
 /**
  * Provisions a standalone VPN edge box: a Hetzner VPS running hy2 + REALITY +
- * a tailnet relay, and nothing else — no rathole, no reverse proxy, no TLS
+ * a tailnet relay, and nothing else — no reverse proxy, no TLS
  * services of its own.
  *
  * Because it fronts no home site, REALITY points its decoy at a real external
