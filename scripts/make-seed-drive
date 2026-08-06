@@ -35,7 +35,7 @@
 # agent, and the k3s join token is read from the cluster at build time.
 #
 # Reads TS_AUTHKEY, SEED_PASSWORD, SEED_PRO_TOKEN and the optional
-# SEED_MOUNT_LABEL/SEED_MOUNT_POINT from the environment; mise
+# SEED_MOUNT_DEV/SEED_MOUNT_POINT from the environment; mise
 # loads them from the gitignored .env (see mise.toml).
 #
 # Usage: scripts/make-seed-drive <device> <hostname> [--no-join]
@@ -173,8 +173,10 @@ write_files:
       iTCO_wdt
 YAML
 
-  # A media drive, by label rather than device: USB enumeration order is not
-  # stable, and pointing a library at whatever came up first is its own bad day.
+  # A media drive, identified by UUID (or label) rather than device path: USB
+  # enumeration order is not stable, and pointing a library at whatever came up
+  # first is its own bad day. A UUID is also immune to the case-sensitivity that
+  # makes a mistyped label fail silently, mounting nothing and saying nothing.
   #
   # `x-systemd.automount` so the mount is attempted when something first
   # touches the path, not only at boot. fstab tries once: a drive still
@@ -193,11 +195,11 @@ YAML
   # instead of presenting an empty library to a scanner set to purge what it
   # cannot see. Which is also why the mount point stays empty: the directories
   # under it must come from the drive.
-  if [[ -n "${SEED_MOUNT_LABEL:-}" ]]; then
+  if [[ -n "${SEED_MOUNT_DEV:-}" ]]; then
     cat <<YAML
 
 mounts:
-  - [ "LABEL=$SEED_MOUNT_LABEL", "${SEED_MOUNT_POINT:-/mnt/kontent}", auto, "defaults,nofail,x-systemd.automount,x-systemd.device-timeout=60", "0", "0" ]
+  - [ "$SEED_MOUNT_DEV", "${SEED_MOUNT_POINT:-/mnt/kontent}", auto, "defaults,nofail,x-systemd.automount,x-systemd.device-timeout=60", "0", "0" ]
 YAML
   fi
 
