@@ -586,7 +586,7 @@ for is **k3s failing to come up**: no API server, no kubectl, no privileged pod.
 The mechanism for adding a key is the broken thing at that moment, which is why
 the key is installed on every deploy rather than when it is wanted.
 
-Three decisions hold it up:
+Four decisions hold it up:
 
 **It arrives over SSH, not through `sshKeys` or `userData`.** Hetzner applies
 both only at creation, so changing either forces a replacement — a new IP, a new
@@ -599,7 +599,18 @@ goes in `/etc/ssh/admin_authorized_keys`, selected by an `sshd_config.d` drop-in
 that lists root's own file first. A mistake in the shared file locks the deploy
 out of the box it is deploying to, with no way back in. `sshd -t` runs before
 anything is reloaded and the drop-in is removed if it rejects, so a bad config
-fails the Pulumi resource rather than the daemon.
+fails the Pulumi resource rather than the daemon. `sshd -T` then asserts that the
+daemon actually resolves the file: sshd takes the first `AuthorizedKeysFile` it
+obtains, so a directive ahead of the include would leave a drop-in that reads as
+installed and selects nothing.
+
+**It is triggered by the server's id, not only by the key.** `dependsOn` orders
+the command after the box; it does not re-run it when the box is replaced.
+Triggered by the key alone the resource keeps its recorded success across a
+rebuild, so the new box comes up with no admin key and the stack reports no
+drift — nothing asks to be fixed. That is how the 26.04 rebuild produced a
+gateway whose break-glass access had never been installed, and why
+`createNetworkTuning` and `createAutomaticPatching` take the same trigger.
 
 **Absent secret means no resource**, matching how `TS_AUTHKEY` gates the tailnet
 relay. Removing the secret deletes the key from the boxes on the next deploy.

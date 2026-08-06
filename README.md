@@ -251,6 +251,8 @@ Rotating the key is therefore a normal deploy. Unsetting the secret removes it.
 The key lands in `/etc/ssh/admin_authorized_keys`, selected by an
 `sshd_config.d` drop-in, never in the `authorized_keys` Pulumi authenticates
 with — a mistake in that file locks the deploy out of the box it is deploying to.
+Replacing a box reinstalls it: the resource is triggered by the server's id as
+well as the key, so a rebuild cannot leave the new box without a way in.
 
 
 ### Automatic patching
