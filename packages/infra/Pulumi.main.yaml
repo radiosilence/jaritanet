@@ -403,3 +403,49 @@ config:
     spfDomain: spf.messagingengine.com
   jaritanet:bluesky:
     did: did:plc:d32vuqlfqjttwbckkxgxgbgl
+  cloudflare:apiToken:
+    secure: AAABAHJGO7FVuxyKRDCXvCFEmG23cNyPs3fci+lgnNxEhOvrLIzLJMAVHZGlzC5hKBV+qoO6IEHHNtzGlLL0mU4Zxmd5TW0MlQ2m0RUDsXEaMMdDkA==
+  hcloud:token:
+    secure: AAABALtD7dj7hUYrd1dLznzw5u+hjfJj5fCpMv7fRmoXKOKxtlczVbxdWKzmDhHWJHHfQkj6Z8qoxgZqIatPwDZAvi+CDQS+OqDUhBLRSXl815dDWd8jB+/p6cHE2YTK
+  jaritanet:acmeEmail:
+    secure: AAABANXqlKovyI4hvAiBYclyKWA70CFhfgtYRH8GDp5CsPgARVh3stp6
+  jaritanet:blitHostname:
+    secure: AAABAH6arFz3WVFGIeymVbA4tp8py57Ay9ddndSjcDaOhvWDoM4V
+  jaritanet:cloudflareAccountId:
+    secure: AAABAEl5yLJ6BnCkGdqH9StQxMnPP+/ZeI5AR44QGdXiAY57warhCDM1aufvfjaCeEtq7i8z6PiTfACZYhVdIA==
+  jaritanet:deployToken:
+    secure: AAABABNqhHLFy7toJGuS4KqR/xoe9gPGu1p+gMgc9TS1j195dJrPghA45WWE6npEcNOYgM9DHeM9vm+Whn5/QAzH1HOdc9QIrVR56Tb5ouxSTFZDt54pCrBVY//L6NvPGrNjV80j1S9Y+UGlfyNHg7R+ZCW/SON0TWVf/RI=
+  jaritanet:filesHostname:
+    secure: AAABAJwPzK9F0eRQk/rr/p10MtUC6UQ+NURSCDgXKMfAhrWg3jo/gdfJKnsMVxU91Cyr1hsc
+  jaritanet:ghClientId:
+    secure: AAABANFSA9Rm8RUBYGrKuWi3WJcn/DsRBhOQ0An6/pNHZ4cUSjaynqZBfRNlMndfdIRhGQ==
+  jaritanet:ghClientSecret:
+    secure: AAABADssCNd3Nh1d6DG2iLJqAQb58jlkQ/+uthpaWyjUisN/jtaoV7xSGaRXpDEXKc9iB0XjbdR4EosJpmT5DXXge0hiAi2o
+  jaritanet:mcpAuthHostname:
+    secure: AAABAEoRym4TcUM22XiFzZWy7+H0+cAO+0XJeVWx2ZooTAV72zR3B7uAUZk=
+  jaritanet:mcpHostname:
+    secure: AAABAPmNohcWi+o/VOuCOfixmEJyPzqGGoj0w/gpW/oeP9A3IOW/7A099A==
+  jaritanet:navidromeHostname:
+    secure: AAABAKj4H+0XXXR/0vAb0tv6u1hHeciqbXlEkJvET7T8r/noan8Q8QqnTyjk
+  jaritanet:sshPublicKey:
+    secure: AAABAGARbJZ2wBkPHZkoF/LnvAIu1Ram1jbnrJeIm7ankiw7lr3oOP3lGbgkW1XlR1AFKApyl2Bgd9FyMGCs5Xl2urxMD2decRc+uUtt+SUopqzA9cfoGem7bAG177EeEcafSkDDDYMp+iJ0vPIs3615zwUjT1AqwnsK
+  jaritanet:tailnetMagicdnsSuffix:
+    secure: AAABAKHEwpYQqv+H6ixHYawiNf7KfSFn4p9fvR9n5AKTRVqPeBgcc3Xo5yqtKs0ozkQ=
+  jaritanet:telegramBotToken:
+    secure: AAABADtKoAxH4MYbOT+bGEgE3vn8OfkQc46jzLRsKUO/oWffZKsWjJzAy5NthR2SXA8yN6FWA//NC8LNsAYWq7F4nYnfByPfRIgNBvKR
+  jaritanet:telegramChatId:
+    secure: AAABAJQ0MStTPHJZGAcnzQCTNYxdZHHBuCIANMR31QhJa/ODkZ4rPNU=
+  jaritanet:tsAuthkey:
+    secure: AAABAOreRQP3lu+oyi3o3+KX8HBoomss9UuMVRdpP8ZMVve9boCrGJ7uJMrk+puKMkCBHlXd2iOKV32CXfWvxV5xnBSqLXZXsztEPA98nkU+Bt22rqtFoE87pwn4dgngT2x7fEiS6l/cxeqUl3QXGIzkgEwffaYhnASArWkh2jt+kg==
+  jaritanet:ubuntuProToken:
+    secure: AAABAH2gQiEnQhHzpwyAv7u//nuy08yl3yc+yd3rsTHew4jidd45Xp9MzYSUOWcSrw9d3PljUTjmnl/Aw6w=
+  jaritanet:vpnEntryLabel:
+    secure: AAABAA1cx4j9j0Bsr0redqSDCNL5A0t8BVRculS7V4zzm2DE4GwuqApk5vPAWnmywOWeRiK3N62tYTyyZQuez+/P68U=
+  jaritanet:vpnUsers:
+    secure: AAABAKdjD8rexAU3y7pWo9VOL6PqBx8ntvRHwdDXnnbCJqxvgyNBG9Vh
+  jaritanet:ghAllowed:
+    secure: AAABAOuOleAvrFXXZJ5ucYCNcbZqFketrsMfrDsXXVeAxVFCL5mnVLohsvI=
+  jaritanet:cloudflareApiToken:
+    secure: AAABAPiLe/abjrP+5azNU8vSKV2T+XpZ6OoNSzg8UkdArnxjcZjjW3FUFJ6OYccRf/O0x1lxVj1plZxwgxTYaFK3qxX/EAy+0M94JrF6e/QxKeALXg==
+  jaritanet:hcloudToken:
+    secure: AAABAA3uDjQwBv6GNYm1y/3nfv653WcwyiP5UEHB4SGjJJstSu7zHL+rN1ANkcznKBbhn+LiBk8LFL18uMwcGcBb7pWIdrbQyBZpOFciitl3IxoT4ij1r6YO7Mn9TPt6

@@ -5,6 +5,16 @@ import { EnvSchema } from "./env.schema.ts";
 const config = new pulumi.Config();
 
 /**
+ * `ACME_EMAIL` in the environment is `acmeEmail` in the stack.
+ *
+ * Derived rather than mapped: a table of both spellings is one more thing to
+ * keep in step, and the failure when it drifts is a value silently not found.
+ * Environment variables are conventionally shouted; Pulumi config is not.
+ */
+const configKey = (name: string) =>
+  name.toLowerCase().replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+
+/**
  * Stack config first, environment second.
  *
  * The stack is the better home: `pulumi up` then works from a laptop with
@@ -15,7 +25,8 @@ const config = new pulumi.Config();
  * The environment stays as a fallback so CI keeps working while values move,
  * and so a value can be overridden for one run without touching the stack.
  */
-const lookup = (name: string) => config.get(name) ?? process.env[name];
+const lookup = (name: string) =>
+  config.get(configKey(name)) ?? process.env[name];
 
 export const env = EnvSchema.parse(
   Object.fromEntries(

@@ -6,9 +6,10 @@
 # assembled by hand — where an omission is not an error but an empty string, and
 # an empty hostname silently removes a service.
 #
-# Set as secrets uniformly, including the hostnames. They are not secret in the
-# cryptographic sense, but this repo is public and they are the reason the
-# `${VAR}` indirection exists at all.
+# Deliberately dull. Everything here reads values through printenv and never
+# interpolates one anywhere it could be echoed: indirect expansion and
+# associative-array subscripts both evaluate their argument, and under `set -u`
+# that puts a secret into an error message.
 #
 # Usage: scripts/config-from-env [--dry-run]
 set -euo pipefail
@@ -17,38 +18,51 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY=false
 [[ "${1:-}" == "--dry-run" ]] && DRY=true
 
-# Everything env.schema.ts reads, plus the values referenced as ${VAR} in
-# Pulumi.main.yaml. PULUMI_ACCESS_TOKEN is deliberately absent: it is how CI
-# reaches Pulumi in the first place, so it cannot live inside Pulumi.
-KEYS=(
-  ACME_EMAIL BLIT_HOSTNAME CLOUDFLARE_ACCOUNT_ID DEPLOY_TOKEN FILES_HOSTNAME
-  GH_ALLOWED GH_CLIENT_ID GH_CLIENT_SECRET MCP_AUTH_HOSTNAME MCP_HOSTNAME
-  NAVIDROME_HOSTNAME SINGBOX_SLUG SSH_PUBLIC_KEY TAILNET_MAGICDNS_SUFFIX
-  TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TS_AUTHKEY TS_OAUTH_CLIENT_ID
-  TS_OAUTH_CLIENT_SECRET UBUNTU_PRO_TOKEN VPN_ENTRY_LABEL VPN_USERS
-)
-
-# The provider credentials Pulumi reads under its own keys rather than ours.
-declare -A PROVIDER=( [CLOUDFLARE_API_TOKEN]=cloudflare:apiToken [HCLOUD_TOKEN]=hcloud:token )
-
-set_one() {
-  local key="$1" value="$2"
-  if $DRY; then printf '  would set %-28s (%s chars)\n' "$key" "${#value}"; return; fi
-  pulumi -C "$ROOT/packages/infra" config set --secret "$key" "$value" >/dev/null
-  printf '  set %-28s (%s chars)\n' "$key" "${#value}"
+# ACME_EMAIL in the environment is acmeEmail in the stack — the same transform
+# env.ts applies, so the two cannot disagree about where a value lives.
+camel() {
+  # awk rather than sed: \u is a GNU extension and this runs on BSD sed too.
+  printf '%s' "$1" | awk 'BEGIN{FS="_";OFS=""}{
+    for(i=1;i<=NF;i++){
+      w=tolower($i)
+      printf "%s", (i==1 ? w : toupper(substr(w,1,1)) substr(w,2))
+    }
+  }'
 }
 
-# printenv rather than ${!key}: indirect expansion under `set -u` can end up
-# treating the *value* as a variable name, which puts a secret in an error
-# message. Nothing here should be able to print a value.
-for key in "${KEYS[@]}"; do
-  value="$(printenv "$key" 2>/dev/null || true)"
-  [[ -z "$value" ]] && { printf '  skip %-27s (not in environment)\n' "$key"; continue; }
-  set_one "$key" "$value"
+# $1 environment variable to read, $2 stack config key to write.
+migrate() {
+  local from="$1" to="$2" value
+  value="$(printenv "$from" 2>/dev/null || true)"
+  if [[ -z "$value" ]]; then
+    printf '  skip %-26s (not set)\n' "$to"
+    return
+  fi
+  if $DRY; then
+    printf '  would set %-21s (%s chars)\n' "$to" "${#value}"
+    return
+  fi
+  printf '%s' "$value" | pulumi -C "$ROOT/packages/infra" config set --secret "$to" >/dev/null
+  printf '  set %-27s (%s chars)\n' "$to" "${#value}"
+}
+
+# Everything env.schema.ts reads, plus the values referenced as ${VAR} in
+# Pulumi.main.yaml. PULUMI_ACCESS_TOKEN is absent deliberately: it is how CI
+# reaches Pulumi, so it cannot live inside Pulumi.
+for key in \
+  ACME_EMAIL BLIT_HOSTNAME CLOUDFLARE_ACCOUNT_ID DEPLOY_TOKEN FILES_HOSTNAME \
+  GH_ALLOWED GH_CLIENT_ID GH_CLIENT_SECRET MCP_AUTH_HOSTNAME MCP_HOSTNAME \
+  NAVIDROME_HOSTNAME SSH_PUBLIC_KEY TAILNET_MAGICDNS_SUFFIX TELEGRAM_BOT_TOKEN \
+  TELEGRAM_CHAT_ID TS_AUTHKEY TS_OAUTH_CLIENT_ID TS_OAUTH_CLIENT_SECRET \
+  TS_TAILNET UBUNTU_PRO_TOKEN VPN_ENTRY_LABEL VPN_USERS \
+  CLOUDFLARE_API_TOKEN HCLOUD_TOKEN
+do
+  migrate "$key" "$(camel "$key")"
 done
 
-for key in "${!PROVIDER[@]}"; do
-  value="$(printenv "$key" 2>/dev/null || true)"
-  [[ -z "$value" ]] && { printf '  skip %-27s (not in environment)\n' "${PROVIDER[$key]}"; continue; }
-  set_one "${PROVIDER[$key]}" "$value"
-done
+# The same two again, under the keys Pulumi's own providers read. They are
+# needed twice: the providers authenticate with them, and the program passes the
+# Cloudflare one to Traefik for DNS-01 while the Hetzner one decides whether
+# there is a gateway at all.
+migrate CLOUDFLARE_API_TOKEN cloudflare:apiToken
+migrate HCLOUD_TOKEN hcloud:token
