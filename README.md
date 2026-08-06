@@ -180,6 +180,7 @@ emit and `@pulumi/pulumi` moved to a peer dependency.
 | `ACME_EMAIL` | Yes | Let's Encrypt account email (Traefik) |
 | `BLIT_HOSTNAME` / `MCP_HOSTNAME` / `MCP_AUTH_HOSTNAME` | Yes | Service hostnames |
 | `HCLOUD_TOKEN` | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
+| `SSH_PUBLIC_KEY` | No | Break-glass admin key, installed on the gateway and every edge (see below). Unset = nobody but Pulumi can SSH to them |
 | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_CLIENT_SECRET` / `TS_TAILNET` | No | Manage the tailnet policy file as code (see below). Unset = policy stays hand-managed |
 
 **Tailscale**
@@ -228,6 +229,28 @@ Next deploy provisions the VPS, installs k3s on it and deploys everything into
 it. Removing the secret does not fall back to anything: there is no cluster
 without the box.
 
+### Break-glass SSH
+
+```bash
+gh secret set SSH_PUBLIC_KEY < ~/.ssh/id_ed25519.pub
+```
+
+Installs that key on the gateway and every edge, so `ssh root@<ip>` works. Only
+worth having for one case: k3s failing to come up. Everything else — host files,
+host networking, `systemctl` — is already reachable through a privileged pod
+with `hostPID` and `nsenter`, and none of that exists without an API server. The
+mechanism for adding a key is the broken thing at that moment, so the key has to
+be there beforehand.
+
+It arrives over SSH rather than through the server's `sshKeys` or `userData`,
+both of which Hetzner applies only at creation: setting either would replace the
+box, and with it the IP and the REALITY keypair every client profile carries.
+Rotating the key is therefore a normal deploy. Unsetting the secret removes it.
+
+The key lands in `/etc/ssh/admin_authorized_keys`, selected by an
+`sshd_config.d` drop-in, never in the `authorized_keys` Pulumi authenticates
+with — a mistake in that file locks the deploy out of the box it is deploying to.
+
 ## Development
 
 ```bash
@@ -259,8 +282,9 @@ See #197.
 
 Ansible provisions the *home* box only — Samba, Syncthing, SSH hardening and
 the media tooling. It has nothing to do with the gateway, which is configured
-entirely by Pulumi: the only thing that touches it over SSH is the k3s install,
-and that hands its kubeconfig straight back to the program. See `ansible/`.
+entirely by Pulumi, over an SSH key it generates itself — the k3s install (which
+hands its kubeconfig straight back to the program), the network sysctls, and the
+break-glass admin key. See `ansible/`.
 
 ## Tailnet policy as code
 
