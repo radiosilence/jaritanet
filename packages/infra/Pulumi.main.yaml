@@ -226,6 +226,17 @@ config:
           hostPath: /mnt/kontent/tv
         - name: dl
           hostPath: /mnt/kontent/dl
+    # Which folders syncthing can reach; what is actually synced with whom is
+    # set in its own UI, which is state it keeps for itself. No hostname, so the
+    # UI stays on :8384 over the LAN and the tailnet rather than being published.
+    #
+    # It runs as the media's owner rather than relying on fsGroup, which kubelet
+    # does not apply to hostPath volumes — so what it writes stays readable by
+    # samba and navidrome.
+    syncthing:
+      folders:
+        - name: music
+          hostPath: /mnt/kontent/music
   jaritanet:exits: []
   jaritanet:services:
     navidrome:

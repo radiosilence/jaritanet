@@ -50,6 +50,10 @@ on:
         required: true
       BLIT_HOSTNAME:
         required: true
+      NAVIDROME_HOSTNAME:
+        required: false
+      FILES_HOSTNAME:
+        required: false
       TS_AUTHKEY:
         required: false
       VPN_USERS:
@@ -214,6 +218,8 @@ jobs:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
           PULUMI_K8S_DELETE_UNREACHABLE: ${{ inputs.deleteUnreachable && 'true' || '' }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
+          NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
+          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
           MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

@@ -53,6 +53,8 @@ jobs:
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
           BLIT_HOSTNAME: ${{ secrets.BLIT_HOSTNAME }}
+          NAVIDROME_HOSTNAME: ${{ secrets.NAVIDROME_HOSTNAME }}
+          FILES_HOSTNAME: ${{ secrets.FILES_HOSTNAME }}
           MCP_HOSTNAME: ${{ secrets.MCP_HOSTNAME }}
           MCP_AUTH_HOSTNAME: ${{ secrets.MCP_AUTH_HOSTNAME }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
