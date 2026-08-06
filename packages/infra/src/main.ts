@@ -56,8 +56,7 @@ export default async function () {
   let hysteria: SingboxNode["hysteria"] | undefined;
 
   // sing-box nodes for the edges. The primary is prepended once its transports
-  // are known — buildProfile detours exits through nodes[0], so the order is
-  // load-bearing.
+  // are known, so it leads the picker.
   const edgeNodes: SingboxNode[] = [];
 
   // The VPN roster. No `vpnUsers` → a single implicit owner-admin, so the
@@ -66,19 +65,32 @@ export default async function () {
   const users: VpnUser[] =
     vpnUsers.length > 0 ? vpnUsers : [{ name: "owner", role: "admin" }];
 
-  // Resolve each exit's loopback port once (derived from the name unless set),
-  // so the identical port is used at the ss server and the client outbound.
-  // Assert uniqueness — a clash means the user
-  // should set an explicit `port` on one of the exits.
+  // Resolve each exit's host port once (derived from the name unless set), so
+  // the identical port is used at the ss server and the client outbound.
+  // Uniqueness is asserted per node, not globally: the port is bound on the
+  // exit's own host, so two exits only clash when they share a machine.
   const resolvedExits = conf.exits.map((e) => ({
     image: e.image,
     method: e.method,
     name: e.name,
+    node: e.node,
+    nodeLabel: e.nodeLabel,
     port: e.port ?? deriveExitPort(e.name),
+    server: e.server,
   }));
-  if (new Set(resolvedExits.map((e) => e.port)).size !== resolvedExits.length) {
+  const exitBinds = resolvedExits.map((e) => `${e.node}:${e.port}`);
+  if (new Set(exitBinds).size !== exitBinds.length) {
     throw new Error(
-      "exit loopback port collision — set an explicit `port` on the clashing exit",
+      "two exits share a node and a port — set an explicit `port` on the clashing exit",
+    );
+  }
+  // Exits are reached over the tailnet, and every entry's membership is gated on
+  // this key (see createEdge). Without it the profile still offers every
+  // entry × exit pair and not one of them can connect, so this is a red preview
+  // rather than an exit axis that is present and dead.
+  if (resolvedExits.length && !conf.tailnet.authKey) {
+    throw new Error(
+      "exits need `tailnet.authKey`: an entry with no tailnet cannot reach one",
     );
   }
 
@@ -246,8 +258,8 @@ export default async function () {
   );
   const nsName = ns.metadata.name;
 
-  // Egress exit nodes: ss-rust in-cluster, bound to the gateway's loopback.
-  // Clients reach them by detouring through the primary, which is that host.
+  // Egress exit nodes: ss-rust pinned by node label, hostNetwork, dialled at
+  // that node's tailnet address by whichever entry the client picked.
   const exits = resolvedExits.map((e) => createExit(provider, nsName, e));
 
   // --- Ingress: Traefik. The cluster runs on the gateway, so xray relays
@@ -402,8 +414,7 @@ export default async function () {
   //
   // The primary is a node too: clients connect by IP, and its REALITY decoy is
   // its own reverse-proxied site (unlike edges, which use an external one). It
-  // leads the list because buildProfile detours exits through nodes[0], the
-  // host whose loopback the exits are bound to.
+  // leads the list so it heads the entry picker.
   const nodes: SingboxNode[] = [
     ...(gatewayIp && reality && hysteria
       ? [{ name: "primary", server: gatewayIp, hysteria, reality }]

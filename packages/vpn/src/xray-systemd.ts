@@ -16,7 +16,8 @@ import { GUEST_DENY_CIDRS } from "./xray.ts";
  * x25519 private key stays in /usr/local/etc/xray, and one REALITY UUID is
  * minted per user (`email: <name>`) so a user is revoked by dropping them from
  * the clients list. Guests (reality-only) are blackholed server-side to the
- * tailnet CIDR and the exit loopbacks — a hard block, not a profile omission.
+ * tailnet CIDR — which is where the exits live too — and every other address
+ * that is not the internet. A hard block, not a profile omission.
  *
  * `user`-scoped routing only resolves once the inbound sniffs the flow, so the
  * inbound enables sniffing with `routeOnly` (route on the sniffed destination

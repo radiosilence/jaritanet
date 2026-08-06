@@ -283,15 +283,35 @@
                   }
                 ]
               },
+              "node": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "nodeLabel": {
+                "$ref": "#/$defs/__schema5"
+              },
               "port": {
                 "$ref": "#/$defs/__schema2"
               },
-              "substrate": {
-                "default": "k8s",
+              "server": {
                 "anyOf": [
                   {
                     "type": "string",
-                    "enum": ["k8s"]
+                    "format": "ipv4",
+                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$"
                   },
                   {
                     "type": "object",
@@ -306,7 +326,7 @@
                 ]
               }
             },
-            "required": ["name"]
+            "required": ["name", "node", "nodeLabel", "server"]
           }
         },
         "jaritanet:fastmail": {
@@ -484,16 +504,16 @@
               "type": "object",
               "properties": {
                 "apiViaTailnet": {
-                  "$ref": "#/$defs/__schema5"
-                },
-                "ciliumVersion": {
                   "$ref": "#/$defs/__schema6"
                 },
-                "upgradeControllerVersion": {
+                "ciliumVersion": {
                   "$ref": "#/$defs/__schema7"
                 },
-                "version": {
+                "upgradeControllerVersion": {
                   "$ref": "#/$defs/__schema8"
+                },
+                "version": {
+                  "$ref": "#/$defs/__schema9"
                 }
               }
             },
@@ -630,7 +650,7 @@
                   "minItems": 1,
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/__schema9"
+                    "$ref": "#/$defs/__schema10"
                   }
                 },
                 "version": {
@@ -661,7 +681,7 @@
           "properties": {
             "nodeLabel": {
               "default": "jaritanet.radiosilence.dev/file-node",
-              "$ref": "#/$defs/__schema10"
+              "$ref": "#/$defs/__schema5"
             },
             "samba": {
               "type": "object",
@@ -1725,7 +1745,7 @@
           ]
         },
         "jaritanet:vpnEntryLabel": {
-          "$ref": "#/$defs/__schema10"
+          "$ref": "#/$defs/__schema5"
         },
         "jaritanet:vpnUsers": {
           "anyOf": [
@@ -1922,10 +1942,28 @@
       ]
     },
     "__schema5": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?\\/[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema6": {
       "default": false,
       "type": "boolean"
     },
-    "__schema6": {
+    "__schema7": {
       "default": "1.20.0",
       "anyOf": [
         {
@@ -1943,7 +1981,7 @@
         }
       ]
     },
-    "__schema7": {
+    "__schema8": {
       "default": "v0.20.1",
       "anyOf": [
         {
@@ -1961,25 +1999,8 @@
         }
       ]
     },
-    "__schema8": {
-      "default": "v1.36.3+k3s1",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"],
-          "additionalProperties": false
-        }
-      ]
-    },
     "__schema9": {
+      "default": "v1.36.3+k3s1",
       "anyOf": [
         {
           "type": "string"
@@ -1999,8 +2020,7 @@
     "__schema10": {
       "anyOf": [
         {
-          "type": "string",
-          "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?\\/[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$"
+          "type": "string"
         },
         {
           "type": "object",
