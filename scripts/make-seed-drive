@@ -152,6 +152,23 @@ write_files:
       Unattended-Upgrade::Automatic-Reboot "true";
       Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
       Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+  # The failure a headless box actually suffers is not being off, which AC
+  # recovery handles, but being on and wedged — drawing power, answering
+  # nothing, and needing someone to reach the button. systemd pets the
+  # chipset's watchdog; if it stops, the hardware resets the machine with no
+  # software involved, which is the point, because the software is what died.
+  #
+  # A drop-in rather than editing system.conf, so a package update cannot
+  # revert it. Harmless where no watchdog device exists: systemd logs and
+  # carries on.
+  - path: /etc/systemd/system.conf.d/watchdog.conf
+    content: |
+      [Manager]
+      RuntimeWatchdogSec=60
+      RebootWatchdogSec=10min
+  - path: /etc/modules-load.d/watchdog.conf
+    content: |
+      iTCO_wdt
 YAML
 
   # A media drive, by label rather than device: USB enumeration order is not
