@@ -9,13 +9,10 @@ import { type SshConnection, resourcePrefix } from "./vps.ts";
  * Runs a Kubernetes control plane on the gateway VPS itself, and hands its
  * kubeconfig back to Pulumi.
  *
- * This replaces a three-way dance: ansible generated a service account on the
- * home box, pushed the token to GitHub secrets, and a later workflow read it
- * back as KUBE_HOST/KUBE_TOKEN. Here the same `pulumi up` creates the server,
- * installs k3s on it, reads the kubeconfig off the box, and builds the
- * Kubernetes provider from that output — Pulumi's dependency graph does the
- * ordering. No secret round-trip, and no cluster credentials living anywhere a
- * human has to rotate.
+ * The same `pulumi up` creates the server, installs k3s on it, reads the
+ * kubeconfig off the box, and builds the Kubernetes provider from that output —
+ * Pulumi's dependency graph does the ordering. No secret round-trip, and no
+ * cluster credentials living anywhere a human has to rotate.
  *
  * k3s rather than microk8s: roughly half the memory on a box that also carries
  * xray, hysteria and the workloads; a one-command node join for when the home

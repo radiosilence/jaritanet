@@ -134,10 +134,6 @@ A missing image fails the run only when it is the *pinned* one — that is a liv
 
 Rewrites go through the YAML document API and mutate the existing scalar, so a bump changes exactly one line and leaves comments and quoting alone.
 
-### Ansible Deployment (`run-playbook.yml`)
-
-Triggered on ansible/ changes. Connects via Tailscale, runs playbooks, updates GitHub secrets. Roles are tagged with their own name; the workflow diffs the push and runs only the changed roles (`--tags`), falling back to a full run on shared-file changes. `workflow_dispatch` takes a `tags` input for targeted manual runs. CI runs use the Mitogen strategy (env-only) for speed.
-
 ### Container Builds (`build-files-container.yml`, `build-serve-from-env-container.yml`)
 
 Builds and publishes each container on changes to its own directory, one job per
@@ -153,49 +149,6 @@ moves the pin. Tags are output, not input — nothing reads one to decide what t
 build. Both containers releasing from one repo is why tracked entries need
 `tagPrefix`: "the latest release" is otherwise repo-wide.
 
-## Ansible Infrastructure
-
-Server provisioning and configuration:
-
-### Playbook Structure (`playbook.yml`)
-
-Three-stage deployment targeting different host groups:
-
-1. **Common Configuration** (`hosts: all`)
-   - Base system setup, user management, SSH hardening
-   - Tool installation (helix, mise, zsh, btop, broot)
-
-2. **Homeserver Configuration** (`hosts: homeservers`)
-   - MicroK8s cluster setup with configurable addons
-   - Samba file sharing (read-only, tailnet + LAN only)
-   - Syncthing for file synchronization
-   - Media downloader services (yt-dlp, get-iplayer)
-
-3. **Tailnet Integration** (`hosts: tailnet`)
-   - Tailscale VPN connectivity
-
-### Ansible Roles
-
-- **`common/`** - System updates, package installation, SSH hardening
-- **`microk8s/`** - K8s cluster, addons (from config), service accounts, kubeconfig generation
-- **`users/`** - User accounts and SSH key management
-- **`github/`** - GitHub CLI and authentication setup
-- **`tailscale/`** - VPN mesh network connectivity
-- **`nfs/`** - Teardown only. NFS exported every share `rw` to `*`, so anything that could reach 2049 — including cluster pods, via an internet-facing service on the same host — could write all media and `/srv/files`. SMB covers the use case read-only; the role remains so the package stays gone.
-- **`samba/`** - SMB file sharing
-- **`syncthing/`** - P2P file sync service
-- **`downloader/`** - Media download tools (yt-dlp, get-iplayer, aria2)
-- **`helix/`** - Helix editor installation
-- **`mise/`** - Tool version manager installation
-
-### Configuration
-
-- `group_vars/all.yml` - Global variables (username, tailscale settings)
-- `group_vars/homeservers.yml` - MicroK8s addons, syncthing, samba config
-- `group_vars/tailnet.yml` - Tailscale settings
-- `host_vars/oldboy.yml` - Server-specific shares and K8s config
-- `inventory/hosts` - Server inventory (secrets injected at runtime via CI)
-
 ## Container Services
 
 - `containers/files/` - Nginx-based file server with CORS and compression
@@ -207,7 +160,6 @@ Three-stage deployment targeting different host groups:
 ## Utility Scripts
 
 - **`scripts/gen-schemas.ts`** - Converts Zod schemas to JSON Schema format
-- **`scripts/update-secrets`** - Updates GitHub repository secrets from `ansible/github-secrets.json`
 - **`scripts/k3s-node-token`** - Prints the k3s join token, read off the control-plane node through the API. The token exists only on that box and nothing in the stack reads it back, so a privileged pod is the way in until SSH exists
 - **`scripts/make-seed-drive`** - Builds the cloud-init seed drive that provisions a bare-metal node. A node is flashed with Ubuntu's cloud image directly rather than booted from an installer, which avoids betting on the boot order and BIOS password of a second-hand machine; the config arrives separately on a FAT32 volume labelled `CIDATA`, because macOS cannot write the image's ext4 root
 - **`scripts/lima-node`** - Joins a throwaway Lima VM to the cluster as a k3s agent, on the tailnet so the control plane can reach its kubelet back. Exercises the agent join path without hardware

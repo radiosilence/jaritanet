@@ -3,8 +3,7 @@ import { checkCiliumSupport } from "./compat.ts";
 
 /**
  * A Kubernetes control plane on the VPS itself, so one `pulumi up` creates the
- * box, installs k3s and deploys into it — replacing an ansible → CI secrets →
- * workflow round-trip.
+ * box, installs k3s and deploys into it.
  *
  * `cilium` is not optional in practice: k3s is installed with
  * `--flannel-backend=none` so Cilium can own networking, which means the node
