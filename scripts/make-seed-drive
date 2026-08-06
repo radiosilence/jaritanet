@@ -123,6 +123,7 @@ printf 'instance-id: %s-%s\nlocal-hostname: %s\n' \
 
 hostname: $HOSTNAME
 manage_etc_hosts: true
+timezone: ${SEED_TIMEZONE:-Europe/London}
 
 # No \`default\` entry, so the image's stock \`ubuntu\` user is never created.
 users:
@@ -214,6 +215,13 @@ YAML
       -l node-role.kubernetes.io/control-plane \
       -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}')"
     TOKEN="$("$ROOT/scripts/k3s-node-token" "$CONTEXT")"
+    # What this machine is, declared as it joins rather than applied by a human
+    # afterwards — which is the same argument the config makes for selecting on
+    # a label rather than a hostname, carried one step further.
+    LABEL_ARGS=""
+    for label in ${SEED_NODE_LABELS:-}; do
+      LABEL_ARGS="$LABEL_ARGS --node-label $label"
+    done
     cat <<YAML
 
 # One ordered script rather than separate entries, because the steps depend on
@@ -253,7 +261,7 @@ runcmd:
         INSTALL_K3S_VERSION='$VERSION' \\
         K3S_URL='$SERVER' \\
         K3S_TOKEN='$TOKEN' \\
-        INSTALL_K3S_EXEC="agent --node-ip=\$NODE_IP" \\
+        INSTALL_K3S_EXEC="agent --node-ip=\$NODE_IP$LABEL_ARGS" \\
         sh -
 YAML
   fi
