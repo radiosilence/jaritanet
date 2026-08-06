@@ -13,20 +13,107 @@
     "__schema0": {
       "type": "object",
       "properties": {
+        "jaritanet:adminSshKey": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "jaritanet:bluesky": {
+          "type": "object",
+          "properties": {
+            "did": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": ["did"]
+        },
         "jaritanet:cloudflare": {
           "type": "object",
           "properties": {
             "accountId": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "apiToken": {
-              "type": "string",
-              "minLength": 1
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             }
           },
           "required": ["accountId", "apiToken"]
         },
+        "jaritanet:clusterDomain": {
+          "default": "cluster.local",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
         "jaritanet:edges": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
@@ -42,14 +129,56 @@
               },
               "image": {
                 "default": "ubuntu-26.04",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "location": {
                 "default": "hel1",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "name": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "reality": {
                 "default": {
@@ -60,74 +189,376 @@
                 "properties": {
                   "dest": {
                     "default": "www.microsoft.com:443",
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
                   },
                   "serverName": {
                     "default": "www.microsoft.com",
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
                   }
                 }
               },
               "serverType": {
                 "default": "cx23",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "zone": {
                 "default": "radiosilence.dev",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "required": ["name"]
           }
         },
         "jaritanet:exits": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "image": {
                 "default": "ghcr.io/shadowsocks/ssserver-rust:v1.24.0",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "method": {
                 "default": "aes-256-gcm",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "name": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "port": {
                 "type": "number"
               },
               "substrate": {
                 "default": "k8s",
-                "type": "string",
-                "enum": ["k8s"]
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["k8s"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "required": ["name"]
           }
+        },
+        "jaritanet:fastmail": {
+          "type": "object",
+          "properties": {
+            "dkimDomain": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "dkimSubdomain": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "dmarcAggEmail": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "dmarcPolicy": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "dmarcSubdomain": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "mxDomain": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "spfDomain": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "dkimDomain",
+            "dkimSubdomain",
+            "dmarcAggEmail",
+            "dmarcPolicy",
+            "dmarcSubdomain",
+            "mxDomain",
+            "spfDomain"
+          ]
         },
         "jaritanet:gateway": {
           "type": "object",
           "properties": {
             "credentialRotation": {
               "default": "1",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "hcloudToken": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "hysteria": {
               "$ref": "#/$defs/__schema1"
             },
             "name": {
               "default": "sympathy",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "image": {
               "default": "ubuntu-26.04",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "k3s": {
               "type": "object",
@@ -148,26 +579,96 @@
             },
             "location": {
               "default": "nbg1",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "serverType": {
               "default": "cx23",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "tailnet": {
               "type": "object",
               "properties": {
                 "hostname": {
                   "default": "jaritanet-gw",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "image": {
                   "default": "ghcr.io/tailscale/tailscale:v1.98.9",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "tag": {
                   "default": "tag:server",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 }
               }
             },
@@ -179,7 +680,21 @@
               "properties": {
                 "image": {
                   "default": "docker.io/klutchell/unbound:v1.24.0",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 }
               }
             },
@@ -188,7 +703,21 @@
               "properties": {
                 "dest": {
                   "default": "127.0.0.1:8443",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "serverNames": {
                   "minItems": 1,
@@ -199,7 +728,21 @@
                 },
                 "version": {
                   "default": "v26.3.27",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 }
               },
               "required": ["serverNames"]
@@ -211,24 +754,80 @@
           "properties": {
             "nodeLabel": {
               "default": "jaritanet.radiosilence.dev/file-node",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "samba": {
               "type": "object",
               "properties": {
                 "image": {
                   "default": "ghcr.io/servercontainers/samba:smbd-only-a3.24.1-s4.23.8-r0",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "allowedNetworks": {
                   "default": ["100.64.0.0/10", "192.168.0.0/16", "127.0.0.1"],
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
                   }
                 },
                 "guestAccount": {
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "guestUid": {
                   "default": 1000,
@@ -240,7 +839,21 @@
                 },
                 "serverString": {
                   "default": "jaritanet",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "shares": {
                   "minItems": 1,
@@ -251,7 +864,21 @@
                 },
                 "workgroup": {
                   "default": "WORKGROUP",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 }
               },
               "required": ["guestAccount", "shares"]
@@ -261,11 +888,39 @@
               "properties": {
                 "image": {
                   "default": "docker.io/syncthing/syncthing:2.0.13",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "configPath": {
                   "default": "/var/lib/syncthing",
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "folders": {
                   "minItems": 1,
@@ -275,7 +930,21 @@
                   }
                 },
                 "hostname": {
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 },
                 "gid": {
                   "default": 1000,
@@ -290,23 +959,83 @@
             }
           }
         },
+        "jaritanet:managedBy": {
+          "default": "jaritanet",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
         "jaritanet:mcpGateway": {
           "type": "object",
           "properties": {
             "hostname": {
               "default": "",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "authHostname": {
               "default": "",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "image": {
               "$ref": "#/$defs/__schema9"
             },
             "hydraTag": {
               "default": "v2.2.0",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "replicas": {
               "default": 2,
@@ -320,7 +1049,21 @@
               "$ref": "#/$defs/__schema10"
             },
             "postgresStorageClass": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "mcps": {
               "default": [],
@@ -370,27 +1113,184 @@
                 },
                 "required": ["id", "name", "image"]
               }
+            },
+            "github": {
+              "type": "object",
+              "properties": {
+                "allowed": {
+                  "default": "",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "clientId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "clientSecret": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": ["clientId", "clientSecret"]
             }
           },
           "required": ["image"]
         },
-        "jaritanet:traefik": {
-          "type": "object",
-          "properties": {
-            "acmeEmail": {
+        "jaritanet:namespace": {
+          "default": "jaritanet",
+          "anyOf": [
+            {
               "type": "string"
             },
-            "chartVersion": {
-              "default": "41.0.2",
-              "type": "string"
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "jaritanet:profiles": {
+          "type": "object",
+          "properties": {
+            "hostname": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "image": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "telegram": {
+              "type": "object",
+              "properties": {
+                "botToken": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "chatId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": ["botToken", "chatId"]
             }
           },
-          "required": ["acmeEmail"]
+          "required": ["hostname", "image"]
         },
         "jaritanet:services": {
           "type": "object",
           "propertyNames": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "additionalProperties": {
             "type": "object",
@@ -406,10 +1306,38 @@
                     "default": {},
                     "type": "object",
                     "propertyNames": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "secure": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["secure"],
+                          "additionalProperties": false
+                        }
+                      ]
                     },
                     "additionalProperties": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "secure": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["secure"],
+                          "additionalProperties": false
+                        }
+                      ]
                     }
                   },
                   "healthCheck": {
@@ -445,10 +1373,38 @@
                           "type": "object",
                           "properties": {
                             "name": {
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "secure": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["secure"],
+                                  "additionalProperties": false
+                                }
+                              ]
                             },
                             "value": {
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "secure": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["secure"],
+                                  "additionalProperties": false
+                                }
+                              ]
                             }
                           },
                           "required": ["name", "value"]
@@ -462,7 +1418,21 @@
                       },
                       "path": {
                         "default": "/_health",
-                        "type": "string"
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
                       },
                       "periodSeconds": {
                         "default": 10,
@@ -496,26 +1466,82 @@
                       "type": "object",
                       "properties": {
                         "hostPath": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "hostPathType": {
                           "default": "Directory",
-                          "type": "string",
-                          "enum": [
-                            "DirectoryOrCreate",
-                            "Directory",
-                            "FileOrCreate",
-                            "File",
-                            "Socket",
-                            "CharDevice",
-                            "BlockDevice"
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "DirectoryOrCreate",
+                                "Directory",
+                                "FileOrCreate",
+                                "File",
+                                "Socket",
+                                "CharDevice",
+                                "BlockDevice"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
                           ]
                         },
                         "mountPath": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "name": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "readOnly": {
                           "default": true,
@@ -552,27 +1578,111 @@
                       "type": "object",
                       "properties": {
                         "hostPath": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "mountPath": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "name": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "nodeAffinityHostname": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "readOnly": {
                           "default": true,
                           "type": "boolean"
                         },
                         "storage": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         },
                         "storageClassName": {
                           "default": "local-storage",
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "secure": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["secure"],
+                              "additionalProperties": false
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -624,8 +1734,22 @@
                     "properties": {
                       "type": {
                         "default": "RollingUpdate",
-                        "type": "string",
-                        "enum": ["Recreate", "RollingUpdate"]
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": ["Recreate", "RollingUpdate"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
                       }
                     }
                   }
@@ -633,11 +1757,215 @@
                 "required": ["image"]
               },
               "hostname": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "required": ["args"]
           }
+        },
+        "jaritanet:tailnet": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "authKey": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "magicdnsSuffix": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "oauth": {
+              "type": "object",
+              "properties": {
+                "clientId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "clientSecret": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": ["clientId", "clientSecret"]
+            }
+          }
+        },
+        "jaritanet:traefik": {
+          "type": "object",
+          "properties": {
+            "acmeEmail": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "chartVersion": {
+              "default": "41.0.2",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": ["acmeEmail"]
+        },
+        "jaritanet:ubuntuProToken": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "jaritanet:vpnEntryLabel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?\\/[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "jaritanet:vpnUsers": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "jaritanet:zones": {
           "type": "array",
@@ -647,91 +1975,105 @@
               "modules": {
                 "type": "array",
                 "items": {
-                  "type": "string",
-                  "enum": ["bluesky", "fastmail"]
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": ["bluesky", "fastmail"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secure": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["secure"],
+                      "additionalProperties": false
+                    }
+                  ]
                 }
               },
               "name": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "zoneId": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "required": ["modules", "name", "zoneId"]
           }
         },
-        "jaritanet:fastmail": {
-          "type": "object",
-          "properties": {
-            "dkimDomain": {
+        "cloudflare:apiToken": {
+          "anyOf": [
+            {
               "type": "string"
             },
-            "dkimSubdomain": {
-              "type": "string"
-            },
-            "dmarcAggEmail": {
-              "type": "string"
-            },
-            "dmarcPolicy": {
-              "type": "string"
-            },
-            "dmarcSubdomain": {
-              "type": "string"
-            },
-            "mxDomain": {
-              "type": "string"
-            },
-            "spfDomain": {
-              "type": "string"
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "dkimDomain",
-            "dkimSubdomain",
-            "dmarcAggEmail",
-            "dmarcPolicy",
-            "dmarcSubdomain",
-            "mxDomain",
-            "spfDomain"
           ]
         },
-        "jaritanet:bluesky": {
-          "type": "object",
-          "properties": {
-            "did": {
-              "type": "string"
-            }
-          },
-          "required": ["did"]
-        },
-        "cloudflare:apiToken": {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"]
-        },
         "hcloud:token": {
-          "type": "object",
-          "properties": {
-            "secure": {
+          "anyOf": [
+            {
               "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
             }
-          },
-          "required": ["secure"]
+          ]
         }
       },
       "required": [
-        "jaritanet:cloudflare",
-        "jaritanet:gateway",
-        "jaritanet:traefik",
-        "jaritanet:services",
-        "jaritanet:zones",
-        "jaritanet:fastmail",
         "jaritanet:bluesky",
+        "jaritanet:cloudflare",
+        "jaritanet:fastmail",
+        "jaritanet:services",
+        "jaritanet:traefik",
+        "jaritanet:vpnEntryLabel",
+        "jaritanet:zones",
         "cloudflare:apiToken",
         "hcloud:token"
       ]
@@ -748,7 +2090,21 @@
         },
         "image": {
           "default": "docker.io/tobyxdd/hysteria:v2.10.0",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "port": {
           "default": 443,
@@ -756,7 +2112,21 @@
         },
         "sni": {
           "default": "www.bing.com",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         }
       }
     },
@@ -766,27 +2136,111 @@
     },
     "__schema3": {
       "default": "1.20.0",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema4": {
       "default": "v0.20.1",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema5": {
       "default": "v1.36.3+k3s1",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema6": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema7": {
       "type": "object",
       "properties": {
         "name": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "hostPath": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "required": ["name", "hostPath"]
@@ -795,10 +2249,38 @@
       "type": "object",
       "properties": {
         "name": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "hostPath": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "required": ["name", "hostPath"]
@@ -807,13 +2289,55 @@
       "type": "object",
       "properties": {
         "pullPolicy": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "repository": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "tag": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "required": ["repository", "tag"]
@@ -823,28 +2347,112 @@
       "properties": {
         "cpu": {
           "default": "50m",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "memory": {
           "default": "64Mi",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         }
       }
     },
     "__schema11": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema12": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema13": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema14": {
       "default": [],
       "type": "array",
       "items": {
-        "type": "string"
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "secure": {
+                "type": "string"
+              }
+            },
+            "required": ["secure"],
+            "additionalProperties": false
+          }
+        ]
       }
     },
     "__schema15": {
@@ -853,10 +2461,38 @@
     },
     "__schema16": {
       "default": "/mcp",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema17": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema18": {
       "type": "array",
@@ -864,31 +2500,129 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "label": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "header": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "secret": {
             "type": "boolean"
           },
           "default": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "hint": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "required": {
             "type": "boolean"
           },
           "optionsQuery": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           },
           "syncMutation": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "secure": {
+                    "type": "string"
+                  }
+                },
+                "required": ["secure"],
+                "additionalProperties": false
+              }
+            ]
           }
         },
         "required": ["id", "label", "header"]
@@ -898,28 +2632,126 @@
       "type": "boolean"
     },
     "__schema20": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema21": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema22": {
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema23": {
       "type": "object",
       "properties": {
         "query": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "path": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "ok": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         },
         "rejected": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "required": ["query"]
