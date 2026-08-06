@@ -190,6 +190,66 @@ which cgroup owns the socket before anything else.
 Edges keep the SSH path: they have no cluster, and one box per location running
 two daemons is not worth a control plane.
 
+## Keeping k3s current on nodes nothing can reach
+
+The gateway's k3s is installed over SSH, so its version follows
+`Pulumi.main.yaml`. A node joined from a cloud-init seed — `lady`, a Lima VM —
+is installed once and then managed by nothing: Pulumi has no connection to it,
+cannot learn what it is running, and has no mechanism that would ever move it.
+Left alone it sits on whatever was current the day it was flashed, indefinitely,
+inside a cluster whose control plane keeps advancing.
+
+Rancher's **system-upgrade-controller** closes that without needing a route to
+the box. It watches `Plan` CRDs and schedules a privileged Job on each matching
+node that enters the host's namespace, replaces `/usr/local/bin/k3s` and
+restarts the unit — so reach is a consequence of cluster membership. That is
+what makes it fit here rather than the obvious alternative of another
+`command.remote`. A remote command needs a connection, and a connection is
+exactly what a seeded node does not have: Pulumi did not create it, holds no key
+for it, and has no address to reach it at. Break-glass SSH does not help — it
+installs a key on boxes Pulumi already connects to, which is the set that never
+had the problem.
+
+Two plans, since servers and agents cannot move together: the agent plan's
+`prepare` step blocks on the server plan finishing, which is the order
+Kubernetes' version skew policy requires. The server plan **cordons rather than
+drains**. The gateway is the only server, so draining it means evicting every
+workload to nowhere; cordoning takes it out of scheduling while the unit
+restarts and leaves running pods alone. The API is genuinely unavailable for
+that restart. Nothing in the data path depends on it — the transports are
+DaemonSet pods, which neither cordon nor drain evicts, and Traefik holds its
+`hostPort` throughout — so the window costs a deploy that happens to overlap it,
+not traffic.
+
+The version is not automated and should not be: `.github/tracked-versions.yml`
+excludes k3s and Cilium because bumping either changes the thing every other
+entry is deployed onto. What is automated is *arrival*. `k3s.version` stays one
+value driving both a fresh install and the rolling upgrade of everything already
+running, so a bump is a deliberate PR that reaches the whole fleet rather than
+only the node Pulumi happened to install.
+
+Cilium does not ride along: it is a Helm release Pulumi manages, so the two
+versions share a config file and nothing else.
+
+- `k3s.version` → Plan → nodes
+- `k3s.ciliumVersion` → Helm release → cluster
+
+Two paths, one required pairing, and no component positioned to notice they
+disagree — the failure being a cluster that comes up looking healthy and moves
+no packets. So `CILIUM_K8S_SUPPORT` encodes Cilium's e2e-tested Kubernetes range
+per minor and `K3sConfSchema` asserts it while parsing, which makes a half-bump
+a red preview before a single resource is touched. Same reasoning as
+`VPN_ENTRY_LABEL` being required rather than defaulted: when the healthy-looking
+failure is the expensive one, the config surface is where to catch it.
+
+An unknown Cilium minor fails rather than passes. A table that silently accepts
+anything it has not heard of stops being a table.
+
+Writing the table found a pin already outside it, by one Cilium minor, having
+drifted there from a comment that had gone stale. Untested rather than broken,
+and working — which is why a comment could not have caught it and why the check
+is worth the file.
+
 ## Two resolvers, and why they cannot be one
 
 unbound and coredns both answer DNS on this box and are not redundant, because

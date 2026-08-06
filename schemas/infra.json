@@ -126,16 +126,16 @@
               "type": "object",
               "properties": {
                 "apiViaTailnet": {
-                  "default": false,
-                  "type": "boolean"
+                  "$ref": "#/$defs/__schema2"
                 },
                 "ciliumVersion": {
-                  "default": "1.20.0",
-                  "type": "string"
+                  "$ref": "#/$defs/__schema3"
+                },
+                "upgradeControllerVersion": {
+                  "$ref": "#/$defs/__schema4"
                 },
                 "version": {
-                  "default": "v1.36.3+k3s1",
-                  "type": "string"
+                  "$ref": "#/$defs/__schema5"
                 }
               }
             },
@@ -191,7 +191,7 @@
                   "minItems": 1,
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema6"
                   }
                 },
                 "version": {
@@ -243,7 +243,7 @@
                   "minItems": 1,
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/__schema3"
+                    "$ref": "#/$defs/__schema7"
                   }
                 },
                 "workgroup": {
@@ -268,7 +268,7 @@
                   "minItems": 1,
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/__schema4"
+                    "$ref": "#/$defs/__schema8"
                   }
                 },
                 "hostname": {
@@ -299,7 +299,7 @@
               "type": "string"
             },
             "image": {
-              "$ref": "#/$defs/__schema5"
+              "$ref": "#/$defs/__schema9"
             },
             "hydraTag": {
               "default": "v2.2.0",
@@ -314,7 +314,7 @@
                 "cpu": "500m",
                 "memory": "256Mi"
               },
-              "$ref": "#/$defs/__schema6"
+              "$ref": "#/$defs/__schema10"
             },
             "postgresStorageClass": {
               "type": "string"
@@ -326,43 +326,43 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "$ref": "#/$defs/__schema7"
-                  },
-                  "name": {
-                    "$ref": "#/$defs/__schema8"
-                  },
-                  "image": {
-                    "$ref": "#/$defs/__schema9"
-                  },
-                  "args": {
-                    "$ref": "#/$defs/__schema10"
-                  },
-                  "port": {
                     "$ref": "#/$defs/__schema11"
                   },
-                  "path": {
+                  "name": {
                     "$ref": "#/$defs/__schema12"
                   },
-                  "credentialHeader": {
+                  "image": {
                     "$ref": "#/$defs/__schema13"
                   },
-                  "fields": {
+                  "args": {
                     "$ref": "#/$defs/__schema14"
                   },
-                  "public": {
+                  "port": {
                     "$ref": "#/$defs/__schema15"
                   },
-                  "graphqlPath": {
+                  "path": {
                     "$ref": "#/$defs/__schema16"
                   },
-                  "keyHelpUrl": {
+                  "credentialHeader": {
                     "$ref": "#/$defs/__schema17"
                   },
-                  "keyHint": {
+                  "fields": {
                     "$ref": "#/$defs/__schema18"
                   },
-                  "verify": {
+                  "public": {
                     "$ref": "#/$defs/__schema19"
+                  },
+                  "graphqlPath": {
+                    "$ref": "#/$defs/__schema20"
+                  },
+                  "keyHelpUrl": {
+                    "$ref": "#/$defs/__schema21"
+                  },
+                  "keyHint": {
+                    "$ref": "#/$defs/__schema22"
+                  },
+                  "verify": {
+                    "$ref": "#/$defs/__schema23"
                   }
                 },
                 "required": ["id", "name", "image"]
@@ -537,10 +537,10 @@
                     "type": "boolean"
                   },
                   "image": {
-                    "$ref": "#/$defs/__schema5"
+                    "$ref": "#/$defs/__schema9"
                   },
                   "limits": {
-                    "$ref": "#/$defs/__schema6"
+                    "$ref": "#/$defs/__schema10"
                   },
                   "persistence": {
                     "default": [],
@@ -758,21 +758,25 @@
       }
     },
     "__schema2": {
-      "type": "string"
+      "default": false,
+      "type": "boolean"
     },
     "__schema3": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "hostPath": {
-          "type": "string"
-        }
-      },
-      "required": ["name", "hostPath"]
+      "default": "1.20.0",
+      "type": "string"
     },
     "__schema4": {
+      "default": "v0.20.1",
+      "type": "string"
+    },
+    "__schema5": {
+      "default": "v1.36.3+k3s1",
+      "type": "string"
+    },
+    "__schema6": {
+      "type": "string"
+    },
+    "__schema7": {
       "type": "object",
       "properties": {
         "name": {
@@ -784,7 +788,19 @@
       },
       "required": ["name", "hostPath"]
     },
-    "__schema5": {
+    "__schema8": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "hostPath": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "hostPath"]
+    },
+    "__schema9": {
       "type": "object",
       "properties": {
         "pullPolicy": {
@@ -799,7 +815,7 @@
       },
       "required": ["repository", "tag"]
     },
-    "__schema6": {
+    "__schema10": {
       "type": "object",
       "properties": {
         "cpu": {
@@ -812,34 +828,34 @@
         }
       }
     },
-    "__schema7": {
-      "type": "string"
-    },
-    "__schema8": {
-      "type": "string"
-    },
-    "__schema9": {
-      "type": "string"
-    },
-    "__schema10": {
-      "default": [],
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
     "__schema11": {
-      "default": 8080,
-      "type": "number"
+      "type": "string"
     },
     "__schema12": {
-      "default": "/mcp",
       "type": "string"
     },
     "__schema13": {
       "type": "string"
     },
     "__schema14": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "__schema15": {
+      "default": 8080,
+      "type": "number"
+    },
+    "__schema16": {
+      "default": "/mcp",
+      "type": "string"
+    },
+    "__schema17": {
+      "type": "string"
+    },
+    "__schema18": {
       "type": "array",
       "items": {
         "type": "object",
@@ -875,19 +891,19 @@
         "required": ["id", "label", "header"]
       }
     },
-    "__schema15": {
+    "__schema19": {
       "type": "boolean"
     },
-    "__schema16": {
+    "__schema20": {
       "type": "string"
     },
-    "__schema17": {
+    "__schema21": {
       "type": "string"
     },
-    "__schema18": {
+    "__schema22": {
       "type": "string"
     },
-    "__schema19": {
+    "__schema23": {
       "type": "object",
       "properties": {
         "query": {

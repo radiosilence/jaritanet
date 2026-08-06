@@ -110,7 +110,17 @@
   path: [config, "jaritanet:gateway", unbound, image]
   value: "docker.io/klutchell/unbound:v{version}"
 
+# What carries k3s upgrades to nodes Pulumi never installed. The controller
+# itself is an ordinary component — it is the k3s version in the Plans it reads
+# that is a judgement, not this.
+- app: System Upgrade Controller
+  repo: rancher/system-upgrade-controller
+  path: [config, "jaritanet:gateway", k3s, upgradeControllerVersion]
+  value: "v{version}"
+  image: "docker.io/rancher/system-upgrade-controller:v{version}"
+
 # Deliberately absent: k3s and Cilium. Cilium's version has to match the
 # cluster's k8s minor, and k3s is the cluster — bumping either unattended
 # changes the thing every other entry is deployed onto. They move by hand,
-# together, with the compatibility matrix open.
+# together, with the compatibility matrix open — and CILIUM_K8S_SUPPORT fails
+# the parse if a bump only moves one of them.

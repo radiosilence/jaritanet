@@ -3,7 +3,7 @@ import {
   createFastmailRecords,
   createServiceRecord,
 } from "@jaritanet/dns";
-import { createCilium } from "@jaritanet/hetzner";
+import { createCilium, createK3sUpgrades } from "@jaritanet/hetzner";
 import { createSamba, createSyncthing } from "@jaritanet/home";
 import {
   createIngress,
@@ -221,6 +221,14 @@ export default async function () {
           gatewayK3s.install,
         ])
       : undefined;
+
+  // Carries `k3s.version` to nodes Pulumi never installed — a seeded agent has
+  // no SSH connection here and would otherwise stay on whatever it was flashed
+  // with forever. Gated on the CNI because the controller is an ordinary
+  // Deployment and stays Pending without one.
+  if (gatewayConf?.k3s && cilium) {
+    createK3sUpgrades(provider, gatewayConf.k3s, [cilium]);
+  }
 
   // Every resource below takes its namespace from this output rather than the
   // bare string, so Pulumi orders them after it. With a literal there is no
