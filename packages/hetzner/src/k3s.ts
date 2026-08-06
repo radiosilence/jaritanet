@@ -43,8 +43,56 @@ export function createK3s(
   // back. k3s calls all three `default`; this package does not know what the
   // cluster is, so the caller says.
   clusterName = "default",
+  // Ordering only: the node's address comes from tailscaled, so it must be up
+  // and authenticated before k3s starts.
+  dependsOn: pulumi.Resource[] = [],
 ) {
   const p = resourcePrefix(name);
+
+  // k3s reads this at startup, which is why the address lands here rather than
+  // in the installer's flags: re-running the installer regenerates the
+  // kubeconfig below, and a changed kubeconfig replaces the Kubernetes provider
+  // and with it every resource in the cluster — a full teardown to change one
+  // flag.
+  //
+  // `node-ip` is the box's tailnet address. Cilium tunnels pod traffic to
+  // whatever a node reports as its InternalIP, and the home node is behind NAT
+  // with no forwarded ports, so its tailnet address is the only one that can be
+  // reached at all. Both ends must agree or the encapsulated packets are
+  // addressed somewhere they cannot land.
+  //
+  // Read on the box rather than passed in: this program never learns the
+  // address, and reading it here means a node that re-registers with a new one
+  // corrects itself on the next deploy instead of silently disagreeing.
+  //
+  // The public address stays in `tls-san` so the API is still reachable there
+  // for CI and for a human whose tailnet is the thing that broke.
+  const nodeConfig = new command.remote.Command(
+    `${p}k3s-node-config`,
+    {
+      connection,
+      create: pulumi.interpolate`set -euo pipefail
+NODE_IP="$(tailscale ip -4 2>/dev/null | head -1)"
+if [ -z "$NODE_IP" ]; then
+  echo "tailscale reports no IPv4 address — cannot set node-ip" >&2
+  exit 1
+fi
+mkdir -p /etc/rancher/k3s
+cat > /etc/rancher/k3s/config.yaml << EOF
+node-ip: "$NODE_IP"
+tls-san:
+  - "${apiHost}"
+  - "${server.ipv4Address}"
+EOF
+# Only meaningful where k3s is already running; on a fresh box the installer
+# below reads the file at first start and this is a no-op.
+if systemctl is-active --quiet k3s; then
+  systemctl restart k3s
+fi`,
+      triggers: [pulumi.output(apiHost), server.ipv4Address, "node-ip-v1"],
+    },
+    { dependsOn: [server, ...dependsOn] },
+  );
 
   const install = new command.remote.Command(
     `${p}k3s-install`,
@@ -115,7 +163,7 @@ cat /etc/rancher/k3s/k3s.yaml`,
       triggers: [k3s.version, pulumi.output(apiHost), "resolv-conf-v1"],
     },
     {
-      dependsOn: [server],
+      dependsOn: [server, nodeConfig],
       // This command's stdout ends with the kubeconfig, which carries a
       // cluster-admin client certificate and key. Pulumi persists every
       // resource output to state, so without this it is stored in the clear.

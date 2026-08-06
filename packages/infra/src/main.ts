@@ -16,7 +16,6 @@ import {
   createExit,
   createHysteria,
   createProfileServer,
-  createTailscale,
   createUnbound,
   createXray,
   deriveExitPort,
@@ -263,6 +262,9 @@ export default async function () {
   createRedirectMiddleware(provider, nsName, traefikRelease);
 
   // --- The gateway's own transports, in the cluster on the box they front ---
+  // Tailscale is not among them: pod networking is addressed by tailnet IP, so
+  // it has to exist before the cluster does — see createGateway.
+  //
   // All hostNetwork, so xray owns the host's :443 and relays anything that is
   // not a VPN client to 127.0.0.1:8443 — Traefik's hostPort, just above. That
   // loopback only means the host's when the pod shares its netns, which is also
@@ -279,17 +281,6 @@ export default async function () {
       conf.vpnEntryLabel,
       transportDeps,
     );
-
-    if (gatewayConf.tailnet && conf.tailnet.authKey) {
-      createTailscale(
-        provider,
-        nsName,
-        gatewayConf.tailnet,
-        pulumi.secret(conf.tailnet.authKey),
-        conf.vpnEntryLabel,
-        transportDeps,
-      );
-    }
 
     if (gatewayConf.xray) {
       const t = createXray(
