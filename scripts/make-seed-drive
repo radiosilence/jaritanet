@@ -176,6 +176,12 @@ YAML
   # A media drive, by label rather than device: USB enumeration order is not
   # stable, and pointing a library at whatever came up first is its own bad day.
   #
+  # `x-systemd.automount` so the mount is attempted when something first
+  # touches the path, not only at boot. fstab tries once: a drive still
+  # spinning up during a cold start misses its window and stays unmounted until
+  # somebody reboots — which is the opposite of coming back on its own. On
+  # access it simply mounts late, and kubelet retries a Pending pod anyway.
+  #
   # Pass 0: no boot-time fsck. btrfs has none to run — `btrfs check` is an
   # offline tool that is explicitly not meant to be automated — and it recovers
   # on mount from its own log.
@@ -191,7 +197,7 @@ YAML
     cat <<YAML
 
 mounts:
-  - [ "LABEL=$SEED_MOUNT_LABEL", "${SEED_MOUNT_POINT:-/mnt/kontent}", auto, "defaults,nofail,x-systemd.device-timeout=10", "0", "0" ]
+  - [ "LABEL=$SEED_MOUNT_LABEL", "${SEED_MOUNT_POINT:-/mnt/kontent}", auto, "defaults,nofail,x-systemd.automount,x-systemd.device-timeout=60", "0", "0" ]
 YAML
   fi
 
