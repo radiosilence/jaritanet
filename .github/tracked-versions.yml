@@ -103,8 +103,9 @@
 # The image repo and the release repo are different projects here: klutchell
 # builds the container and cuts no GitHub releases, so it was unreadable and
 # failed the whole run. Upstream tags "release-1.25.2", which normalises to the
-# tag the image actually carries. If the build ever lags upstream the image
-# check catches it — that is what the check is for.
+# tag the image actually carries. The build lags upstream routinely, which the
+# image check reports and holds the pin for — a warning, not a failure, since
+# waiting is the only correct response to it.
 - app: Unbound
   repo: NLnetLabs/unbound
   path: [config, "jaritanet:gateway", unbound, image]

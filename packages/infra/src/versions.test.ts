@@ -136,7 +136,7 @@ describe("decide", () => {
     });
   });
 
-  it("stays put when the release exists but its image does not", () => {
+  it("stays put, without failing the run, when the release exists but its image does not", () => {
     const decision = decide({
       ...base,
       current: "1.2.2",
@@ -144,9 +144,9 @@ describe("decide", () => {
       exists: false,
     });
     expect(decision).toEqual({
-      kind: "problem",
+      kind: "lagging",
       reason:
-        "released v1.2.3 but o/r:1.2.3 is not in the registry; staying on 1.2.2",
+        "released v1.2.3 but o/r:1.2.3 is not in the registry yet; staying on 1.2.2",
     });
   });
 
@@ -157,6 +157,22 @@ describe("decide", () => {
       kind: "problem",
       reason: "pinned to o/r:1.2.3, which is not in the registry",
     });
+  });
+
+  it("separates the two missing images: only the pinned one is a problem", () => {
+    const lagging = decide({
+      ...base,
+      current: "1.2.2",
+      ref: "o/r:1.2.3",
+      exists: false,
+    });
+    const broken = decide({
+      ...base,
+      current: "1.2.3",
+      ref: "o/r:1.2.3",
+      exists: false,
+    });
+    expect([lagging.kind, broken.kind]).toEqual(["lagging", "problem"]);
   });
 
   it("is up to date when the value already matches", () => {

@@ -228,6 +228,10 @@ for (const entry of entries) {
     failed.push(entry.app);
     continue;
   }
+  if (decision.kind === "lagging") {
+    warn(`${entry.app} — ${decision.reason}`);
+    continue;
+  }
   if (decision.kind === "up-to-date") {
     log(`${entry.app} — up to date (${decision.current})`);
     continue;
@@ -262,6 +266,9 @@ if (titles.length === 0) {
 }
 
 if (failed.length > 0) {
-  process.stdout.write(`::error::could not check: ${failed.join(" ")}\n`);
+  // Only entries something here can act on reach this: a release that cannot be
+  // read, a path the config moved out from under, a pin that no longer resolves.
+  // An upstream whose image has not published yet warns and is not counted.
+  process.stdout.write(`::error::needs attention: ${failed.join(" ")}\n`);
   process.exitCode = 1;
 }
