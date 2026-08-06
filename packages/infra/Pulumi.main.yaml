@@ -206,6 +206,26 @@ config:
   # the loopback port is auto-derived from the name.
   # None until a second node exists, at which point an exit is just a pod on it
   # with no tunnel involved.
+  # What lady serves off the media drive. Shares are anonymous — `map to guest`
+  # turns unknown users into `guestAccount`, which must own the files or every
+  # read fails — and reachable only from the tailnet and the LAN, never the
+  # internet. jc owns /mnt/kontent, and is uid/gid 1000 on the node.
+  #
+  # Paths are under the mount, so an unmounted drive means the hostPath type
+  # `Directory` finds nothing and the pod stays Pending rather than serving an
+  # empty share.
+  jaritanet:home:
+    samba:
+      guestAccount: jc
+      shares:
+        - name: music
+          hostPath: /mnt/kontent/music
+        - name: movies
+          hostPath: /mnt/kontent/movies
+        - name: tv
+          hostPath: /mnt/kontent/tv
+        - name: dl
+          hostPath: /mnt/kontent/dl
   jaritanet:exits: []
   jaritanet:services:
     navidrome:
