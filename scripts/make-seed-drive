@@ -156,5 +156,9 @@ YAML
 chmod 600 "$VOL/user-data"
 python3 -c "import yaml,sys; yaml.safe_load(open('$VOL/user-data'))" \
   && echo "user-data parses as YAML"
-diskutil eject "$DEVICE"
-echo "seed for '$HOSTNAME' written; $DEVICE ejected"
+
+# Left mounted so the result can be read back — a seed is worth looking at
+# before it is the only thing standing between a box and a working node. Flushed
+# rather than ejected, so what is on the volume is what is on the flash.
+sync
+echo "seed for '$HOSTNAME' written to $VOL — inspect it, then eject before pulling"
