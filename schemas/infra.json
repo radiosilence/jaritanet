@@ -421,7 +421,7 @@
                         "type": "boolean"
                       },
                       "enableStartup": {
-                        "default": false,
+                        "default": true,
                         "type": "boolean"
                       },
                       "failureThreshold": {
