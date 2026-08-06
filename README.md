@@ -75,8 +75,7 @@ choices and the `:443` multiplexing.
 ### The gateway is not optional any more
 
 `HCLOUD_TOKEN` and `gateway.k3s` are both required: the cluster runs on the VPS
-the token provisions, so there is no cluster without it. The older direct mode —
-DNS pointed at a home box serving Traefik on hostPort 443 — went with oldboy.
+the token provisions, so there is no cluster without it.
 
 | | |
 |---|---|
@@ -117,9 +116,8 @@ jaritanet:exits:
 - **`port`** (the gateway loopback port) is derived from the name; set it only
   to resolve a rare hash collision.
 
-Currently empty. The exit that existed egressed oldboy's residential IP, and
-that machine is retired; `lady` can take the role when it arrives, since an
-exit only needs to be somewhere with an interesting address.
+Currently empty. `lady` can take the role once it joins — an exit only needs to
+be somewhere with an interesting address.
 
 **`edges`** — optional *additional* entry gateways (hy2 + REALITY), appearing in
 `entry-select`. Not needed with a single gateway; see

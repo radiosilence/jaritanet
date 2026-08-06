@@ -260,7 +260,7 @@ describe("service template", () => {
               hostPath: "/mnt/music",
               mountPath: "/music",
               readOnly: true,
-              nodeAffinityHostname: "oldboy",
+              nodeAffinityHostname: "lady",
             },
             {
               name: "data",
@@ -268,7 +268,7 @@ describe("service template", () => {
               hostPath: "/home/nd/data",
               mountPath: "/data",
               readOnly: false,
-              nodeAffinityHostname: "oldboy",
+              nodeAffinityHostname: "lady",
             },
           ],
           ...over,

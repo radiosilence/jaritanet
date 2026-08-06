@@ -30,13 +30,10 @@ const COMMENT_LIMIT = 60_000;
 const CONFIG_FROM_ENV = {
   "jaritanet:cloudflare.accountId": "CLOUDFLARE_ACCOUNT_ID",
   "jaritanet:traefik.acmeEmail": "ACME_EMAIL",
-  // navidrome and files lived on oldboy, which is retired. Their config stays
-  // in Pulumi.main.yaml with a blank hostname — which main.ts skips — so it is
-  // ready for `lady` without being deployed onto a node that cannot host it:
-  // both pin volumes to `nodeAffinityHostname: oldboy`, so scheduling them
-  // anywhere else leaves a pod Pending until the deploy times out.
-  //
-  // Commented rather than deleted: uncomment when the disk has a machine again.
+  // navidrome and files keep their config with a blank hostname, which main.ts
+  // skips. Their volumes pin to `lady`, the machine physically holding the
+  // disk, so deploying them before it joins leaves a pod Pending until the
+  // deploy times out. Uncomment when the disk has a machine again.
   "jaritanet:services.blit.hostname": "BLIT_HOSTNAME",
   "jaritanet:mcpGateway.hostname": "MCP_HOSTNAME",
   "jaritanet:mcpGateway.authHostname": "MCP_AUTH_HOSTNAME",

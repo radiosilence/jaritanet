@@ -204,9 +204,8 @@ config:
   # just ss-rust + rathole; the gateway reaches it over the rathole tunnel.
   # `name` is all you set (drives the picker tag exit-<name> + resource names);
   # the loopback port is auto-derived from the name.
-  # Exits were ss-rust in the home cluster, reached over rathole. oldboy is
-  # retired, so there are none until a second node exists — at which point an
-  # exit is just a pod on it, with no tunnel involved.
+  # None until a second node exists, at which point an exit is just a pod on it
+  # with no tunnel involved.
   jaritanet:exits: []
   jaritanet:services:
     navidrome:
@@ -257,20 +256,20 @@ config:
           key: kubernetes.io/hostname
           operator: In
           values:
-            - oldboy
+            - lady
         persistence:
           - name: music
             storage: 2Ti
             hostPath: /mnt/kontent/music
             mountPath: /music
             readOnly: true
-            nodeAffinityHostname: oldboy
+            nodeAffinityHostname: lady
           - name: data
             storage: 20Gi
             hostPath: /home/navidrome/data
             mountPath: /data
             readOnly: false
-            nodeAffinityHostname: oldboy
+            nodeAffinityHostname: lady
     files:
       hostname: ''
       args:
@@ -303,14 +302,14 @@ config:
           key: kubernetes.io/hostname
           operator: In
           values:
-            - oldboy
+            - lady
         persistence:
           - name: files
             storage: 20Mi
             hostPath: /srv/files
             mountPath: /srv/files
             readOnly: true
-            nodeAffinityHostname: oldboy
+            nodeAffinityHostname: lady
     blit:
       hostname: ''
       args:

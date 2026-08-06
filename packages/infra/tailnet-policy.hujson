@@ -16,7 +16,7 @@
 // The catch worth understanding before tightening: the gateway is a *relay*, so
 // whatever it cannot reach, you cannot reach over the VPN either. The right
 // question is not "how locked down can this be" but "what do I actually use the
-// tunnel to reach" — likely oldboy on a handful of ports.
+// tunnel to reach" — likely the home node on a handful of ports.
 {
 	"tagOwners": {
 		// The gateway wants its own tag. It currently joins as tag:server, which

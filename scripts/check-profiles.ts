@@ -55,7 +55,7 @@ const node = {
 };
 const edge = { ...node, name: "helsinki", server: "5.6.7.8" };
 const exits = [
-  { name: "oldboy", port: 9000, method: "aes-128-gcm", password: "ss-psk" },
+  { name: "home", port: 9000, method: "aes-128-gcm", password: "ss-psk" },
 ];
 
 const profiles = [
