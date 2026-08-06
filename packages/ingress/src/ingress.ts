@@ -38,6 +38,17 @@ export function createIngress(
     "traefik",
     {
       chart: "traefik",
+      // Helm defaults to 300s, which is enough on a warm cluster and not enough
+      // on a cold one: a freshly built node is pulling every image for the first
+      // time with Cilium seconds old underneath it, and Traefik has to bind
+      // hostPorts before it reports ready. Measured at just over five minutes on
+      // a new box — so the default fails by a margin small enough to look random.
+      //
+      // The failure is worse than a slow deploy. Helm marks the release failed
+      // and Pulumi aborts the update, while the pod goes healthy moments later:
+      // the stack ends up half applied, with the thing it gave up on running
+      // perfectly well and everything downstream of it missing.
+      timeout: 900,
       namespace,
       repositoryOpts: {
         repo: "https://traefik.github.io/charts",
