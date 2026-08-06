@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { checkCiliumSupport } from "./compat.ts";
 
 /**
  * A Kubernetes control plane on the VPS itself, so one `pulumi up` creates the
@@ -11,25 +12,52 @@ import * as z from "zod";
  * has no policy engine, so every NetworkPolicy is inert under it
  * (see docs/architecture.md).
  *
- * Cilium's version has to match the cluster's: 1.19 supports k8s 1.33–1.36,
- * 1.18 supports 1.30–1.33. Moving `version` without checking that is how you
- * get a cluster with no working network.
+ * Cilium's version has to match the cluster's, and `version` and `ciliumVersion`
+ * reach the fleet by entirely separate paths — an install argument and an
+ * upgrade Plan against the nodes, a Helm chart version against the cluster — so
+ * only this schema is in a position to notice they disagree. `CILIUM_K8S_SUPPORT`
+ * holds the table and parsing enforces it, which makes a half-bump a red preview
+ * before a single resource is touched.
  */
-export const K3sConfSchema = z.object({
-  /**
-   * Reach the API server over the tailnet rather than the public IP.
-   *
-   * The tailnet is the better answer — a control plane with no public listener
-   * at all — but it puts an ephemeral CI node's ability to join a mesh on the
-   * critical path of every deploy, and that has proven flaky. With this off the
-   * kubeconfig points at the public IP and the firewall opens 6443, which is
-   * how most managed clusters expose it: TLS with client-cert auth, no
-   * anonymous access.
-   *
-   * The certificate covers whichever is chosen, so verification is real either
-   * way — this never falls back to skipping TLS checks.
-   */
-  apiViaTailnet: z.boolean().default(false),
-  ciliumVersion: z.string().default("1.19.6"),
-  version: z.string().default("v1.36.2+k3s1"),
-});
+export const K3sConfSchema = z
+  .object({
+    /**
+     * Reach the API server over the tailnet rather than the public IP.
+     *
+     * The tailnet is the better answer — a control plane with no public listener
+     * at all — but it puts an ephemeral CI node's ability to join a mesh on the
+     * critical path of every deploy, and that has proven flaky. With this off the
+     * kubeconfig points at the public IP and the firewall opens 6443, which is
+     * how most managed clusters expose it: TLS with client-cert auth, no
+     * anonymous access.
+     *
+     * The certificate covers whichever is chosen, so verification is real either
+     * way — this never falls back to skipping TLS checks.
+     */
+    apiViaTailnet: z.boolean().default(false),
+    ciliumVersion: z.string().default("1.20.0"),
+    /**
+     * Rancher's system-upgrade-controller, which carries `version` to every
+     * node — including ones Pulumi has no SSH to. Mechanical to bump, so the
+     * version updater tracks it; see .github/tracked-versions.yml.
+     */
+    upgradeControllerVersion: z.string().default("v0.20.1"),
+    version: z.string().default("v1.36.2+k3s1"),
+  })
+  // `.check` rather than `.superRefine`: the latter wraps the object in a pipe,
+  // which makes every field look reused to `z.toJSONSchema` and turns the
+  // generated schema into `$ref`s for no gain.
+  .check((ctx) => {
+    const problem = checkCiliumSupport(
+      ctx.value.ciliumVersion,
+      ctx.value.version,
+    );
+    if (problem) {
+      ctx.issues.push({
+        code: "custom",
+        input: ctx.value,
+        message: problem,
+        path: ["ciliumVersion"],
+      });
+    }
+  });
