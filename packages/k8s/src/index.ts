@@ -1,8 +1,14 @@
 export {
+  AbsolutePath,
+  Hostname,
+  HostPort,
   HostVolumeSchema,
   ImageSchema,
+  LabelKey,
   LimitsSchema,
   PersistenceSchema,
+  Port,
+  Quantity,
   SecurityContextSchema,
   StrategySchema,
 } from "./schemas.ts";

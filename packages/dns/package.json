@@ -14,6 +14,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@jaritanet/k8s": "workspace:*",
     "@pulumi/cloudflare": "6.15.0",
     "@pulumi/pulumi": "3.239.0",
     "zod": "4.4.3"
