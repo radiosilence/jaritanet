@@ -19,13 +19,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# Ansible
-*.retry
-.vault_pass
-secrets/*.yml
-!secrets/README.md
-runtime.yml
-
 mise.local.toml
 
 node_modules

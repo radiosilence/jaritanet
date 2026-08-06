@@ -191,10 +191,6 @@ export default async function () {
   // The cluster runs on the gateway itself, and the same `pulumi up` that
   // creates the server produces this kubeconfig — no secret round-trip, and
   // nothing for a human to rotate. See modules/k3s.ts.
-  //
-  // Replaces a hand-built kubeconfig pointing at microk8s on the home box,
-  // which reached it with a service-account token ansible pushed into GitHub
-  // secrets and trusted whatever certificate it was handed.
   if (!gatewayK3s) {
     throw new Error("gateway.k3s is required: it provides the cluster");
   }

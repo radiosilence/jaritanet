@@ -10,11 +10,5 @@
   "arrowParens": "always",
   "bracketSameLine": false,
   "bracketSpacing": true,
-  "ignorePatterns": [
-    "./schemas",
-    "**/*.md",
-    "**/*.yml",
-    "**/*.yaml",
-    "ansible/**"
-  ]
+  "ignorePatterns": ["./schemas", "**/*.md", "**/*.yml", "**/*.yaml"]
 }
