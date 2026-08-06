@@ -311,7 +311,7 @@ config:
           timeoutSeconds: 10
         limits:
           cpu: 2000m
-          memory: 8Gi
+          memory: 4Gi
         nodeSelector:
           key: kubernetes.io/hostname
           operator: In
