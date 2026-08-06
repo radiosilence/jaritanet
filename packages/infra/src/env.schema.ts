@@ -71,7 +71,6 @@ export const EnvSchema = z.object({
   // optional — absent any of them, delivery is skipped. Telegram is optional
   // on top (notify only). Generic inputs get generic names; only the profile
   // slug is sing-box-specific.
-  SINGBOX_SLUG: z.string().optional(),
   TAILNET_MAGICDNS_SUFFIX: z.string().optional(),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
