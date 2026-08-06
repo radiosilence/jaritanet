@@ -38,16 +38,8 @@ export function createIngress(
     "traefik",
     {
       chart: "traefik",
-      // Helm defaults to 300s, which is enough on a warm cluster and not enough
-      // on a cold one: a freshly built node is pulling every image for the first
-      // time with Cilium seconds old underneath it, and Traefik has to bind
-      // hostPorts before it reports ready. Measured at just over five minutes on
-      // a new box — so the default fails by a margin small enough to look random.
-      //
-      // The failure is worse than a slow deploy. Helm marks the release failed
-      // and Pulumi aborts the update, while the pod goes healthy moments later:
-      // the stack ends up half applied, with the thing it gave up on running
-      // perfectly well and everything downstream of it missing.
+      // Above the 300s default, so a cold cluster pulling every image for the
+      // first time isn't cut off. A timeout here fails the whole update.
       timeout: 900,
       namespace,
       repositoryOpts: {
@@ -72,7 +64,11 @@ export function createIngress(
           },
         },
         service: {
-          type: "ClusterIP",
+          // `service.spec.type`, not `service.type` — same trap as
+          // updateStrategy below. Left at the chart's LoadBalancer default it
+          // never gets an address (k3s runs --disable=servicelb) and Helm waits
+          // for one until it times out. hostPorts mean no load balancer is needed.
+          spec: { type: "ClusterIP" },
         },
         // ACME certificate resolver using Cloudflare DNS-01
         additionalArguments: [
