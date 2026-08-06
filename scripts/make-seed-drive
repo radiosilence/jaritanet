@@ -146,6 +146,24 @@ write_files:
       Unattended-Upgrade::Automatic-Reboot-Time "04:00";
 YAML
 
+  # Livepatch applies high and critical kernel CVE fixes to the *running*
+  # kernel, which is the half of the problem a reboot window cannot solve: a
+  # patched kernel sitting on disk unbooted is an unpatched kernel, and the gap
+  # is exactly where local privilege escalation lives. The two are
+  # complementary — livepatch closes the worst class within hours, the reboot
+  # picks up everything else. Attached here rather than afterwards because
+  # `pro attach` over SSH is one more thing to remember on a box that is
+  # supposed to arrive finished.
+  if [[ -n "${SEED_PRO_TOKEN_FILE:-}" ]]; then
+    cat <<YAML
+
+ubuntu_pro:
+  token: $(< "$SEED_PRO_TOKEN_FILE")
+  enable:
+    - livepatch
+YAML
+  fi
+
   if $JOIN; then
     SERVER="$(kubectl --context "$CONTEXT" config view --minify \
       -o jsonpath='{.clusters[0].cluster.server}')"
