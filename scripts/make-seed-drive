@@ -46,6 +46,12 @@ JOIN=true
 USER_NAME="${SEED_USER:-jc}"
 CONTEXT="${KUBE_CONTEXT:-jaritanet}"
 
+# Non-ephemeral (an ephemeral node is dropped from the tailnet when it goes
+# offline, taking the address kubelet advertises with it) and tagged, since
+# tagged nodes have no key expiry — otherwise the node silently leaves the
+# tailnet months later and the control plane loses its route to the kubelet.
+$JOIN && : "${TS_AUTHKEY:?set TS_AUTHKEY to a non-ephemeral, tagged tailscale auth key}"
+
 # Refuse anything that is not an external disk. The failure mode this guards
 # against is unrecoverable, and `diskutil list` numbering shifts between boots.
 if ! diskutil info "$DEVICE" | grep -q "Device Location:.*External"; then
@@ -107,19 +113,40 @@ YAML
     TOKEN="$(scripts/k3s-node-token "$CONTEXT")"
     cat <<YAML
 
-# Pinned to the server's version rather than left to \`latest\`, so a release
-# landing between now and first boot cannot put the agent ahead of the control
-# plane. No VPN entry label: which machine serves an entry is a property of that
-# machine, and this one is a workload node.
+# One ordered script rather than separate entries, because the steps depend on
+# each other and \`set -e\` then stops the whole thing at the first failure. That
+# matters more than usual here: runcmd is gated by instance-id and never runs
+# again, so a node that joins with the wrong address stays wrong. Better to
+# arrive with no k3s at all, which is obvious and fixable at the console.
+#
+# Tailscale first, because \`--node-ip\` needs the address it hands out. The node
+# is behind NAT: it dials the API server outbound fine, but kubelet is reached
+# the other way, control plane to node on :10250, and an address only routable
+# on the home LAN makes \`kubectl logs\` and \`exec\` hang rather than fail.
+#
+# The k3s version is pinned to the server's rather than left to \`latest\`, so a
+# release landing between now and first boot cannot put the agent ahead of the
+# control plane. No VPN entry label and no taint: which machine serves a VPN
+# entry is a property of that machine, and this one is a workload node.
 runcmd:
   - - sh
     - -c
-    - >-
-      curl -sfL https://get.k3s.io
-      | INSTALL_K3S_VERSION=$VERSION
-      K3S_URL=$SERVER
-      K3S_TOKEN=$TOKEN
-      sh -
+    - |
+      set -eu
+      curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/\$(lsb_release -cs).noarmor.gpg" \\
+        > /usr/share/keyrings/tailscale-archive-keyring.gpg
+      curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/\$(lsb_release -cs).tailscale-keyring.list" \\
+        > /etc/apt/sources.list.d/tailscale.list
+      apt-get update -qq
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tailscale
+      tailscale up --auth-key='$TS_AUTHKEY' --hostname='$HOSTNAME' --accept-dns=false
+      NODE_IP="\$(tailscale ip -4)"
+      curl -sfL https://get.k3s.io | \\
+        INSTALL_K3S_VERSION='$VERSION' \\
+        K3S_URL='$SERVER' \\
+        K3S_TOKEN='$TOKEN' \\
+        INSTALL_K3S_EXEC="agent --node-ip=\$NODE_IP" \\
+        sh -
 YAML
   fi
 
