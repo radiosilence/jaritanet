@@ -1,4 +1,5 @@
 import {
+  createAdminSshAccess,
   createK3s,
   createNetworkTuning,
   inboundRule,
@@ -42,10 +43,12 @@ export function createGateway(
   users: VpnUser[],
   exits: { name: string; port: number }[] = [],
   {
+    adminSshKey,
     entryLabel,
     magicdnsSuffix = "",
     tailnetAuthKey,
   }: {
+    adminSshKey?: string;
     entryLabel: string;
     magicdnsSuffix?: string;
     tailnetAuthKey?: string;
@@ -165,6 +168,10 @@ systemctl enable rathole
   };
 
   createNetworkTuning("gateway", connection, server);
+
+  if (adminSshKey) {
+    createAdminSshAccess("gateway", connection, server, adminSshKey);
+  }
 
   // With a cluster on this box the transports are pods (see modules/*-pod.ts);
   // without one they are systemd units installed over SSH, which is also what

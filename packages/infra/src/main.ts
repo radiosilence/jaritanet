@@ -89,6 +89,7 @@ export default async function () {
     gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
     // Exits surface on the gateway's rathole loopback (name + port).
     const gw = createGateway(gatewayConf, users, resolvedExits, {
+      adminSshKey: env.SSH_PUBLIC_KEY,
       entryLabel: env.VPN_ENTRY_LABEL,
       magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
       tailnetAuthKey: env.TS_AUTHKEY,
@@ -125,7 +126,7 @@ export default async function () {
       ? pulumi.secret(env.TS_AUTHKEY)
       : undefined;
     for (const edge of conf.edges) {
-      const e = createEdge(edge, users, edgeAuthKey);
+      const e = createEdge(edge, users, edgeAuthKey, env.SSH_PUBLIC_KEY);
       const hostname = `${edge.name}.${edge.zone}`;
       const zone = conf.zones.find((z) => z.name === edge.zone);
       if (zone) {
