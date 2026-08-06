@@ -34,9 +34,16 @@
 # Nothing secret is stored in this repo. The SSH key comes from the running
 # agent, and the k3s join token is read from the cluster at build time.
 #
+# Reads TS_AUTHKEY, SEED_PASSWORD and SEED_PRO_TOKEN from the environment; mise
+# loads them from the gitignored .env (see mise.toml).
+#
 # Usage: scripts/make-seed-drive <device> <hostname> [--no-join]
 #   scripts/make-seed-drive /dev/disk4 lady
 set -euo pipefail
+
+# Paths are resolved from the repo root rather than the caller's directory, so
+# this works from anywhere — it shells out to a sibling script.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 DEVICE="${1:?usage: make-seed-drive <device> <hostname> [--no-join]}"
 HOSTNAME="${2:?usage: make-seed-drive <device> <hostname> [--no-join]}"
@@ -62,7 +69,7 @@ fi
 PUBKEY="$(ssh-add -L | grep -m1 '^ssh-' || true)"
 [[ -n "$PUBKEY" ]] || { echo "no key in the ssh agent — unlock it first" >&2; exit 1; }
 
-# A console password, from SEED_PASSWORD_FILE, hashed here so the plaintext
+# A console password, from SEED_PASSWORD in .env, hashed here so the plaintext
 # never reaches the drive. Without one the account is key-only *including at the
 # keyboard*, so a node whose network does not come up cannot be logged into at
 # all — the logs explaining why are on screen and unreachable, and reflashing
@@ -88,8 +95,8 @@ hash_password() {
 
 PASSWD_LINE=""
 LOCK_PASSWD=true
-if [[ -n "${SEED_PASSWORD_FILE:-}" ]]; then
-  PASSWD_LINE="    passwd: $(hash_password "$(< "$SEED_PASSWORD_FILE")")"
+if [[ -n "${SEED_PASSWORD:-}" ]]; then
+  PASSWD_LINE="    passwd: $(hash_password "$SEED_PASSWORD")"
   LOCK_PASSWD=false
 fi
 
@@ -154,11 +161,11 @@ YAML
   # picks up everything else. Attached here rather than afterwards because
   # `pro attach` over SSH is one more thing to remember on a box that is
   # supposed to arrive finished.
-  if [[ -n "${SEED_PRO_TOKEN_FILE:-}" ]]; then
+  if [[ -n "${SEED_PRO_TOKEN:-}" ]]; then
     cat <<YAML
 
 ubuntu_pro:
-  token: $(< "$SEED_PRO_TOKEN_FILE")
+  token: $SEED_PRO_TOKEN
   enable:
     - livepatch
 YAML
@@ -170,7 +177,7 @@ YAML
     VERSION="$(kubectl --context "$CONTEXT" get nodes \
       -l node-role.kubernetes.io/control-plane \
       -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}')"
-    TOKEN="$(scripts/k3s-node-token "$CONTEXT")"
+    TOKEN="$("$ROOT/scripts/k3s-node-token" "$CONTEXT")"
     cat <<YAML
 
 # One ordered script rather than separate entries, because the steps depend on
