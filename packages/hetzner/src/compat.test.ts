@@ -4,7 +4,7 @@ import { K3sConfSchema } from "./k3s.schemas.ts";
 
 describe("checkCiliumSupport", () => {
   it.each([
-    ["1.20.0", "v1.36.2+k3s1"],
+    ["1.20.0", "v1.36.3+k3s1"],
     ["1.20.0", "v1.33.0+k3s1"],
     ["1.19.6", "v1.34.1+k3s1"],
     ["1.18.12", "v1.30.0+k3s1"],
@@ -13,7 +13,7 @@ describe("checkCiliumSupport", () => {
   });
 
   it.each([
-    ["1.19.6", "v1.36.2+k3s1", "above the tested ceiling"],
+    ["1.19.6", "v1.36.3+k3s1", "above the tested ceiling"],
     ["1.20.0", "v1.32.0+k3s1", "below the tested floor"],
   ])("rejects cilium %s with k3s %s — %s", (cilium, k3s) => {
     expect(checkCiliumSupport(cilium, k3s)).toMatch(
@@ -22,13 +22,13 @@ describe("checkCiliumSupport", () => {
   });
 
   it("rejects a cilium minor with no row rather than assuming it is fine", () => {
-    expect(checkCiliumSupport("1.99.0", "v1.36.2+k3s1")).toMatch(
+    expect(checkCiliumSupport("1.99.0", "v1.36.3+k3s1")).toMatch(
       /not in the support table/,
     );
   });
 
   it.each([
-    ["nope", "v1.36.2+k3s1"],
+    ["nope", "v1.36.3+k3s1"],
     ["1.20.0", "latest"],
   ])("rejects unparseable versions (%s, %s)", (cilium, k3s) => {
     expect(checkCiliumSupport(cilium, k3s)).toMatch(/no major\.minor/);
@@ -52,7 +52,7 @@ describe("K3sConfSchema", () => {
     expect(() =>
       K3sConfSchema.parse({
         ciliumVersion: "1.18.12",
-        version: "v1.36.2+k3s1",
+        version: "v1.36.3+k3s1",
       }),
     ).toThrow(/tested against Kubernetes/);
   });
