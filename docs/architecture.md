@@ -13,7 +13,8 @@ all workloads in it. The box itself runs k3s and sshd and nothing else.
 ## The whole system, end to end
 
 The gateway is the **hub**. A client picks how it *enters* (`entry-select`) and
-where it *egresses* (`exit-select`). Everything transits the gateway.
+where it *egresses* (`exit-select`). Everything transits an entry; an exit is a
+second hop past it, over the tailnet.
 
 ```mermaid
 flowchart TD
@@ -355,8 +356,9 @@ intervention.
 
 One combined profile carries both transports and DNS handling, behind the two
 selectors: **`entry-select`** (how you reach the gateway) and **`exit-select`**
-(where the gateway egresses you). The client runs **no WireGuard**; the tailnet
-hop happens on the gateway (see below).
+(where you egress). They compose freely — every exit detours through
+`entry-select`, so any entry reaches any exit. The client runs **no WireGuard**;
+the tailnet hop happens on the gateway (see below).
 
 ```mermaid
 flowchart TD
@@ -370,7 +372,7 @@ flowchart TD
     TN -->|yes| ENTRY["entry-select<br/>gateway → tailscale relay"]
     TN -->|no| EXIT["exit-select"]
     EXIT --> ED["exit-direct → entry-select<br/>(egress at the gateway)"]
-    EXIT --> EN["exit-&lt;name&gt;<br/>(egress at an exit box)"]
+    EXIT --> EN["exit-&lt;name&gt;<br/>(ss to 100.x, detour entry-select)"]
 ```
 
 Two route rules do the work: `100.x` → `entry-select` (tailnet egresses at the
@@ -541,42 +543,65 @@ from the ISP, and neither is worth it for an exit whose entire purpose is
 presenting a residential **IPv4** address. Accepted deliberately — if something
 you rely on breaks only through the exit, suspect this first.
 
-An exit is an **ss-rust** server, as a k8s Deployment (`modules/exit.ts`) today,
-or a cloud-init VPS later. Add one via the `exits` config list:
+An exit is an **ss-rust** server, as a `hostNetwork` DaemonSet
+(`packages/vpn/src/exit.ts`) pinned to the machine whose address it presents.
+Add one via the `exits` config list:
 
 ```yaml
 jaritanet:exits:
   - name: lady
-    port: 9000
+    nodeLabel: jaritanet.radiosilence.dev/vpn-exit
+    server: 100.74.66.121
 ```
-
-Each exit's ss-rust port is expected on the **primary gateway's loopback**
-(`127.0.0.1:<port>`) — the same pattern as the Reality decoy `dest` — and the
-client's ss outbound detours through the primary so the inner address resolves
-at that end. What surfaces the port there is the open question: the reverse
-tunnel that used to do it went with the move onto a single co-located box.
 
 ```mermaid
 flowchart LR
-    DEV["device"] -->|"detour: primary (hy2/reality)"| GW["primary gateway"]
-    GW -->|"127.0.0.1:<port>"| SS["ss-rust exit (k8s)"]
-    SS -->|"pod egress, CNI SNAT → node IP"| INET(("Internet"))
+    DEV["device"] -->|"detour: entry-select (hy2/reality)"| GW["entry — gateway or edge"]
+    GW -->|"tailnet — 100.x:&lt;port&gt;"| SS["ss-rust exit (hostNetwork, on lady)"]
+    SS -->|"host stack, src = LAN → residential IP"| INET(("Internet"))
 ```
 
-The client's `exit-<name>` outbound is Shadowsocks to `127.0.0.1:<port>`,
-detouring through the **primary** gateway. In a detour chain the inner address
-resolves at the gateway end, so `127.0.0.1:<port>` means "this exit's loopback
-on the primary." Exits pin to the primary because it is the only node where
-those loopbacks exist — edges (also in `entry-select`) serve hy2/reality only,
-so routing an exit through an edge would dial a dead loopback. `entry-select`
-still governs *direct* egress across all gateways; exits transit the primary.
+**`hostNetwork` is the mechanism, not a shortcut.** In the node's own namespace
+the host stack picks the source address by routing, so no CNI masquerade sits in
+the path and lady egresses her residential IPv4 (verified: default route
+`via 192.168.50.1 dev eno1`, egress `168.199.77.151`). It is also what puts
+`tailscale0` in the pod's namespace, so the port an entry dials is the node's
+tailnet address rather than a ClusterIP the overlay would have to carry.
+
+**The tailnet is the transport.** lady is behind NAT with nothing forwarded,
+deliberately; every path to her is one she opened outbound. Her k3s node IP is
+already her tailnet address, so this reuses a path that carries the cluster's
+own node-to-node traffic. Every gateway and edge is a tailnet member, which is
+why the client's `exit-<name>` outbound detours through **`entry-select`** rather
+than pinning to the primary: the two axes are genuinely independent, and the
+full entry × exit cross-product comes for free. (The predecessor pinned to the
+primary only because that was the one node terminating the reverse tunnel.)
+
+`nodeLabel` decides which machine egresses — the same argument the VPN entry
+label makes — and like the file-server label it is applied by hand when the node
+joins, because nothing in this program can reach a cloud-init-seeded box.
 
 No kernel IP forwarding anywhere — ss-rust owns both ends of each flow
 (connection-level), so there's no return-path routing to misconfigure on a
-remote box. The exit pod egresses normally and the CNI SNATs to the node IP. Topology is a pure function of the config lists,
-expanded at `pulumi up`. (Making exits reachable via *any* gateway — the full
-entry × exit cross-product — needs every gateway to surface the exit loopbacks;
-deferred. When more than one does, `port` must be identical across them.)
+remote box. That is also what makes an offline exit legible: `exit-select` is a
+manual selector, so a human is the failover, and a dial that is refused or times
+out at a named address is far easier to read than a handshake that succeeds and
+then silently swallows packets. Topology is a pure function of the config lists,
+expanded at `pulumi up`.
+
+**Why not the alternatives.** A Tailscale exit node (`--advertise-exit-node`) is
+a whole-device default-route override, so the gateway selecting it would send
+*everything* out of the house — the exact failure `--accept-routes=false` exists
+to prevent — and there is no per-flow selection, which is what an exit axis is.
+Cilium's egress gateway is the k8s-native answer and leaves the pod alone, but
+wants cluster-wide `bpf.masquerade`, resolves its egress IP once (a DHCP renewal
+on the home LAN leaves it dropping), and black-holes traffic behind a successful
+handshake when the gateway node is down. A hand-rolled WireGuard peer is a worse
+tailnet: no DERP fallback, no NAT traversal, and its config lives on lady's disk
+where Pulumi cannot reach it.
+
+Throughput does not discriminate between any of these — a residential upstream
+caps every one of them long before its own overhead does.
 
 ## Multi-user access (admin / guest)
 
@@ -615,6 +640,8 @@ their profile JSON; the restrictions still hold because they live at the gateway
   entry, killing the entry kills everything downstream.
 - **Exits** — gated by the ss-rust PSK, which is simply omitted from guest
   profiles, so a guest has no exit outbound to select even if they edit the JSON.
+  They now sit at tailnet addresses too, so the guest tailnet blackhole below
+  denies them a second time, on a rule that was already there.
 - **Everything that isn't the public internet** — an Xray routing rule blackholes
   guest flows to the tailnet, loopback and RFC1918. Enumerating what a guest may
   *not* touch is the losing side of the argument, so the rule denies every

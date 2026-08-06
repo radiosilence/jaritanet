@@ -225,15 +225,6 @@ config:
       image: docker.io/klutchell/unbound:v1.25.2
     hcloudToken:
       secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
-  # Egress exit nodes — ss-rust in the cluster, reached via the
-  # tunnel, egressing the home residential IP. Selectable in the client as
-  # exit-<name>; exits transit the primary gateway.
-  # Egress exit nodes — where the gateway forwards your traffic out. Each is
-  # just ss-rust; how the gateway reaches it is being reworked.
-  # `name` is all you set (drives the picker tag exit-<name> + resource names);
-  # the loopback port is auto-derived from the name.
-  # None until a second node exists, at which point an exit is just a pod on it
-  # with no tunnel involved.
   # What lady serves off the media drive. Shares are anonymous — `map to guest`
   # turns unknown users into `guestAccount`, which must own the files or every
   # read fails — and reachable only from the tailnet and the LAN, never the
@@ -265,7 +256,20 @@ config:
       folders:
         - name: music
           hostPath: /mnt/kontent/music
-  jaritanet:exits: []
+  # Egress exit nodes — ss-rust on the machine whose IP you want to leave from,
+  # selectable in the client as exit-<name>. lady is the only one worth having:
+  # her address is a consumer ISP's, which no Hetzner range can be.
+  #
+  # `server` is her tailnet address — how an entry reaches a box behind NAT with
+  # no forwarded port — and is stable per node. `nodeLabel` must already be on
+  # the node: nothing here can reach a cloud-init-seeded box to apply it, so it
+  # goes on by hand when the node joins:
+  #   kubectl label node lady jaritanet.radiosilence.dev/vpn-exit=true
+  # The port is derived from the name; only set `port` to break a hash clash.
+  jaritanet:exits:
+    - name: lady
+      nodeLabel: jaritanet.radiosilence.dev/vpn-exit
+      server: 100.74.66.121
   jaritanet:services:
     navidrome:
       hostname:

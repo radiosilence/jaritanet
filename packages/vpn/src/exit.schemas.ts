@@ -2,26 +2,30 @@ import * as z from "zod";
 
 /**
  * A selectable egress exit node: an ss-rust server whose IP the traffic leaves
- * from. Substrate-agnostic (k8s now; a cloud-init VPS later).
+ * from. The whole point is the address it presents, so an exit is pinned to a
+ * machine and dialled at that machine's own address.
  *
- * The client's ss outbound dials `127.0.0.1:<port>` and detours through the
- * primary gateway. A detour resolves the inner address at the far end, so the
- * port has to exist on the primary's loopback — which is why `port` is fixed
- * per exit rather than allocated, and why exits pin to the primary rather than
- * following whichever entry `entry-select` picks for direct traffic.
+ * `nodeLabel` decides which machine egresses, the same argument the VPN entry
+ * label and the file-server label make. Nothing here can apply it: a node
+ * seeded from cloud-init has no connection in this program, so the label goes
+ * on by hand when the node joins.
  *
- * What binds that loopback port is currently unresolved: the reverse tunnel
- * that did it was removed when the cluster moved onto the gateway itself.
+ * `server` is where an entry dials the exit — its tailnet address, since every
+ * gateway and edge is a tailnet member and the home node has no inbound port.
+ * An address rather than a name because it resolves at the *entry* end of a
+ * detour, where MagicDNS does not exist: the client's resolvers are all
+ * tunnelled and the gateway's unbound knows nothing of the tailnet.
  *
- * `name` is the only field you normally set — it drives the picker tag
- * (`exit-<name>`) and the resource names. `port` is the gateway loopback port
- * (pure plumbing); leave it unset and it's derived deterministically from the
- * name at deploy time. Only set it to resolve a rare name-hash collision.
+ * `name` drives the picker tag (`exit-<name>`) and the resource names. `port`
+ * is the host port on the exit node (pure plumbing); leave it unset and it is
+ * derived deterministically from the name at deploy time. Only set it to
+ * resolve a rare name-hash collision.
  */
 export const ExitConfSchema = z.object({
   image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:v1.24.0"),
   method: z.string().default("aes-256-gcm"),
   name: z.string(),
+  nodeLabel: z.string(),
   port: z.number().optional(),
-  substrate: z.enum(["k8s"]).default("k8s"),
+  server: z.ipv4(),
 });

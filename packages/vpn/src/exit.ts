@@ -1,18 +1,22 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import { sha256hex } from "@jaritanet/k8s";
+import { cpuRequests, sha256hex } from "@jaritanet/k8s";
 
-/** An exit with its loopback port resolved (see deriveExitPort). */
+/** An exit with its host port resolved (see deriveExitPort). */
 export type ResolvedExit = {
   name: string;
+  nodeLabel: string;
   port: number;
   method: string;
   image: string;
+  server: string;
 };
 
+const LIMITS = { cpu: "500m", memory: "128Mi" };
+
 /**
- * Deterministic loopback port from the exit name (djb2 → 20000–29999), so you
+ * Deterministic host port from the exit name (djb2 → 20000–29999), so you
  * never hand-pick plumbing. Stable per name and order-independent; a config
  * `port` override wins, and main asserts the resolved set is collision-free.
  */
@@ -23,12 +27,25 @@ export function deriveExitPort(name: string): number {
 }
 
 /**
- * A k8s egress exit: ss-rust in the cluster. It NATs out via the pod's normal
- * egress, which the CNI SNATs to the node IP — so the exit presents whichever
- * node it runs on. No `hostNetwork`, no kernel forwarding: ss-rust owns both
- * ends of each flow.
+ * A k8s egress exit: ss-rust on the node whose address the traffic should
+ * leave from, reached over the tailnet by whichever entry the client picked.
  *
- * How the gateway reaches it is unresolved — see exit.schemas.ts.
+ * `hostNetwork` is the mechanism, not a shortcut. In the node's own namespace
+ * the host stack picks the source address by routing, so nothing masquerades
+ * the flow and a home node egresses its residential ISP address — the one
+ * thing a datacentre range can never be. It is also what puts `tailscale0` in
+ * the pod's namespace, so the port an entry dials is the node's tailnet
+ * address rather than a ClusterIP the overlay would have to carry.
+ *
+ * A DaemonSet for the reason samba and the transports are: the host port is
+ * exclusive, so two replicas can never share a node and `maxSurge: 0` follows
+ * — the old pod must be gone before the replacement can bind.
+ *
+ * No kernel forwarding and no return-path routing on a remote box: ss-rust
+ * owns both ends of every flow. An offline node is a dial that fails at a
+ * named address, which is what a manually-selected exit needs — `exit-select`
+ * has a human for failover, and a connection that establishes and then
+ * swallows packets is the failure they read worst.
  *
  * The ss password is a single Pulumi secret consumed here (server Secret) and
  * by the client outbound (see singbox) — one source, no drift. Returns the
@@ -68,13 +85,16 @@ export function createExit(
     { provider },
   );
 
-  new k8s.apps.v1.Deployment(
+  new k8s.apps.v1.DaemonSet(
     name,
     {
       metadata: { name, namespace },
       spec: {
-        replicas: 1,
         selector: { matchLabels: { app: name } },
+        updateStrategy: {
+          type: "RollingUpdate",
+          rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
+        },
         template: {
           // Roll the pod when the ss config (password/method/port) changes.
           metadata: {
@@ -82,6 +102,13 @@ export function createExit(
             labels: { app: name },
           },
           spec: {
+            hostNetwork: true,
+            // The node's resolver, not the cluster's: ss-rust resolves the
+            // destination names its clients send it, and those should be
+            // answered where the traffic egresses, not in Germany.
+            dnsPolicy: "Default",
+            automountServiceAccountToken: false,
+            nodeSelector: { [exit.nodeLabel]: "true" },
             containers: [
               {
                 name: "ssserver",
@@ -95,7 +122,8 @@ export function createExit(
                   },
                 ],
                 resources: {
-                  limits: { cpu: "500m", memory: "128Mi" },
+                  limits: LIMITS,
+                  ...cpuRequests(LIMITS.cpu),
                 },
               },
             ],
@@ -107,28 +135,11 @@ export function createExit(
     { dependsOn: [secret], provider },
   );
 
-  const service = new k8s.core.v1.Service(
-    name,
-    {
-      metadata: { name, namespace },
-      spec: {
-        selector: { app: name },
-        ports: [
-          { name: "ss-tcp", port: exit.port, protocol: "TCP" },
-          { name: "ss-udp", port: exit.port, protocol: "UDP" },
-        ],
-      },
-    },
-    { provider },
-  );
-
-  const host = pulumi.interpolate`${service.metadata.name}.${namespace}.svc.cluster.local`;
-
   return {
-    host,
     method: exit.method,
     name: exit.name,
     password: password.result,
     port: exit.port,
+    server: exit.server,
   };
 }

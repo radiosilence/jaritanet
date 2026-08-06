@@ -102,22 +102,27 @@ The VPN topology is three config lists in `packages/infra/Pulumi.main.yaml`.
 `:443/tcp`), Hysteria2 (`:443/udp`), and the tailnet relay. This is
 what clients connect *through*; `entry-select` picks the protocol.
 
-**`exits`** — where the gateway *egresses* your traffic (`exit-select`). An exit
-is an ss-rust server, and it exists to present somebody else's IP — a
-residential one, typically. How the gateway reaches one is being reworked: the
-tunnel it used was removed with the move onto a single co-located box.
+**`exits`** — where your traffic *egresses* (`exit-select`). An exit is an
+ss-rust server on the machine whose IP it presents — a residential one,
+typically. Entries reach it over the tailnet, so it works on a box behind NAT
+with nothing forwarded.
 
 ```yaml
 jaritanet:exits:
-  - name: lady        # picker tag `exit-lady`; the name is just a label
+  - name: lady
+    nodeLabel: jaritanet.radiosilence.dev/vpn-exit
+    server: 100.74.66.121
 ```
 
 - **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
-- **`port`** (the gateway loopback port) is derived from the name; set it only
-  to resolve a rare hash collision.
-
-Currently empty. `lady` can take the role once it joins — an exit only needs to
-be somewhere with an interesting address.
+- **`nodeLabel`** picks the machine that egresses. Apply it by hand
+  (`kubectl label node lady <label>=true`); nothing in the program can reach a
+  cloud-init-seeded node to do it, and a selector matching no node schedules
+  nothing while the cluster reports healthy.
+- **`server`** is that node's tailnet address — an address, not a name, because
+  it resolves at the entry end of a detour where MagicDNS does not exist.
+- **`port`** (the host port on the exit node) is derived from the name; set it
+  only to resolve a rare hash collision.
 
 **`edges`** — optional *additional* entry gateways (hy2 + REALITY), appearing in
 `entry-select`. Not needed with a single gateway; see

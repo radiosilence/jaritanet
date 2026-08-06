@@ -53,6 +53,7 @@ export type Exit = {
   port: number;
   method: string;
   password: pulumi.Input<string>;
+  server: pulumi.Input<string>;
 };
 
 type ResolvedExit = {
@@ -60,6 +61,7 @@ type ResolvedExit = {
   port: number;
   method: string;
   password: string;
+  server: string;
 };
 
 // Innermost tun MTU for the whole chain. Sized so a packet survives the worst
@@ -157,10 +159,10 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  *     entry gateway). Route `final` points here; tailnet + DNS stay on
  *     `entry-select` so they egress at the gateway, never via an exit.
  *
- * Each exit outbound targets `127.0.0.1:<port>` and detours through the
- * **primary** gateway — the inner address resolves at the primary end, hitting
- * that exit's loopback bind. Exits therefore always
- * transit the primary, regardless of the `entry-select` pick for direct egress.
+ * Each exit outbound targets the exit node's own (tailnet) address and detours
+ * through `entry-select`, so the inner address resolves at whichever entry the
+ * client is using. Every entry is a tailnet member, so the two axes are
+ * independent: any entry composes with any exit.
  *
  * Per-user + role-aware: reality outbounds use the user's own UUID; admins also
  * get hy2 (their per-node password) and the exit axis; guests are
@@ -230,24 +232,19 @@ export function buildProfile(
   // The exit axis only exists when there are exits — otherwise routing points
   // straight at entry-select (direct egress, no extra groups).
   if (effExits.length) {
-    // Exits pin to the PRIMARY gateway (nodes[0]) — the only node running
-    // the exits, so the only one exposing their loopbacks. Edges (also in
-    // entry-select) run hy2/reality only; detouring an exit through an edge
-    // would dial 127.0.0.1:<port> where nothing listens.
-    const primaryEntry = nodes.length === 1 ? "auto" : `auto-${nodes[0].name}`;
-
-    // Each exit: a Shadowsocks outbound dialled through the primary. The
-    // 127.0.0.1:<port> resolves at the primary → its loopback bind → the
-    // exit's ss-rust → egress at the exit's own IP.
+    // Each exit: a Shadowsocks outbound dialled through whichever entry
+    // `entry-select` picked. The exit's tailnet address resolves at that end,
+    // and every gateway and edge is a tailnet member — so the axes are
+    // genuinely independent and any entry can reach any exit.
     for (const e of effExits) {
       outbounds.push({
         type: "shadowsocks",
         tag: `exit-${e.name}`,
-        server: "127.0.0.1",
+        server: e.server,
         server_port: e.port,
         method: e.method,
         password: e.password,
-        detour: primaryEntry,
+        detour: "entry-select",
       });
     }
 
