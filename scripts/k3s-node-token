@@ -18,7 +18,13 @@ CONTEXT="${1:-jaritanet}"
 NODE="${2:-$(kubectl --context "$CONTEXT" get nodes \
   -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[0].metadata.name}')}"
 
-kubectl --context "$CONTEXT" run "k3s-token-$RANDOM" \
+# Captured before filtering rather than piped into grep. `grep -m1` exits at the
+# first match, which closes the pipe under kubectl and kills it with SIGPIPE —
+# so the pipeline reports 141 having printed the token perfectly. Under
+# `set -o pipefail` in a caller that is indistinguishable from failure, and it
+# aborted make-seed-drive halfway through writing a seed that then looked
+# plausible: valid YAML, no runcmd.
+OUT="$(kubectl --context "$CONTEXT" run "k3s-token-$RANDOM" \
   --image=busybox:1.36 --restart=Never --rm -i --quiet \
   --overrides="$(cat <<JSON
 {"spec":{
@@ -33,4 +39,8 @@ kubectl --context "$CONTEXT" run "k3s-token-$RANDOM" \
   "volumes":[{"name":"h","hostPath":{"path":"/var/lib/rancher/k3s","type":"Directory"}}]
 }}
 JSON
-)" 2>/dev/null | grep -m1 -E '^K10'
+)" 2>/dev/null || true)"
+
+TOKEN="$(grep -m1 -E '^K10' <<<"$OUT" || true)"
+[[ -n "$TOKEN" ]] || { echo "no k3s token in the pod's output" >&2; exit 1; }
+printf '%s\n' "$TOKEN"
