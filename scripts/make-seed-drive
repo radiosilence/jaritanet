@@ -42,9 +42,10 @@
 #
 # Node labels are applied as the agent joins, and each one selects a workload in
 # `Pulumi.main.yaml` — lady's `file-node` puts samba/syncthing/navidrome on the
-# disks, her `vpn-exit` puts the ss-rust egress exit on the residential link.
-# A label that goes missing is silent: the DaemonSet selecting it schedules
-# nowhere and the cluster reports itself perfectly healthy.
+# disks. A label that goes missing is silent: the DaemonSet selecting it
+# schedules nowhere and the cluster reports itself perfectly healthy. (The exit
+# label is the exception, and no longer needs to be here: the stack applies that
+# one itself over the API. See `createExit`.)
 #
 # They default to the `jaritanet.radiosilence.dev/*` labels the node already
 # carries, read from the cluster, so a reflash rebuilds the machine it was

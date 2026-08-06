@@ -265,14 +265,16 @@ config:
   # the exit then dials nobody, with everything still reporting healthy, so it
   # is re-read from `kubectl get node lady -o wide` when that happens.
   #
-  # `nodeLabel` must already be on the node. Nothing here can reach a
-  # cloud-init-seeded box to apply it, so it is declared as she joins, by
-  # scripts/make-seed-drive — which carries over whatever she already has, so a
-  # reflash does not quietly return her without it.
+  # `node` is the machine this program marks with `nodeLabel`, over the API
+  # rather than SSH. Marking it is the whole deployment: the DaemonSet controller
+  # watches Nodes, so the exit appears there within a second and vanishes if the
+  # label goes. Hand-labelling still works and is how you move an exit for an
+  # afternoon — it is no longer what holds it in place.
   #
   # The port is derived from the name; only set `port` to break a hash clash.
   jaritanet:exits:
     - name: lady
+      node: lady
       nodeLabel: jaritanet.radiosilence.dev/vpn-exit
       server: 100.74.66.121
   jaritanet:services:

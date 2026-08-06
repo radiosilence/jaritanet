@@ -283,6 +283,23 @@
                   }
                 ]
               },
+              "node": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
               "nodeLabel": {
                 "$ref": "#/$defs/__schema5"
               },
@@ -309,7 +326,7 @@
                 ]
               }
             },
-            "required": ["name", "nodeLabel", "server"]
+            "required": ["name", "node", "nodeLabel", "server"]
           }
         },
         "jaritanet:fastmail": {

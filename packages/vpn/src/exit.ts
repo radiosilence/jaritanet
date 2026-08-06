@@ -6,6 +6,7 @@ import { cpuRequests, sha256hex } from "@jaritanet/k8s";
 /** An exit with its host port resolved (see deriveExitPort). */
 export type ResolvedExit = {
   name: string;
+  node: string;
   nodeLabel: string;
   port: number;
   method: string;
@@ -57,6 +58,36 @@ export function createExit(
   exit: ResolvedExit,
 ) {
   const name = `exit-${exit.name}`;
+
+  // The label is the switch. The DaemonSet controller watches Nodes, so this
+  // patch is what schedules the exit — a labelled node grows the pod in about a
+  // second, and removing the label tears it down just as fast. Declaring it here
+  // rather than leaving it to a human is the difference between "the exit is on
+  // lady" being a fact about the config and a fact about someone's memory: an
+  // unlabelled node schedules zero pods and reports itself perfectly healthy.
+  //
+  // Over the Kubernetes API, not SSH — a node seeded from cloud-init has no
+  // connection in this program, but it is a cluster member, which is the same
+  // reach k3s upgrades use to get to it.
+  //
+  // patchForce is what makes this reconcile rather than merely assert. A
+  // server-side apply carrying the same value co-owns the field happily, so the
+  // steady state needs nothing; it is the *diverged* state that conflicts, and
+  // `kubectl label` holds the field as a different manager. Without the force,
+  // the one case this exists for — someone changed the label by hand — fails the
+  // deploy with a field-manager conflict instead of putting it back.
+  const label = new k8s.core.v1.NodePatch(
+    `${name}-node`,
+    {
+      metadata: {
+        annotations: { "pulumi.com/patchForce": "true" },
+        labels: { [exit.nodeLabel]: "true" },
+        name: exit.node,
+      },
+    },
+    { provider },
+  );
+
   const password = new random.RandomPassword(`${name}-ss`, {
     length: 32,
     special: false,
@@ -141,7 +172,11 @@ export function createExit(
         },
       },
     },
-    { dependsOn: [secret], provider },
+    // On the label as well as the config: Pulumi awaits DaemonSet readiness, and
+    // a DaemonSet whose selector matches no node is "ready" with zero pods. Get
+    // that order wrong and the first deploy reports success having scheduled
+    // nothing, with the label landing a moment later.
+    { dependsOn: [label, secret], provider },
   );
 
   return {

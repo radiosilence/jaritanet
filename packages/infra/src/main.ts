@@ -73,11 +73,12 @@ export default async function () {
     image: e.image,
     method: e.method,
     name: e.name,
+    node: e.node,
     nodeLabel: e.nodeLabel,
     port: e.port ?? deriveExitPort(e.name),
     server: e.server,
   }));
-  const exitBinds = resolvedExits.map((e) => `${e.nodeLabel}:${e.port}`);
+  const exitBinds = resolvedExits.map((e) => `${e.node}:${e.port}`);
   if (new Set(exitBinds).size !== exitBinds.length) {
     throw new Error(
       "two exits share a node and a port — set an explicit `port` on the clashing exit",

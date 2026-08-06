@@ -115,11 +115,12 @@ jaritanet:exits:
 ```
 
 - **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
-- **`nodeLabel`** picks the machine that egresses. Nothing in the program can
-  reach a cloud-init-seeded node to apply it, so it is declared as the node
-  joins, by `scripts/make-seed-drive` — which defaults to the labels the node
-  already carries, so a reflash keeps them. A selector matching no node
-  schedules nothing while the cluster reports healthy.
+- **`node`** is the machine to put the exit on, and **`nodeLabel`** is the mark
+  it gets. Marking it is the whole deployment: the DaemonSet controller watches
+  Nodes, so the exit appears there in about a second and goes when the label
+  goes. Applied over the Kubernetes API rather than SSH — a cloud-init-seeded box
+  has no connection here but is a cluster member, which is the same reach k3s
+  upgrades use.
 - **`server`** is that node's tailnet address — an address, not a name, because
   it resolves at the entry end of a detour where MagicDNS does not exist. It is
   *pinned, not stable*: a re-registration moves it, and the exit then dials

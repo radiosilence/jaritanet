@@ -7,9 +7,18 @@ import { LabelKey, Port } from "@jaritanet/k8s";
  * machine and dialled at that machine's own address.
  *
  * `nodeLabel` decides which machine egresses, the same argument the VPN entry
- * label and the file-server label make. Nothing here can apply it — a node
- * seeded from cloud-init has no connection in this program — so it is declared
- * as the node joins, by `SEED_NODE_LABELS` in `scripts/make-seed-drive`.
+ * label and the file-server label make — and it is the whole mechanism, not
+ * bookkeeping. The DaemonSet controller watches Nodes, so marking one schedules
+ * the exit onto it in about a second and unmarking it tears the pod down; k8s
+ * does the rest and nothing here has to.
+ *
+ * That also makes the label the single piece of state the exit depends on, and
+ * the only one whose absence nothing reports: an unlabelled node means zero pods
+ * on a cluster that looks perfectly healthy. So `node` names the machine to put
+ * it on and this program applies it, over the Kubernetes API rather than SSH —
+ * reach comes from cluster membership, the same property that carries k3s
+ * upgrades to a box Pulumi never created. Hand-labelling is then a way to move
+ * an exit for an afternoon, not the thing holding it in place.
  *
  * `server` is where an entry dials the exit — its tailnet address, since the
  * home node has no inbound port. An address rather than a name because it
@@ -54,6 +63,7 @@ export const ExitConfSchema = z.object({
   image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:v1.24.0"),
   method: z.string().default("aes-256-gcm"),
   name: z.string(),
+  node: z.string(),
   nodeLabel: LabelKey,
   port: Port.optional(),
   server: z.ipv4(),

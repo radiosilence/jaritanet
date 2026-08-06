@@ -594,14 +594,25 @@ edge an egress identity as well as an entry one needs either joining edges to th
 cluster or an `-systemd` exit variant beside the transports that already have
 one.
 
-`nodeLabel` decides which machine egresses — the same argument the VPN entry
-label makes. Nothing in this program can reach a cloud-init-seeded box to apply
-it, so it is declared as the node joins, by `scripts/make-seed-drive`. That
-script defaults a node's labels to the `jaritanet.radiosilence.dev/*` ones it
-already carries, read from the cluster, so a reflash rebuilds the machine it was
-rather than a blank one; `SEED_NODE_LABELS` overrides, for a machine that has
-never joined. Applying a label by hand and stopping there is drift — the reflash
-loses it, the exit schedules nowhere, and the cluster reports itself healthy.
+**The label is the deployment.** `nodeLabel` decides which machine egresses, and
+the DaemonSet controller watches Nodes — so marking one schedules the exit onto
+it and unmarking it tears the pod down, with no `pulumi up` in between. Measured
+on this cluster: `desiredNumberScheduled` went 0 → 1 **1.09s** after the label
+landed, and 1 → 0 **0.36s** after it was removed.
+
+That makes the label the single piece of state an exit depends on, and the only
+one whose absence nothing reports — an unlabelled node is zero pods on a cluster
+that looks perfectly healthy. So `node` names the machine and this program
+applies the label itself, as a `NodePatch` over the Kubernetes API rather than
+SSH: a box seeded from cloud-init has no connection here, but it is a cluster
+member, which is the same reach that carries k3s upgrades to it. `patchForce` is
+what makes that reconcile rather than merely assert — an apply carrying the same
+value co-owns the field without complaint, and it is the diverged state, where
+someone has changed the label by hand, that conflicts with `kubectl label`'s
+field manager and needs forcing back.
+
+Hand-labelling still works, and is how you move an exit for an afternoon. It is
+no longer what holds one in place.
 
 `server` is **pinned, not stable**. A tailnet address survives reboots but not a
 re-registration — sympathy's moved from `100.69.78.57` to `100.78.67.16` in #238
