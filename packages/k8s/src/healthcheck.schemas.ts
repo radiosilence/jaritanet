@@ -3,7 +3,14 @@ import * as z from "zod";
 export const HealthCheckConfigSchema = z.object({
   enableLiveness: z.boolean().default(true),
   enableReadiness: z.boolean().default(true),
-  enableStartup: z.boolean().default(false),
+  // On by default: liveness and readiness do not run until startup succeeds, so
+  // a slow first boot cannot be killed before it has bound a socket. Off, a
+  // service whose warm-up outlasts `initialDelaySeconds` is not merely slow to
+  // arrive — it is unstartable, because every restart repeats the same warm-up
+  // and is killed at the same point. blit does exactly that: nano-web spends
+  // ~65s processing files under a 100m CPU limit before it listens, and the
+  // liveness probe kills it at ~60s, forever.
+  enableStartup: z.boolean().default(true),
   failureThreshold: z.uint32().default(3),
   httpHeaders: z
     .array(
