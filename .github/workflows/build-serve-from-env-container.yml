@@ -80,6 +80,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          # Notes are scoped with git log, which needs history and tags.
+          fetch-depth: 0
 
       - name: Create the release, and its tag
         env:
@@ -87,7 +90,14 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
+          # --generate-notes diffs against the previous tag in the repo, which
+          # knows nothing about tag prefixes: the first release of a container
+          # credits it with every PR ever, and later ones pick up whichever
+          # container tagged last. Scope to this container's own history instead.
+          prev=$(git tag --list 'serve-from-env-v*' --sort=-version:refname | head -1)
+          range=${prev:+$prev..}HEAD
+          notes=$(git log --no-merges --pretty='- %s' "$range" -- containers/serve-from-env)
           gh release create "serve-from-env-v$VERSION" \
             --title "serve-from-env v$VERSION" \
             --target "$GITHUB_SHA" \
-            --generate-notes
+            --notes "${notes:-- No changes recorded for this container.}"
