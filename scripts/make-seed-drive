@@ -34,7 +34,7 @@
 # Nothing secret is stored in this repo. The SSH key comes from the running
 # agent, and the k3s join token is read from the cluster at build time.
 #
-# Reads TS_AUTHKEY, SEED_PASSWORD, SEED_PRO_TOKEN and the optional
+# Reads SEED_TS_AUTHKEY, SEED_PASSWORD, SEED_PRO_TOKEN and the optional
 # SEED_MOUNT_DEV/SEED_MOUNT_POINT from the environment; mise
 # loads them from the gitignored .env (see mise.toml).
 #
@@ -58,7 +58,10 @@ CONTEXT="${KUBE_CONTEXT:-jaritanet}"
 # offline, taking the address kubelet advertises with it) and tagged, since
 # tagged nodes have no key expiry — otherwise the node silently leaves the
 # tailnet months later and the control plane loses its route to the kubelet.
-$JOIN && : "${TS_AUTHKEY:?set TS_AUTHKEY to a non-ephemeral, tagged tailscale auth key}"
+# Its own variable, not TS_AUTHKEY: that one is the gateway relay's key, and a
+# node's key is a different credential for a different machine. Sharing the name
+# means whichever was written last silently becomes both.
+$JOIN && : "${SEED_TS_AUTHKEY:?set SEED_TS_AUTHKEY to a non-ephemeral, tagged tailscale auth key}"
 
 # Refuse anything that is not an external disk. The failure mode this guards
 # against is unrecoverable, and `diskutil list` numbering shifts between boots.
@@ -144,6 +147,10 @@ package_update: true
 packages:
   - curl
   - ca-certificates
+  # btrfs-progs for the scrub timer it ships; smartmontools so a failing disk
+  # announces itself in the log rather than by losing data.
+  - btrfs-progs
+  - smartmontools
 
 # Cloud images enable unattended-upgrades for the security pocket already, so
 # patches land on their own. What is missing is the reboot: without one the node
@@ -171,6 +178,34 @@ write_files:
   - path: /etc/modules-load.d/watchdog.conf
     content: |
       iTCO_wdt
+  # btrfs detects corruption on read and repairs it from a good copy, but only
+  # for blocks something reads — a scrub is what walks the whole filesystem.
+  # Media is written once and read rarely, which is precisely the case silent
+  # corruption survives. Ubuntu's btrfs-progs ships no units, so these are ours.
+  - path: /etc/systemd/system/btrfs-scrub@.service
+    content: |
+      [Unit]
+      Description=btrfs scrub on %f
+      RequiresMountsFor=%f
+      [Service]
+      Type=oneshot
+      # Idle priority: a scrub reads the entire disk, and nothing about it is
+      # urgent enough to compete with serving what is on it.
+      Nice=19
+      IOSchedulingClass=idle
+      ExecStart=/usr/bin/btrfs scrub start -B -d %f
+  - path: /etc/systemd/system/btrfs-scrub@.timer
+    content: |
+      [Unit]
+      Description=monthly btrfs scrub on %f
+      [Timer]
+      OnCalendar=monthly
+      RandomizedDelaySec=1h
+      # Runs on next boot if the machine was off when it was due, rather than
+      # skipping a month silently.
+      Persistent=true
+      [Install]
+      WantedBy=timers.target
 YAML
 
   # A media drive, identified by UUID (or label) rather than device path: USB
@@ -196,6 +231,7 @@ YAML
   # cannot see. Which is also why the mount point stays empty: the directories
   # under it must come from the drive.
   if [[ -n "${SEED_MOUNT_DEV:-}" ]]; then
+    SCRUB="systemctl enable --now \"btrfs-scrub@\$(systemd-escape -p ${SEED_MOUNT_POINT:-/mnt/kontent}).timer\" || true"
     cat <<YAML
 
 mounts:
@@ -278,6 +314,16 @@ runcmd:
       # here arms it now rather than one reboot from now.
       modprobe iTCO_wdt || true
       systemctl daemon-reexec
+      # btrfs detects bitrot on read and can repair it from a good copy, but
+      # only for blocks something actually reads — a scrub is what walks the
+      # whole filesystem. Media is written once and read rarely, which is
+      # exactly the case silent corruption survives. btrfs-progs ships the
+      # timer; it just needs instantiating for the mount, monthly by default.
+      #
+      # Not fatal if the drive is not btrfs or is absent: the unit fails and the
+      # node is otherwise fine.
+      systemctl enable --now smartd || true
+      ${SCRUB:-true}
   - - sh
     - -c
     - |
@@ -288,7 +334,7 @@ runcmd:
         > /etc/apt/sources.list.d/tailscale.list
       apt-get update -qq
       DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tailscale
-      tailscale up --auth-key='$TS_AUTHKEY' --hostname='$HOSTNAME' --accept-dns=false
+      tailscale up --auth-key='$SEED_TS_AUTHKEY' --hostname='$HOSTNAME' --accept-dns=false
       # Tailscale's own repo is not the security pocket, so unattended-upgrades
       # will not touch it. Left alone the client rots on the version installed
       # here, which for the thing carrying the control plane's route to this

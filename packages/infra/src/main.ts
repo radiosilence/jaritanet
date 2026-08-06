@@ -25,6 +25,7 @@ import {
   type VpnUser,
 } from "@jaritanet/vpn";
 import * as k8s from "@pulumi/kubernetes";
+import * as random from "@pulumi/random";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import { conf } from "./conf.ts";
@@ -433,14 +434,24 @@ export default async function () {
     ...edgeNodes,
   ];
 
-  if (
-    conf.profiles &&
-    nodes.length > 0 &&
-    env.SINGBOX_SLUG &&
-    env.TAILNET_MAGICDNS_SUFFIX
-  ) {
+  if (conf.profiles && nodes.length > 0 && env.TAILNET_MAGICDNS_SUFFIX) {
+    // Generated rather than carried as a secret, and rotated by the same value
+    // that reissues every other VPN credential. It was the one credential
+    // outside that mechanism — a separate thing to hold, in a separate place,
+    // that had to be changed by hand to move the URLs.
+    const singboxSlug = new random.RandomString(
+      "singbox-slug",
+      {
+        length: 32,
+        special: false,
+        upper: false,
+        keepers: { rotation: gatewayConf?.credentialRotation ?? "1" },
+      },
+      { additionalSecretOutputs: ["result"] },
+    );
+
     createProfileServer(provider, nsName, users, nodes, {
-      slug: env.SINGBOX_SLUG,
+      slug: singboxSlug.result,
       magicdnsSuffix: env.TAILNET_MAGICDNS_SUFFIX,
       image: conf.profiles.image,
       exits,

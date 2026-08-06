@@ -38,7 +38,7 @@ export function createProfileServer(
   users: VpnUser[],
   nodes: SingboxNode[],
   opts: {
-    slug: string;
+    slug: pulumi.Input<string>;
     magicdnsSuffix: string;
     image: string;
     exits?: Exit[];
@@ -49,20 +49,24 @@ export function createProfileServer(
   // Unguessable path per user, derived from the secret base slug — stable
   // across deploys so a subscription keeps working, unguessable without the
   // base. Same scheme the file server used, so existing URLs keep their shape.
-  const pathFor = (name: string) =>
+  const pathFor = (slug: string, name: string) =>
     `/${crypto
       .createHash("sha256")
-      .update(`${opts.slug}:${name}`)
+      .update(`${slug}:${name}`)
       .digest("hex")
       .slice(0, 32)}.json`;
 
   const routes = pulumi
-    .all([pulumi.output(nodes), pulumi.output(opts.exits ?? [])])
-    .apply(([resolved, resolvedExits]) =>
+    .all([
+      pulumi.output(nodes),
+      pulumi.output(opts.exits ?? []),
+      pulumi.output(opts.slug),
+    ])
+    .apply(([resolved, resolvedExits, slug]) =>
       JSON.stringify(
         Object.fromEntries(
           users.map((user) => [
-            pathFor(user.name),
+            pathFor(slug, user.name),
             JSON.stringify(
               buildProfile(
                 user,
@@ -142,7 +146,11 @@ export function createProfileServer(
       users.map((user) => ({
         name: user.name,
         role: user.role,
-        url: `https://${opts.hostname}${pathFor(user.name)}`,
+        url: pulumi
+          .output(opts.slug)
+          .apply(
+            (slug) => `https://${opts.hostname}${pathFor(slug, user.name)}`,
+          ),
       })),
       opts.telegram,
       routesHash,
