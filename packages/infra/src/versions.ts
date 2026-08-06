@@ -44,6 +44,9 @@ export const STRINGIFY_OPTIONS = {
 export type Decision =
   | { kind: "up-to-date"; current: string }
   | { kind: "update"; from: string; to: string }
+  // Upstream has moved and its image has not caught up. Reported, not failed —
+  // see `decide`.
+  | { kind: "lagging"; reason: string }
   | { kind: "problem"; reason: string };
 
 /**
@@ -104,6 +107,19 @@ export function verifyRef(entry: Tracked, version: string) {
  * that stopped resolving — a release deleted, or one whose image never
  * published in the first place — is reported rather than sitting quietly until
  * the next pod restart finds it.
+ *
+ * A missing image means two different things depending on which one is missing,
+ * and only one of them is ours. A **pinned** ref that has gone is a live
+ * deployment referencing something that no longer exists, and needs a human. A
+ * **newer** release whose image has not published yet is an upstream mid-flight:
+ * klutchell builds unbound's container separately from the release it tracks,
+ * and tailscale's ghcr tags trail its GitHub tags by days. Nothing here is
+ * wrong, nothing here can act, and the entry simply stays where it is.
+ *
+ * That distinction is the difference between an alarm and noise. Treating both
+ * as failures left this workflow red for a week over two upstreams behaving
+ * exactly as they always have, which is the state where nobody reads it any
+ * more and the pin that genuinely broke goes out with the tide.
  */
 export function decide({
   tag,
@@ -127,13 +143,15 @@ export function decide({
     };
   }
   if (ref && !exists) {
-    return {
-      kind: "problem",
-      reason:
-        current === next
-          ? `pinned to ${ref}, which is not in the registry`
-          : `released ${tag} but ${ref} is not in the registry; staying on ${current}`,
-    };
+    return current === next
+      ? {
+          kind: "problem",
+          reason: `pinned to ${ref}, which is not in the registry`,
+        }
+      : {
+          kind: "lagging",
+          reason: `released ${tag} but ${ref} is not in the registry yet; staying on ${current}`,
+        };
   }
   if (current === next) return { kind: "up-to-date", current };
   return { kind: "update", from: current, to: next };
