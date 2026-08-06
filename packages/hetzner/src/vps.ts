@@ -116,6 +116,12 @@ ${reload}`,
  * kernel data, and it only supports a kernel for so long before demanding a
  * reboot — so the window is also what keeps livepatch able to keep working.
  *
+ * Every box takes the same 04:00 window, which is deliberate while the fleet is
+ * a gateway and a home node: they serve different things, so one shared outage
+ * minute beats two staggered ones. It stops being right once edges exist —
+ * every VPN entry rebooting together is an outage rather than a blip, and the
+ * time wants to vary per box at that point.
+ *
  * The token arrives as an environment variable rather than interpolated into
  * the script: Pulumi persists resource inputs to state, and `pulumi.secret` on
  * an input is what gets it encrypted there instead of stored in the clear.
@@ -132,6 +138,16 @@ export function createAutomaticPatching(
       connection,
       environment: proToken ? { UBUNTU_PRO_TOKEN: proToken } : undefined,
       create: `set -euo pipefail
+# Same wait the k3s install opens with, and needed here for the same reason:
+# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
+# lock for minutes, and \`pro attach\` shells out to apt. This command depends
+# only on the server, so on a freshly created box it races both — and since
+# changing the image replaces the server, a fresh box is the normal case rather
+# than the first-run one. Under \`set -e\` losing that race is a failed deploy.
+cloud-init status --wait >/dev/null 2>&1 || true
+mkdir -p /etc/apt/apt.conf.d
+printf 'DPkg::Lock::Timeout "600";\\n' > /etc/apt/apt.conf.d/99-lock-timeout
+
 cat > /etc/apt/apt.conf.d/51unattended-upgrades-local << 'EOF'
 Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
@@ -145,6 +161,11 @@ if [ -n "\${UBUNTU_PRO_TOKEN:-}" ]; then
   # Attaching twice is an error, so this is guarded rather than retried. The
   # explicit enable is why attach does not auto-enable: livepatch is what this
   # is for, and the rest of the entitlements should be a decision.
+  #
+  # The guard makes rotating the token a no-op: the box is already attached, so
+  # a new one is never presented. Rotation means \`pro detach --assume-yes\` on
+  # the box first, and is rare enough not to be worth detaching on every trigger
+  # change to support.
   pro api u.pro.status.is_attached.v1 | grep -q '"is_attached": *true' \\
     || pro attach "$UBUNTU_PRO_TOKEN" --no-auto-enable
   pro enable livepatch --assume-yes || true
