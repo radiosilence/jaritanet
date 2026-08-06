@@ -30,6 +30,25 @@ export const inboundRule = (
 });
 
 /**
+ * Triggers for a command that configures a server, alongside whatever else it
+ * depends on.
+ *
+ * `dependsOn` only orders; it does not make a replaced server re-run anything.
+ * A command triggered solely by its own config keeps its recorded success when
+ * the box underneath it is rebuilt, so the new box comes up unconfigured while
+ * the stack reports no drift — the worst shape a failure can take, because
+ * nothing asks to be fixed. The 26.04 rebuild landed exactly there: patching
+ * re-ran only because its token happened to change in the same update, and the
+ * admin key and the network sysctls were never installed at all. A server's id
+ * changes on replacement, so including it ties the command to the box it
+ * actually configured.
+ */
+const serverTriggers = (
+  server: hcloud.Server,
+  ...rest: pulumi.Input<unknown>[]
+) => [server.id, ...rest];
+
+/**
  * Break-glass SSH access for a human, over SSH so the box is never rebuilt.
  *
  * Everything routine is reachable with kubectl alone — host files, host
@@ -83,10 +102,25 @@ if ! sshd -t; then
   echo "sshd rejected the admin drop-in; rolled back" >&2
   exit 1
 fi
+# Written is not applied: sshd takes the first AuthorizedKeysFile it obtains, so
+# an uncommented directive ahead of the Include wins and leaves a drop-in that
+# reads as installed while selecting nothing. Assert what the daemon resolves,
+# the same reasoning createNetworkTuning and createAutomaticPatching follow.
+# Read into a variable rather than piping to \`grep -q\`, whose early exit would
+# fail the pipeline under pipefail on the very path that succeeded.
+resolved=$(sshd -T | grep -i '^authorizedkeysfile ' || true)
+case "$resolved" in
+  *${keyFile}*) ;;
+  *)
+    rm -f ${dropIn}
+    echo "sshd resolved '$resolved'; ${keyFile} did not take effect, rolled back" >&2
+    exit 1
+    ;;
+esac
 ${reload}`,
       delete: `rm -f ${dropIn} ${keyFile}
 ${reload}`,
-      triggers: [publicKey, "admin-ssh-v1"],
+      triggers: serverTriggers(server, publicKey, "admin-ssh-v2"),
     },
     {
       dependsOn: [server],
@@ -182,7 +216,11 @@ services = {s['name']: s['status'] for s in json.load(sys.stdin).get('services',
 sys.exit(0 if services.get('livepatch') == 'enabled' else 1)
 "
 fi`),
-      triggers: [pulumi.output(proToken ?? ""), "patching-v1"],
+      triggers: serverTriggers(
+        server,
+        pulumi.output(proToken ?? ""),
+        "patching-v1",
+      ),
     },
     { dependsOn: [server] },
   );
@@ -224,7 +262,7 @@ sysctl --system
 # rather than trusting that sysctl.d was read in the order we assumed.
 test "$(sysctl -n net.core.rmem_max)" = 16777216
 test "$(sysctl -n net.core.wmem_max)" = 16777216`,
-      triggers: ["bbr-fq-udp-buffers-v2"],
+      triggers: serverTriggers(server, "bbr-fq-udp-buffers-v2"),
     },
     { dependsOn: [server] },
   );
