@@ -325,15 +325,9 @@ config:
         # 1000m/1024Mi was a ceiling nobody had looked at, and since a limit
         # without a request becomes the request, two replicas reserved half
         # the node and the scheduler refused a VPN transport for lack of CPU.
-        #
-        # The CPU ceiling is five times that measurement because the
-        # measurement is of steady state, and this service's cost is not there:
-        # nano-web walks and processes every file before it binds a socket, and
-        # under 100m that took ~65s — longer than the liveness probe's patience,
-        # so it was killed just before it would have started serving. Requests
-        # are derived as a tenth of the limit, so this reserves 50m and borrows
-        # the rest only while the node has it spare, which is precisely when a
-        # cold boot needs it.
+        # CPU is 5x that: nano-web processes every file before it binds, which
+        # under 100m outlasted the liveness probe. Requests are a tenth of the
+        # limit, so the burst is borrowed rather than held.
         limits:
           cpu: 500m
           memory: 192Mi
