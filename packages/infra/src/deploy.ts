@@ -6,9 +6,9 @@
  * it predicts. Assembling the configuration separately in each workflow meant
  * nothing enforced that, and the two had already drifted apart.
  *
- * Configuration is written to the checked-out Pulumi.main.yaml rather than to
- * the shared stack, so hostnames injected for one PR's preview never reach
- * another's.
+ * Hostnames and other secrets are `${VAR}` references in Pulumi.main.yaml,
+ * resolved from the environment as the program reads its config — see
+ * `resolveEnvRefs`. Nothing here rewrites the file.
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -21,26 +21,6 @@ const WORK_DIR = join(import.meta.dirname, "..");
 
 /** GitHub refuses a comment body beyond 65536 characters. */
 const COMMENT_LIMIT = 60_000;
-
-/**
- * Injected from CI secrets, so this public repo carries no hostnames. Set
- * unconditionally: the checked-in values are empty strings, and writing one
- * back is what an absent secret should mean.
- */
-const CONFIG_FROM_ENV = {
-  "jaritanet:cloudflare.accountId": "CLOUDFLARE_ACCOUNT_ID",
-  "jaritanet:traefik.acmeEmail": "ACME_EMAIL",
-  // A service whose hostname is empty is skipped by main.ts, so an unset secret
-  // is how one stays undeployed. navidrome and files pin their volumes to the
-  // machine physically holding the disk; without it they would sit Pending.
-  "jaritanet:services.blit.hostname": "BLIT_HOSTNAME",
-  "jaritanet:services.navidrome.hostname": "NAVIDROME_HOSTNAME",
-  "jaritanet:services.files.hostname": "FILES_HOSTNAME",
-  "jaritanet:mcpGateway.hostname": "MCP_HOSTNAME",
-  "jaritanet:mcpGateway.authHostname": "MCP_AUTH_HOSTNAME",
-} as const;
-
-const env = (name: string) => process.env[name] ?? "";
 
 /**
  * Plugin download progress is most of a cold run's output and none of its
@@ -91,16 +71,6 @@ const stack = await automation.LocalWorkspace.createOrSelectStack(
         process.env.PULUMI_K8S_DELETE_UNREACHABLE ?? "",
     },
   },
-);
-
-await stack.setAllConfig(
-  Object.fromEntries(
-    Object.entries(CONFIG_FROM_ENV).map(([key, source]) => [
-      key,
-      { value: env(source) },
-    ]),
-  ),
-  true,
 );
 
 const onOutput = (out: string) => process.stdout.write(out);
