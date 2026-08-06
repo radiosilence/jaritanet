@@ -30,11 +30,12 @@ const COMMENT_LIMIT = 60_000;
 const CONFIG_FROM_ENV = {
   "jaritanet:cloudflare.accountId": "CLOUDFLARE_ACCOUNT_ID",
   "jaritanet:traefik.acmeEmail": "ACME_EMAIL",
-  // navidrome and files keep their config with a blank hostname, which main.ts
-  // skips. Their volumes pin to `lady`, the machine physically holding the
-  // disk, so deploying them before it joins leaves a pod Pending until the
-  // deploy times out. Uncomment when the disk has a machine again.
+  // A service whose hostname is empty is skipped by main.ts, so an unset secret
+  // is how one stays undeployed. navidrome and files pin their volumes to the
+  // machine physically holding the disk; without it they would sit Pending.
   "jaritanet:services.blit.hostname": "BLIT_HOSTNAME",
+  "jaritanet:services.navidrome.hostname": "NAVIDROME_HOSTNAME",
+  "jaritanet:services.files.hostname": "FILES_HOSTNAME",
   "jaritanet:mcpGateway.hostname": "MCP_HOSTNAME",
   "jaritanet:mcpGateway.authHostname": "MCP_AUTH_HOSTNAME",
 } as const;
