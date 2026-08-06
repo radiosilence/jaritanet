@@ -122,9 +122,13 @@ ${reload}`,
  * every VPN entry rebooting together is an outage rather than a blip, and the
  * time wants to vary per box at that point.
  *
- * The token arrives as an environment variable rather than interpolated into
- * the script: Pulumi persists resource inputs to state, and `pulumi.secret` on
- * an input is what gets it encrypted there instead of stored in the clear.
+ * The token is interpolated into the script and the whole command marked
+ * secret. Passing it as `environment` is the tidier shape and does not work:
+ * that uses SSH's `setenv`, which sshd refuses unless the server lists the
+ * variable in `AcceptEnv`, and Ubuntu ships accepting only `LANG` and `LC_*`.
+ * Configuring that would mean an sshd change to deliver a token whose purpose
+ * is configuring the box — so the value goes in the script, and `pulumi.secret`
+ * keeps it encrypted in state rather than stored in the clear.
  */
 export function createAutomaticPatching(
   name: string,
@@ -136,8 +140,7 @@ export function createAutomaticPatching(
     `${name}-automatic-patching`,
     {
       connection,
-      environment: proToken ? { UBUNTU_PRO_TOKEN: proToken } : undefined,
-      create: `set -euo pipefail
+      create: pulumi.secret(pulumi.interpolate`set -euo pipefail
 # Same wait the k3s install opens with, and needed here for the same reason:
 # Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
 # lock for minutes, and \`pro attach\` shells out to apt. This command depends
@@ -157,7 +160,8 @@ EOF
 # value that actually resolves rather than the file that was just written.
 apt-config dump | grep -q 'Unattended-Upgrade::Automatic-Reboot "true"'
 
-if [ -n "\${UBUNTU_PRO_TOKEN:-}" ]; then
+UBUNTU_PRO_TOKEN='${pulumi.output(proToken ?? "")}'
+if [ -n "$UBUNTU_PRO_TOKEN" ]; then
   # Attaching twice is an error, so this is guarded rather than retried. The
   # explicit enable is why attach does not auto-enable: livepatch is what this
   # is for, and the rest of the entitlements should be a decision.
@@ -177,7 +181,7 @@ import json, sys
 services = {s['name']: s['status'] for s in json.load(sys.stdin).get('services', [])}
 sys.exit(0 if services.get('livepatch') == 'enabled' else 1)
 "
-fi`,
+fi`),
       triggers: [pulumi.output(proToken ?? ""), "patching-v1"],
     },
     { dependsOn: [server] },
