@@ -21,6 +21,12 @@ export const EnvSchema = z.object({
     )
     .optional(),
 
+  // Ubuntu Pro, for livepatch on the gateway and every edge. Free for personal
+  // use on up to five machines. Absent → the reboot window is still configured
+  // and only livepatch is skipped, because a box that boots its patches is the
+  // baseline and livepatch is the improvement on it.
+  UBUNTU_PRO_TOKEN: z.string().optional(),
+
   TS_AUTHKEY: z.string().optional(),
 
   // Tailnet policy-as-code. Absent, the policy stays hand-managed in the admin

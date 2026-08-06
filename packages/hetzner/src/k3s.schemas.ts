@@ -11,7 +11,7 @@ import * as z from "zod";
  * has no policy engine, so every NetworkPolicy is inert under it
  * (see docs/architecture.md).
  *
- * Cilium's version has to match the cluster's: 1.19 supports k8s 1.33–1.36,
+ * Cilium's version has to match the cluster's: 1.20 supports k8s 1.33–1.36,
  * 1.18 supports 1.30–1.33. Moving `version` without checking that is how you
  * get a cluster with no working network.
  */
@@ -30,6 +30,6 @@ export const K3sConfSchema = z.object({
    * way — this never falls back to skipping TLS checks.
    */
   apiViaTailnet: z.boolean().default(false),
-  ciliumVersion: z.string().default("1.19.6"),
-  version: z.string().default("v1.36.2+k3s1"),
+  ciliumVersion: z.string().default("1.20.0"),
+  version: z.string().default("v1.36.3+k3s1"),
 });

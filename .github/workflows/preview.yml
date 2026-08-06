@@ -70,6 +70,8 @@ jobs:
           # deploy predicts nothing anyway.
           VPN_ENTRY_LABEL: ${{ secrets.VPN_ENTRY_LABEL }}
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+          # Livepatch on the gateway and every edge. Free for personal use.
+          UBUNTU_PRO_TOKEN: ${{ secrets.UBUNTU_PRO_TOKEN }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
           SINGBOX_SLUG: ${{ secrets.SINGBOX_SLUG }}
           TAILNET_MAGICDNS_SUFFIX: ${{ secrets.TAILNET_MAGICDNS_SUFFIX }}
