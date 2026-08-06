@@ -222,8 +222,13 @@ systemctl restart unbound`,
 
   // Tailnet relay: only when configured and an auth key is present, so
   // enabling `tailnet` in config before the secret is set is a safe no-op.
+  // Not gated on `sshTransports` like the other units: this is not a transport
+  // the cluster serves but the substrate it stands on. Cilium addresses nodes
+  // by their tailnet IP because the home node has no other reachable address,
+  // so tailscaled has to exist before k3s installs — which rules out running it
+  // as a pod in the cluster it is a precondition for.
   const tailscale =
-    gateway.tailnet && tailnetAuthKey && sshTransports
+    gateway.tailnet && tailnetAuthKey
       ? createTailscaleSystemd(
           connection,
           gateway.tailnet,
@@ -241,7 +246,15 @@ systemctl restart unbound`,
       : server.ipv4Address;
 
   const k3s = gateway.k3s
-    ? createK3s(connection, server, gateway.k3s, apiHost, "", clusterName)
+    ? createK3s(
+        connection,
+        server,
+        gateway.k3s,
+        apiHost,
+        "",
+        clusterName,
+        tailscale ? [tailscale] : [],
+      )
     : undefined;
 
   // Marks this node as one that serves VPN entries; the transport DaemonSets
