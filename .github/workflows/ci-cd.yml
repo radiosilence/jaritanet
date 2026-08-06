@@ -42,6 +42,8 @@ on:
         required: false
       SSH_PUBLIC_KEY:
         required: false
+      UBUNTU_PRO_TOKEN:
+        required: false
       TS_OAUTH_CLIENT_ID:
         required: true
       TS_OAUTH_SECRET:
@@ -218,6 +220,8 @@ jobs:
           # Break-glass admin key installed on the gateway and every edge, over
           # SSH rather than at creation so rotating it never replaces a box.
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+          # Livepatch on the gateway and every edge. Free for personal use.
+          UBUNTU_PRO_TOKEN: ${{ secrets.UBUNTU_PRO_TOKEN }}
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
           # Per-user VPN roster (RBAC). "jc+,guest1" → jc admin, guest1 guest.
           # Unset → single implicit owner-admin.

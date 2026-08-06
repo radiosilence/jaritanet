@@ -1,5 +1,6 @@
 import {
   createAdminSshAccess,
+  createAutomaticPatching,
   createNetworkTuning,
   inboundRule,
 } from "@jaritanet/hetzner";
@@ -11,7 +12,7 @@ import {
   XrayConfSchema,
 } from "@jaritanet/vpn";
 import * as hcloud from "@pulumi/hcloud";
-import type * as pulumi from "@pulumi/pulumi";
+import * as pulumi from "@pulumi/pulumi";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
 import type { EdgeConfSchema } from "./conf.schemas.ts";
@@ -36,6 +37,7 @@ export function createEdge(
   users: VpnUser[],
   authKey: pulumi.Output<string> | undefined,
   adminSshKey: string | undefined,
+  proToken: string | undefined,
 ) {
   const { name } = edge;
 
@@ -73,6 +75,13 @@ export function createEdge(
   };
 
   createNetworkTuning(name, connection, server);
+
+  createAutomaticPatching(
+    name,
+    connection,
+    server,
+    proToken ? pulumi.secret(proToken) : undefined,
+  );
 
   if (adminSshKey) {
     createAdminSshAccess(name, connection, server, adminSshKey);

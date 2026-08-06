@@ -79,7 +79,7 @@ export const GatewayConfSchema = z.object({
    * slot it fills is still "the gateway".
    */
   name: z.string().default("sympathy"),
-  image: z.string().default("ubuntu-24.04"),
+  image: z.string().default("ubuntu-26.04"),
   k3s: K3sConfSchema.optional(),
   location: z.string().default("nbg1"),
   ratholeVersion: z.string().default("v0.5.0"),
@@ -107,7 +107,7 @@ export const EdgeConfSchema = z.object({
     sni: "www.bing.com",
     image: "docker.io/tobyxdd/hysteria:v2.10.0",
   }),
-  image: z.string().default("ubuntu-24.04"),
+  image: z.string().default("ubuntu-26.04"),
   location: z.string().default("hel1"),
   name: z.string(),
   reality: z
