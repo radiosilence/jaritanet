@@ -375,7 +375,8 @@ route → the relay and every service riding it go dark.
 
 On the gateway this runs as a pod, which means the tailnet goes with the
 cluster. That is accepted rather than defended against: sshd on the public IP is
-the way back in, so nothing is built to keep tailscale up while k3s is down.
+the way back in (see Break-glass SSH), so nothing is built to keep tailscale up
+while k3s is down.
 
 Node state lives in a Kubernetes Secret, not on the node's disk, so the identity
 survives reprovisioning the box. The Secret is created empty by Pulumi and never
@@ -572,6 +573,41 @@ Delivery is owner-relayed: a bot can't cold-DM a handle, so on change the owner
 gets one Telegram message grouping users under Admins / Guests, each URL a
 tap-to-copy `<code>` block plus a `copy_text` inline-keyboard button.
 
+## Break-glass SSH
+
+Each box's only key is the ED25519 pair Pulumi generates for it, which lives in
+stack state and is never exported. `SSH_PUBLIC_KEY` adds a human's key on top,
+on the gateway and every edge.
+
+It buys one thing, and it is worth being precise about which. Reading host
+files, host networking and even `systemctl` are all reachable from a privileged
+pod with `hostPID` and `nsenter` — SSH adds nothing there. The case it exists
+for is **k3s failing to come up**: no API server, no kubectl, no privileged pod.
+The mechanism for adding a key is the broken thing at that moment, which is why
+the key is installed on every deploy rather than when it is wanted.
+
+Three decisions hold it up:
+
+**It arrives over SSH, not through `sshKeys` or `userData`.** Hetzner applies
+both only at creation, so changing either forces a replacement — a new IP, a new
+REALITY keypair, and every client profile rotating. `createAdminSshAccess` is a
+`command.remote.Command` over the connection Pulumi already holds, the same
+idiom as `createNetworkTuning`. Rotating the key is an ordinary deploy.
+
+**It never touches the `authorized_keys` Pulumi authenticates with.** The key
+goes in `/etc/ssh/admin_authorized_keys`, selected by an `sshd_config.d` drop-in
+that lists root's own file first. A mistake in the shared file locks the deploy
+out of the box it is deploying to, with no way back in. `sshd -t` runs before
+anything is reloaded and the drop-in is removed if it rejects, so a bad config
+fails the Pulumi resource rather than the daemon.
+
+**Absent secret means no resource**, matching how `TS_AUTHKEY` gates the tailnet
+relay. Removing the secret deletes the key from the boxes on the next deploy.
+
+The reload is conditional on `ssh.service` being active: Ubuntu 24.04 activates
+sshd from `ssh.socket`, where each connection is a fresh process that reads the
+config anyway, and starting `ssh.service` there would fight the socket for `:22`.
+
 ## Hardening notes
 
 Live tradeoffs worth knowing, not necessarily bugs:
@@ -622,8 +658,10 @@ Live tradeoffs worth knowing, not necessarily bugs:
 - **SSH (22) and rathole control (2333) are open to the world.** Both are
   authenticated (SSH is key-only ED25519; rathole is 64-char token). Tailnet-
   gating SSH would shrink the attack surface but adds lockout risk on a box
-  whose whole job is being reachable, so it's left open by choice. 2333 must
-  stay open regardless: the home client dials in from a dynamic NATed IP.
+  whose whole job is being reachable — and the tailnet is a pod on that cluster,
+  so gating it would remove exactly the access needed when the cluster is the
+  thing that broke. Left open by choice. 2333 must stay open regardless: the
+  home client dials in from a dynamic NATed IP.
 - **The NetworkPolicies are enforced now, and the first thing they caught was
   ours.** The old home cluster ran flannel, a pure overlay with **no policy
   engine at all**: a NetworkPolicy was accepted by the API server, stored,

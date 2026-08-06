@@ -1,4 +1,8 @@
-import { createNetworkTuning, inboundRule } from "@jaritanet/hetzner";
+import {
+  createAdminSshAccess,
+  createNetworkTuning,
+  inboundRule,
+} from "@jaritanet/hetzner";
 import {
   createHysteriaSystemd,
   createTailscaleSystemd,
@@ -31,6 +35,7 @@ export function createEdge(
   edge: z.infer<typeof EdgeConfSchema>,
   users: VpnUser[],
   authKey: pulumi.Output<string> | undefined,
+  adminSshKey: string | undefined,
 ) {
   const { name } = edge;
 
@@ -68,6 +73,10 @@ export function createEdge(
   };
 
   createNetworkTuning(name, connection, server);
+
+  if (adminSshKey) {
+    createAdminSshAccess(name, connection, server, adminSshKey);
+  }
 
   const opts = { name, dependsOn: [server] };
 

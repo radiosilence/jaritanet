@@ -30,6 +30,76 @@ export const inboundRule = (
 });
 
 /**
+ * Break-glass SSH access for a human, over SSH so the box is never rebuilt.
+ *
+ * Everything routine is reachable with kubectl alone — host files, host
+ * networking, even `systemctl`, via a privileged pod with `hostPID` and
+ * `nsenter`. The case that isn't is k3s failing to come up: no API server means
+ * no kubectl, which means no privileged pod, which is exactly when getting onto
+ * the box is the only remaining move. The mechanism for adding a key is the
+ * thing that is broken at that moment, so the key has to already be there.
+ *
+ * Not via the server's `sshKeys` or `userData`: Hetzner applies both only at
+ * creation, so changing either replaces the box — a new IP, a new REALITY
+ * keypair, and every client profile rotating.
+ *
+ * The key lands in its own file rather than root's `authorized_keys`, which is
+ * the one Pulumi authenticates with: a mistake in the shared file locks the
+ * deploy out of the box it is deploying to, with no way back in. `sshd -t` runs
+ * before anything is reloaded and the drop-in is removed if it fails, so a bad
+ * config fails this command rather than the daemon.
+ */
+export function createAdminSshAccess(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+  publicKey: string,
+) {
+  const dropIn = "/etc/ssh/sshd_config.d/60-jaritanet-admin.conf";
+  const keyFile = "/etc/ssh/admin_authorized_keys";
+
+  // Socket-activated sshd (the Ubuntu 24.04 default) starts a fresh process per
+  // connection and so reads the config anyway; where ssh.service holds port 22
+  // the running daemon has the old config loaded and must be told. Starting
+  // ssh.service unconditionally would fight ssh.socket for the port.
+  const reload = `systemctl is-active --quiet ssh.service && systemctl reload ssh.service || true`;
+
+  return new command.remote.Command(
+    `${name}-admin-ssh`,
+    {
+      connection,
+      create: `set -euo pipefail
+install -m 0600 -o root -g root /dev/null ${keyFile}
+cat > ${keyFile} << 'KEY_EOF'
+${publicKey}
+KEY_EOF
+# Root's own authorized_keys stays first and untouched — it is the key this
+# command is running over.
+cat > ${dropIn} << 'EOF'
+AuthorizedKeysFile .ssh/authorized_keys ${keyFile}
+EOF
+if ! sshd -t; then
+  rm -f ${dropIn}
+  echo "sshd rejected the admin drop-in; rolled back" >&2
+  exit 1
+fi
+${reload}`,
+      delete: `rm -f ${dropIn} ${keyFile}
+${reload}`,
+      triggers: [publicKey, "admin-ssh-v1"],
+    },
+    {
+      dependsOn: [server],
+      // A trigger change replaces this resource, and the default order is
+      // create-then-delete: the new key would be written and then the old
+      // resource's delete would remove both files, leaving no key at all.
+      // Rotating the key has to delete first.
+      deleteBeforeReplace: true,
+    },
+  );
+}
+
+/**
  * Network sysctls the transports need, over SSH so the box is never rebuilt.
  *
  * BBR + fq: default cubic collapses throughput on packet loss; BBR holds the
