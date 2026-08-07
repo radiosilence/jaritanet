@@ -89,7 +89,7 @@ config:
     # no-op until the secret exists.
     tailnet:
       hostname: sympathy
-      image: ghcr.io/tailscale/tailscale:v1.98.10
+      image: ghcr.io/tailscale/tailscale:v1.102.2
     # Caching resolver for VPN clients, reached at 127.0.0.1:53 through the
     # tunnel. Distinct from coredns, which serves pods.
     unbound:
