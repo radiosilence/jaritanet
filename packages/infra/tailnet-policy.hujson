@@ -1,38 +1,90 @@
-// Tailnet policy file (HuJSON — comments are preserved when applied).
-//
-// NOT YET LIVE. This is a starting point, not the current policy. The Pulumi
-// resource refuses to touch a policy it has not imported, so nothing here
-// applies until someone runs the import in the README. Before that import,
-// replace everything below with the tailnet's *current* policy — the point is
-// to bring what exists under version control first and tighten afterwards, not
-// to swap a working policy for a guess.
-//
-// Why this is worth doing: the gateway is a tailnet member so it can relay
-// 100.x over the VPN tunnel. Anything it can reach, a bug in Xray or Hysteria
-// can also reach — see #162, where guest rules that looked like they blocked
-// the tailnet did not. Grants here are what contains that class of bug, and
-// they hold regardless of which layer above them is wrong.
-//
-// The catch worth understanding before tightening: the gateway is a *relay*, so
-// whatever it cannot reach, you cannot reach over the VPN either. The right
-// question is not "how locked down can this be" but "what do I actually use the
-// tunnel to reach" — likely the home node on a handful of ports.
+// Example/default ACLs for unrestricted connections.
 {
-	"tagOwners": {
-		// The gateway wants its own tag. It currently joins as tag:server, which
-		// it shares with every other server, so no grant can distinguish it.
-		// Give it one here first — a node cannot advertise a tag the policy does
-		// not define — then set gateway.tailnet.tag to match.
-		// "tag:gateway": ["autogroup:admin"],
-	},
+	// Declare static groups of users. Use autogroups for all users or users with a specific role.
+	// "groups": {
+	//  	"group:example": ["alice@example.com", "bob@example.com"],
+	// },
 
-	"grants": [
-		// Placeholder mirroring Tailscale's default: everything reaches
-		// everything. Replace with the imported policy, then narrow.
+	// Define the tags which can be applied to devices and by which users.
+	// "tagOwners": {
+	//  	"tag:example": ["autogroup:admin"],
+	// },
+
+	// Define access control lists for users, groups, autogroups, tags,
+	// Tailscale IP addresses, and subnet ranges.
+	"acls": [
+		// Allow all connections.
+		// Comment this section out if you want to define specific restrictions.
+		{"action": "accept", "src": ["*"], "dst": ["*:*"]},
+
+		// Allow users in "group:example" to access "tag:example", but only from
+		// devices that are running macOS and have enabled Tailscale client auto-updating.
+		// {"action": "accept", "src": ["group:example"], "dst": ["tag:example:*"], "srcPosture":["posture:autoUpdateMac"]},
+	],
+
+	// Define postures that will be applied to all rules without any specific
+	// srcPosture definition.
+	// "defaultSrcPosture": [
+	//      "posture:anyMac",
+	// ],
+
+	// Define device posture rules requiring devices to meet
+	// certain criteria to access parts of your system.
+	// "postures": {
+	//      // Require devices running macOS, a stable Tailscale
+	//      // version and auto update enabled for Tailscale.
+	// 	"posture:autoUpdateMac": [
+	// 	    "node:os == 'macos'",
+	// 	    "node:tsReleaseTrack == 'stable'",
+	// 	    "node:tsAutoUpdate",
+	// 	],
+	//      // Require devices running macOS and a stable
+	//      // Tailscale version.
+	// 	"posture:anyMac": [
+	// 	    "node:os == 'macos'",
+	// 	    "node:tsReleaseTrack == 'stable'",
+	// 	],
+	// },
+
+	// Define users and devices that can use Tailscale SSH.
+	"ssh": [
+		// Allow all users to SSH into their own devices in check mode.
+		// Comment this section out if you want to define specific restrictions.
 		{
-			"src": ["*"],
-			"dst": ["*"],
-			"ip":  ["*"],
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
 		},
 	],
+	"nodeAttrs": [
+		{"target": ["100.120.110.113"], "attr": ["mullvad"]},
+		{"target": ["100.81.66.75"], "attr": ["mullvad"]},
+		{"target": ["100.69.92.89"], "attr": ["mullvad"]},
+		{"target": ["100.125.129.11"], "attr": ["mullvad"]},
+		{
+			// Funnel policy, which lets tailnet members control Funnel
+			// for their own devices.
+			// Learn more at https://tailscale.com/kb/1223/tailscale-funnel/
+			"target": ["autogroup:member"],
+			"attr":   ["funnel"],
+		},
+		{"target": ["100.124.42.33"], "attr": ["mullvad"]},
+		{"target": ["100.90.106.88"], "attr": ["mullvad"]},
+		{"target": ["100.86.209.52"], "attr": ["mullvad"]},
+	],
+
+	// Test access rules every time they're saved.
+	// "tests": [
+	//  	{
+	//  		"src": "alice@example.com",
+	//  		"accept": ["tag:example"],
+	//  		"deny": ["100.101.102.103:443"],
+	//  	},
+	// ],
+	// "{
+	"tagOwners": {
+		"tag:server": ["jc@blit.cc"],
+		"tag:ci":     ["jc@blit.cc"],
+	},
 }

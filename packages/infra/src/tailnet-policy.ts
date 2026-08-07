@@ -14,6 +14,12 @@ import type * as pulumi from "@pulumi/pulumi";
  * grant limiting what the gateway can talk to would have contained it without
  * anyone noticing the bug.
  *
+ * It cuts the other way too, which the containment argument alone misses: since
+ * #238 Cilium addresses both nodes by tailnet IP, so this policy carries pod
+ * traffic between them. A grant that omits the node pair does not degrade
+ * access, it partitions the cluster — and that constraint is invisible from the
+ * admin console, which is the sharper reason for the policy to live here.
+ *
  * The policy is a file rather than a JS object because HuJSON keeps comments,
  * and a policy whose reasoning is stripped out is a policy nobody dares edit.
  *

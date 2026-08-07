@@ -457,5 +457,10 @@ config:
     authKey:
       secure: AAABAFdTxr5vrl04OjZGpzGrBywrhs6it+Dk/4ehhFth1gje1gho8PoXoYSt77fAQuWcfStdTtnP3yv7nVxNCqQOJMw9kL7pEJY08cPWAsWEr//mfbnSC/2Ap4IMsAw=
     magicdnsSuffix: zonkey-jazz.ts.net
+    oauth:
+      clientId: kwGpaNTK9Y11CNTRL
+      clientSecret:
+        secure: AAABAGhrgFsFYiXNK3QDi18u9DbNtR/bd39xzOW+IkgvlQZHDoGnpD8325akS306yfV4DsZKTVoUnRCIEhTJfgaDM0KSuzgFABAKTxC5MpHPA6t6c2wzSkjhKI3YWfg=
+    name: zonkey-jazz.ts.net
   jaritanet:vpnUsers:
     secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc
