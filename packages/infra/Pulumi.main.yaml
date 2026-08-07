@@ -29,135 +29,6 @@ config:
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
     chartVersion: "41.1.1"
-  jaritanet:mcpGateway:
-    # GitHub OAuth credentials and the login allowlist come from stack config.
-    hostname:
-      secure: AAABADHN+GrfSd0qTwQAuaJp3u9RRiCJf/3Ki4LWnL2HYjO6XupTDBd6qw==
-    authHostname:
-      secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
-    hydraTag: "v2.2.0"
-    replicas: 2
-    # Routes and terminates OAuth rather than serving a file, so it gets more
-    # headroom than blit — but it measured 1m CPU idle, not 500m.
-    limits:
-      cpu: "250m"
-      memory: "256Mi"
-    image:
-      # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
-      # to be a sha pushed here by that repo's CI on every build.
-      repository: "ghcr.io/radiosilence/mcp-gateway"
-      tag: v0.5.4
-      pullPolicy: "Always"
-    # Each entry is both a backend pod and its entry in the registry the gateway
-    # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
-    # that doesn't exist is just a 502. The in-cluster URL joining them is
-    # derived, so nothing here says where an MCP lives.
-    mcps:
-      # Pinned to release tags, not :main. A floating tag with the default
-      # pull policy leaves a running pod on whatever it first pulled, so the
-      # backends would silently drift from the gateway they serve.
-      - id: fastmail
-        name: Fastmail
-        image: "ghcr.io/radiosilence/fastmail-cli:v3.3.2"
-        args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
-        port: 8080
-        path: "/mcp"
-        graphqlPath: "/graphql"
-        credentialHeader: "X-Fastmail-Token"
-        keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
-        keyHint: "fmu1-…"
-        # Re-runs the handshake rather than reading a cached client, so a
-        # revoked token is caught rather than reported as fine. Only a 401 is a
-        # verdict on the credential; rate limits and outages are UNREACHABLE.
-        verify:
-          query: "{ session { status } }"
-          path: session.status
-          ok: CONNECTED
-          rejected: INVALID_CREDENTIALS
-      # CalDAV needs three values rather than one token, and serves plain
-      # GraphQL beside /mcp so the dashboard can list an account's calendars
-      # in one request instead of an MCP session handshake.
-      - id: caldav
-        name: Calendar (CalDAV)
-        image: "ghcr.io/radiosilence/caldav-cli:v0.6.3"
-        args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
-        port: 8080
-        path: "/mcp"
-        graphqlPath: "/graphql"
-        keyHelpUrl: "https://appleid.apple.com"
-        # A cheap PROPFIND for the principal — never touches the calendar list.
-        verify:
-          query: "{ viewer { status } }"
-          path: viewer.status
-          ok: CONNECTED
-          rejected: INVALID_CREDENTIALS
-        fields:
-          - id: username
-            label: "Apple ID / username"
-            header: "X-CalDAV-Username"
-            secret: false
-            hint: "you@icloud.com"
-          - id: password
-            label: "App-specific password"
-            header: "X-CalDAV-Password"
-            secret: true
-            hint: "abcd-efgh-ijkl-mnop"
-          - id: url
-            label: "CalDAV server"
-            header: "X-CalDAV-Url"
-            secret: false
-            default: "https://caldav.icloud.com"
-            required: false
-          - id: calendar
-            label: "Default calendar for new events"
-            header: "X-CalDAV-Calendar"
-            secret: false
-            required: false
-            hint: "Blank = whichever calendar your calendar app uses"
-            # Keyed by id, not display name: two calendars can share a name
-            # (this account has two "Family"), so a name is ambiguous — and the
-            # value is what rides X-CalDAV-Calendar into every write.
-            # supportsEvents marks the task-only collections nothing can land in.
-            optionsQuery: "{ options: calendars(first: 100) { nodes { value: id label: name disabled: readOnly isDefault supportsEvents } } }"
-            syncMutation: "mutation($value: String!) { setDefaultCalendar(id: $value) { success error } }"
-      # The English folk archive. The first backend needing no credentials at
-      # all: mainlynorfolk.info is a public website, so there is nothing to
-      # authenticate to and nothing to store. `public: true` says so
-      # explicitly — an omitted credential block is a schema error, not a
-      # licence to front an MCP unauthenticated.
-      - id: folk
-        name: Folk (Mainly Norfolk)
-        image: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.3"
-        args: ["--http", "0.0.0.0:8080", "--graphql"]
-        port: 8080
-        path: "/mcp"
-        graphqlPath: "/graphql"
-        public: true
-      # TfL needs no key at all — anonymous callers get 50 requests/minute,
-      # which is the same data, not a degraded tier. A key raises that to 500,
-      # so the field is offered and optional: the proxy treats a missing
-      # credential as fine and the backend simply runs anonymously, which means
-      # this works the moment someone logs in.
-      - id: tfl
-        name: TfL (London transport)
-        image: "ghcr.io/radiosilence/tfl-mcp:v1.3.4"
-        args: ["--http", "0.0.0.0:8080", "--graphql"]
-        port: 8080
-        path: "/mcp"
-        graphqlPath: "/graphql"
-        keyHelpUrl: "https://api-portal.tfl.gov.uk/profile"
-        fields:
-          - id: app_key
-            label: "TfL app key (optional — raises the rate limit)"
-            header: "X-Tfl-App-Key"
-            secret: true
-            required: false
-            hint: "32 hex characters"
-    github:
-      clientId: Ov23li4FvfOrmoadwJfH
-      clientSecret:
-        secure: AAABAD8e8FYYbQJwlY3iLFFc0rtqNQpsQo9K4kA1FqyW9JjSfHPFv4zbtLaZgetjgsZ/25gSRPG1p89Jwq5BC45m/rmzJC6t
-      allowed: radiosilence
   jaritanet:gateway:
     # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
@@ -225,37 +96,6 @@ config:
       image: docker.io/klutchell/unbound:v1.25.2
     hcloudToken:
       secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
-  # What lady serves off the media drive. Shares are anonymous — `map to guest`
-  # turns unknown users into `guestAccount`, which must own the files or every
-  # read fails — and reachable only from the tailnet and the LAN, never the
-  # internet. jc owns /mnt/kontent, and is uid/gid 1000 on the node.
-  #
-  # Paths are under the mount, so an unmounted drive means the hostPath type
-  # `Directory` finds nothing and the pod stays Pending rather than serving an
-  # empty share.
-  jaritanet:home:
-    samba:
-      guestAccount: jc
-      shares:
-        - name: music
-          hostPath: /mnt/kontent/music
-        - name: movies
-          hostPath: /mnt/kontent/movies
-        - name: tv
-          hostPath: /mnt/kontent/tv
-        - name: dl
-          hostPath: /mnt/kontent/dl
-    # Which folders syncthing can reach; what is actually synced with whom is
-    # set in its own UI, which is state it keeps for itself. No hostname, so the
-    # UI stays on :8384 over the LAN and the tailnet rather than being published.
-    #
-    # It runs as the media's owner rather than relying on fsGroup, which kubelet
-    # does not apply to hostPath volumes — so what it writes stays readable by
-    # samba and navidrome.
-    syncthing:
-      folders:
-        - name: music
-          hostPath: /mnt/kontent/music
   # Egress exit nodes — ss-rust on the machine whose IP you want to leave from,
   # selectable in the client as exit-<name>. lady is the only one worth having:
   # her address is a consumer ISP's, which no Hetzner range can be.
@@ -279,6 +119,7 @@ config:
       server: 100.74.66.121
   jaritanet:services:
     navidrome:
+      kind: web
       hostname:
         secure: AAABAOdacdl4CcEW/0b8Wssi5aAAtgT36tDzLCGgrCDnUsySnEuGoId0I0g4
       args:
@@ -323,11 +164,6 @@ config:
         limits:
           cpu: 2000m
           memory: 4Gi
-        nodeSelector:
-          key: kubernetes.io/hostname
-          operator: In
-          values:
-            - lady
         persistence:
           - name: music
             storage: 2Ti
@@ -342,6 +178,7 @@ config:
             readOnly: false
             nodeAffinityHostname: lady
     files:
+      kind: web
       hostname:
         secure: AAABAHFob6VSSPAryzCz1JmtWNQ9d4CnjpAHx14AgwDb75eRTy4FPmcrmYOXagsN1+RQNzPF
       args:
@@ -370,11 +207,6 @@ config:
         limits:
           cpu: 100m
           memory: 64Mi
-        nodeSelector:
-          key: kubernetes.io/hostname
-          operator: In
-          values:
-            - lady
         persistence:
           - name: files
             storage: 20Mi
@@ -383,6 +215,7 @@ config:
             readOnly: true
             nodeAffinityHostname: lady
     blit:
+      kind: web
       hostname: blit.cc
       args:
         # Public-facing, so confine egress to DNS and the internet. No
@@ -410,15 +243,181 @@ config:
           tag: sha-3855f05
           pullPolicy: "Always"
         httpPort: 3000
-  jaritanet:profiles:
-    hostname:
-      secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
-    image: ghcr.io/radiosilence/serve-from-env:0.1.0
-    telegram:
-      botToken:
-        secure: AAABAG1Dqy8QBBuB3QXADxbmJXDhzq7ZRvXoV4LlNZ8LuSXajDoE7AvgtWvJnhIEaXGRPOR46RFiItpup9yJXNsRTXRNS3EvFSEY6vJU
-      chatId:
-        secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
+    # What lady serves off the media drive. Shares are anonymous — `map to
+    # guest` turns unknown users into `guestAccount`, which must own the files
+    # or every read fails — and reachable only from the tailnet and the LAN,
+    # never the internet. jc owns /mnt/kontent, and is uid/gid 1000 on the node.
+    #
+    # Paths are under the mount, so an unmounted drive means the hostPath type
+    # `Directory` finds nothing and the pod stays Pending rather than serving an
+    # empty share.
+    #
+    # `nodeLabel` is left at its default: which machine holds the disks is a
+    # property of that machine, applied by the seed drive when it joins.
+    samba:
+      kind: samba
+      guestAccount: jc
+      shares:
+        - name: music
+          hostPath: /mnt/kontent/music
+        - name: movies
+          hostPath: /mnt/kontent/movies
+        - name: tv
+          hostPath: /mnt/kontent/tv
+        - name: dl
+          hostPath: /mnt/kontent/dl
+    # Which folders syncthing can reach; what is actually synced with whom is
+    # set in its own UI, which is state it keeps for itself. No hostname, so the
+    # UI stays on :8384 over the LAN and the tailnet rather than being published.
+    #
+    # It runs as the media's owner rather than relying on fsGroup, which kubelet
+    # does not apply to hostPath volumes — so what it writes stays readable by
+    # samba and navidrome.
+    syncthing:
+      kind: syncthing
+      folders:
+        - name: music
+          hostPath: /mnt/kontent/music
+    mcp-gateway:
+      kind: mcp-gateway
+      # GitHub OAuth credentials and the login allowlist come from stack config.
+      hostname:
+        secure: AAABADHN+GrfSd0qTwQAuaJp3u9RRiCJf/3Ki4LWnL2HYjO6XupTDBd6qw==
+      authHostname:
+        secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
+      hydraTag: "v2.2.0"
+      replicas: 2
+      # Routes and terminates OAuth rather than serving a file, so it gets more
+      # headroom than blit — but it measured 1m CPU idle, not 500m.
+      limits:
+        cpu: "250m"
+        memory: "256Mi"
+      image:
+        # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
+        # to be a sha pushed here by that repo's CI on every build.
+        repository: "ghcr.io/radiosilence/mcp-gateway"
+        tag: v0.5.4
+        pullPolicy: "Always"
+      # Each entry is both a backend pod and its entry in the registry the gateway
+      # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
+      # that doesn't exist is just a 502. The in-cluster URL joining them is
+      # derived, so nothing here says where an MCP lives.
+      mcps:
+        # Pinned to release tags, not :main. A floating tag with the default
+        # pull policy leaves a running pod on whatever it first pulled, so the
+        # backends would silently drift from the gateway they serve.
+        - id: fastmail
+          name: Fastmail
+          image: "ghcr.io/radiosilence/fastmail-cli:v3.3.2"
+          args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
+          port: 8080
+          path: "/mcp"
+          graphqlPath: "/graphql"
+          credentialHeader: "X-Fastmail-Token"
+          keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
+          keyHint: "fmu1-…"
+          # Re-runs the handshake rather than reading a cached client, so a
+          # revoked token is caught rather than reported as fine. Only a 401 is a
+          # verdict on the credential; rate limits and outages are UNREACHABLE.
+          verify:
+            query: "{ session { status } }"
+            path: session.status
+            ok: CONNECTED
+            rejected: INVALID_CREDENTIALS
+        # CalDAV needs three values rather than one token, and serves plain
+        # GraphQL beside /mcp so the dashboard can list an account's calendars
+        # in one request instead of an MCP session handshake.
+        - id: caldav
+          name: Calendar (CalDAV)
+          image: "ghcr.io/radiosilence/caldav-cli:v0.6.3"
+          args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
+          port: 8080
+          path: "/mcp"
+          graphqlPath: "/graphql"
+          keyHelpUrl: "https://appleid.apple.com"
+          # A cheap PROPFIND for the principal — never touches the calendar list.
+          verify:
+            query: "{ viewer { status } }"
+            path: viewer.status
+            ok: CONNECTED
+            rejected: INVALID_CREDENTIALS
+          fields:
+            - id: username
+              label: "Apple ID / username"
+              header: "X-CalDAV-Username"
+              secret: false
+              hint: "you@icloud.com"
+            - id: password
+              label: "App-specific password"
+              header: "X-CalDAV-Password"
+              secret: true
+              hint: "abcd-efgh-ijkl-mnop"
+            - id: url
+              label: "CalDAV server"
+              header: "X-CalDAV-Url"
+              secret: false
+              default: "https://caldav.icloud.com"
+              required: false
+            - id: calendar
+              label: "Default calendar for new events"
+              header: "X-CalDAV-Calendar"
+              secret: false
+              required: false
+              hint: "Blank = whichever calendar your calendar app uses"
+              # Keyed by id, not display name: two calendars can share a name
+              # (this account has two "Family"), so a name is ambiguous — and the
+              # value is what rides X-CalDAV-Calendar into every write.
+              # supportsEvents marks the task-only collections nothing can land in.
+              optionsQuery: "{ options: calendars(first: 100) { nodes { value: id label: name disabled: readOnly isDefault supportsEvents } } }"
+              syncMutation: "mutation($value: String!) { setDefaultCalendar(id: $value) { success error } }"
+        # The English folk archive. The first backend needing no credentials at
+        # all: mainlynorfolk.info is a public website, so there is nothing to
+        # authenticate to and nothing to store. `public: true` says so
+        # explicitly — an omitted credential block is a schema error, not a
+        # licence to front an MCP unauthenticated.
+        - id: folk
+          name: Folk (Mainly Norfolk)
+          image: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.3"
+          args: ["--http", "0.0.0.0:8080", "--graphql"]
+          port: 8080
+          path: "/mcp"
+          graphqlPath: "/graphql"
+          public: true
+        # TfL needs no key at all — anonymous callers get 50 requests/minute,
+        # which is the same data, not a degraded tier. A key raises that to 500,
+        # so the field is offered and optional: the proxy treats a missing
+        # credential as fine and the backend simply runs anonymously, which means
+        # this works the moment someone logs in.
+        - id: tfl
+          name: TfL (London transport)
+          image: "ghcr.io/radiosilence/tfl-mcp:v1.3.4"
+          args: ["--http", "0.0.0.0:8080", "--graphql"]
+          port: 8080
+          path: "/mcp"
+          graphqlPath: "/graphql"
+          keyHelpUrl: "https://api-portal.tfl.gov.uk/profile"
+          fields:
+            - id: app_key
+              label: "TfL app key (optional — raises the rate limit)"
+              header: "X-Tfl-App-Key"
+              secret: true
+              required: false
+              hint: "32 hex characters"
+      github:
+        clientId: Ov23li4FvfOrmoadwJfH
+        clientSecret:
+          secure: AAABAD8e8FYYbQJwlY3iLFFc0rtqNQpsQo9K4kA1FqyW9JjSfHPFv4zbtLaZgetjgsZ/25gSRPG1p89Jwq5BC45m/rmzJC6t
+        allowed: radiosilence
+    singbox-profiles:
+      kind: singbox-profiles
+      hostname:
+        secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
+      image: ghcr.io/radiosilence/serve-from-env:0.1.0
+      telegram:
+        botToken:
+          secure: AAABAG1Dqy8QBBuB3QXADxbmJXDhzq7ZRvXoV4LlNZ8LuSXajDoE7AvgtWvJnhIEaXGRPOR46RFiItpup9yJXNsRTXRNS3EvFSEY6vJU
+        chatId:
+          secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"

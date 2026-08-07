@@ -60,7 +60,7 @@ export const Quantity = z
     "must be a Kubernetes quantity, e.g. 500m, 2, 64Mi, 8Gi",
   );
 
-export const HostVolumeSchema = z.object({
+export const HostVolumeSchema = z.strictObject({
   hostPath: AbsolutePath,
   hostPathType: z
     .enum([
@@ -78,7 +78,7 @@ export const HostVolumeSchema = z.object({
   readOnly: z.boolean().default(true),
 });
 
-export const PersistenceSchema = z.object({
+export const PersistenceSchema = z.strictObject({
   hostPath: AbsolutePath,
   mountPath: AbsolutePath,
   name: z.string(),
@@ -88,18 +88,18 @@ export const PersistenceSchema = z.object({
   storageClassName: z.string().default("local-storage"),
 });
 
-export const ImageSchema = z.object({
+export const ImageSchema = z.strictObject({
   pullPolicy: z.enum(["Always", "IfNotPresent", "Never"]).optional(),
   repository: z.string(),
   tag: z.string(),
 });
 
-export const LimitsSchema = z.object({
+export const LimitsSchema = z.strictObject({
   cpu: Quantity.default("50m"),
   memory: Quantity.default("64Mi"),
 });
 
-export const StrategySchema = z.object({
+export const StrategySchema = z.strictObject({
   type: z.enum(["Recreate", "RollingUpdate"]).default("RollingUpdate"),
 });
 
@@ -111,7 +111,7 @@ export const StrategySchema = z.object({
  * to acquire by accident — so a service that only needs to run as a given uid
  * sets exactly that and nothing else.
  */
-export const SecurityContextSchema = z.object({
+export const SecurityContextSchema = z.strictObject({
   fsGroup: z.number().optional(),
   runAsGroup: z.number().optional(),
   runAsUser: z.number().optional(),

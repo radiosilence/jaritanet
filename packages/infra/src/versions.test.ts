@@ -205,7 +205,8 @@ describe("paths against the real config", () => {
     const doc = parseDocument(await config());
     const path = [
       "config",
-      "jaritanet:mcpGateway",
+      "jaritanet:services",
+      "mcp-gateway",
       "mcps",
       { id: "tfl" },
       "image",
@@ -218,7 +219,8 @@ describe("paths against the real config", () => {
     expect(
       readAt(doc, [
         "config",
-        "jaritanet:mcpGateway",
+        "jaritanet:services",
+        "mcp-gateway",
         "mcps",
         { id: "nope" },
         "image",
@@ -227,7 +229,14 @@ describe("paths against the real config", () => {
     expect(
       writeAt(
         doc,
-        ["config", "jaritanet:mcpGateway", "mcps", { id: "nope" }, "image"],
+        [
+          "config",
+          "jaritanet:services",
+          "mcp-gateway",
+          "mcps",
+          { id: "nope" },
+          "image",
+        ],
         "x",
       ),
     ).toBe(false);
@@ -245,7 +254,8 @@ describe("rewriting the config", () => {
     const doc = parseDocument(raw);
     const path = [
       "config",
-      "jaritanet:mcpGateway",
+      "jaritanet:services",
+      "mcp-gateway",
       "mcps",
       { id: "tfl" },
       "image",
