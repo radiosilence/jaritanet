@@ -344,48 +344,61 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
    when both are present, so the credential sits inert until the policy file is
    ready to import — which is what keeps steps 2 and 3 from having to land in
    the same breath.
-3. Copy the tailnet's **current** policy into
-   `packages/infra/tailnet-policy.hujson`, replacing the placeholder. Bring what
-   exists under version control before changing anything. Then set the tailnet
-   name — the one in the admin console's top-left switcher (e.g. `example.com`
-   or `tail1234.ts.net`), not the org display name:
+3. Set the tailnet name — the one in the admin console's top-left switcher
+   (e.g. `example.com` or `tail1234.ts.net`), not the org display name — along
+   with `tailnet.tagOwners` (who may apply tags) and any `tailnet.extraTags`
+   advertised by nodes this stack does not provision:
    `pulumi config set --path tailnet.name <tailnet>`
-4. Import it so Pulumi adopts the existing policy rather than replacing it. Add
-   `import: "acl"` to the resource's options in `tailnet-policy.ts`, run
-   `pulumi up`, then remove the line. Pulumi refuses the import if the file and
-   the live policy differ, so a mistranscribed policy fails loudly instead of
-   overwriting the real one — which is also the cheapest way to diff them.
+4. Import, so Pulumi adopts the existing policy rather than replacing it. Add
+   `import: "acl"` to the resource's options in `tailnet-policy.ts`, make the
+   generated output match the live policy exactly, run `pulumi up`, then undo
+   both. Pulumi refuses the import if they differ, so a wrong guess fails loudly
+   instead of overwriting the real one.
+
+   **The import must precede the first deploy**, which inverts the usual order:
+   merging deploys, and the provider cannot *create* a policy it has not
+   imported, so merging first leaves main red with nothing CI can do about it.
 
    The bare CLI form (`pulumi import tailscale:index/acl:Acl tailnet-policy
    acl`) needs `--provider`, since the resource is built with an explicit
    provider and the default one holds no credentials.
-5. Only now start tightening. This is where the value is, and it has its own
-   order — the gateway currently joins as `tag:server`, shared with every other
-   server, so no grant can single it out:
 
-   1. Uncomment `tag:gateway` in `tagOwners` and deploy. **A node cannot
-      advertise a tag the policy does not define**, so this must land first or
-      the gateway drops off the tailnet on its next `tailscale up`.
-   2. Generate a **second OAuth client**, `auth_keys` scope, tagged
-      `tag:gateway`, and replace `tailnet.authKey` with its secret. A client can
-      only mint keys for the tags it was created with, so reusing the existing
-      one cannot work. Not a raw auth key from *Keys* → *Generate auth key*:
-      those cap at 90 days, and the expiry drops the gateway off the tailnet —
-      see [Secrets](#secrets).
-   3. Extend whatever grants currently reach the node via `tag:server` to cover
-      `tag:gateway` **before** setting `gateway.tailnet.tag`. The node
-      re-registers under the new tag on deploy, and stops matching the old one
-      the moment it does — including the grant carrying pod traffic.
-   4. Write grants naming what the tunnel is actually used to reach, and a
-      top-level `tests` block asserting it. The provider validates `tests`
-      against the policy before it applies anything, so an assertion that
-      `sympathy` still reaches `lady` on the cluster ports turns a partition
-      into a failed `pulumi up`. Without it nothing checks the dataplane until
-      pods start timing out.
+### Changing it
 
-Step 5.4 is the trap, in two directions. The gateway is a *relay*, so whatever
-it cannot reach, **you** cannot reach over the VPN either — the question is not
-how locked down it can be, but what you actually use the tailnet for. And the
-node pair carries pod traffic, so a grant that omits it takes out the cluster
-rather than your convenience. Both are recoverable only from the admin console,
-which is no fun from a train.
+The policy is **generated** by `buildTailnetPolicy` and emitted as JSON, which
+is valid HuJSON — so edit the TypeScript, never the admin console. A console
+edit survives until something refreshes and is then silently reverted; the
+generated header says as much to whoever finds it there.
+
+`tagOwners` is derived from the tags the fleet actually advertises, which
+removes an ordering hazard rather than merely tidying up. A node cannot
+advertise a tag the policy does not define, so pointing `gateway.tailnet.tag` at
+`tag:gateway` used to mean defining the tag and moving the node as two deploys
+in the right order. One config change now does both.
+
+Tightening still has an order, because changing a node's tag moves it between
+grants:
+
+1. Generate a **second OAuth client**, `auth_keys` scope, tagged `tag:gateway`,
+   and replace `tailnet.authKey` with its secret. A client can only mint keys
+   for the tags it was created with, so reusing the existing one cannot work.
+   Not a raw auth key from *Keys* → *Generate auth key*: those cap at 90 days,
+   and the expiry drops the gateway off the tailnet — see [Secrets](#secrets).
+2. Extend whatever grants reach the node via `tag:server` to cover
+   `tag:gateway` **before** setting `gateway.tailnet.tag`. The node re-registers
+   under the new tag on deploy and stops matching the old one the moment it
+   does — including the grant carrying pod traffic.
+3. Write grants naming what the tunnel is actually used to reach.
+
+That last step is the trap, in two directions. The gateway is a *relay*, so
+whatever it cannot reach, **you** cannot reach over the VPN either — the
+question is not how locked down it can be, but what you actually use the tailnet
+for. And the node pair carries pod traffic, so a grant that omits it takes out
+the cluster rather than your convenience.
+
+`tests` is what makes the second direction survivable: Tailscale validates it
+before applying, so a partitioning grant fails `pulumi up` rather than
+blackholing pods that all report healthy. `proto` is load-bearing there. Tests
+evaluate as TCP unless told otherwise and Cilium's VXLAN is UDP, so asserting
+`8472` without it tests a port nothing uses and passes against a policy that
+drops every packet Cilium sends.

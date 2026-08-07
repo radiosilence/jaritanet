@@ -92,6 +92,22 @@ export const TailnetAccountConfSchema = z.object({
       clientSecret: z.string(),
     })
     .optional(),
+  /**
+   * Who may apply the fleet's tags. Not derivable: Tailscale identities appear
+   * nowhere else in config, and `traefik.acmeEmail` happening to hold the same
+   * address is a coincidence rather than a relationship.
+   */
+  tagOwners: z.array(z.string()).default([]),
+  /**
+   * Tags advertised by nodes this stack does not provision — a bare-metal node
+   * joined from a cloud-init seed, or CI. Tags for nodes Pulumi does create are
+   * derived from what it tells them to advertise, so listing those here is
+   * redundant rather than harmful.
+   *
+   * A tag missing from the union is not a cosmetic problem: a node cannot
+   * advertise a tag the policy does not define, so it fails to join.
+   */
+  extraTags: z.array(z.string()).default([]),
 });
 
 export const GatewayConfSchema = z.object({
@@ -267,7 +283,7 @@ export const ConfSchema = z.object({
   namespace: z.string().default("jaritanet"),
   profiles: ProfilesConfSchema.optional(),
   services: ServicesMapSchema,
-  tailnet: TailnetAccountConfSchema.default({}),
+  tailnet: TailnetAccountConfSchema.default({ extraTags: [], tagOwners: [] }),
   traefik: TraefikConfSchema,
   /**
    * Ubuntu Pro, for livepatch on the gateway and every edge. Free for personal

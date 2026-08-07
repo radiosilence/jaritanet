@@ -18,6 +18,13 @@ import type * as z from "zod";
 import type { EdgeConfSchema } from "./conf.schemas.ts";
 
 /**
+ * The tag every edge advertises. Exported because the policy defines the tags
+ * the fleet advertises, and a tag it fails to define is one an edge cannot
+ * join with.
+ */
+export const EDGE_TAILNET_TAG = "tag:server";
+
+/**
  * Provisions a standalone VPN edge box: a Hetzner VPS running hy2 + REALITY +
  * a tailnet relay, and nothing else — no reverse proxy, no TLS
  * services of its own.
@@ -115,7 +122,7 @@ export function createEdge(
   const tailscale = authKey
     ? createTailscaleSystemd(
         connection,
-        { hostname: `jaritanet-${name}`, tag: "tag:server" },
+        { hostname: `jaritanet-${name}`, tag: EDGE_TAILNET_TAG },
         authKey,
         opts,
       )

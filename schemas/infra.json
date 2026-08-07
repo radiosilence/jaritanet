@@ -1681,6 +1681,48 @@
                 }
               },
               "required": ["clientId", "clientSecret"]
+            },
+            "tagOwners": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "extraTags": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "secure": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["secure"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
             }
           }
         },

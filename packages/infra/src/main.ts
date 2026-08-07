@@ -28,7 +28,7 @@ import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
-import { createEdge } from "./edge.ts";
+import { createEdge, EDGE_TAILNET_TAG } from "./edge.ts";
 import { createGateway } from "./gateway.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
@@ -174,11 +174,20 @@ export default async function () {
   // no-op until the secrets are set (and even then the provider refuses to
   // touch a policy nobody has imported).
   if (conf.tailnet.oauth && conf.tailnet.name) {
-    createTailnetPolicy(
-      pulumi.secret(conf.tailnet.oauth.clientId),
-      pulumi.secret(conf.tailnet.oauth.clientSecret),
-      conf.tailnet.name,
-    );
+    createTailnetPolicy({
+      clientId: pulumi.secret(conf.tailnet.oauth.clientId),
+      clientSecret: pulumi.secret(conf.tailnet.oauth.clientSecret),
+      tailnet: conf.tailnet.name,
+      // Exits are the nodes the cluster's dataplane has to reach, and their
+      // tailnet address is already the one Cilium uses.
+      clusterPeers: conf.exits.map((exit) => exit.server),
+      owners: conf.tailnet.tagOwners,
+      tags: [
+        ...(gatewayConf?.tailnet ? [gatewayConf.tailnet.tag] : []),
+        ...(conf.edges.length ? [EDGE_TAILNET_TAG] : []),
+        ...conf.tailnet.extraTags,
+      ],
+    });
   }
 
   // --- DNS: zone modules (fastmail, bluesky) ---
