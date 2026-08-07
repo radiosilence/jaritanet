@@ -39,7 +39,7 @@
 - app: serve-from-env
   repo: radiosilence/jaritanet
   tagPrefix: serve-from-env-v
-  path: [config, "jaritanet:profiles", image]
+  path: [config, "jaritanet:services", singbox-profiles, image]
   value: "ghcr.io/radiosilence/serve-from-env:{version}"
 
 - app: Files
@@ -51,29 +51,29 @@
 
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway
-  path: [config, "jaritanet:mcpGateway", image, tag]
+  path: [config, "jaritanet:services", mcp-gateway, image, tag]
   value: "v{version}"
   image: "ghcr.io/radiosilence/mcp-gateway:v{version}"
 
 # The MCPs the gateway fronts, each an image reference inside a list.
 - app: Fastmail MCP
   repo: radiosilence/fastmail-cli
-  path: [config, "jaritanet:mcpGateway", mcps, { id: fastmail }, image]
+  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: fastmail }, image]
   value: "ghcr.io/radiosilence/fastmail-cli:v{version}"
 
 - app: CalDAV MCP
   repo: radiosilence/caldav-cli
-  path: [config, "jaritanet:mcpGateway", mcps, { id: caldav }, image]
+  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: caldav }, image]
   value: "ghcr.io/radiosilence/caldav-cli:v{version}"
 
 - app: Folk MCP
   repo: radiosilence/mainlynorfolk-mcp
-  path: [config, "jaritanet:mcpGateway", mcps, { id: folk }, image]
+  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: folk }, image]
   value: "ghcr.io/radiosilence/mainlynorfolk-mcp:v{version}"
 
 - app: TfL MCP
   repo: radiosilence/tfl-mcp
-  path: [config, "jaritanet:mcpGateway", mcps, { id: tfl }, image]
+  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: tfl }, image]
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
 
 # The internet-facing daemons. These terminate traffic from hostile networks,

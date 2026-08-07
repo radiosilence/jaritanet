@@ -4,18 +4,10 @@ import {
   createServiceRecord,
 } from "@jaritanet/dns";
 import { createCilium, createK3sUpgrades } from "@jaritanet/hetzner";
-import { createSamba, createSyncthing } from "@jaritanet/home";
-import {
-  createIngress,
-  createIngressRoute,
-  createRedirectMiddleware,
-} from "@jaritanet/ingress";
-import { createService } from "@jaritanet/k8s";
-import { createMcpGateway } from "@jaritanet/mcp-gateway";
+import { createIngress, createRedirectMiddleware } from "@jaritanet/ingress";
 import {
   createExit,
   createHysteria,
-  createProfileServer,
   createUnbound,
   createXray,
   deriveExitPort,
@@ -23,13 +15,13 @@ import {
   type VpnUser,
 } from "@jaritanet/vpn";
 import * as k8s from "@pulumi/kubernetes";
-import * as random from "@pulumi/random";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { createEdge } from "./edge.ts";
 import { createGateway } from "./gateway.ts";
+import { createServices } from "./services.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
 export default async function () {
@@ -332,146 +324,44 @@ export default async function () {
     }
   }
 
-  // --- Home node: file shares and media tooling, on the box holding the disks
-  // Inert without a `home` block, which is the state until that machine exists.
-  // Nothing here selects the gateway: these carry no VPN entry label, so a
-  // DaemonSet with no matching node schedules nothing rather than landing
-  // somewhere it would fight the transports for a host port.
-  if (conf.home?.samba) {
-    createSamba(provider, nsName, conf.home.samba, conf.home.nodeLabel);
-  }
-
-  if (conf.home?.syncthing) {
-    createSyncthing(provider, nsName, conf.home.syncthing, conf.home.nodeLabel);
-    // The web UI, published like any other service when a hostname is set.
-    const host = conf.home.syncthing.hostname;
-    if (host) {
-      const zone = conf.zones.find(
-        (z) => z.name === host.split(".").slice(-2).join("."),
-      );
-      if (dnsTarget && zone) createServiceRecord(dnsTarget, zone, host);
-      createIngressRoute(provider, "syncthing", host, nsName, traefikRelease);
-    }
-  }
-
-  // --- Services + DNS records + ingress routes ---
-  const services = Object.entries(conf.services)
-    .filter(([, { hostname }]) => hostname && hostname.trim() !== "")
-    .map(([name, { args, hostname }]) => {
-      const service = createService(provider, name, args);
-
-      if (dnsTarget) {
-        const zoneName = hostname!.split(".").slice(-2).join(".");
-        const zone = conf.zones.find((z) => z.name === zoneName);
-        if (zone) {
-          createServiceRecord(dnsTarget, zone, hostname!);
-        }
-      }
-
-      createIngressRoute(provider, name, hostname!, nsName, traefikRelease);
-
-      // Not marked secret, though some hostnames are encrypted in config:
-      // hiding them is about the repository being public, and the state this
-      // lands in is not. Marking them would only mean `--show-secrets` to read
-      // an output back.
-      return [name, { hostname, service: service.metadata.name }] as const;
-    });
-
-  // --- MCP Gateway: OAuth-fronted gateway for self-hosted MCP servers ---
-  // Skipped unless configured and the GitHub OAuth app creds are present.
-  if (
-    conf.mcpGateway?.hostname &&
-    conf.mcpGateway.authHostname &&
-    conf.mcpGateway.github
-  ) {
-    const mg = conf.mcpGateway;
-    createMcpGateway(provider, nsName, mg, {
-      githubClientId: mg.github!.clientId,
-      githubClientSecret: pulumi.secret(mg.github!.clientSecret),
-      githubAllowed: mg.github!.allowed,
-    });
-    // Two public hostnames: the gateway and Hydra's public API. Admin stays
-    // in-cluster (no ingress route).
-    for (const [svcName, host] of [
-      ["mcp-gateway", mg.hostname],
-      ["mcp-gateway-hydra", mg.authHostname],
-    ] as const) {
-      if (dnsTarget) {
-        const zone = conf.zones.find(
-          (z) => z.name === host.split(".").slice(-2).join("."),
-        );
-        if (zone) createServiceRecord(dnsTarget, zone, host);
-      }
-      createIngressRoute(provider, svcName, host, nsName, traefikRelease);
-    }
-  }
-
-  // --- sing-box client profiles, served from the cluster ---
-  // Pulumi already holds every profile as a string, so the old round trip
-  // through a file server on the home box bought nothing and cost an SSH write
-  // to a machine that is being retired. Here the routing table is the content:
-  // a rotated slug stops existing rather than lingering as a stale file.
+  // --- Everything that runs in the cluster ---
+  // One loop over `conf.services`, dispatched by `kind` — the web containers,
+  // the file services on the box holding the disks, the MCP gateway, and the
+  // sing-box profile server. Nothing here selects the gateway: the file
+  // services carry no VPN entry label, so a DaemonSet with no matching node
+  // schedules nothing rather than landing somewhere it would fight the
+  // transports for a host port.
   //
-  // The primary is a node too: clients connect by IP, and its REALITY decoy is
-  // its own reverse-proxied site (unlike edges, which use an external one). It
-  // leads the list so it heads the entry picker.
-  const nodes: SingboxNode[] = [
+  // The primary is a sing-box node too: clients connect by IP, and its REALITY
+  // decoy is its own reverse-proxied site (unlike edges, which use an external
+  // one). It leads the list so it heads the entry picker.
+  const singboxNodes: SingboxNode[] = [
     ...(gatewayIp && reality && hysteria
       ? [{ name: "primary", server: gatewayIp, hysteria, reality }]
       : []),
     ...edgeNodes,
   ];
 
-  if (conf.profiles && nodes.length > 0 && conf.tailnet.magicdnsSuffix) {
-    // Generated rather than carried as a secret, and rotated by the same value
-    // that reissues every other VPN credential. It was the one credential
-    // outside that mechanism — a separate thing to hold, in a separate place,
-    // that had to be changed by hand to move the URLs.
-    const singboxSlug = new random.RandomString(
-      "singbox-slug",
-      {
-        length: 32,
-        special: false,
-        upper: false,
-        keepers: { rotation: gatewayConf?.credentialRotation ?? "1" },
-      },
-      { additionalSecretOutputs: ["result"] },
-    );
-
-    createProfileServer(provider, nsName, users, nodes, {
-      slug: singboxSlug.result,
-      magicdnsSuffix: conf.tailnet.magicdnsSuffix,
-      image: conf.profiles.image,
-      exits,
-      hostname: conf.profiles.hostname,
-      telegram: conf.profiles.telegram
-        ? {
-            botToken: pulumi.secret(conf.profiles.telegram.botToken),
-            chatId: conf.profiles.telegram.chatId,
-          }
-        : undefined,
-    });
-
-    const host = conf.profiles.hostname;
-    const zone = conf.zones.find(
-      (z) => z.name === host.split(".").slice(-2).join("."),
-    );
-    if (dnsTarget && zone) {
-      createServiceRecord(dnsTarget, zone, host);
-    }
-    createIngressRoute(
+  const services = createServices(
+    {
       provider,
-      "singbox-profiles",
-      host,
-      nsName,
-      traefikRelease,
-    );
-  }
+      namespace: nsName,
+      zones: conf.zones,
+      dnsTarget,
+      traefik: traefikRelease,
+      credentialRotation: gatewayConf?.credentialRotation ?? "1",
+      exits,
+      magicdnsSuffix: conf.tailnet.magicdnsSuffix,
+      singboxNodes,
+      users,
+    },
+    conf.services,
+  );
 
   return {
     ...(gatewayProvider && { gatewayProvider }),
     namespace,
-    services: Object.fromEntries(services),
+    services,
     ...(dnsTarget && { vpsIp: dnsTarget }),
     // Per-user credentials + share URLs are now delivered as individual sing-box
     // profiles (see createProfileServer), so only the shared, non-secret
