@@ -29,5 +29,10 @@
   "env": {
     "builtin": true
   },
-  "ignorePatterns": ["schemas/**", "node_modules/**"]
+  "ignorePatterns": [
+    "schemas/**",
+    "node_modules/**",
+    "apps/*/assets/**",
+    "apps/*/target/**"
+  ]
 }

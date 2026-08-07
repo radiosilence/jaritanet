@@ -1181,14 +1181,211 @@
                   },
                   "image": {
                     "$ref": "#/$defs/__schema35"
-                  },
-                  "telegram": {
-                    "$ref": "#/$defs/__schema36"
                   }
                 },
                 "required": ["kind", "hostname", "image"],
                 "additionalProperties": false,
                 "description": "The per-user sing-box subscription server"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "aria2": {
+                    "default": {},
+                    "type": "object",
+                    "properties": {
+                      "btMaxPeers": {
+                        "default": 0,
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "maxConcurrentDownloads": {
+                        "default": 16,
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "maxConnectionPerServer": {
+                        "default": 16,
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "maxOverallDownloadLimit": {
+                        "default": "0",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "maxOverallUploadLimit": {
+                        "default": "0",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "seedRatio": {
+                        "default": "0.0",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "hostname": {
+                    "default": "",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "image": {
+                    "$ref": "#/$defs/__schema14"
+                  },
+                  "limits": {
+                    "default": {
+                      "cpu": "2000m",
+                      "memory": "1Gi"
+                    },
+                    "$ref": "#/$defs/__schema15"
+                  },
+                  "oidc": {
+                    "type": "object",
+                    "properties": {
+                      "clientId": {
+                        "default": "mariastew",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "clientSecret": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "issuer": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["issuer"]
+                  },
+                  "roots": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema36"
+                    }
+                  },
+                  "kind": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "mariastew"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "nodeLabel": {
+                    "$ref": "#/$defs/__schema19"
+                  }
+                },
+                "required": ["image", "roots", "kind"],
+                "additionalProperties": false
               }
             ]
           }
@@ -1320,6 +1517,47 @@
               }
             }
           }
+        },
+        "jaritanet:telegram": {
+          "type": "object",
+          "properties": {
+            "botToken": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "chatId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^-?\\d+$"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "secure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["secure"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": ["botToken", "chatId"]
         },
         "jaritanet:traefik": {
           "type": "object",
@@ -2700,10 +2938,11 @@
     "__schema36": {
       "type": "object",
       "properties": {
-        "botToken": {
+        "name": {
           "anyOf": [
             {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             {
               "type": "object",
@@ -2717,26 +2956,12 @@
             }
           ]
         },
-        "chatId": {
-          "anyOf": [
-            {
-              "type": "string",
-              "pattern": "^-?\\d+$"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "secure": {
-                  "type": "string"
-                }
-              },
-              "required": ["secure"],
-              "additionalProperties": false
-            }
-          ]
+        "hostPath": {
+          "$ref": "#/$defs/__schema13"
         }
       },
-      "required": ["botToken", "chatId"]
+      "required": ["name", "hostPath"],
+      "additionalProperties": false
     }
   }
 }
