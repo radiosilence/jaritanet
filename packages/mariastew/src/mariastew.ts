@@ -151,6 +151,27 @@ export function createMariastew(
           metadata: { labels: { app: "mariastew" } },
           spec: {
             automountServiceAccountToken: false,
+            /**
+             * Public resolvers rather than the cluster's.
+             *
+             * Every name this resolves is a public one — Hydra at its own
+             * hostname, Telegram, and a tracker — and the NetworkPolicy below
+             * forbids reaching anything inside the cluster at all, so the
+             * cluster resolver could only ever answer names this is not allowed
+             * to talk to. Depending on it would be borrowing a failure domain
+             * for nothing.
+             *
+             * Two resolvers from different operators, because a torrent client
+             * that cannot resolve is a torrent client that does nothing.
+             */
+            dnsPolicy: "None",
+            dnsConfig: {
+              nameservers: ["1.1.1.1", "9.9.9.9"],
+              options: [
+                { name: "timeout", value: "2" },
+                { name: "attempts", value: "3" },
+              ],
+            },
             // Where the disks are. Which machine that is stays a property of
             // the machine, applied by the seed drive when it joins.
             nodeSelector: { [opts.nodeLabel]: "true" },
