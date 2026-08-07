@@ -461,5 +461,6 @@ config:
       clientId: kwGpaNTK9Y11CNTRL
       clientSecret:
         secure: AAABAGhrgFsFYiXNK3QDi18u9DbNtR/bd39xzOW+IkgvlQZHDoGnpD8325akS306yfV4DsZKTVoUnRCIEhTJfgaDM0KSuzgFABAKTxC5MpHPA6t6c2wzSkjhKI3YWfg=
+    name: zonkey-jazz.ts.net
   jaritanet:vpnUsers:
     secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc
