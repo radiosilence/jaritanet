@@ -170,58 +170,111 @@ export const EdgeConfSchema = z.object({
 });
 
 /**
- * The home node and what it serves — file shares, sync, media tooling.
+ * Which machine serves files.
  *
- * Absent until there is a machine: no block, no resources, and the stack is
- * unchanged. That is the point of it being optional rather than defaulted, as
- * a default would schedule a DaemonSet against a label no node carries and
- * report success while serving nothing.
+ * A property of the machine rather than a hostname written down here — the same
+ * argument the VPN entry label makes. Unlike that one it cannot be enforced from
+ * here: nothing in this program can label the node, because reaching the home
+ * box over SSH is exactly the coupling moving these services into the cluster
+ * removes. The label arrives with the node, from `scripts/make-seed-drive`.
  *
- * `nodeLabel` decides which machine serves files, so that is a property of the
- * machine rather than a hostname written down here — the same argument the VPN
- * entry label makes. Unlike that one it cannot be enforced from here: nothing
- * in this program can label the node, because reaching the home box over SSH is
- * exactly the coupling moving these services into the cluster removes. The
- * label is applied once, by hand, when the node joins.
+ * Per service rather than on a block wrapping several, because which node
+ * serves a share was always a fact about that share. A samba on lady and a
+ * syncthing somewhere else is a sentence the config can now say.
  */
-export const HomeConfSchema = z.object({
-  nodeLabel: LabelKey.default("jaritanet.radiosilence.dev/file-node"),
-  samba: SambaConfSchema.optional(),
-  syncthing: SyncthingConfSchema.optional(),
-});
-
-export const ServiceConfSchema = z.object({
-  args: ServiceArgsSchema,
-  // Empty rather than absent is how a service says "built, but not published" —
-  // main.ts filters those out before creating a record or a route.
-  hostname: Hostname.or(z.literal("")).optional(),
-});
-
-export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
+const FileNodeLabel = LabelKey.default("jaritanet.radiosilence.dev/file-node");
 
 /**
- * Where each user's sing-box profile is served from.
- *
- * Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials", so
- * a filtered network — exactly the network a VPN profile is wanted on — blocks
- * the device from fetching its own subscription.
+ * Empty rather than absent is how a service says "built, but not published" —
+ * it gets its workload and no DNS record and no route.
  */
-export const ProfilesConfSchema = z.object({
-  hostname: Hostname,
-  image: z.string(),
-  /**
-   * Notifies on change, with every user's profile URL. Absent → no message,
-   * and the URLs are read from `pulumi stack output` instead.
-   */
-  telegram: z
-    .object({
-      botToken: z.string(),
-      chatId: z
-        .string()
-        .regex(/^-?\d+$/, "must be a Telegram chat id (an integer)"),
+const PublishedHostname = Hostname.or(z.literal("")).optional();
+
+/**
+ * A workload this deployment runs, tagged by what kind of thing it is.
+ *
+ * `kind` is what replaced four top-level blocks — `mcpGateway`, `home.samba`,
+ * `home.syncthing`, `profiles` — each of which had its own construction call
+ * and its own hand-rolled copy of "find the zone, make an A record, make an
+ * IngressRoute". Publishing is the one thing every workload has in common, so
+ * it happens once (see services.ts) rather than four times with four subtly
+ * different zone lookups.
+ *
+ * A kind exists only for behaviour the config cannot express: rendering
+ * `smb.conf`, standing up Hydra and Postgres, hashing a routing table into a
+ * pod annotation. Anything that is just a container with disks is `web` and
+ * needs no module at all — navidrome is 2Ti of media, a pinned uid and two
+ * volumes, and it has never needed one. That is why there is no navidrome kind
+ * and why the composition here stops at a tagged union rather than growing
+ * into a hierarchy.
+ *
+ * Strict, all the way down. `navidrome.args.nodeSelector` sat in the stack file
+ * doing nothing for months because Zod strips unknown keys in silence and the
+ * generated JSON schema allowed them — the pinning it looked like it was doing
+ * actually came from `nodeAffinityHostname` on the volumes. A key nobody reads
+ * should be a red preview, not a comment that lies.
+ */
+export const ServiceConfSchema = z.discriminatedUnion("kind", [
+  z
+    .strictObject({
+      kind: z.literal("web"),
+      args: ServiceArgsSchema,
+      hostname: PublishedHostname,
     })
-    .optional(),
-});
+    .describe("A container behind Traefik — the default for anything ordinary"),
+  SambaConfSchema.extend({
+    kind: z.literal("samba"),
+    nodeLabel: FileNodeLabel,
+  }).strict(),
+  SyncthingConfSchema.extend({
+    kind: z.literal("syncthing"),
+    nodeLabel: FileNodeLabel,
+  }).strict(),
+  McpGatewayConfSchema.extend({
+    kind: z.literal("mcp-gateway"),
+    /**
+     * This deployment's, not the component's: the gateway needs some OAuth app,
+     * and which one is a fact about who runs it. Extended here so the package
+     * keeps knowing nothing about jaritanet.
+     */
+    github: z
+      .object({
+        /** Login allowlist, comma-separated. Not a secret — these are usernames. */
+        allowed: z.string().default(""),
+        clientId: z.string(),
+        clientSecret: z.string(),
+      })
+      .optional(),
+  }).strict(),
+  z
+    .strictObject({
+      kind: z.literal("singbox-profiles"),
+      /**
+       * Where each user's sing-box profile is served from.
+       *
+       * Deliberately not on blit.cc: FortiGuard rates it "Other Adult
+       * Materials", so a filtered network — exactly the network a VPN profile is
+       * wanted on — blocks the device from fetching its own subscription.
+       */
+      hostname: Hostname,
+      image: z.string(),
+      /**
+       * Notifies on change, with every user's profile URL. Absent → no message,
+       * and the URLs are read from `pulumi stack output` instead.
+       */
+      telegram: z
+        .object({
+          botToken: z.string(),
+          chatId: z
+            .string()
+            .regex(/^-?\d+$/, "must be a Telegram chat id (an integer)"),
+        })
+        .optional(),
+    })
+    .describe("The per-user sing-box subscription server"),
+]);
+
+export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
 
 export const ConfSchema = z.object({
   /**
@@ -247,25 +300,18 @@ export const ConfSchema = z.object({
   exits: z.array(ExitConfSchema).default([]),
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
-  home: HomeConfSchema.optional(),
   managedBy: z.string().default("jaritanet"),
-  /**
-   * `github` is this deployment's, not the component's: the gateway needs some
-   * OAuth app, and which one is a fact about who runs it. Extended here so the
-   * package keeps knowing nothing about jaritanet.
-   */
-  mcpGateway: McpGatewayConfSchema.extend({
-    github: z
-      .object({
-        /** Login allowlist, comma-separated. Not a secret — these are usernames. */
-        allowed: z.string().default(""),
-        clientId: z.string(),
-        clientSecret: z.string(),
-      })
-      .optional(),
-  }).optional(),
   namespace: z.string().default("jaritanet"),
-  profiles: ProfilesConfSchema.optional(),
+  /**
+   * Everything this deployment runs in the cluster, keyed by name.
+   *
+   * The rule that decides what belongs here rather than at the top level: if it
+   * is a workload, it is a service. What is left above is the part that is not
+   * one — the accounts and DNS facts (`cloudflare`, `zones`, `tailnet`,
+   * `fastmail`, `bluesky`), the machines (`gateway`, `edges`, `exits`), and
+   * `traefik`, which cannot be a service because it is the thing that publishes
+   * them.
+   */
   services: ServicesMapSchema,
   tailnet: TailnetAccountConfSchema.default({}),
   traefik: TraefikConfSchema,

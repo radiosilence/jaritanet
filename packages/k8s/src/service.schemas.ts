@@ -9,7 +9,14 @@ import {
   StrategySchema,
 } from "./schemas.ts";
 
-export const ServiceArgsSchema = z.object({
+/**
+ * Strict, because this is written by hand in the stack file and read nowhere
+ * else. `nodeSelector` sat in here for months doing nothing — Zod strips
+ * unknown keys in silence, so it read as pinning navidrome to lady while the
+ * pinning actually came from `nodeAffinityHostname` on the volumes below. A key
+ * nobody reads should fail the preview, not survive as a comment that lies.
+ */
+export const ServiceArgsSchema = z.strictObject({
   /**
    * Drop every Linux capability from the container.
    *
