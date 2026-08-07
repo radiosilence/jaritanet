@@ -53,6 +53,27 @@ export function createCilium(
         // k3s allocates each node a podCIDR, so Cilium can follow that rather
         // than running its own allocator.
         ipam: { mode: "kubernetes" },
+        /**
+         * Pod MTU, set rather than detected.
+         *
+         * Cilium sizes this from the route to the other node, which here is the
+         * tailnet at 1280, and hands pods that same 1280 — without subtracting
+         * the VXLAN header it then adds. A full-size pod packet leaves at 1330
+         * on a 1280 link and is dropped, silently and with no ICMP to trigger
+         * path-MTU discovery, so it presents as a blackhole rather than an
+         * error: small requests answer normally and anything larger hangs.
+         *
+         * What that broke was not obvious from the symptom. CoreDNS on a node
+         * that has to cross the tunnel never finished listing services from the
+         * API server, so it stayed unready and every pod on that node resolved
+         * nothing at all.
+         *
+         * 1280 - 50 for VXLAN over IPv4. Anything that changes the underlay MTU
+         * or the tunnel protocol has to move this with it; there is no
+         * detection here to fall back on precisely because the detected value
+         * is the one that was wrong.
+         */
+        MTU: 1230,
         kubeProxyReplacement: true,
         k8sServiceHost: apiHost,
         k8sServicePort: 6443,
