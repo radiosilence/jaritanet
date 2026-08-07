@@ -426,13 +426,15 @@ config:
     # deployed.
     mariastew:
       kind: mariastew
-      hostname: ""
+      hostname:
+        secure: AAABALH0zY11nQLr6MZkyhv8bm35+Wpvwnxeq3YQBVjpRN6zuFzwHtrA
       image:
         repository: "ghcr.io/radiosilence/mariastew"
         tag: 0.1.0
         pullPolicy: "Always"
       oidc:
-        issuer: ""
+        issuer:
+          secure: AAABAAlGKXHClVKudcIEmNXB0SVsCfXV9BAdLbmmrzEiOz8z4nxBYGRU7A3AVQcCyFQ3+Q==
       roots:
         - name: tv
           hostPath: /mnt/kontent/tv
