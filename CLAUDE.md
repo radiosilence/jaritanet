@@ -65,6 +65,7 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
+- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
 - **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `conf.ts` parses the whole config surface, secrets included, in one pass
 
 Packages are `private` and imported as TypeScript source — Node resolves a
@@ -81,7 +82,7 @@ Everything still deploys in one `pulumi up` from `packages/infra/`.
 
 All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. A component's schema lives with the component; `infra/src/conf.schemas.ts` re-exports them alongside the composed shapes (`GatewayConfSchema`, `EdgeConfSchema`) so the stack's config surface is described in one place, and regenerates via the gen-schemas script.
 
-**What is top-level and what is a service.** If it is a workload, it goes in `services` and declares a `kind`; what stays above is the part that is not one — accounts and DNS facts (`cloudflare`, `zones`, `tailnet`, `fastmail`, `bluesky`), machines (`gateway`, `edges`, `exits`), and `traefik`, which cannot be a service because it is the thing that publishes them. That rule is what replaced the `mcpGateway`, `home` and `profiles` top-level blocks, each of which carried its own copy of "find the zone, make an A record, make an IngressRoute"; publishing now happens once, in `infra/src/services.ts`, driven by whatever routes a kind returns.
+**What is top-level and what is a service.** If it is a workload, it goes in `services` and declares a `kind`; what stays above is the part that is not one — accounts and DNS facts (`cloudflare`, `zones`, `tailnet`, `fastmail`, `bluesky`, `telegram`), machines (`gateway`, `edges`, `exits`), and `traefik`, which cannot be a service because it is the thing that publishes them. That rule is what replaced the `mcpGateway`, `home` and `profiles` top-level blocks, each of which carried its own copy of "find the zone, make an A record, make an IngressRoute"; publishing now happens once, in `infra/src/services.ts`, driven by whatever routes a kind returns. `telegram` moved up from a single service's config once it gained a second consumer (the sing-box profile server and mariastew both notify through it) — a value read by more than one workload is an account, not a setting that belongs to either.
 
 A `kind` exists only for behaviour config cannot express — rendering `smb.conf`, standing up Hydra and Postgres, hashing a routing table into a pod annotation. Anything that is just a container with disks is `kind: web` and needs no module: navidrome is 2Ti of media, a pinned uid and two volumes, and has never had one. That is why composition stops at a tagged union rather than growing into a hierarchy, and why the answer to "should X be a module" is usually no.
 
@@ -160,6 +161,7 @@ build. Both containers releasing from one repo is why tracked entries need
   nothing else; static musl binary on `scratch`. Built for the sing-box
   profiles, whose paths are secret and whose bodies Pulumi already holds as
   strings — so there is no volume to mount and no file to go stale.
+- `apps/mariastew/` - Torrent web UI fronting aria2; see `apps/mariastew/README.md`
 
 ## Utility Scripts
 

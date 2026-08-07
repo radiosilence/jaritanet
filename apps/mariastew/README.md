@@ -1,0 +1,176 @@
+# mariastew
+
+Paste a magnet on a phone, and later open Infuse and watch the thing.
+
+A small Rust service in front of aria2. aria2 does the downloading and holds
+all the state — there is no database on this side, so a restart re-reads
+reality instead of reconciling with it, and a signed-in session lives only in
+memory, so a deploy signs everyone out. The frontend is server-rendered HTML
+patched over SSE ([Datastar](https://data-star.dev), vendored at
+`assets/datastar.js`), not a client-side app.
+
+## Why files land straight in the library
+
+Downloads are written directly into the media tree the picker offers, not a
+staging directory that something else sweeps later. That is only safe because
+the scene-garbage filter (`src/filter.rs`) runs **before** the real download
+starts, not after: adding a magnet does a metadata-only aria2 pass first,
+`filter::is_garbage` picks the indices worth keeping, and the real download is
+started with `select-file` naming only those. Combined with aria2's
+`--file-allocation=none`, a file the filter rejected never touches disk at
+all. This is what removes the need for a separate cleanup sweep of the kind
+`clean-dls` used to do after the fact — there is nothing left behind to clean.
+
+## One image, run twice
+
+The service and `aria2c` ship in the same container image (see `Dockerfile`);
+the pod runs it as two containers sharing a network namespace. That puts
+aria2's JSON-RPC on `127.0.0.1:6800`, reachable only from inside the pod — so
+aria2 carries no credential of its own, and this service is the only gate in
+front of it. There is no inbound port: the machine mariastew runs on forwards
+nothing from the internet, so aria2 is an outbound-only participant in
+whatever swarm it joins. That caps throughput on a sparse swarm and makes a
+row sitting at "blocked" (peers exist, none connected) the normal state rather
+than a fault — see `Health` in `src/aria2.rs`.
+
+Bandwidth is intentionally unthrottled in both directions
+(`maxOverallDownloadLimit` / `maxOverallUploadLimit` default to `0`). The
+media volume is a mechanical disk in a USB enclosure and saturates well before
+a network link does, so the knob that actually matters is
+`maxConcurrentDownloads` — concurrent torrents are concurrent write streams
+landing in different regions of one spindle, which is a seek storm rather
+than a throughput problem. Lower it first if downloads crawl while the
+network looks idle.
+
+Egress is deliberately **not** routed through the estate's VPN exit nodes
+(see the `NetworkPolicy` in `packages/mariastew/src/mariastew.ts`): the
+traffic is ordinary home-network downloading, and datacentre IP ranges are
+widely tracker-blocked, so routing it through an exit would make it slower
+and less welcome on the swarm for no benefit.
+
+## Seeding, and why cancel has two meanings
+
+aria2 is run with `--seed-ratio=0.0`, which means seed with no ratio limit —
+**not** `--seed-time=0`, which would mean don't seed at all. A finished
+torrent therefore never leaves aria2's active list on its own; it just stops
+receiving and starts only uploading. That is why the UI tracks "finished" as
+a property of a still-active row (`Download::is_finished` in `src/aria2.rs`)
+rather than a separate list, and why the remove button means two different
+things depending on that property (`routes::remove`): on an unfinished
+download it deletes the partial files along with the aria2 entry — a
+half-downloaded episode sitting in the library is the mess this avoids — and
+on a finished one it only stops seeding, leaving the files in place: that is
+stopping an upload, not undoing a download, and deleting the episode would be
+astonishing.
+
+## Auth
+
+An OIDC client of the estate's own Hydra instance (`src/auth/`), which is
+already public with a GitHub allowlist in front of it — who may sign in is
+decided there, so there is no second allowlist here. PKCE is used even though
+this client also holds a secret; it costs one hash and removes the class of
+attack where a leaked authorization code alone is enough.
+
+`auth::extract::require_session` wraps the entire protected router as one
+layer (`src/routes.rs`'s `router()`, mounted under it in `src/main.rs`)
+rather than being applied per route. aria2's RPC has no auth of its own, so
+any route that reached it without going through this layer would be full
+control of the download queue and write access to the media tree — wrapping
+the whole router means a route added later is protected by construction
+rather than by remembering to decorate it.
+
+## Routes
+
+Everything below `/` requires a session; `/healthz`, the two `/assets/*`
+files, and `/auth/*` are the only routes outside that layer (`src/main.rs`).
+
+| Route | Method | What |
+|---|---|---|
+| `/` | GET | The page: current roots and the download list |
+| `/stream` | GET | SSE stream, one tick per second (`routes::TICK_SECS`), patching the download list in place |
+| `/add` | POST | `magnet` + `dir` form fields — runs the metadata pass, filters, and starts the real download |
+| `/downloads/{gid}/pause` | POST | |
+| `/downloads/{gid}/resume` | POST | |
+| `/downloads/{gid}/remove` | POST | See "Seeding, and why cancel has two meanings" above |
+| `/browse` | GET | `path` query param — lists subdirectories of a configured root, for the destination picker |
+| `/mkdir` | POST | `parent` + `name` form fields — makes a directory and returns the picker rooted there |
+| `/healthz` | GET | Kubelet probe, no auth |
+| `/auth/login`, `/auth/callback`, `/auth/logout` | GET | The OIDC round trip |
+
+Every path a caller supplies — the destination on add, the path to browse or
+create — is resolved through `Config::resolve`/`resolve_existing`
+(`src/config.rs`), which refuses anything not lexically inside a configured
+root and, for anything that must already exist, re-checks the canonicalised
+result against the canonicalised roots so a symlink cannot point the request
+outside them.
+
+## Configuration
+
+Read once at boot (`src/config.rs`); a missing or malformed value fails
+startup rather than the request that first needs it.
+
+| Variable | Required | Default | What |
+|---|---|---|---|
+| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under |
+| `PUBLIC_URL` | Yes | — | Where this is reached from outside; must match the OIDC redirect URI, since the pod cannot infer it from a request it hasn't had yet |
+| `OIDC_ISSUER` | Yes | — | Hydra's issuer URL |
+| `OIDC_CLIENT_ID` | Yes | — | |
+| `OIDC_CLIENT_SECRET` | Yes | — | |
+| `BIND_ADDR` | No | `0.0.0.0:8080` | |
+| `ARIA2_RPC_URL` | No | `http://127.0.0.1:6800/jsonrpc` | |
+| `TELEGRAM_BOT_TOKEN` | No | — | Must be set together with `TELEGRAM_CHAT_ID` or startup fails — a bot token with no chat id would otherwise fail on the first send, hours after the deploy that introduced it |
+| `TELEGRAM_CHAT_ID` | No | — | See above. Both absent means no notifications, treated as normal |
+
+Telegram only fires on the two events worth interrupting someone for: a
+download finishing, and one failing (`src/notify.rs`). Starting one isn't
+announced — that reports something the caller just did themselves. The
+watcher seeds its own state from the first poll rather than announcing
+whatever it finds already sitting there, so a restart doesn't re-announce
+every torrent that finished while the pod was down.
+
+## Deployment
+
+Packaged as one image (`Dockerfile`) built and pushed by
+`.github/workflows/build-mariastew-container.yml`, and deployed by
+`packages/mariastew` (`createMariastew`) as a single-replica Deployment with
+`Recreate` strategy — the pod holds `hostPath` mounts on one node, and a
+rolling surge would put the incoming pod on the same directories as the one
+it's replacing.
+
+Two decisions worth stating plainly, because they diverge from what an
+initial plan for this service assumed:
+
+- **The crate compiles inside the `Dockerfile`**, rather than a CI job
+  building a binary that the image then copies in. The repository's reusable
+  container workflow builds from a Dockerfile context and has no way to
+  consume a pre-built artefact, so a copied-in binary would mean a bespoke
+  pipeline instead of the one every other container here already uses. Each
+  architecture builds on its own native runner, so nothing is paid in QEMU
+  emulation for compiling on-image.
+- **The runtime base is `alpine`, not `scratch`.** It has to carry `aria2c`
+  regardless, and needs a CA bundle even for the Rust binary alone: reqwest's
+  `rustls` feature pulls in `rustls-platform-verifier`, which reads the
+  system trust store and does not fall back to compiled-in webpki roots. One
+  `apk add ca-certificates` covers both binaries, since they share the OS
+  trust store — see the comment on that line in the `Dockerfile` for the
+  exact failure this avoids.
+
+Releasing is a `Cargo.toml` version bump: CI sees a version with no matching
+`mariastew-v<version>` release, publishes the image, and
+`update-apps.yml`/`versions.ts` move the pin in `Pulumi.main.yaml` on its
+next run, after confirming the image actually published.
+
+## Rebuilding the stylesheet
+
+The stylesheet is generated with Tailwind + DaisyUI but the *output*
+(`assets/app.css`) is committed, so `cargo build` needs no Node toolchain —
+only editing a template does:
+
+```sh
+mise run css
+```
+
+This runs `tailwindcss` from `apps/mariastew/node_modules/.bin` (the app's
+own devDependencies — `package.json` here declares `@jaritanet/mariastew-styles`,
+separate from the Rust crate) against `styles/app.css`, minified, into
+`assets/app.css`.

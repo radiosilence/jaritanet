@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mariastew</title>
+<link rel="stylesheet" href="/assets/app.css">
+<script type="module" src="/assets/datastar.js"></script>
+</head>
+<body data-init="@get('/stream')" class="min-h-screen bg-base-200">
+
+<header class="navbar bg-base-100 shadow-sm px-4">
+  <h1 class="flex-1 text-lg font-semibold">mariastew</h1>
+  <button type="button" class="btn btn-primary btn-sm"
+    data-on-click="document.getElementById('add-dialog').showModal()">Add download</button>
+</header>
+
+<dialog id="add-dialog" class="open:flex flex-col gap-4 rounded-box bg-base-100 p-6 shadow-xl backdrop:bg-black/50 max-w-sm w-full">
+  <h2 class="text-lg font-semibold">Add a download</h2>
+  <form id="add-form" class="flex flex-col gap-3">
+    <input name="magnet" required placeholder="magnet:?xt=..." class="input input-bordered w-full">
+    {{ self.picker()?|safe }}
+    <button type="button" class="btn btn-primary"
+      data-on-click="@post('/add', {contentType: 'form'})">Add</button>
+  </form>
+  <form method="dialog">
+    <button class="btn btn-ghost btn-sm">Cancel</button>
+  </form>
+</dialog>
+
+<main class="p-4 max-w-2xl mx-auto">
+{% include "downloads.html" %}
+</main>
+
+</body>
+</html>
