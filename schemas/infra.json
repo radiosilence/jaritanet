@@ -1194,7 +1194,10 @@
           }
         },
         "jaritanet:tailnet": {
-          "default": {},
+          "default": {
+            "extraTags": [],
+            "tagOwners": []
+          },
           "type": "object",
           "properties": {
             "authKey": {
