@@ -207,6 +207,10 @@ if [ -n "$UBUNTU_PRO_TOKEN" ]; then
   pro api u.pro.status.is_attached.v1 | grep -q '"is_attached": *true' \\
     || pro attach "$UBUNTU_PRO_TOKEN" --no-auto-enable
   pro enable livepatch --assume-yes || true
+  # esm-apps carries security updates for \`universe\`, which is otherwise
+  # unsupported entirely; esm-infra is inert on a current LTS and enabled now
+  # because the year it starts mattering is not one anyone will remember.
+  pro enable esm-infra esm-apps --assume-yes || true
   # Same reasoning as the sysctls: enable can report success on a kernel
   # livepatch does not cover, and a security control believed to be on is worse
   # than one known to be off.
