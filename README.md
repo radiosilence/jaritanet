@@ -141,7 +141,7 @@ imports `infra`, and the only sideways import is `@jaritanet/k8s`.
 
 **`@jaritanet/hetzner`** — the machine
 
-- **`k3s.ts`** — installs k3s over SSH and returns its kubeconfig as the same command's stdout, so config and cluster cannot drift apart
+- **`k3s.ts`** — installs k3s over SSH, and reads the kubeconfig back as a separate command keyed on the server rather than on the installer, so editing the install command does not churn the credentials the Kubernetes provider is built from
 - **`cilium.ts`** — the CNI, with `kubeProxyReplacement` (which is what makes `hostPort` work at all)
 - **`vps.ts`** — firewall rules and the sysctls the transports need (BBR, UDP buffers)
 
