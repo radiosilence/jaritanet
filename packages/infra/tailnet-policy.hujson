@@ -17,6 +17,13 @@
 // whatever it cannot reach, you cannot reach over the VPN either. The right
 // question is not "how locked down can this be" but "what do I actually use the
 // tunnel to reach" — likely the home node on a handful of ports.
+//
+// The second catch is worse, because it does not look like an access problem.
+// Since #238 Cilium addresses both nodes by tailnet IP, so node-to-node pod
+// traffic rides this policy. A grant that omits the pair partitions the cluster
+// while every pod still reports healthy. Assert the pair in a top-level `tests`
+// block — the provider validates it before applying, so that failure arrives as
+// a failed `pulumi up` rather than as services timing out.
 {
 	"tagOwners": {
 		// The gateway wants its own tag. It currently joins as tag:server, which

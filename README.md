@@ -316,22 +316,49 @@ gateway. The gateway is a tailnet member so it can relay `100.x` over the
 tunnel, so whatever it may reach, a bug in Xray or Hysteria may also reach —
 grants contain that class of bug regardless of which layer above them is wrong.
 
+Since #238 the tailnet also carries **pod traffic between nodes** — Cilium
+addresses both nodes by tailnet IP because the home node is behind NAT. So the
+policy is not a convenience path beside the cluster, it is the cluster's
+dataplane, and that constraint is invisible from the admin console. It is the
+sharper half of the argument for the policy living next to the code: a grant
+that fails to permit the node pair does not degrade access, it **partitions the
+cluster** — pods keep reporting healthy while traffic goes nowhere.
+
 Managing it here is opt-in and cannot clobber an existing policy: the provider
 refuses to modify a policy file it has not imported. Bringing it under Pulumi:
 
 1. **Create the OAuth client.** Admin console → *Settings* → *OAuth clients* →
-   *Generate OAuth client*. Tick **`policy_file`** with **write** access (read
-   alone lets Pulumi import but not apply). Nothing else is needed. The secret
-   is shown once — copy it there and then. Free on the Personal plan.
-2. **Set the secrets.** `gh secret set TS_OAUTH_CLIENT_ID`,
-   `gh secret set TS_OAUTH_CLIENT_SECRET`, and `gh secret set TS_TAILNET` —
-   the tailnet name is the one in the admin console's top-left switcher
-   (e.g. `example.com` or `tail1234.ts.net`), not the org display name.
+   *Generate OAuth client*. Tick **Policy File** with **write** access (read
+   alone lets Pulumi import but not apply). No tags — those are only required
+   for scopes that mint devices or keys. The secret is shown once, so copy it
+   there and then. Free on the Personal plan.
+2. **Put it in stack config**, not GitHub secrets — the deploy reads nothing
+   from the environment:
+
+   ```sh
+   pulumi config set --path tailnet.oauth.clientId     <client-id>
+   pulumi config set --path tailnet.oauth.clientSecret <secret> --secret
+   ```
+
+   Leave `tailnet.name` unset for now. `main.ts` constructs the resource only
+   when both are present, so the credential sits inert until the policy file is
+   ready to import — which is what keeps steps 2 and 3 from having to land in
+   the same breath.
 3. Copy the tailnet's **current** policy into
    `packages/infra/tailnet-policy.hujson`, replacing the placeholder. Bring what
-   exists under version control before changing anything.
-4. Import it so Pulumi adopts the existing policy rather than replacing it:
-   `pulumi import tailscale:index/acl:Acl tailnet-policy acl`
+   exists under version control before changing anything. Then set the tailnet
+   name — the one in the admin console's top-left switcher (e.g. `example.com`
+   or `tail1234.ts.net`), not the org display name:
+   `pulumi config set --path tailnet.name <tailnet>`
+4. Import it so Pulumi adopts the existing policy rather than replacing it. Add
+   `import: "acl"` to the resource's options in `tailnet-policy.ts`, run
+   `pulumi up`, then remove the line. Pulumi refuses the import if the file and
+   the live policy differ, so a mistranscribed policy fails loudly instead of
+   overwriting the real one — which is also the cheapest way to diff them.
+
+   The bare CLI form (`pulumi import tailscale:index/acl:Acl tailnet-policy
+   acl`) needs `--provider`, since the resource is built with an explicit
+   provider and the default one holds no credentials.
 5. Only now start tightening. This is where the value is, and it has its own
    order — the gateway currently joins as `tag:server`, shared with every other
    server, so no grant can single it out:
@@ -339,15 +366,26 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
    1. Uncomment `tag:gateway` in `tagOwners` and deploy. **A node cannot
       advertise a tag the policy does not define**, so this must land first or
       the gateway drops off the tailnet on its next `tailscale up`.
-   2. Mint a new auth key that is authorised for `tag:gateway` (admin console →
-      *Keys* → *Generate auth key* → set the tag) and replace `tailnet.authKey`. The
-      existing key can only assign the tags it was created with, so reusing it
-      cannot work.
-   3. Set `gateway.tailnet.tag` to `tag:gateway` and deploy. The node
-      re-registers with the new tag.
-   4. Write grants naming what the tunnel is actually used to reach.
+   2. Generate a **second OAuth client**, `auth_keys` scope, tagged
+      `tag:gateway`, and replace `tailnet.authKey` with its secret. A client can
+      only mint keys for the tags it was created with, so reusing the existing
+      one cannot work. Not a raw auth key from *Keys* → *Generate auth key*:
+      those cap at 90 days, and the expiry drops the gateway off the tailnet —
+      see [Secrets](#secrets).
+   3. Extend whatever grants currently reach the node via `tag:server` to cover
+      `tag:gateway` **before** setting `gateway.tailnet.tag`. The node
+      re-registers under the new tag on deploy, and stops matching the old one
+      the moment it does — including the grant carrying pod traffic.
+   4. Write grants naming what the tunnel is actually used to reach, and a
+      top-level `tests` block asserting it. The provider validates `tests`
+      against the policy before it applies anything, so an assertion that
+      `sympathy` still reaches `lady` on the cluster ports turns a partition
+      into a failed `pulumi up`. Without it nothing checks the dataplane until
+      pods start timing out.
 
-Step 5.4 is the trap: the gateway is a *relay*, so whatever it cannot reach,
-**you** cannot reach over the VPN either. The question is not how locked down it
-can be, but what you actually use the tailnet for. Getting it wrong locks you out of your own mesh, and a bad policy is
-recoverable only from the admin console, which is no fun from a train.
+Step 5.4 is the trap, in two directions. The gateway is a *relay*, so whatever
+it cannot reach, **you** cannot reach over the VPN either — the question is not
+how locked down it can be, but what you actually use the tailnet for. And the
+node pair carries pod traffic, so a grant that omits it takes out the cluster
+rather than your convenience. Both are recoverable only from the admin console,
+which is no fun from a train.
