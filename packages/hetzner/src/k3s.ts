@@ -49,12 +49,6 @@ export function createK3s(
 ) {
   const p = resourcePrefix(name);
 
-  // k3s reads this at startup, which is why the address lands here rather than
-  // in the installer's flags: re-running the installer regenerates the
-  // kubeconfig below, and a changed kubeconfig replaces the Kubernetes provider
-  // and with it every resource in the cluster — a full teardown to change one
-  // flag.
-  //
   // `node-ip` is the box's tailnet address. Cilium tunnels pod traffic to
   // whatever a node reports as its InternalIP, and the home node is behind NAT
   // with no forwarded ports, so its tailnet address is the only one that can be
@@ -148,63 +142,87 @@ mkdir -p /opt/cni/bin
 for plugin in /var/lib/rancher/k3s/data/cni/*; do
   ln -sfn "$plugin" "/opt/cni/bin/$(basename "$plugin")"
 done
-# The installer returns before the API is up; everything downstream reads the
-# kubeconfig, so wait for it to actually serve rather than racing it.
+# The installer returns before the API is up, and everything downstream talks
+# to it, so wait for it to actually serve rather than racing it.
 for i in $(seq 1 60); do
   k3s kubectl get --raw /readyz >/dev/null 2>&1 && break
   sleep 5
 done
-k3s kubectl get --raw /readyz >/dev/null
-# Printed last so it is this command's stdout: the config and the cluster it
-# describes then come from the same execution.
-cat /etc/rancher/k3s/k3s.yaml`,
-      // The resolv-conf tag is part of the trigger because changing the
-      // command text alone does not re-run a remote command.
+k3s kubectl get --raw /readyz >/dev/null`,
       triggers: [k3s.version, pulumi.output(apiHost), "resolv-conf-v1"],
     },
     {
       dependsOn: [server, nodeConfig],
-      // This command's stdout ends with the kubeconfig, which carries a
-      // cluster-admin client certificate and key. Pulumi persists every
+      // Whatever the vendor script prints while running as root. Pulumi
+      // persists every resource output to state and none of it is worth
+      // storing in the clear.
+      additionalSecretOutputs: ["stdout"],
+    },
+  );
+
+  // A read of its own, triggered on the machine rather than on the installer's
+  // command line. Pulumi replaces a provider whose configuration changed, and
+  // every resource created through it goes with it — Cilium, Services,
+  // IngressRoutes, PersistentVolumes. Taking the kubeconfig from the
+  // installer's stdout put every edit to the install command on that path,
+  // however unrelated, so an ordinary flag change was indistinguishable from a
+  // cluster rebuild and only visible to someone reading the preview closely.
+  //
+  // The server is the trigger because a new server is what mints new
+  // credentials: the installer preserves /var/lib/rancher/k3s, so the cluster
+  // CA survives any number of reinstalls on the same box. Anything that rotates
+  // it out of band — an uninstall, `k3s certificate rotate-ca` — is a bump of
+  // the tag, and the cascade that follows is then the real thing.
+  const read = new command.remote.Command(
+    `${p}k3s-kubeconfig`,
+    {
+      connection,
+      create: "cat /etc/rancher/k3s/k3s.yaml",
+      triggers: [server.id, "kubeconfig-v1"],
+    },
+    {
+      dependsOn: [server, install],
+      // Cluster-admin client certificate and key. Pulumi persists every
       // resource output to state, so without this it is stored in the clear.
       additionalSecretOutputs: ["stdout"],
     },
   );
 
-  // The kubeconfig is the install command's own stdout, not a separate read.
-  // As two resources they could disagree: reinstalling k3s regenerates its CA,
-  // but a read whose trigger had not changed kept serving the old one — which
-  // presents as "x509: certificate signed by unknown authority" against a
-  // cluster that is up and reachable. One execution cannot drift from itself.
-  //
-  // k3s writes `server: https://127.0.0.1:6443`, true on the box and useless
-  // anywhere else, so it is rewritten to the name the cert already covers.
-  //
-  // It also names the cluster, context and user `default`, which collides with
-  // every other kubeconfig on the machine reading this — merging one in either
-  // clobbers an existing `default` or renames it by hand every time, and
-  // `--context default` says nothing about which cluster it reached. Renamed
-  // here rather than after the fact for the same reason the address is: the
-  // output should be usable as it comes out.
-  //
-  // Anchored to `: default` at end of line so it cannot match inside the
-  // base64 certificate data, where the string can occur by chance. The optional
-  // `-` matters: `users:` writes its entry as `- name: default` while `clusters:`
-  // indents `name:` under the item, so a pattern expecting only whitespace
-  // renames five of the six and leaves the user behind.
   const kubeconfig = pulumi
-    .all([install.stdout, pulumi.output(apiHost)])
+    .all([read.stdout, pulumi.output(apiHost)])
     .apply(([cfg, host]) =>
-      pulumi.secret(
-        cfg
-          .slice(cfg.indexOf("apiVersion:"))
-          .replace("https://127.0.0.1:6443", `https://${host}:6443`)
-          .replace(
-            /^(\s*-?\s*(?:name|cluster|user|current-context):\s*)default$/gm,
-            `$1${clusterName}`,
-          ),
-      ),
+      pulumi.secret(renderKubeconfig(cfg, host, clusterName)),
     );
 
   return { install, kubeconfig };
+}
+
+/**
+ * Makes k3s's own kubeconfig usable off the box it came from.
+ *
+ * k3s writes `server: https://127.0.0.1:6443`, true there and useless anywhere
+ * else, so it is rewritten to the name the certificate already covers.
+ *
+ * It also names the cluster, context and user `default`, which collides with
+ * every other kubeconfig on the machine reading this — merging one in either
+ * clobbers an existing `default` or renames it by hand every time, and
+ * `--context default` says nothing about which cluster it reached.
+ *
+ * The rename is anchored to `: default` at end of line so it cannot match
+ * inside the base64 certificate data, where the string can occur by chance. The
+ * optional `-` matters: `users:` writes its entry as `- name: default` while
+ * `clusters:` indents `name:` under the item, so a pattern expecting only
+ * whitespace renames five of the six and leaves the user behind.
+ */
+export function renderKubeconfig(
+  raw: string,
+  apiHost: string,
+  clusterName: string,
+) {
+  return raw
+    .replace("https://127.0.0.1:6443", `https://${apiHost}:6443`)
+    .replace(
+      /^(\s*-?\s*(?:name|cluster|user|current-context):\s*)default$/gm,
+      `$1${clusterName}`,
+    );
 }
