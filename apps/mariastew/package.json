@@ -1,0 +1,10 @@
+{
+  "name": "@jaritanet/mariastew-styles",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "daisyui": "5.7.16",
+    "tailwindcss": "4.3.3"
+  }
+}

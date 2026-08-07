@@ -33,3 +33,6 @@ jailBuilds: true
 # `workspaces` field in package.json is the npm/yarn convention and is ignored.
 packages:
   - "packages/*"
+  # Apps hold their own build tooling (eg. mariastew's stylesheet) rather than
+  # being deployed from here.
+  - "apps/*"

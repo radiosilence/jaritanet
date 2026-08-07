@@ -10,5 +10,14 @@
   "arrowParens": "always",
   "bracketSameLine": false,
   "bracketSpacing": true,
-  "ignorePatterns": ["./schemas", "**/*.md", "**/*.yml", "**/*.yaml"]
+  "ignorePatterns": [
+    "./schemas",
+    "**/*.md",
+    "**/*.yml",
+    "**/*.yaml",
+    "**/*.toml",
+    "apps/*/assets",
+    "apps/*/target",
+    "apps/*/templates"
+  ]
 }

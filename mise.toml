@@ -53,6 +53,15 @@ description = "Generate JSON schemas from the Zod definitions"
 # Sequential: the generator writes, then the formatter fixes what it wrote.
 run = ["./scripts/gen-schemas.ts", "oxfmt --write schemas"]
 
+[tasks."css"]
+description = "Rebuild mariastew's stylesheet after changing a template"
+dir = "apps/mariastew"
+# The root's node_modules/.bin is what `_.path` puts on PATH; this binary
+# comes from the app's own, so it is named by path rather than found.
+run = "./node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --minify"
+# The output is committed, so cargo build needs no node toolchain and the
+# container build has one artefact rather than two.
+
 [tasks."check:profiles"]
 description = "Validate every profile shape against the real sing-box binary (needs docker)"
 run = "./scripts/check-profiles.ts"

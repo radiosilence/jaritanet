@@ -29,6 +29,7 @@ const { data, error } = ConfSchema.safeParse({
   gateway: config.getObject("gateway"),
   services: config.requireObject("services"),
   tailnet: config.getObject("tailnet"),
+  telegram: config.getObject("telegram"),
   traefik: config.requireObject("traefik"),
   ubuntuProToken: config.get("ubuntuProToken"),
   vpnEntryLabel: config.get("vpnEntryLabel"),

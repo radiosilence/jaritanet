@@ -368,6 +368,7 @@ export default async function () {
       magicdnsSuffix: conf.tailnet.magicdnsSuffix,
       singboxNodes,
       users,
+      telegram: conf.telegram,
     },
     conf.services,
   );

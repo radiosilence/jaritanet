@@ -21,6 +21,7 @@ import { K3sConfSchema } from "@jaritanet/hetzner";
 import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
 import { ServiceArgsSchema } from "@jaritanet/k8s";
+import { MariastewConfSchema } from "@jaritanet/mariastew";
 import { McpGatewayConfSchema, McpSchema } from "@jaritanet/mcp-gateway";
 import {
   ExitConfSchema,
@@ -38,6 +39,7 @@ export {
   FastmailConfSchema,
   HysteriaConfSchema,
   K3sConfSchema,
+  MariastewConfSchema,
   McpGatewayConfSchema,
   McpSchema,
   SambaConfSchema,
@@ -61,6 +63,19 @@ export const CloudflareConfSchema = z.object({
    * handed to Traefik, and nothing can read the provider's copy back out.
    */
   apiToken: z.string().min(1),
+});
+
+/**
+ * A Telegram bot for notifications, shared by whatever wants to send one.
+ *
+ * Its own schema rather than inline on a single service field because it now
+ * has more than one consumer — see `ConfSchema.telegram`.
+ */
+export const TelegramConfSchema = z.object({
+  botToken: z.string(),
+  chatId: z
+    .string()
+    .regex(/^-?\d+$/, "must be a Telegram chat id (an integer)"),
 });
 
 /**
@@ -274,20 +289,16 @@ export const ServiceConfSchema = z.discriminatedUnion("kind", [
        */
       hostname: Hostname,
       image: z.string(),
-      /**
-       * Notifies on change, with every user's profile URL. Absent → no message,
-       * and the URLs are read from `pulumi stack output` instead.
-       */
-      telegram: z
-        .object({
-          botToken: z.string(),
-          chatId: z
-            .string()
-            .regex(/^-?\d+$/, "must be a Telegram chat id (an integer)"),
-        })
-        .optional(),
     })
     .describe("The per-user sing-box subscription server"),
+  MariastewConfSchema.extend({
+    kind: z.literal("mariastew"),
+    /**
+     * Runs where the disks are, pinned by the same label as the other file
+     * services — the roots it writes to are hostPaths on that machine.
+     */
+    nodeLabel: FileNodeLabel,
+  }).strict(),
 ]);
 
 export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
@@ -330,6 +341,13 @@ export const ConfSchema = z.object({
    */
   services: ServicesMapSchema,
   tailnet: TailnetAccountConfSchema.default({ extraTags: [], tagOwners: [] }),
+  /**
+   * Two consumers — the sing-box profile server on change, and mariastew when
+   * a download finishes — so it is a shared account rather than either one's
+   * setting. Absent means neither notifies, which both treat as normal rather
+   * than as an error.
+   */
+  telegram: TelegramConfSchema.optional(),
   traefik: TraefikConfSchema,
   /**
    * Ubuntu Pro, for livepatch on the gateway and every edge. Free for personal

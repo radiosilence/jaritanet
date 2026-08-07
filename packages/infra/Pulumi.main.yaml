@@ -413,11 +413,31 @@ config:
       hostname:
         secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
       image: ghcr.io/radiosilence/serve-from-env:0.1.0
-      telegram:
-        botToken:
-          secure: AAABAG1Dqy8QBBuB3QXADxbmJXDhzq7ZRvXoV4LlNZ8LuSXajDoE7AvgtWvJnhIEaXGRPOR46RFiItpup9yJXNsRTXRNS3EvFSEY6vJU
-        chatId:
-          secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
+    # Television and film only, which is what makes the scene-garbage filter
+    # global — there is no album art to protect, so one list serves every
+    # download. Each root is both the pod's mount and a root the picker
+    # browses, declared once.
+    #
+    # hostname and oidc.issuer are set as encrypted config out of band and
+    # left blank here — the same reasoning the other service hostnames carry:
+    # certificate transparency publishes them anyway, but a public repository
+    # should not hand out the address of a write endpoint onto the media
+    # library. An empty hostname or oidc.issuer means the service is not
+    # deployed.
+    mariastew:
+      kind: mariastew
+      hostname: ""
+      image:
+        repository: "ghcr.io/radiosilence/mariastew"
+        tag: 0.1.0
+        pullPolicy: "Always"
+      oidc:
+        issuer: ""
+      roots:
+        - name: tv
+          hostPath: /mnt/kontent/tv
+        - name: movies
+          hostPath: /mnt/kontent/movies
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
@@ -465,5 +485,13 @@ config:
       - jc@blit.cc
     extraTags:
       - tag:ci
+  # Shared account: the sing-box profile server notifies on change, mariastew
+  # notifies when a download finishes. Absent → neither sends anything, which
+  # both treat as normal rather than as an error.
+  jaritanet:telegram:
+    botToken:
+      secure: AAABAG1Dqy8QBBuB3QXADxbmJXDhzq7ZRvXoV4LlNZ8LuSXajDoE7AvgtWvJnhIEaXGRPOR46RFiItpup9yJXNsRTXRNS3EvFSEY6vJU
+    chatId:
+      secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
   jaritanet:vpnUsers:
     secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc

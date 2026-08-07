@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* <dialog> already gets `display: none` while closed and `display: block`
+   while open from the user agent stylesheet — see #add-dialog. Style the
+   open state with `open:flex` rather than an unconditional `flex`: an
+   unconditional display utility applies even while the dialog has no
+   `open` attribute, which defeats `dialog:not([open]) { display: none }`
+   and leaks the dialog into the page before it was ever shown. */

@@ -11,6 +11,7 @@
     "@jaritanet/home": "workspace:*",
     "@jaritanet/ingress": "workspace:*",
     "@jaritanet/k8s": "workspace:*",
+    "@jaritanet/mariastew": "workspace:*",
     "@jaritanet/mcp-gateway": "workspace:*",
     "@jaritanet/vpn": "workspace:*",
     "@pulumi/command": "1.2.1",

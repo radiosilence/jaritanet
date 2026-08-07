@@ -674,6 +674,26 @@ where Pulumi cannot reach it.
 Throughput does not discriminate between any of these — a residential upstream
 caps every one of them long before its own overhead does.
 
+## mariastew's egress sits on neither axis
+
+mariastew (`apps/mariastew/`) also opens outbound connections to the open
+internet — a BitTorrent swarm, in its case — and it deliberately answers to
+neither axis above. It has no entry to pick: it is a cluster workload, not a
+sing-box client, so nothing about it touches Xray, Hysteria2 or `entry-select`.
+And its `NetworkPolicy` sends that traffic straight out rather than through the
+tailnet to an exit's ss-rust, which is a decision worth recording rather than
+an omission — the shape looks, at a glance, like traffic that belongs on the
+exit axis. Two reasons it doesn't: the traffic is indistinguishable from
+ordinary home-network downloading, which is what it should look like — routing
+it through an exit's IP would make it foreign traffic entering someone else's
+swarm from a datacentre range, and those get tracker-blocked far more readily
+than a residential one; and an exit's whole point is *selectable* egress
+location, which buys nothing here since the pod already runs on the node
+holding the disks it writes to — the same file-node label samba and syncthing
+use. It also has no inbound port: the home network forwards nothing, so aria2
+only ever dials out, and a swarm with no incoming peer connected is this
+service's normal resting state rather than a symptom.
+
 ## Multi-user access (admin / guest)
 
 The VPN is multi-tenant. The `vpnUsers` config value is one comma-separated

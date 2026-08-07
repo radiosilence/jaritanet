@@ -16,6 +16,7 @@ import { createServiceRecord } from "@jaritanet/dns";
 import { createSamba, createSyncthing } from "@jaritanet/home";
 import { createIngressRoute } from "@jaritanet/ingress";
 import { createService } from "@jaritanet/k8s";
+import { createMariastew } from "@jaritanet/mariastew";
 import { createMcpGateway } from "@jaritanet/mcp-gateway";
 import {
   createProfileServer,
@@ -54,6 +55,8 @@ export type ServiceContext = {
   /** Entry nodes for the client profile — the gateway, then every edge. */
   singboxNodes: SingboxNode[];
   users: VpnUser[];
+  /** Shared bot: the profile server and mariastew both notify through it. */
+  telegram?: { botToken: string; chatId: string };
 };
 
 /**
@@ -139,14 +142,39 @@ function createOne(
         image: service.image,
         exits: ctx.exits,
         hostname: service.hostname,
-        telegram: service.telegram
+        telegram: ctx.telegram
           ? {
-              botToken: pulumi.secret(service.telegram.botToken),
-              chatId: service.telegram.chatId,
+              botToken: pulumi.secret(ctx.telegram.botToken),
+              chatId: ctx.telegram.chatId,
             }
           : undefined,
       });
       return [{ service: "singbox-profiles", hostname: service.hostname }];
+    }
+
+    case "mariastew": {
+      // A write endpoint onto the media library is not published without a
+      // way to authenticate, so an unconfigured one is not deployed rather
+      // than deployed open.
+      // The issuer rather than the block: config carries `oidc: { issuer: "" }`
+      // in the clear and sets the real value as a secret out of band, so an
+      // unconfigured deployment has the object and an empty string in it.
+      if (!service.oidc?.issuer || !service.hostname) return [];
+      createMariastew(provider, namespace, service, {
+        nodeLabel: service.nodeLabel,
+        // Hydra is stood up by the mcp-gateway kind and reached at a bare
+        // service name in the same namespace, so this is derived from that
+        // deployment rather than configured twice. Cluster-internal only —
+        // the admin API is never fronted by a route.
+        hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
+        telegram: ctx.telegram
+          ? {
+              botToken: pulumi.secret(ctx.telegram.botToken),
+              chatId: ctx.telegram.chatId,
+            }
+          : undefined,
+      });
+      return [{ service: "mariastew", hostname: service.hostname }];
     }
   }
 }

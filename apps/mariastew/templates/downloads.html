@@ -1,0 +1,49 @@
+<div id="downloads" class="flex flex-col gap-3">
+{% for row in rows %}
+  <div id="dl-{{ row.gid }}" class="rounded-box border border-base-300 bg-base-100 p-3">
+    <div class="flex items-baseline justify-between gap-2">
+      <span class="font-medium truncate">{{ row.name }}</span>
+      <span class="badge badge-sm badge-outline">{{ row.state }}</span>
+    </div>
+
+    {% if row.percent.is_some() %}
+    <progress class="progress {{ row.bar_class }} w-full mt-1"
+      value="{{ row.percent_display.as_deref().unwrap_or_default() }}" max="100"></progress>
+    {% else %}
+    <progress class="progress {{ row.bar_class }} w-full mt-1"></progress>
+    {% endif %}
+
+    <div class="flex justify-between text-xs opacity-70 mt-1">
+      <span>{{ row.done }} / {{ row.size }}</span>
+      <span>↓ {{ row.down }} ↑ {{ row.up }}</span>
+    </div>
+
+    <div class="flex items-center justify-between mt-2">
+      <div class="flex items-center gap-3 text-xs opacity-70">
+        <span aria-label="connections">🔗 {{ row.connections }}</span>
+        <span aria-label="seeders">🌱 {{ row.seeders }}</span>
+      </div>
+      <div class="flex gap-2">
+        {% if row.paused %}
+        <button type="button" class="btn btn-xs"
+          data-on-click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
+        {% else %}
+        <button type="button" class="btn btn-xs"
+          data-on-click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
+        {% endif %}
+        {% if row.finished %}
+        <button type="button" class="btn btn-xs btn-ghost"
+          data-on-click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
+        {% else %}
+        <button type="button" class="btn btn-xs btn-error"
+          data-on-click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if let Some(e) = row.error %}
+    <p class="text-error text-xs mt-1">{{ e }}</p>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>
