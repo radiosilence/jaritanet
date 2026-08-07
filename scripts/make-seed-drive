@@ -253,6 +253,12 @@ mounts:
 YAML
   fi
 
+  # ESM is the other half of what Pro is for. esm-apps carries security
+  # updates for `universe`, which has no guaranteed support otherwise, so
+  # without it a large part of what is installed is simply unpatched.
+  # esm-infra does nothing on a current LTS and is listed anyway, because the
+  # year it starts mattering is not a year anyone will remember to come back.
+  #
   # Livepatch applies high and critical kernel CVE fixes to the *running*
   # kernel, which is the half of the problem a reboot window cannot solve: a
   # patched kernel sitting on disk unbooted is an unpatched kernel, and the gap
@@ -268,6 +274,8 @@ ubuntu_pro:
   token: $SEED_PRO_TOKEN
   enable:
     - livepatch
+    - esm-infra
+    - esm-apps
 YAML
   fi
 
