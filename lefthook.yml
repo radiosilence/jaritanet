@@ -11,6 +11,6 @@ pre-commit:
     typecheck:
       run: mise run typecheck
     rust:
-      glob: "containers/**/*.rs"
-      run: cd containers/serve-from-env && cargo fmt && cargo clippy --all-targets -- -D warnings
+      glob: "apps/**/*.rs"
+      run: cd apps/serve-from-env && cargo fmt && cargo clippy --all-targets -- -D warnings
       stage_fixed: true

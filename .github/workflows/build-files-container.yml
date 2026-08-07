@@ -9,11 +9,11 @@ on:
     branches:
       - main
     paths:
-      - "containers/files/**"
+      - "apps/files/**"
       - ".github/workflows/build-files-container.yml"
   pull_request:
     paths:
-      - "containers/files/**"
+      - "apps/files/**"
       - ".github/workflows/build-files-container.yml"
   workflow_dispatch:
 
@@ -37,9 +37,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version=$(tr -d '[:space:]' < containers/files/VERSION)
+          version=$(tr -d '[:space:]' < apps/files/VERSION)
           if [ -z "$version" ]; then
-            echo "containers/files/VERSION is empty" >&2
+            echo "apps/files/VERSION is empty" >&2
             exit 1
           fi
           if gh release view "files-v$version" >/dev/null 2>&1; then
@@ -56,7 +56,7 @@ jobs:
     needs: [version]
     uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@dd9d9c97a8c1ee1e27f285a96cbb50b2b6c16e06 # native-arm-runners
     with:
-      working-directory: "./containers/files"
+      working-directory: "./apps/files"
       image: "jaritanet-files"
       version: ${{ needs.version.outputs.release == 'true' && needs.version.outputs.version || '' }}
     secrets:
@@ -88,7 +88,7 @@ jobs:
           # container tagged last. Scope to this container's own history instead.
           prev=$(git tag --list 'files-v*' --sort=-version:refname | head -1)
           range=${prev:+$prev..}HEAD
-          notes=$(git log --no-merges --pretty='- %s' "$range" -- containers/files)
+          notes=$(git log --no-merges --pretty='- %s' "$range" -- apps/files)
           gh release create "files-v$VERSION" \
             --title "files v$VERSION" \
             --target "$GITHUB_SHA" \

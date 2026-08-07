@@ -146,8 +146,8 @@ emulating arm64 under QEMU. The Rust one is also checked by the `containers` job
 in `ci-cd.yml` (fmt, clippy, `cargo test`).
 
 Our containers are versioned and released from here, so the updater can track
-them like any upstream. The version lives in `containers/serve-from-env/Cargo.toml`
-and `containers/files/VERSION`; changing it is the release. CI publishes the
+them like any upstream. The version lives in `apps/serve-from-env/Cargo.toml`
+and `apps/files/VERSION`; changing it is the release. CI publishes the
 image, cuts `serve-from-env-v<version>` / `files-v<version>`, and the updater
 moves the pin. Tags are output, not input — nothing reads one to decide what to
 build. Both containers releasing from one repo is why tracked entries need
@@ -155,8 +155,8 @@ build. Both containers releasing from one repo is why tracked entries need
 
 ## Container Services
 
-- `containers/files/` - Nginx-based file server with CORS and compression
-- `containers/serve-from-env/` - Serves `$ROUTES` (`{"<path>": <content>}`) and
+- `apps/files/` - Nginx-based file server with CORS and compression
+- `apps/serve-from-env/` - Serves `$ROUTES` (`{"<path>": <content>}`) and
   nothing else; static musl binary on `scratch`. Built for the sing-box
   profiles, whose paths are secret and whose bodies Pulumi already holds as
   strings — so there is no volume to mount and no file to go stale.

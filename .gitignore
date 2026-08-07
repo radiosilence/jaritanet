@@ -23,7 +23,7 @@ mise.local.toml
 
 node_modules
 
-containers/*/target
+apps/*/target
 
 
 # harness-managed agent worktrees
