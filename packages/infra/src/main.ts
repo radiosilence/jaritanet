@@ -195,7 +195,12 @@ export default async function () {
   // --- Kubernetes provider ---
   // The cluster runs on the gateway itself, and the same `pulumi up` that
   // creates the server produces this kubeconfig — no secret round-trip, and
-  // nothing for a human to rotate. See modules/k3s.ts.
+  // nothing for a human to rotate.
+  //
+  // A changed kubeconfig replaces this provider and every resource created
+  // through it, so what the value is allowed to depend on is load-bearing:
+  // @jaritanet/hetzner reads it off the box keyed on the server, not on the
+  // installer that happens to run alongside it.
   if (!gatewayK3s) {
     throw new Error("gateway.k3s is required: it provides the cluster");
   }

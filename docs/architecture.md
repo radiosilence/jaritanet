@@ -190,6 +190,31 @@ which cgroup owns the socket before anything else.
 Edges keep the SSH path: they have no cluster, and one box per location running
 two daemons is not worth a control plane.
 
+## Why the kubeconfig is read separately from the install
+
+The Kubernetes provider is configured from the gateway's kubeconfig, and Pulumi
+replaces a provider whose configuration changed — along with every resource
+created through it. That is Cilium, every Service, IngressRoute, NetworkPolicy
+and PersistentVolume, including the CNI the cluster needs in order to come back.
+
+So the provider's configuration must not move for reasons that have nothing to
+do with the credentials. Taking the kubeconfig from the installer's stdout meant
+it did: the installer's output *was* the credential, so any edit to its command
+line regenerated it, and an ordinary flag change was indistinguishable from a
+cluster rebuild — visible only as a long list of ordinary-looking replacements
+in a preview nobody reads that closely.
+
+The kubeconfig is therefore its own `command.remote`, triggered on the server
+rather than on the installer. A new server is what mints new credentials: the
+installer preserves `/var/lib/rancher/k3s`, so the cluster CA survives any
+number of reinstalls on the same box. Rotating it some other way means bumping
+the tag in that command's triggers, and the cascade that follows is then the
+real thing rather than noise.
+
+Two changes still legitimately replace the provider, and both mean the
+credentials genuinely moved: replacing the server, and switching `apiHost`
+between the tailnet name and the public IP.
+
 ## Keeping k3s current on nodes nothing can reach
 
 The gateway's k3s is installed over SSH, so its version follows
