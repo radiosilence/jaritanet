@@ -283,8 +283,6 @@ config:
       # GitHub OAuth credentials and the login allowlist come from stack config.
       hostname:
         secure: AAABADHN+GrfSd0qTwQAuaJp3u9RRiCJf/3Ki4LWnL2HYjO6XupTDBd6qw==
-      authHostname:
-        secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
       hydraTag: "v2.2.0"
       replicas: 2
       # Routes and terminates OAuth rather than serving a file, so it gets more
@@ -497,7 +495,17 @@ config:
       secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
   jaritanet:vpnUsers:
     secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc
+  # The login screen, at the hostname Hydra already stands at and split from it
+  # by path. Top level beside traefik, and for the same reason: traefik cannot
+  # be a service because it is what publishes them, and this cannot because it
+  # is what authenticates for them.
   jaritanet:auth:
+    hostname:
+      secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
+    image:
+      repository: "ghcr.io/radiosilence/auth"
+      tag: 0.1.0
+      pullPolicy: "Always"
     github:
       clientId: Ov23lig1BPAzKe4qmT4F
       clientSecret:

@@ -101,6 +101,17 @@ export function createMcpGateway(
     githubClientId: pulumi.Input<string>;
     githubClientSecret: pulumi.Input<string>;
     githubAllowed: pulumi.Input<string>;
+    /**
+     * Where the authorization server stands, and where the identity provider
+     * answers its challenges — the same hostname, split by path.
+     *
+     * An argument rather than this component's config: it is one address read
+     * once at the top level and handed to everything that needs it, the shape
+     * `vpnEntryLabel` uses so two readers cannot disagree about it. Hydra is
+     * deployed here for historical reasons; the login screen is not this
+     * gateway's to name.
+     */
+    authHostname: string;
   },
 ) {
   const opts = { provider };
@@ -307,19 +318,26 @@ export function createMcpGateway(
                   ...hydraEnvCommon,
                   {
                     name: "URLS_SELF_ISSUER",
-                    value: `https://${conf.authHostname}`,
+                    value: `https://${secrets.authHostname}`,
                   },
+                  // Delegated to the identity provider rather than to this
+                  // gateway. Hydra takes one login provider for the whole
+                  // authorization server, so while these pointed here, this
+                  // gateway was the login screen for every client of it — and
+                  // an unhealthy replica was intermittent login failures on
+                  // services with nothing else to do with it. Reverting is
+                  // these three values.
                   {
                     name: "URLS_LOGIN",
-                    value: `https://${conf.hostname}/auth/login`,
+                    value: `https://${secrets.authHostname}/auth/login`,
                   },
                   {
                     name: "URLS_CONSENT",
-                    value: `https://${conf.hostname}/auth/consent`,
+                    value: `https://${secrets.authHostname}/auth/consent`,
                   },
                   {
                     name: "WEBFINGER_OIDC_DISCOVERY_CLIENT_REGISTRATION_URL",
-                    value: `https://${conf.hostname}/register`,
+                    value: `https://${secrets.authHostname}/register`,
                   },
                   { name: "SERVE_COOKIES_SAME_SITE_MODE", value: "Lax" },
                   // Traefik terminates TLS and forwards http in-cluster; trust
@@ -441,7 +459,7 @@ export function createMcpGateway(
                   { name: "PUBLIC_URL", value: `https://${conf.hostname}` },
                   {
                     name: "HYDRA_ISSUER",
-                    value: `https://${conf.authHostname}`,
+                    value: `https://${secrets.authHostname}`,
                   },
                   {
                     name: "HYDRA_ADMIN_URL",

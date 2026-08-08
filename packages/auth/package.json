@@ -1,0 +1,23 @@
+{
+  "name": "@jaritanet/auth",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hydra's login and consent provider, and the only thing that knows how anyone signs in",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@jaritanet/k8s": "workspace:*",
+    "@pulumi/kubernetes": "4.30.0",
+    "@pulumi/pulumi": "3.239.0",
+    "@pulumi/random": "4.20.0",
+    "zod": "4.4.3"
+  }
+}

@@ -1,0 +1,103 @@
+name: Build Auth Container
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/auth/**"
+      - ".github/workflows/build-auth-container.yml"
+  pull_request:
+    paths:
+      - "apps/auth/**"
+      - ".github/workflows/build-auth-container.yml"
+  workflow_dispatch:
+
+jobs:
+  # Tags are output, not input: the version in Cargo.toml is the source of truth,
+  # and a release exists because that number changed. Nothing here reads a tag to
+  # decide what to build, so there is no second place to keep in step by hand.
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Read the version, and ask whether it has been released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' apps/auth/Cargo.toml | head -1)
+          if [ -z "$version" ]; then
+            echo "no version in apps/auth/Cargo.toml" >&2
+            exit 1
+          fi
+          # Whether this exact release exists, rather than a comparison with the
+          # newest one, so a revert or a re-run does not try to cut a version that
+          # is already out.
+          if gh release view "auth-v$version" >/dev/null 2>&1; then
+            release=false
+          else
+            release=true
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "version $version, release $release"
+
+  publish:
+    name: Build and Publish
+    needs: [version]
+    # Builds each architecture on a native runner. `version` publishes the semver
+    # tags, which metadata-action cannot derive here because the build runs on a
+    # branch push with no tag to read.
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@dd9d9c97a8c1ee1e27f285a96cbb50b2b6c16e06 # native-arm-runners
+    with:
+      working-directory: "./apps/auth"
+      image: "auth"
+      version: ${{ needs.version.outputs.release == 'true' && needs.version.outputs.version || '' }}
+    secrets:
+      PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  # After publishing, so a release never names an image that does not exist. The
+  # updater reads these releases and moves the pin in Pulumi.main.yaml.
+  release:
+    name: Release
+    needs: [version, publish]
+    if: needs.version.outputs.release == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          # Notes are scoped with git log, which needs history and tags.
+          fetch-depth: 0
+
+      - name: Create the release, and its tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # --generate-notes diffs against the previous tag in the repo, which
+          # knows nothing about tag prefixes: the first release of a container
+          # credits it with every PR ever, and later ones pick up whichever
+          # container tagged last. Scope to this container's own history instead.
+          prev=$(git tag --list 'auth-v*' --sort=-version:refname | head -1)
+          range=${prev:+$prev..}HEAD
+          notes=$(git log --no-merges --pretty='- %s' "$range" -- apps/auth)
+          gh release create "auth-v$VERSION" \
+            --title "auth v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --notes "${notes:-- No changes recorded for this container.}"

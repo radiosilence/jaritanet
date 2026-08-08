@@ -117,6 +117,22 @@ export function createIngress(
 }
 
 /**
+ * The Traefik rule for a route: a host, and optionally a set of paths within it.
+ *
+ * A bare `Host()` is what almost everything wants. `paths` exists for the one
+ * hostname two services share — the identity provider answers the login,
+ * consent and registration endpoints on the host whose bare rule is Hydra's, so
+ * the specific rule has to be preferred over the general one. Traefik derives
+ * priority from rule length, which would happen to be right here and would stop
+ * being right the moment a hostname got longer, so it is stated rather than
+ * inherited.
+ */
+export function routeMatch(hostname: string, paths?: string[]) {
+  const host = `Host(\`${hostname}\`)`;
+  return paths?.length ? `${host} && (${paths.join(" || ")})` : host;
+}
+
+/**
  * Creates a Traefik IngressRoute for a service.
  * Each service gets its own IngressRoute CRD pointing at its K8s Service,
  * with TLS handled by the shared letsencrypt cert resolver.
@@ -129,7 +145,18 @@ export function createIngressRoute(
   // IngressRoute is a kind the Traefik chart installs. Without this the CRD may
   // not exist yet: "no matches for kind IngressRoute in version traefik.io/v1alpha1".
   traefik?: pulumi.Resource,
+  routing?: { paths?: string[]; priority?: number },
 ) {
+  const match = routeMatch(hostname, routing?.paths);
+  // Carried by both routes: without it, two services sharing a hostname would
+  // publish the same `Host()` rule on the http entrypoint and Traefik would
+  // pick between two identical redirects.
+  const rule = {
+    kind: "Rule",
+    match,
+    ...(routing?.priority && { priority: routing.priority }),
+  };
+
   new k8s.apiextensions.CustomResource(
     `${serviceName}-ingress-route`,
     {
@@ -143,8 +170,7 @@ export function createIngressRoute(
         entryPoints: ["websecure"],
         routes: [
           {
-            kind: "Rule",
-            match: `Host(\`${hostname}\`)`,
+            ...rule,
             services: [
               {
                 name: `${serviceName}-service`,
@@ -175,8 +201,7 @@ export function createIngressRoute(
         entryPoints: ["web"],
         routes: [
           {
-            kind: "Rule",
-            match: `Host(\`${hostname}\`)`,
+            ...rule,
             middlewares: [
               {
                 name: "redirect-https",
