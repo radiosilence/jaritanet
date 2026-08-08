@@ -58,14 +58,19 @@ pub enum Health {
     /// happening — which is the one thing the old catch-all could not say,
     /// so a queued torrent read as "no seeders" and looked broken.
     Queued,
-    /// The magnet is resolving and no peer has answered yet. Nobody has been
-    /// found who will serve the torrent file, which is a different problem
-    /// from a slow one and the reason "starting" was split: this is the state
-    /// that stays put forever on a dead magnet.
-    FindingPeers,
-    /// Peers are connected and the torrent file itself is on its way. Slow
-    /// here is ordinary; stuck here is not.
-    FetchingMetadata,
+    /// The magnet has not resolved: aria2 is looking for peers who will serve
+    /// the torrent file, and asking whichever it finds.
+    ///
+    /// This was briefly split in two on `connections > 0`, on the theory that
+    /// peers connected meant metadata was on its way. Watching a real dead
+    /// magnet disproved it — DHT hands out peers that have never heard of the
+    /// infohash, so the count oscillates between zero and a handful every few
+    /// seconds while nothing whatsoever arrives. The split named that
+    /// oscillation "progress", and flapped the badge and the activity log
+    /// along with it. Nothing in a single `tellStatus` separates a magnet
+    /// nobody has from one that is merely slow; what separates them is how
+    /// long it has been, which is what the timestamps in the log are for.
+    Resolving,
     /// aria2 is hashing what is already on disk before downloading anything —
     /// a resumed download, or one whose files were already there. Reads as
     /// zero speed with peers connected, which is otherwise indistinguishable
@@ -307,16 +312,7 @@ impl Download {
             // nothing moving" branches would diagnose as stalled.
             Health::Verifying
         } else if self.is_metadata() || self.total_length == 0 {
-            // The half of "starting" that was worth splitting. Both mean the
-            // magnet has not resolved, but only one of them is a swarm that
-            // is answering: no connection at all is the state a dead magnet
-            // sits in indefinitely, and it now says so rather than looking
-            // like an ordinary slow start.
-            if self.connections > 0 {
-                Health::FetchingMetadata
-            } else {
-                Health::FindingPeers
-            }
+            Health::Resolving
         } else if self.download_speed > 0 {
             Health::Moving
         } else if self.connections > 0 {
@@ -731,21 +727,20 @@ mod tests {
         assert_eq!(d.health(), Health::Complete);
     }
 
-    /// The split that replaced "starting". Both of these are an unresolved
-    /// magnet, but only one of them has anyone to ask — and a magnet nobody
-    /// answers is the case that sits there indefinitely looking identical to
-    /// a slow one.
+    /// An unresolved magnet is one state, whatever its connection count is
+    /// doing. Splitting on `connections` was tried against a real dead magnet
+    /// and the count oscillated 0↔4 every few seconds off DHT peers that had
+    /// never heard of the infohash — see the note on `Health::Resolving`. A
+    /// state that changes twice a minute while nothing happens is worse than
+    /// no state at all, because it also floods the activity log.
     #[test]
-    fn health_finding_peers_when_nothing_has_answered_the_magnet_yet() {
-        let d = download(Status::Active);
-        assert_eq!(d.health(), Health::FindingPeers);
-    }
-
-    #[test]
-    fn health_fetching_metadata_once_a_peer_is_connected() {
+    fn health_resolving_does_not_flap_with_the_connection_count() {
         let mut d = download(Status::Active);
-        d.connections = 2;
-        assert_eq!(d.health(), Health::FetchingMetadata);
+        assert_eq!(d.health(), Health::Resolving);
+        d.connections = 4;
+        assert_eq!(d.health(), Health::Resolving);
+        d.connections = 0;
+        assert_eq!(d.health(), Health::Resolving);
     }
 
     /// A download aria2 has parked behind `maxConcurrentDownloads` has no

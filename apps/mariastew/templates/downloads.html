@@ -113,7 +113,13 @@
            log, and this is where anyone would actually look. #}
       {% if !row.files.is_empty() %}
       <details id="files-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
-        <summary class="min-h-11 cursor-pointer p-2 text-xs">
+        {# Symmetric padding rather than `min-h-11`: a minimum height on a
+             `list-item` summary leaves the whole difference *below* one line
+             of `text-xs`, which reads as a box with its label stuck to the
+             ceiling. The target stays comfortable because the row is full
+             width, and `p-2.5` keeps the marker `display: flex` would
+             remove. #}
+        <summary class="cursor-pointer p-2.5 text-xs">
           Files <span class="opacity-60">— keeping {{ row.selected_count }} of {{ row.file_count }}{% if let Some(skipped) = row.skipped %}, {{ skipped }}{% endif %}</span>
         </summary>
         <ul class="flex flex-col gap-2 border-t border-base-300 p-2">
@@ -142,13 +148,19 @@
            top of this file. #}
       {% if !row.log.is_empty() %}
       <details id="log-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
-        <summary class="min-h-11 cursor-pointer p-2 text-xs">
+        <summary class="cursor-pointer p-2.5 text-xs">
           Logs <span class="opacity-60">— {{ row.log.len() }} entries</span>
         </summary>
         <ol class="flex flex-col gap-1 border-t border-base-300 p-2 font-mono text-xs">
+        {# The pod has no timezone and the browser does, so the markup carries
+             UTC and `data-text` rewrites it locally. `hour12: false` keeps it
+             to eight characters whatever the reader's locale would otherwise
+             do, which is what lets the column be a fixed width. Only the
+             integer is interpolated — see `LogView`. #}
         {% for entry in row.log %}
           <li class="flex gap-2">
-            <span class="w-8 shrink-0 text-right opacity-50">{{ entry.ago }}</span>
+            <span class="w-16 shrink-0 text-right tabular-nums opacity-50"
+              data-text="new Date({{ entry.at_ms }}).toLocaleTimeString([], {hour12: false})">{{ entry.utc }}</span>
             <span class="break-words">{{ entry.message }}</span>
           </li>
         {% endfor %}
