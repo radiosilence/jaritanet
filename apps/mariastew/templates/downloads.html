@@ -14,7 +14,15 @@
       <div class="min-w-0 flex-1">
         <div class="flex items-baseline justify-between gap-2">
           <span class="truncate text-sm font-medium">{{ row.name }}</span>
+          <!-- Filled, not outlined, once finished — the one state that
+               should read as different from every state still in motion,
+               at the same glance that used to require re-reading the whole
+               list to notice it changed. -->
+          {% if row.finished %}
+          <span class="badge badge-sm badge-success shrink-0">✓ {{ row.state }}</span>
+          {% else %}
           <span class="badge badge-sm badge-outline shrink-0">{{ row.state }}</span>
+          {% endif %}
         </div>
         {% if row.percent.is_some() %}
         <progress class="progress {{ row.bar_class }} mt-1.5 h-1.5 w-full"
@@ -22,6 +30,14 @@
         {% else %}
         <progress class="progress {{ row.bar_class }} mt-1.5 h-1.5 w-full"></progress>
         {% endif %}
+        <!-- The destination is the whole point of choosing one — visible
+             without a tap, not just in the error box. Wrapped rather than
+             truncated, the same treatment as the picker's own paths: this
+             is a full path and the tail is exactly what answers "which
+             season folder did it land in", so hiding it with an ellipsis
+             would recreate the problem that fix solved, just here instead
+             of there. -->
+        <p class="mt-1 text-xs break-words opacity-60">→ {{ row.dir }}</p>
       </div>
     </summary>
 
