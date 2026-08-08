@@ -97,6 +97,10 @@ dir = "packages/infra"
 run = "pulumi preview"
 
 [tasks.up]
+description = "deprecated: use deploy"
+run = "echo '[301] moved -> mise deploy (mise shadows `up`)'"
+
+[tasks.deploy]
 description = "Deploy the stack"
 dir = "packages/infra"
 run = "pulumi up"
