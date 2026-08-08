@@ -208,16 +208,19 @@ export function createServices(
   ctx: ServiceContext,
   services: Record<string, z.infer<typeof ServiceConfSchema>>,
 ) {
-  return publishRoutes(
-    ctx,
-    Object.entries(services).flatMap(([name, service]) =>
-      createOne(ctx, name, service),
-    ),
+  return Object.entries(services).flatMap(([name, service]) =>
+    createOne(ctx, name, service),
   );
 }
 
 /**
  * Give a set of routes an A record and an IngressRoute, and report them.
+ *
+ * Takes every route the stack has in one call rather than one call per source:
+ * a hostname can be answered by two workloads — the identity provider shares
+ * Hydra's, split by path — and an A record is per hostname where an
+ * IngressRoute is per route. Two calls made the record twice, and Pulumi
+ * refused the duplicate URN.
  *
  * Separate from `createServices` because the identity provider is not a
  * service — it is the thing that authenticates for them, the way Traefik is the
@@ -227,6 +230,7 @@ export function createServices(
  */
 export function publishRoutes(ctx: ServiceContext, routes: Route[]) {
   const published: Record<string, { hostname: string; service: string }> = {};
+  const recorded = new Set<string>();
 
   for (const route of routes) {
     // Zones are two labels here, which is what makes this work. A zone with
@@ -237,7 +241,8 @@ export function publishRoutes(ctx: ServiceContext, routes: Route[]) {
     const zone = ctx.zones.find(
       (z) => z.name === route.hostname.split(".").slice(-2).join("."),
     );
-    if (ctx.dnsTarget && zone) {
+    if (ctx.dnsTarget && zone && !recorded.has(route.hostname)) {
+      recorded.add(route.hostname);
       createServiceRecord(ctx.dnsTarget, zone, route.hostname);
     }
     createIngressRoute(

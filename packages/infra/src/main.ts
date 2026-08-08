@@ -1,4 +1,4 @@
-import { authRoutes, createAuth } from "@jaritanet/auth";
+import { authRoutes as authProviderPaths, createAuth } from "@jaritanet/auth";
 import {
   createBlueskyRecords,
   createFastmailRecords,
@@ -29,6 +29,7 @@ import { createGateway } from "./gateway.ts";
 import {
   createServices,
   publishRoutes,
+  type Route,
   type ServiceContext,
 } from "./services.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
@@ -383,7 +384,7 @@ export default async function () {
     authHostname: conf.auth?.hostname,
   };
 
-  const services = createServices(serviceContext, conf.services);
+  const serviceRoutes = createServices(serviceContext, conf.services);
 
   // The identity provider, on the hostname Hydra already stands at, claiming
   // the paths it answers. Higher priority than Hydra's bare `Host()` rule, so
@@ -394,32 +395,37 @@ export default async function () {
   // No OAuth app means nobody can sign in, and a login screen that cannot
   // authenticate is worse than one that is not there — so it is skipped rather
   // than deployed broken.
-  const auth =
-    conf.auth?.hostname && conf.auth.github
-      ? (createAuth(provider, nsName, conf.auth, {
-          githubClientId: conf.auth.github.clientId,
-          githubClientSecret: pulumi.secret(conf.auth.github.clientSecret),
-          githubAllowed: conf.auth.github.allowed,
-          // Hydra is stood up by the mcp-gateway kind and reached at a bare
-          // service name in the same namespace, so this is derived from that
-          // deployment rather than configured twice.
-          hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
-          clients: [],
-        }),
-        publishRoutes(serviceContext, [
-          {
-            service: "auth",
-            hostname: conf.auth.hostname,
-            paths: authRoutes(),
-            priority: 100,
-          },
-        ]))
-      : {};
+  const authRoute: Route[] = [];
+  if (conf.auth?.hostname && conf.auth.github) {
+    createAuth(provider, nsName, conf.auth, {
+      githubClientId: conf.auth.github.clientId,
+      githubClientSecret: pulumi.secret(conf.auth.github.clientSecret),
+      githubAllowed: conf.auth.github.allowed,
+      // Hydra is stood up by the mcp-gateway kind and reached at a bare service
+      // name in the same namespace, so this is derived from that deployment
+      // rather than configured twice.
+      hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
+      clients: [],
+    });
+    authRoute.push({
+      service: "auth",
+      hostname: conf.auth.hostname,
+      paths: authProviderPaths(),
+      priority: 100,
+    });
+  }
+
+  // One pass over every route the stack has, because `auth` shares Hydra's
+  // hostname: the A record is made once and both IngressRoutes are made.
+  const services = publishRoutes(serviceContext, [
+    ...serviceRoutes,
+    ...authRoute,
+  ]);
 
   return {
     ...(gatewayProvider && { gatewayProvider }),
     namespace,
-    services: { ...services, ...auth },
+    services,
     ...(dnsTarget && { vpsIp: dnsTarget }),
     // Per-user credentials + share URLs are now delivered as individual sing-box
     // profiles (see createProfileServer), so only the shared, non-secret
