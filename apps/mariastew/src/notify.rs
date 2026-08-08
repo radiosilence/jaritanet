@@ -18,7 +18,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::aria2::Status;
+use crate::aria2::{Download, Status};
+use crate::filter;
 use crate::routes::all_downloads;
 use crate::state::AppState;
 
@@ -68,6 +69,7 @@ pub fn spawn_watcher(state: AppState) {
                         let error = d.error_message.as_deref().unwrap_or("unknown error");
                         failed(&state, d.name(), error).await;
                     } else {
+                        sweep_garbage(&state, d).await;
                         finished(&state, d.name(), &d.dir).await;
                     }
                 }
@@ -80,6 +82,44 @@ pub fn spawn_watcher(state: AppState) {
             announced.retain(|gid, _| live.contains_key(gid.as_str()));
         }
     });
+}
+
+/// Deletes the deselected garbage that landed anyway. aria2 downloads whole
+/// pieces regardless of `select-file`, so a small deselected file sharing a
+/// piece boundary with a selected one still reaches disk — `#260` anticipated
+/// exactly this and left it as a line of code rather than a design change.
+/// `--file-allocation=none` (see the README) prevents preallocation, not
+/// this.
+///
+/// A file is removed only when it is both deselected *and*
+/// `filter::is_garbage` — never a selected file no matter how it scores, and
+/// never a small file that merely happens to be small. Every path still goes
+/// through `resolve_existing` immediately before the delete, the same
+/// containment check `routes::delete_partial` uses: a path aria2 reports is
+/// still a path this process is about to unlink.
+async fn sweep_garbage(state: &AppState, d: &Download) {
+    for f in &d.files {
+        if f.selected || !filter::is_garbage(&f.path) {
+            continue;
+        }
+        if state.config.resolve_existing(&f.path).await.is_none() {
+            tracing::warn!(
+                path = %f.path,
+                "refusing to delete a deselected garbage file outside any root"
+            );
+            continue;
+        }
+        if let Err(e) = tokio::fs::remove_file(&f.path).await {
+            tracing::warn!(path = %f.path, error = %e, "failed to delete deselected garbage file");
+            continue;
+        }
+        tracing::info!(
+            gid = %d.gid,
+            path = %f.path,
+            "removed deselected garbage left by a piece boundary"
+        );
+        let _ = tokio::fs::remove_file(format!("{}.aria2", f.path)).await;
+    }
 }
 
 /// Escape what Telegram's HTML parse mode treats as markup. `&` first, or the
@@ -121,7 +161,129 @@ pub async fn failed(state: &AppState, name: &str, error: &str) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
+    use crate::aria2::{Aria2, File};
+    use crate::auth::session::Sessions;
+    use crate::config::{Config, Oidc, Root};
+
+    fn file(index: u32, path: &str, selected: bool) -> File {
+        File {
+            index,
+            path: path.to_string(),
+            length: 100,
+            selected,
+        }
+    }
+
+    fn download(files: Vec<File>) -> Download {
+        Download {
+            gid: "gid1".to_string(),
+            status: Status::Complete,
+            total_length: 100,
+            completed_length: 100,
+            download_speed: 0,
+            upload_speed: 0,
+            connections: 0,
+            num_seeders: 0,
+            error_message: None,
+            dir: String::new(),
+            files,
+            bittorrent_name: None,
+            followed_by: Vec::new(),
+        }
+    }
+
+    fn state(root: std::path::PathBuf) -> AppState {
+        AppState {
+            config: Arc::new(Config {
+                bind_addr: String::new(),
+                aria2_rpc_url: String::new(),
+                roots: vec![Root {
+                    name: "media".to_string(),
+                    path: root,
+                }],
+                public_url: String::new(),
+                oidc: Oidc {
+                    issuer: String::new(),
+                    client_id: String::new(),
+                    client_secret: String::new(),
+                },
+                telegram: None,
+            }),
+            aria2: Aria2::new(String::new(), reqwest::Client::new()),
+            sessions: Sessions::new(),
+            http: reqwest::Client::new(),
+        }
+    }
+
+    /// The bug this exists to fix: a torrent completes with garbage files
+    /// aria2 wrote anyway (piece-boundary spillover, not a selection
+    /// mistake), and until this ran they just sat there. A selected file and
+    /// a deselected-but-not-garbage file (e.g. a `.txt` `filter::is_garbage`
+    /// does not flag) must both survive — this is not "delete whatever is
+    /// unselected", only what is unselected *and* garbage.
+    #[tokio::test]
+    async fn sweep_garbage_removes_only_deselected_garbage_inside_a_root() {
+        let root = std::env::temp_dir().join("mariastew-sweep-test-inside-root");
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let movie = root.join("movie.mkv");
+        let cover = root.join("cover.jpg");
+        let cover_control = root.join("cover.jpg.aria2");
+        let notes = root.join("notes.txt");
+        tokio::fs::write(&movie, b"video").await.unwrap();
+        tokio::fs::write(&cover, b"jpeg").await.unwrap();
+        tokio::fs::write(&cover_control, b"partial").await.unwrap();
+        tokio::fs::write(&notes, b"not garbage per filter.rs")
+            .await
+            .unwrap();
+
+        let d = download(vec![
+            file(1, movie.to_str().unwrap(), true),
+            file(2, cover.to_str().unwrap(), false),
+            file(3, notes.to_str().unwrap(), false),
+        ]);
+        sweep_garbage(&state(root.clone()), &d).await;
+
+        assert!(movie.exists(), "a selected file must never be removed");
+        assert!(
+            notes.exists(),
+            "a deselected file that is not garbage must survive"
+        );
+        assert!(!cover.exists(), "deselected garbage must be removed");
+        assert!(
+            !cover_control.exists(),
+            "the .aria2 control file must go with it"
+        );
+
+        let _ = tokio::fs::remove_dir_all(&root).await;
+    }
+
+    /// The containment boundary applies here exactly as it does to every
+    /// other delete in the service: a path aria2 reports is still just a
+    /// report, re-checked against the canonicalised roots before anything is
+    /// unlinked. A garbage, deselected file sitting outside every configured
+    /// root must be left alone even though every other condition for
+    /// deletion is met.
+    #[tokio::test]
+    async fn sweep_garbage_refuses_a_path_outside_every_root() {
+        let root = std::env::temp_dir().join("mariastew-sweep-test-root-only");
+        let outside = std::env::temp_dir().join("mariastew-sweep-test-outside.jpg");
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        tokio::fs::write(&outside, b"jpeg").await.unwrap();
+
+        let d = download(vec![file(1, outside.to_str().unwrap(), false)]);
+        sweep_garbage(&state(root.clone()), &d).await;
+
+        assert!(
+            outside.exists(),
+            "a path outside every configured root must never be deleted"
+        );
+
+        let _ = tokio::fs::remove_dir_all(&root).await;
+        let _ = tokio::fs::remove_file(&outside).await;
+    }
 
     #[test]
     fn esc_escapes_all_three_markup_characters() {

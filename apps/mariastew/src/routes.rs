@@ -48,12 +48,13 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
     downloads.extend(state.aria2.tell_waiting(0, 100).await?);
     downloads.extend(state.aria2.tell_stopped(0, 100).await?);
     // `add`'s metadata-only pass exists to learn a magnet's file list before
-    // the real download starts (see `free_infohash`) and is gone by the time
-    // this runs in the ordinary case — `add` removes it once it has what it
-    // needs. aria2 names one `[METADATA]<torrent name>` for as long as it
-    // exists, which is how a stray one is told apart from a real download:
-    // it is never something the user asked to watch, so if one lingers
-    // because a previous `add` died mid-flight, it still must not appear.
+    // the real download starts (see `finish_add_inner`), and aria2 keeps it
+    // in the stopped list forever afterward — nothing here ever removes it,
+    // since the real download is applied to the gid `follow-torrent` spawned
+    // from it rather than a second `addUri` that would need the metadata
+    // pass's own gid freed first. aria2 names it `[METADATA]<torrent name>`
+    // for as long as it exists, which is how it is told apart from a real
+    // download: it is never something the user asked to watch.
     downloads.retain(|d| !is_metadata_row(d));
     Ok(downloads)
 }
@@ -227,13 +228,13 @@ pub async fn add(
     {
         Ok(gid) => gid,
         // Not a server fault: this infohash is already known to aria2,
-        // either genuinely downloading or a metadata pass a previous attempt
-        // never got to free — the pod dying mid-`add` being the likely way,
-        // now that finishing it runs detached from the request that started
-        // it. aria2's error does not say which, and guessing wrong is worse
-        // than asking: forcibly clearing it here would silently cancel a
-        // real download if it guessed wrong. The download list is already on
-        // the page — that is where "which one is it" gets answered.
+        // either genuinely downloading already or a metadata pass a previous
+        // attempt left registered — the pod dying mid-`add` being the likely
+        // way, now that finishing it runs detached from the request that
+        // started it. aria2's error does not say which, and guessing wrong
+        // is worse than asking: forcibly clearing it here could silently
+        // cancel a real download. The download list is already on the page —
+        // that is where "which one is it" gets answered.
         Err(AppError::Upstream(msg)) if is_already_registered(&msg) => {
             return Err(AppError::BadRequest(
                 "this magnet is already added or downloading".to_string(),
@@ -265,7 +266,7 @@ async fn finish_add(
     dir: String,
     metadata_gid: String,
 ) {
-    if let Err(e) = finish_add_inner(&state, &sub, &magnet, &dir, &metadata_gid).await {
+    if let Err(e) = finish_add_inner(&state, &sub, &dir, &metadata_gid).await {
         tracing::error!(
             gid = %metadata_gid,
             infohash = magnet_infohash(&magnet).unwrap_or("unknown"),
@@ -275,20 +276,31 @@ async fn finish_add(
     }
 }
 
+/// Selects and starts the real download by following the metadata pass to
+/// the download aria2 spawned from it, rather than issuing a second `addUri`
+/// for the same magnet.
+///
+/// A `bt-metadata-only` gid's own `files` describes the metadata pass
+/// itself — one entry, regardless of how many files the torrent actually
+/// has, which is why a three-file torrent used to log `magnet_files=1` and
+/// select whichever file happened to be index 1. `follow-torrent` (`mem`)
+/// spawns a second download from the resolved metadata and links the two by
+/// gid — `followedBy` on this one, `following` on that one — and it is that
+/// second gid's `files` that lists what the torrent actually contains.
+/// Reading the selection from anywhere else means the filter never sees most
+/// of the torrent and the choice of what to keep is decided by file order.
+///
+/// Applying the selection through `changeOption` rather than a second
+/// `addUri` also means there is no infohash collision to resolve: one
+/// download exists for this magnet from start to finish, under one gid.
 async fn finish_add_inner(
     state: &AppState,
     sub: &str,
-    magnet: &str,
     dir: &str,
     metadata_gid: &str,
 ) -> AppResult<()> {
-    // `Complete` is what "the metadata has arrived" actually means. Waiting for a
-    // non-empty file list instead is racy: aria2 populates `files` slightly
-    // before it flips the status, so the pass could still be active when the
-    // infohash was freed below — which is how the real download came to be
-    // rejected as a duplicate of a download that had not finished letting go.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    let files = loop {
+    let child_gid = loop {
         let status = state.aria2.tell_status(metadata_gid).await?;
         if status.status == Status::Error {
             return Err(AppError::Upstream(
@@ -297,8 +309,8 @@ async fn finish_add_inner(
                     .unwrap_or_else(|| "metadata fetch failed".to_string()),
             ));
         }
-        if status.status == Status::Complete {
-            break status.files;
+        if let Some(gid) = status.followed_by.into_iter().next() {
+            break gid;
         }
         if tokio::time::Instant::now() >= deadline {
             return Err(AppError::BadRequest(
@@ -307,6 +319,16 @@ async fn finish_add_inner(
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     };
+
+    // The child exists only once aria2 has parsed a complete torrent out of
+    // the resolved metadata, so its file list is already known the moment it
+    // is queryable — there is nothing left to wait for here.
+    let files = state.aria2.tell_status(&child_gid).await?.files;
+    if files.is_empty() {
+        return Err(AppError::Upstream(
+            "aria2 followed the metadata pass but the download it created has no files".to_string(),
+        ));
+    }
 
     let indices: Vec<String> = files
         .iter()
@@ -338,45 +360,15 @@ async fn finish_add_inner(
         "starting download"
     );
 
-    free_infohash(state, metadata_gid).await?;
-
     state
         .aria2
-        .add_uri(
-            magnet,
+        .change_option(
+            &child_gid,
             serde_json::json!({"dir": dir, "select-file": indices.join(",")}),
         )
         .await?;
 
     Ok(())
-}
-
-/// Stop and purge the metadata-only pass so its infohash is free again.
-///
-/// aria2 refuses to register a second download under an infohash that is
-/// still active — the metadata pass above is that download, and it is still
-/// registered right up until this runs. Without this, the real `addUri` a
-/// few lines below fails every single time with "InfoHash ... is already
-/// registered", the metadata's 30KB placeholder is all that ever lands, and
-/// nothing the user asked for downloads. `remove` already falls back to
-/// `forceRemove` for a download that will not stop cleanly, which is exactly
-/// the case here — it is told to stop the instant it has told us what it
-/// resolved to, not once it is ready to.
-///
-/// Both calls are attempted and tolerated individually: depending on how far
-/// the metadata pass got on its own, one may already be a no-op. Only if
-/// both fail is there no evidence the infohash was actually released, and
-/// that is the one case this returns an error for — proceeding to the real
-/// `addUri` anyway would be issuing a request already known to be rejected.
-async fn free_infohash(state: &AppState, metadata_gid: &str) -> AppResult<()> {
-    let removed = state.aria2.remove(metadata_gid).await;
-    let purged = state.aria2.remove_download_result(metadata_gid).await;
-    match (removed, purged) {
-        (Err(remove_err), Err(_)) => Err(AppError::Upstream(format!(
-            "could not free the metadata pass ({metadata_gid}) before starting the real download: {remove_err}"
-        ))),
-        _ => Ok(()),
-    }
 }
 
 pub async fn pause(State(state): State<AppState>, Path(gid): Path<String>) -> AppResult<Response> {
@@ -657,23 +649,6 @@ mod tests {
         );
     }
 
-    /// The bug this whole function exists to fix: the real `addUri` used to
-    /// run while the metadata pass was still registered under the same
-    /// infohash, and aria2 rejected it every time with "already registered"
-    /// — nothing anyone asked to download ever actually downloaded. This
-    /// pins the guard that replaced it: if neither call that is supposed to
-    /// free the infohash succeeds, `add` must stop rather than issue an
-    /// `addUri` already known to fail the same way.
-    #[tokio::test]
-    async fn free_infohash_errors_when_neither_call_can_reach_aria2() {
-        let app_state = state(unreachable_url().await);
-        let result = free_infohash(&app_state, "some-gid").await;
-        assert!(
-            result.is_err(),
-            "must not report the infohash free as fine when aria2 could not be reached at all"
-        );
-    }
-
     #[test]
     fn already_registered_is_recognised_by_aria2s_own_wording() {
         assert!(is_already_registered(
@@ -709,20 +684,38 @@ mod tests {
         use super::*;
 
         /// What the mock hands back for `aria2.tellStatus` on the metadata
-        /// gid — `Active` forever pins "the caller never waits for this",
-        /// `Complete` on the first poll lets the rest of the flow run to
-        /// completion inside a test.
-        #[derive(Clone, Copy)]
+        /// gid — `NeverResolves` pins "the caller never waits for this" (no
+        /// `followedBy` ever appears), `ResolvesWithChild` lets the rest of
+        /// the flow run to completion against `child_gid`'s own file list.
+        #[derive(Clone)]
         enum MetadataOutcome {
             NeverResolves,
-            ResolvesImmediately,
+            ResolvesWithChild {
+                child_gid: String,
+                child_files: serde_json::Value,
+            },
         }
 
         #[derive(Clone)]
         struct MockAria2 {
             calls: Arc<Mutex<Vec<String>>>,
+            change_option_calls: Arc<Mutex<Vec<serde_json::Value>>>,
             metadata_add_result: Arc<serde_json::Value>,
             metadata_outcome: MetadataOutcome,
+        }
+
+        fn download_result(gid: &str, status: &str, files: serde_json::Value) -> serde_json::Value {
+            serde_json::json!({"result": {
+                "gid": gid,
+                "status": status,
+                "totalLength": "100",
+                "completedLength": "0",
+                "downloadSpeed": "0",
+                "uploadSpeed": "0",
+                "connections": "0",
+                "dir": "/mnt/kontent/movies",
+                "files": files,
+            }})
         }
 
         async fn rpc(
@@ -736,27 +729,34 @@ mod tests {
                     if body["params"][1].get("bt-metadata-only").is_some() {
                         (*mock.metadata_add_result).clone()
                     } else {
-                        serde_json::json!({"result": "real-gid"})
+                        panic!("a second addUri means the duplicate-infohash bug is back")
                     }
                 }
                 "aria2.tellStatus" => {
-                    let status = match mock.metadata_outcome {
-                        MetadataOutcome::NeverResolves => "active",
-                        MetadataOutcome::ResolvesImmediately => "complete",
-                    };
-                    serde_json::json!({"result": {
-                        "gid": "metadata-gid",
-                        "status": status,
-                        "totalLength": "100",
-                        "completedLength": "0",
-                        "downloadSpeed": "0",
-                        "uploadSpeed": "0",
-                        "connections": "0",
-                        "dir": "/mnt/kontent/movies",
-                        "files": [{"index": "1", "path": "/mnt/kontent/movies/Movie.mkv", "length": "100"}],
-                    }})
+                    let gid = body["params"][0].as_str().unwrap_or_default();
+                    match (&mock.metadata_outcome, gid) {
+                        (MetadataOutcome::NeverResolves, _) => {
+                            download_result("metadata-gid", "active", serde_json::json!([]))
+                        }
+                        (
+                            MetadataOutcome::ResolvesWithChild {
+                                child_gid,
+                                child_files,
+                            },
+                            g,
+                        ) if g == child_gid => {
+                            download_result(child_gid, "active", child_files.clone())
+                        }
+                        (MetadataOutcome::ResolvesWithChild { child_gid, .. }, _) => {
+                            let mut result =
+                                download_result("metadata-gid", "complete", serde_json::json!([]));
+                            result["result"]["followedBy"] = serde_json::json!([child_gid.clone()]);
+                            result
+                        }
+                    }
                 }
-                "aria2.remove" | "aria2.removeDownloadResult" => {
+                "aria2.changeOption" => {
+                    mock.change_option_calls.lock().unwrap().push(body.clone());
                     serde_json::json!({"result": "OK"})
                 }
                 other => panic!("unexpected aria2 method in test: {other}"),
@@ -769,13 +769,21 @@ mod tests {
             Json(envelope)
         }
 
+        struct Mock {
+            url: String,
+            calls: Arc<Mutex<Vec<String>>>,
+            change_option_calls: Arc<Mutex<Vec<serde_json::Value>>>,
+        }
+
         async fn mock_server(
             metadata_add_result: serde_json::Value,
             metadata_outcome: MetadataOutcome,
-        ) -> (String, Arc<Mutex<Vec<String>>>) {
+        ) -> Mock {
             let calls = Arc::new(Mutex::new(Vec::new()));
+            let change_option_calls = Arc::new(Mutex::new(Vec::new()));
             let mock = MockAria2 {
                 calls: calls.clone(),
+                change_option_calls: change_option_calls.clone(),
                 metadata_add_result: Arc::new(metadata_add_result),
                 metadata_outcome,
             };
@@ -785,7 +793,11 @@ mod tests {
             tokio::spawn(async move {
                 axum::serve(listener, app).await.unwrap();
             });
-            (format!("http://{addr}/"), calls)
+            Mock {
+                url: format!("http://{addr}/"),
+                calls,
+                change_option_calls,
+            }
         }
 
         fn test_state(aria2_url: String) -> AppState {
@@ -844,12 +856,12 @@ mod tests {
         /// caller and a response is one `addUri` round trip.
         #[tokio::test]
         async fn add_returns_before_the_metadata_poll_completes() {
-            let (url, _calls) = mock_server(
+            let mock = mock_server(
                 serde_json::json!({"result": "metadata-gid"}),
                 MetadataOutcome::NeverResolves,
             )
             .await;
-            let state = test_state(url);
+            let state = test_state(mock.url);
 
             let response = tokio::time::timeout(
                 StdDuration::from_millis(500),
@@ -862,33 +874,56 @@ mod tests {
             assert_eq!(response.status(), StatusCode::ACCEPTED);
         }
 
-        /// Pins the ordering the original "InfoHash ... is already
-        /// registered" bug lived in, now running detached: the real `addUri`
-        /// must not be issued until `remove`/`removeDownloadResult` have run.
+        /// The bug this whole task exists to fix: the file list used to be
+        /// read from the metadata gid's own `files` (always one entry,
+        /// itself), not the download `follow-torrent` spawned from it. A
+        /// three-file torrent where the video is *not* index 1 is exactly
+        /// the case that got the selection wrong: `magnet_files=1` regardless
+        /// of the torrent's real shape, and whichever file happened to sit at
+        /// index 1 was what got selected — the video only by luck.
         #[tokio::test]
-        async fn finish_add_frees_the_metadata_infohash_before_the_real_add() {
-            let (url, calls) = mock_server(
+        async fn finish_add_reads_the_selection_from_the_followed_downloads_file_list() {
+            // Index 1 and 3 are unambiguous `filter::is_garbage` matches
+            // (`.jpg`, `.nfo`) — the point is that the real video sits at
+            // index 2, not 1, so a selection computed from the wrong file
+            // list (the metadata gid's own, always length 1) could only ever
+            // have picked it by coincidence.
+            let child_files = serde_json::json!([
+                {"index": "1", "path": "/mnt/kontent/movies/www.YTS.MX.jpg", "length": "53226", "selected": "true"},
+                {"index": "2", "path": "/mnt/kontent/movies/Pulp.Fiction.1994.2160p.mkv", "length": "7835426779", "selected": "true"},
+                {"index": "3", "path": "/mnt/kontent/movies/Pulp.Fiction.1994.nfo", "length": "473", "selected": "true"},
+            ]);
+            let mock = mock_server(
                 serde_json::json!({"result": "metadata-gid"}),
-                MetadataOutcome::ResolvesImmediately,
+                MetadataOutcome::ResolvesWithChild {
+                    child_gid: "child-gid".to_string(),
+                    child_files,
+                },
             )
             .await;
-            let state = test_state(url);
+            let state = test_state(mock.url);
 
             add(State(state), CurrentSession(session()), Form(add_form()))
                 .await
                 .unwrap();
 
-            wait_for_calls(&calls, 5).await;
+            wait_for_calls(&mock.calls, 4).await;
             assert_eq!(
-                calls.lock().unwrap().as_slice(),
+                mock.calls.lock().unwrap().as_slice(),
                 [
                     "aria2.addUri",
                     "aria2.tellStatus",
-                    "aria2.remove",
-                    "aria2.removeDownloadResult",
-                    "aria2.addUri",
+                    "aria2.tellStatus",
+                    "aria2.changeOption",
                 ]
             );
+
+            let change_option_calls = mock.change_option_calls.lock().unwrap();
+            assert_eq!(change_option_calls.len(), 1);
+            let params = &change_option_calls[0]["params"];
+            assert_eq!(params[0], "child-gid");
+            assert_eq!(params[1]["select-file"], "2");
+            assert_eq!(params[1]["dir"], "/mnt/kontent/movies");
         }
 
         /// This magnet already being known to aria2 is not a server fault —
@@ -896,12 +931,12 @@ mod tests {
         /// unrecognised upstream error gets.
         #[tokio::test]
         async fn add_maps_an_already_registered_infohash_to_bad_request() {
-            let (url, _calls) = mock_server(
+            let mock = mock_server(
                 serde_json::json!({"error": {"code": 1, "message": "InfoHash abc is already registered."}}),
                 MetadataOutcome::NeverResolves,
             )
             .await;
-            let state = test_state(url);
+            let state = test_state(mock.url);
 
             let result = add(State(state), CurrentSession(session()), Form(add_form())).await;
 
@@ -930,6 +965,7 @@ mod tests {
             dir: String::new(),
             files: Vec::new(),
             bittorrent_name: Some("[METADATA]Some.Show.S01".to_string()),
+            followed_by: Vec::new(),
         };
         assert!(is_metadata_row(&metadata));
 
