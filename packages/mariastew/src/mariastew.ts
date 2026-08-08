@@ -318,9 +318,13 @@ export function createMariastew(
                     { name: "LEASE", value: String(lease) },
                   ],
                   securityContext: { allowPrivilegeEscalation: false },
+                  // Sized for `apk add`, not for the loop. Unpacking a
+                  // package peaks far above what `upnpc` then needs, and
+                  // 32Mi OOM-killed it three times before it ever placed a
+                  // mapping; steady state is a sleeping shell.
                   resources: {
                     requests: { cpu: "5m", memory: "16Mi" },
-                    limits: { memory: "32Mi" },
+                    limits: { memory: "128Mi" },
                   },
                 },
               ],
