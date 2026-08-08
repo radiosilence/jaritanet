@@ -411,13 +411,19 @@ it's replacing.
 Two decisions worth stating plainly, because they diverge from what an
 initial plan for this service assumed:
 
-- **The crate compiles inside the `Dockerfile`**, rather than a CI job
-  building a binary that the image then copies in. The repository's reusable
-  container workflow builds from a Dockerfile context and has no way to
-  consume a pre-built artefact, so a copied-in binary would mean a bespoke
-  pipeline instead of the one every other container here already uses. Each
-  architecture builds on its own native runner, so nothing is paid in QEMU
-  emulation for compiling on-image.
+- **The crate compiles on the CI runner, not inside the `Dockerfile`.** A
+  `cargo build` in a Dockerfile is one atomic layer, so any movement in
+  `Cargo.lock` recompiles every dependency — 168s of them against the 15s
+  this crate's own code costs. The stub-`main` layer reorders that; it does
+  not subdivide it, and neither does `cargo-chef`. Cargo's own cache has the
+  right granularity but cannot survive between runs inside `docker build`,
+  since the `type=gha` backend does not export cache mounts. So the compile
+  job holds it with `Swatinem/rust-cache` and hands the binary over as an
+  artefact, which the reusable container workflow unpacks into the build
+  context (`context-artifact`). Still one native runner per architecture, so
+  nothing is paid in QEMU emulation either way. The cost is that
+  `Dockerfile` no longer builds on its own — it wants the binary beside it —
+  which is why local iteration goes through `Dockerfile.dev` instead.
 - **The runtime base is `alpine`, not `scratch`.** It has to carry `aria2c`
   regardless, and needs a CA bundle even for the Rust binary alone: reqwest's
   `rustls` feature pulls in `rustls-platform-verifier`, which reads the
@@ -547,9 +553,10 @@ compose bridge network — the same shared-netns relationship the pod gives
 the two containers for free.
 
 The image is built from `Dockerfile.dev`, not the production `Dockerfile`:
-same two-stage layout and dependency-caching trick, but a debug build, so
-`/auth/dev-login` is actually compiled in. The production Dockerfile is
-untouched and still `--release` — nothing here can affect what CI ships.
+a debug build, so `/auth/dev-login` is actually compiled in. It is also the
+only one of the two that still compiles inside `docker build` — the
+production `Dockerfile` wants a binary handed to it by CI and will not build
+from a bare checkout. Nothing here can affect what CI ships.
 
 **Iteration loop:** `docker compose up --build` again after a source change.
 The dependency-caching trick means only the final `cargo build` layer

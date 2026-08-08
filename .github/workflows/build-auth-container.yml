@@ -54,16 +54,80 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
           echo "version $version, release $release"
 
+  # Compiled here rather than inside `docker build`, because a cargo build in a
+  # Dockerfile is one atomic layer: bumping a single crate recompiles all ~200
+  # of them. rust-cache restores cargo's own cache, which is per-crate, so only
+  # what actually moved is rebuilt. Still one runner per architecture,
+  # natively, so nothing is emulated and musl is the host's own target rather
+  # than a cross.
+  binary:
+    name: Compile ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install musl tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # stable
+        with:
+          # Pinned, because this is what ships — the floating `rust = "1"` in
+          # mise.toml covers clippy and the tests, where a compiler bump
+          # breaking is the point.
+          toolchain: "1.97"
+          targets: ${{ matrix.target }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: apps/auth
+          key: ${{ matrix.target }}
+          # A pull request restores main's cache but writes none of its own: a
+          # branch's cache is invisible to every other branch and still evicts
+          # from the repository's 10GB, which is how main ends up cold.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build
+        working-directory: apps/auth
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # The publish job unpacks `<context-artifact>-<arch>` into the build
+      # context of the leg with that architecture, so the suffix is the
+      # contract rather than a label.
+      - name: Upload binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: auth-bin-${{ matrix.arch }}
+          path: apps/auth/target/${{ matrix.target }}/release/auth
+          if-no-files-found: error
+          # Only has to survive the hop to the publish job.
+          retention-days: 1
+
   publish:
     name: Build and Publish
-    needs: [version]
+    needs: [version, binary]
     # Builds each architecture on a native runner. `version` publishes the semver
     # tags, which metadata-action cannot derive here because the build runs on a
     # branch push with no tag to read.
-    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@dd9d9c97a8c1ee1e27f285a96cbb50b2b6c16e06 # native-arm-runners
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@ba88a6fd90ee99c9a8a7681cd8712dff55ab83a2 # context-artifact-input (blit-workflows#3, unmerged)
     with:
       working-directory: "./apps/auth"
       image: "auth"
+      context-artifact: "auth-bin"
       version: ${{ needs.version.outputs.release == 'true' && needs.version.outputs.version || '' }}
     secrets:
       PASSWORD: ${{ secrets.GITHUB_TOKEN }}
