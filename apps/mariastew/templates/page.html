@@ -29,7 +29,7 @@
      `__ifmissing` seeds them without stomping a patch that arrived first. #}
 <body data-init="@get('/stream')"
   data-signals__ifmissing="{addStatus: '', addMessage: ''}"
-  class="min-h-screen bg-base-200">
+  class="min-h-dvh bg-base-200">
 
 {# The header is the primary action, not a name plus an action — the person
      already knows what they opened, and the name would only spend the
@@ -44,7 +44,7 @@
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     aria-label="Add download" title="Add download"
-    data-on:click="$addDialog.showModal(); ms.pasteMagnet($magnet)">{% call icons::magnet(class="text-3xl") %}{% endcall %}</button>
+    data-on:click="$addDialog.showModal()">{% call icons::magnet(class="text-3xl") %}{% endcall %}</button>
 </header>
 
 {# The confirmation the owner asked for: something to actually see once the
@@ -60,8 +60,17 @@
      so nothing else has to own its lifetime. A bare `setTimeout` cannot: it
      writes outside Datastar's batch and the write is never picked up, with no
      error anywhere. The clear is itself a patch, so this fires once more and
-     then stops — an idle page has no timer running. #}
+     then stops — an idle page has no timer running.
+
+     Hidden in the markup, not only by `data-show`. `data-show` is Datastar's,
+     and Datastar is a module: the browser has painted the page before it runs,
+     so the one element this template puts on screen unconditionally is a
+     success banner for an add nobody made — a green flash on every load.
+     `style`, not a `hidden` class: `data-show` reveals by clearing
+     `el.style.display`, which a class setting `display: none` would survive
+     and the toast would never appear again. #}
 <div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]"
+  style="display:none"
   data-show="$addStatus === 'ok'"
   data-on-signal-patch__delay.3s="if ($addStatus === 'ok') { $addStatus = ''; $addMessage = '' }">
   <div role="alert" class="alert alert-success">
@@ -70,16 +79,17 @@
   </div>
 </div>
 
-{# A bottom sheet, not a centered dialog: pinned to the bottom edge
-     (mt-auto/mb-0 on a UA stylesheet that otherwise centers a <dialog> with
-     margin:auto), which is where a thumb already is and where the rest of
-     this UI's controls live. `closedby="any"` is a tap-outside dismiss with
+{# A bottom sheet, not a centered dialog: pinned to the bottom edge, which is
+     where a thumb already is and where the rest of this UI's controls live.
+     `closedby="any"` is a tap-outside dismiss with
      no JS — see #257. The one field that matters, the magnet paste, is the
      first and only thing shown open; the destination is real but secondary,
      so it starts collapsed behind its own disclosure rather than dumping a
      directory tree in front of someone who has not pasted anything yet.
-     `dvh` rather than `vh` because mobile Safari's collapsing toolbar makes
-     `vh` wrong the moment the address bar shows or hides. #}
+     Its geometry — the insets, the width, the height cap and the room the
+     keyboard needs — is `.sheet` in the stylesheet rather than utilities
+     here, because the user agent has rules of its own about all four and
+     an author rule wins outright where a margin utility only argues (#353). #}
 {# It closes itself off `$addStatus` rather than off the fetch, so it does not
      care whether the answer came back as a plain JSON body or an SSE patch.
 
@@ -94,12 +104,50 @@
 <dialog id="add-dialog" closedby="any" data-ref="addDialog"
   data-effect="if ($addStatus === 'ok') el.close()"
   data-on:close="if ($addStatus === 'error') $addStatus = ''; $addMessage = ''; $magnet.value = ''; @get('/browse')"
-  class="open:flex flex-col mx-0 mt-auto mb-0 w-full sm:mx-auto sm:mb-auto sm:max-w-sm max-h-[85dvh] rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
+  class="sheet open:flex flex-col rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
-  <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
-    <input name="magnet" data-ref="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
-      data-on:keydown="ms.clickOnEnter(evt, $addSubmit)"
-      class="input input-bordered input-lg min-h-14 w-full text-base" autofocus>
+  {# `autofocus` on the form, which takes `tabindex="-1"` to be focusable at
+       all. Dropping the attribute from the field did not stop the keyboard:
+       `showModal()` focuses the first focusable descendant when nothing claims
+       it, so the field was still what got focus, just by a longer route.
+       Somewhere has to take it — focus cannot be left outside a modal — and a
+       container is the one thing in here that opens no keyboard, while still
+       being what a screen reader should land on and read out from.
+
+       `flex-auto`, not `flex-1`. The sheet has no height of its own — it hugs
+       what is in it up to a cap — and `flex-1` is `flex-basis: 0`, which in a
+       column with no definite height means this contributes nothing to the
+       height being worked out. Paired with the `min-h-0` that lets it scroll,
+       that is a form measured at zero and a footer sitting on the field: the
+       squashed sheet of #353, which survived the geometry fix because it was
+       never the geometry. `flex-auto` bases the same growing and shrinking on
+       the content instead. #}
+  <form id="add-form" tabindex="-1" autofocus
+    class="flex min-h-0 flex-auto flex-col gap-4 overflow-y-auto overscroll-contain p-4 sm:p-6 focus:outline-none">
+    {# A magnet is a URI and nothing else, so it gets the URI keyboard and none
+         of the text-field helpers: iOS otherwise offered to AutoFill a contact
+         into it, spending a bar of a viewport the keyboard had already
+         halved, and autocapitalise/autocorrect can only corrupt what is typed
+         (#353).
+
+         Not what takes focus on open — see the form above. A keyboard on
+         every open costs half the sheet, and the field is filled by the
+         button beside it, so that was half a sheet spent on a keyboard the
+         usual flow never types into. Tapping the field still opens one. #}
+    <div class="flex gap-2">
+      <input name="magnet" data-ref="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
+        inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+        data-on:keydown="ms.clickOnEnter(evt, $addSubmit)"
+        class="input input-bordered input-lg min-h-14 min-w-0 flex-1 text-base focus:outline-primary focus:-outline-offset-2">
+      {# Where the clipboard is asked for, and the only place it is. Safari
+           anchors its Paste bubble to the touch that asked, so asking here
+           puts it against the field it fills — see `ms.pasteInto`. Icon-only
+           for the same reason the picker's controls are: the word would take
+           width the magnet needs. #}
+      <button type="button" class="btn btn-lg min-h-14 shrink-0"
+        aria-label="Paste from clipboard" title="Paste from clipboard"
+        data-on:click="ms.pasteInto($magnet)">{% call icons::clipboard(class="text-xl") %}{% endcall %}</button>
+    </div>
     <details class="disclosure rounded-box border border-base-300">
       <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
         {% call icons::chevron_right() %}{% endcall %}
@@ -112,6 +160,19 @@
     </details>
   </form>
 
+  {# The picker's folder-name field and its `parent` belong to this, not to
+       `#add-form` they are nested inside — `form=` on each of them says so,
+       which is the one thing that overrides where an input sits in the DOM.
+
+       Without it, creating a folder was impossible until a magnet had been
+       pasted: Datastar walks up from the button to the nearest form, and
+       refuses to send one that fails `checkValidity()`, so `required` on the
+       magnet field two elements above was rejecting a request that never
+       carried it. A control validating a form it has nothing to do with is
+       the bug; giving it the form it does have to do with is the fix. It also
+       stops a create-folder posting the magnet, which the handler ignored. #}
+  <form id="mkdir-form" hidden></form>
+
   {# A 400 (magnets only, destination outside a root, magnet never resolved)
        used to do nothing visible at all — indistinguishable from the dialog
        just not working. Same contract as success, so it needs nothing from the
@@ -120,14 +181,19 @@
        The icon is a sibling of the message, not inside it: `data-text` replaces
        the element's whole content, so anything nested in the same element is
        gone the first time an error arrives. #}
-  <p class="flex items-start gap-1.5 px-4 text-sm text-error"
+  <p class="flex shrink-0 items-start gap-1.5 px-4 text-sm text-error"
     data-show="$addStatus === 'error'">
     {% call icons::triangle_alert() %}{% endcall %}
     <span data-text="$addMessage"></span>
   </p>
 
-  {# max(padding, safe-area-inset) clears home indicator on gesture phones. #}
-  <div class="flex gap-2 border-t border-base-300 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+  {# max(padding, safe-area-inset) clears home indicator on gesture phones.
+
+       `shrink-0` on this and on the error above it: they are flex items beside
+       a `flex-1` form, so they shrink by default, and a sheet short of room —
+       every sheet, while the keyboard was taking most of it — squeezed the
+       footer into the field rather than scrolling the form (#353). #}
+  <div class="flex shrink-0 gap-2 border-t border-base-300 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
     <form method="dialog" class="flex-1">
       <button class="btn btn-ghost min-h-12 w-full">Cancel</button>
     </form>

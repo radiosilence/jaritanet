@@ -31,20 +31,50 @@ otherwise silent until someone presses the button.
 
 ## Adding one
 
-Tapping Add reads the clipboard and fills the field if what is there is a
-magnet. It happens in the click handler because `readText()` needs the user
-gesture and `showModal()` does not spend it; what the browser does with that
-request is the browser's own business — Safari draws a Paste button, Chrome
-grants it silently, an insecure origin has no clipboard API — and every
-outcome other than "a magnet came back" leaves an empty field to type into. A
-field already typed into is never overwritten, since the prompt can outlive
-someone's patience with it.
+The magnet field has a Paste button, and that button is the only thing that
+reads the clipboard. `readText()` is gated on a user gesture everywhere and,
+on iOS, on a Paste bubble Safari draws itself which no page can suppress — so
+the question is not whether the prompt appears but where. Safari anchors it to
+the touch that asked. Reading from the header's Add tap put that bubble at the
+top of the screen for a field at the bottom of it, on every open, whether or
+not there was anything anyone wanted pasted; asking from a button beside the
+field puts it against the field it fills, and only when asked.
+
+Whatever is on the clipboard goes in, magnet or not. Filtering to magnets was
+right while the read was automatic, since nothing unasked-for should land in a
+field — but a button that answers a tap by doing nothing reads as broken,
+where a wrong value is visible and `/add` says what is wrong with it. A
+refused prompt and a browser with no clipboard API are both no-ops: either way
+there is a field to type into.
+
+The field is not autofocused. A keyboard on every open costs half the sheet,
+and the usual flow — paste, then Add — never types into it. Tapping the field
+still opens one.
 
 Enter adds, and Enter in the picker's name field creates the folder. Neither
 happened on its own: the button that adds is pinned in the footer outside the
 form, so there is no submit button in it for the browser's implicit submission
 to find, and the Go key on a phone keyboard — the key right under the thumb
 that has just pasted — did nothing at all.
+
+## Where the sheet sits
+
+`.sheet` in `styles/app.css` owns the dialog's insets, width and height cap,
+because a `<dialog>` already has all four from the user agent — `width:
+fit-content`, `margin: auto`, `max-width: calc(100% - 6px - 2em)` — and a
+margin utility only argues with those, where an author rule wins outright. The
+utilities that used to sit on the element asked for the full width, got 38px
+less than it, and put every pixel of the shortfall on one side.
+
+The keyboard is the other half. iOS Safari shrinks the *visual* viewport for
+it and leaves the layout viewport alone, and fixed positioning resolves
+against the layout one — so a sheet at `bottom: 0` opens underneath the
+keyboard, and Safari then scrolls the page chasing the focused field. Nothing
+in CSS describes that gap; `app.js` measures it against `visualViewport` and
+publishes `--keyboard-inset`, which the sheet subtracts from both its bottom
+inset and its height. A browser that resizes its layout viewport for its own
+keyboard measures zero, which is also the fallback, so this corrects only the
+browsers that need correcting.
 
 ## When there is nothing to show
 
