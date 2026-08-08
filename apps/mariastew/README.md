@@ -446,6 +446,35 @@ compile. A template change needs the same rebuild, for the reason above
 templates or the stylesheet; run `mise run css` first if a template edit
 touched a class, then rebuild the image.
 
+## Icons
+
+[Lucide](https://lucide.dev) paths, copied into `templates/icons.html` as one
+Askama macro each and called inline. They replaced unicode characters, which
+were never really under this service's control: an emoji comes from the
+device's emoji font at its own weight, colour and baseline rather than the
+text's, and `⌂` is missing from enough fonts to have arrived as a tofu box on
+the one control that had nothing else in it.
+
+Nothing is fetched or generated — they weigh less than the request that would
+fetch them, and there is no JavaScript on this page to draw them with.
+The shared presentation attributes live on `.icon` in `styles/app.css`, sized
+in `em` so an icon is the size of the text it sits beside; a macro takes a
+class for the cases that want otherwise.
+
+A `<summary>`'s own marker comes from the user agent, so it is a filled
+triangle in Chrome and something else everywhere else — the same problem
+arriving through a different door. `.disclosure` takes it off and turns the
+chevron inside instead; a disclosure written later gets that by using the same
+two class names.
+
+Adding one: take the `<path>` elements from
+`https://unpkg.com/lucide-static/icons/<name>.svg` into a new macro, then
+rebuild the stylesheet if the call site introduced a class. Every icon names
+itself with `data-icon`, which is what tests assert on — a count of `<svg>`s
+only says the number changed, which every new call site does.
+`views::tests::nothing_is_drawn_with_a_unicode_glyph` fails the build if a
+character is used instead.
+
 ## Rebuilding the stylesheet
 
 The stylesheet is generated with Tailwind + DaisyUI but the *output*
