@@ -163,7 +163,8 @@ DHT needs one more thing to be real: a bootstrap node (`--dht-entry-point`)
 and a routing-table file it can actually write. `--dht-file-path` defaults
 under `$HOME/.cache`, and HOME is unset here, so aria2 resolved it to
 `//.cache` and could neither load nor save — leaving every peer lookup to run
-against an empty table.
+against an empty table. It now points into `statePath` below rather than at
+`/tmp`, so the table is not thrown away with the container on every deploy.
 
 Being reachable is not only about seeding. A peer nobody can dial connects
 only to those who accept its own connections, and clients rank unconnectable
@@ -192,6 +193,72 @@ traffic is ordinary home-network downloading, and datacentre IP ranges are
 widely tracker-blocked, so routing it through an exit would make it slower
 and less welcome on the swarm for no benefit.
 
+## The queue outlives the pod
+
+There is no database on this side, so aria2 holding all the state means aria2
+losing all the state is the whole service losing it. Every version bump
+recreates the pod — `strategy: Recreate`, one node, hostPath mounts — and aria2
+came back knowing nothing: the bytes survived and `--continue=true` would have
+resumed them, but only if someone remembered which magnet it was and pasted it
+back. Seeding torrents just stopped. Nothing said anything had been dropped;
+the row was simply gone, which is cheap to notice at 1% and expensive at 90%.
+
+`--save-session` and `--input-file` now name the same file, so what a deploy
+tears down is where the next one starts. Three things make that actually work:
+
+- **`--save-session-interval`.** A pod is killed, not asked, so a session
+  written only on a clean exit is a session that is often not written. The
+  interval bounds the loss to itself. aria2 hashes the session before writing
+  and skips an unchanged one, and it writes `aria2.session__temp` and renames
+  it into place, so there is no torn file to come back to.
+- **`--force-save=true`.** aria2 calls a download whose data is complete
+  *finished* even while it is still seeding, and the serialiser skips finished
+  downloads unless forced. Without this the case with nothing left to resume and
+  everything left to lose — a 7.84GB torrent seeding to the swarm — was the one
+  case the session did not cover. It also keeps the `.aria2` control file for
+  those, which is what makes a restored seed a resume rather than a
+  rediscovery.
+- **An init container that touches the file.** `--input-file` on a path that
+  does not exist is fatal, not empty: aria2 exits with
+  `errorCode=1 Failed to open the file` and the pod crash-loops. An empty file
+  is fine and so is a malformed one — unknown lines are warnings — so
+  "missing" is the only case there is to handle.
+
+A magnet added through `addUri` is saved as the magnet, and the options changed
+on the resolved download go with it — aria2 serialises whatever is set on the
+group — so a restored torrent keeps the `dir` it was heading for and the
+`select-file` the filter narrowed it to, rather than starting over and pulling
+down the scene garbage that was deselected. Restoring re-fetches metadata from
+the infohash, which is what the persisted DHT table now makes quick.
+
+Nothing the interface cleared comes back. `routes::clear` follows `remove` with
+`removeDownloadResult` and keeps asking until the gid is gone from every list
+aria2 keeps, and a result aria2 no longer holds is not one it can save — which
+is the property `--force-save` would otherwise put at risk.
+
+`--check-integrity=true` still applies on the way back in, so a restored
+torrent is re-hashed before it resumes or seeds. That is a read of everything
+already on disk for each restored row, on a mechanical disk, on every deploy —
+the price of never trusting bytes nobody verified, and the reason to press
+**Done** on rows that are finished with rather than leaving them in the list.
+
+### Where it lives
+
+`statePath` (default `/var/lib/mariastew`) is a directory of its own on the
+node's internal disk, holding the session and the DHT table. Deliberately not
+one of `roots`: those are the media library, a share people browse and a tree
+Infuse scans, and aria2's bookkeeping is neither media nor something to hand a
+media scanner. The internal disk rather than the media drive because this is
+the machine's state — an unmounted enclosure already leaves the pod `Pending`
+on the roots, and state on the drive would go missing exactly when the drive
+did.
+
+It is mounted `Directory`, so it has to exist. kubelet creates a missing
+hostPath as root, `fsGroup` does not apply to hostPath volumes, and the pod runs
+as 1000, so a directory created on demand is one aria2 cannot write —
+`scripts/make-seed-drive` makes it and chowns it, alongside the other local
+volumes on that node. A node missing it leaves the pod `Pending` with a reason,
+which is the failure worth having.
 ## Polling
 
 aria2 has no notification for byte-level progress, so a moving bar means

@@ -99,6 +99,15 @@ export function createMariastew(
     mountPath: hostPath,
   }));
 
+  // aria2's own state, on the node rather than in the library — see
+  // `statePath`. Mounted at the host path, the same as the roots, so a path
+  // means one place whichever side of the container it is read on.
+  const stateMount = {
+    name: "aria2-state",
+    mountPath: conf.aria2.statePath,
+  };
+  const sessionFile = `${conf.aria2.statePath}/aria2.session`;
+
   new k8s.apps.v1.Deployment(
     "mariastew",
     {
@@ -146,6 +155,34 @@ export function createMariastew(
             // `fsGroup` is deliberately absent — it switches on kubelet volume
             // ownership management, which would walk and chown the media tree.
             securityContext: { runAsUser: 1000, runAsGroup: 1000 },
+            /**
+             * Creates the session file, because aria2 will not start without
+             * one.
+             *
+             * `--input-file` on a path that does not exist is fatal —
+             * `errorCode=1 Failed to open the file` and the process is gone —
+             * so a first deploy, or one after the state directory is cleared,
+             * would crash-loop instead of starting empty. An empty file is
+             * accepted, and so is a malformed one (unknown lines are warnings),
+             * which leaves "missing" as the only case to handle.
+             *
+             * `touch` directly rather than through a shell: the path comes from
+             * config, and an argv needs no quoting to get it right.
+             */
+            initContainers: [
+              {
+                name: "session-file",
+                image,
+                imagePullPolicy: conf.image.pullPolicy ?? "Always",
+                command: ["/bin/touch", sessionFile],
+                resources: {
+                  requests: { cpu: "5m", memory: "8Mi" },
+                  limits: { memory: "32Mi" },
+                },
+                securityContext: { allowPrivilegeEscalation: false },
+                volumeMounts: [stateMount],
+              },
+            ],
             // NOT hostNetwork. The two containers share the pod's network
             // namespace, which is exactly what makes aria2's RPC reachable at
             // 127.0.0.1 by this service and by nothing else.
@@ -211,6 +248,37 @@ export function createMariastew(
                   `--dir=${conf.roots[0]?.hostPath}`,
                   "--continue=true",
                   "--check-integrity=true",
+                  // The queue, across a restart. Every deploy recreates this
+                  // pod, and without a session aria2 came back knowing nothing:
+                  // the bytes were still on disk and `--continue` would have
+                  // resumed them, but only if someone remembered the magnet and
+                  // pasted it in again. Seeding torrents simply stopped.
+                  //
+                  // The same path is read and written, so what a deploy tears
+                  // down is what the next one starts from. A magnet added by
+                  // `addUri` is saved as the magnet, with whatever `dir` and
+                  // `select-file` were changed to on the resolved download —
+                  // aria2 serialises the options set on the group — so a
+                  // restored torrent lands where it was going and downloads what
+                  // was chosen rather than the scene garbage the filter
+                  // deselected.
+                  `--save-session=${sessionFile}`,
+                  `--input-file=${sessionFile}`,
+                  `--save-session-interval=${conf.aria2.saveSessionInterval}`,
+                  // Without this a seeding torrent is not saved at all. aria2
+                  // reports a download whose data is complete as finished even
+                  // while it is still seeding, and the serialiser skips finished
+                  // downloads unless forced — which made the one case with
+                  // nothing left to resume, and everything left to lose, the one
+                  // case a session did not cover. It also keeps the `.aria2`
+                  // control file, so a restored seed is a resume rather than a
+                  // rediscovery.
+                  //
+                  // Nothing the interface cleared comes back with it: `clear`
+                  // follows `remove` with `removeDownloadResult` and polls until
+                  // the gid is gone from every list aria2 keeps, and a result
+                  // aria2 no longer holds is not one it can save.
+                  "--force-save=true",
                   // Nothing is preallocated, so a file the metadata pass chose
                   // not to download never appears on disk at all — which is
                   // what makes downloading straight into the library safe.
@@ -233,10 +301,13 @@ export function createMariastew(
                   // transmissionbt rather than the more familiar
                   // router.bittorrent.com, which does not answer from here.
                   "--dht-entry-point=dht.transmissionbt.com:6881",
-                  // Somewhere writable. The default is under `$HOME/.cache`,
-                  // and HOME is unset, so aria2 resolved it to `//.cache` and
-                  // failed to both read and write it.
-                  "--dht-file-path=/tmp/dht.dat",
+                  // Somewhere writable, and somewhere that survives the pod.
+                  // The default is under `$HOME/.cache`, and HOME is unset, so
+                  // aria2 resolved it to `//.cache` and failed to both read and
+                  // write it; `/tmp` fixed that but went with the container, so
+                  // every deploy started from the bootstrap node again and the
+                  // first torrent after one paid for rebuilding the table.
+                  `--dht-file-path=${conf.aria2.statePath}/dht.dat`,
                   "--bt-enable-lpd=true",
                   "--enable-peer-exchange=true",
                 ],
@@ -270,16 +341,27 @@ export function createMariastew(
                   ...resourceRequests(conf.aria2.limits),
                 },
                 securityContext: { allowPrivilegeEscalation: false },
-                volumeMounts: mounts,
+                // The state volume is aria2's alone. The service reads the
+                // queue over RPC and has no business holding the file that
+                // queue is written to.
+                volumeMounts: [...mounts, stateMount],
               },
             ],
-            // `Directory` rather than `DirectoryOrCreate`: an unmounted media
-            // drive leaves the pod Pending instead of serving and writing into
-            // an empty mountpoint on the root filesystem.
-            volumes: conf.roots.map(({ name, hostPath }) => ({
-              name,
-              hostPath: { path: hostPath, type: "Directory" },
-            })),
+            // `Directory` rather than `DirectoryOrCreate` throughout: an
+            // unmounted media drive leaves the pod Pending instead of serving
+            // and writing into an empty mountpoint on the root filesystem, and
+            // a state directory kubelet created would be owned by root and
+            // unwritable by this pod — see `statePath`.
+            volumes: [
+              ...conf.roots.map(({ name, hostPath }) => ({
+                name,
+                hostPath: { path: hostPath, type: "Directory" },
+              })),
+              {
+                name: stateMount.name,
+                hostPath: { path: conf.aria2.statePath, type: "Directory" },
+              },
+            ],
           },
         },
       },
