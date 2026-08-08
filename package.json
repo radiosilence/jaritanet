@@ -10,7 +10,7 @@
   ],
   "type": "module",
   "scripts": {
-    "prepare": "lefthook install"
+    "prepare": "test -n \"$CI\" || lefthook install"
   },
   "dependencies": {
     "zod": "4.4.3"

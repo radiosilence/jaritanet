@@ -242,9 +242,14 @@ for (const entry of entries) {
     writeAt(doc, entry.path, decision.to);
     await writeFile(CONFIG, doc.toString(STRINGIFY_OPTIONS));
     await git("add", CONFIG);
+    // `-n`: the pre-commit hook lints, formats and typechecks a working tree a
+    // human is about to push. This commit is one YAML scalar written by the
+    // process that just parsed it, on a runner whose only stake in the hook is
+    // that it can fail — which it did, aborting a run that had already computed
+    // the right bump.
     await git(
       "commit",
-      "-q",
+      "-qn",
       "-m",
       `chore: update ${entry.app} to ${decision.to}`,
     );
