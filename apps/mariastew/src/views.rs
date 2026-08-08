@@ -291,6 +291,17 @@ impl Page {
         }
         .render()
     }
+
+    /// The build serving this page. `Cargo.toml`'s version is what a release
+    /// is here, so it is the same string the image tag and the GitHub release
+    /// carry — which is the point: neither of those is visible from a phone,
+    /// and "which build am I looking at" is the first question a download
+    /// behaving oddly raises. A method rather than a field because it is
+    /// fixed at compile time and every construction site, tests included,
+    /// would otherwise have to repeat it.
+    fn version(&self) -> &'static str {
+        env!("CARGO_PKG_VERSION")
+    }
 }
 
 /// The list on its own. Its root element carries the same id as the one in the
@@ -624,6 +635,24 @@ mod tests {
         assert!(
             !page.contains("data-on-click") && !page.contains("data-on-submit"),
             "a dash-form data-on- attribute survived and will be silently ignored: {page}"
+        );
+    }
+
+    /// The version is only worth showing if it is the one that shipped. A
+    /// hardcoded string in the template would render fine and be wrong from
+    /// the next release onward, silently.
+    #[test]
+    fn the_page_shows_the_build_it_was_compiled_from() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+            "no version on the page: {page}"
         );
     }
 
