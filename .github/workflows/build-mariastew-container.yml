@@ -138,7 +138,7 @@ jobs:
   release:
     name: Release
     needs: [version, publish]
-    if: needs.version.outputs.release == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: needs.version.outputs.release == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
