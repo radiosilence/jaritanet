@@ -84,6 +84,14 @@ description = "Add a macro for any icons::<name> a template calls that templates
 dir = "apps/mariastew"
 run = "./scripts/gen-icons.ts"
 
+[tasks."mariastew:icons:png"]
+description = "Rasterise the app icon SVGs to the committed PNG sizes (needs `brew install librsvg`)"
+dir = "apps/mariastew"
+# Takes the directory to render as an argument, defaulting to the candidate
+# set — the same script serves the ten-way bake-off and, once one wins, the
+# single mark it renders into `assets`.
+run = "./scripts/gen-icons-png.ts"
+
 [tasks."check:profiles"]
 description = "Validate every profile shape against the real sing-box binary (needs docker)"
 run = "./scripts/check-profiles.ts"

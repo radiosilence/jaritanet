@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>toque skull — the cook, deceased</title>
+  <rect width="64" height="64" rx="14" fill="#1b1210"/>
+  <circle cx="21" cy="14" r="8" fill="#f8fafc"/>
+  <circle cx="43" cy="14" r="8" fill="#f8fafc"/>
+  <circle cx="32" cy="11" r="9.5" fill="#f8fafc"/>
+  <rect x="18" y="13" width="28" height="9" fill="#f8fafc"/>
+  <rect x="19" y="21" width="26" height="7" rx="3" fill="#e2e8f0"/>
+  <path d="M32 26c9.5 0 16.5 6.6 16.5 15 0 4.8-2 8-4.5 9.6V54a2.5 2.5 0 0 1-2.5 2.5H22.5A2.5 2.5 0 0 1 20 54v-3.4c-2.5-1.6-4.5-4.8-4.5-9.6 0-8.4 7-15 16.5-15z" fill="#f59e0b"/>
+  <circle cx="25.5" cy="41" r="4.4" fill="#1b1210"/>
+  <circle cx="38.5" cy="41" r="4.4" fill="#1b1210"/>
+  <path d="M32 46.5l3 5h-6z" fill="#1b1210"/>
+</svg>
