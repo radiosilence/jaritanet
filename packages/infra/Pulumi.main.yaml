@@ -430,7 +430,7 @@ config:
         secure: AAABALH0zY11nQLr6MZkyhv8bm35+Wpvwnxeq3YQBVjpRN6zuFzwHtrA
       image:
         repository: "ghcr.io/radiosilence/mariastew"
-        tag: 0.1.2
+        tag: 0.1.5
         pullPolicy: "Always"
       oidc:
         issuer:
