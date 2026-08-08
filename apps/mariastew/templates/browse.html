@@ -26,6 +26,18 @@
        out-specifies a plain utility class, so overriding `display` on the
        link one property at a time turns into a losing fight with the
        component; a plain list styled by hand does not have that fight. -->
+  {% if dirs.is_empty() %}
+  <!-- A blank <ul> and a folder with nothing in it looked identical — the
+       owner drilled into `downloads` and, seeing nothing, had no way to
+       tell "empty" from "broken". Said outright instead. -->
+  <div class="rounded-box bg-base-200 p-4 text-center text-sm opacity-60">
+    {% if parent.is_some() %}
+    This folder is empty.
+    {% else %}
+    No destinations are configured.
+    {% endif %}
+  </div>
+  {% else %}
   <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm">
     {% for d in dirs %}
     <!-- Wrapped with no line cap, not truncated with an ellipsis and not
@@ -45,6 +57,7 @@
       data-on:click="@get('{{ crate::views::browse_href(d.path.as_str()) }}')">{{ d.name }}</a></li>
     {% endfor %}
   </ul>
+  {% endif %}
 
   <div class="flex gap-2">
     <input type="hidden" name="parent" value="{{ path }}">
