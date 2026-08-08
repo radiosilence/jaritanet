@@ -83,7 +83,7 @@ export const Aria2ConfSchema = z.strictObject({
  * The torrent web UI, and the aria2 it fronts.
  *
  * `hostname` empty means built but not published, the same convention the other
- * services use. `oidc` absent — or carrying an empty issuer, which is how the
+ * services use. An empty hostname means the service is not deployed, the way
  * repository holds the value in the clear while the real one is set as a
  * secret — means the service is not deployed at all: it is a write endpoint
  * onto the media library, and one that cannot authenticate should not exist.
@@ -98,19 +98,5 @@ export const MariastewConfSchema = z.object({
   hostname: z.string().default(""),
   image: ImageSchema,
   limits: LimitsSchema.default({ cpu: "2000m", memory: "1Gi" }),
-  /**
-   * Where to send the browser, and under what name. That is the whole of what
-   * a relying party knows about identity: the registration — the secret and
-   * the redirect URI — belongs to the provider, which derives the URI from the
-   * hostname below and generates the secret itself. A service that could type
-   * its own redirect URI would be a service that could widen its own
-   * permissions.
-   */
-  oidc: z
-    .object({
-      clientId: z.string().default("mariastew"),
-      issuer: z.string(),
-    })
-    .optional(),
   roots: z.array(MariastewRootSchema).min(1),
 });
