@@ -110,6 +110,10 @@ pub struct Row {
     pub log: Vec<LogView>,
     pub finished: bool,
     pub paused: bool,
+    /// Removal asked for and not yet confirmed — see `state::Clearing`. It
+    /// replaces `state` above rather than sitting beside it: a row on its way
+    /// out is not "ready", whatever aria2 still says about the swarm.
+    pub clearing: bool,
 }
 
 /// DaisyUI modifier and the word for it, together — colour alone is never
@@ -160,10 +164,18 @@ fn basename(path: &str) -> &str {
 }
 
 impl Row {
-    pub fn new(d: &Download, log: Vec<Entry>) -> Self {
+    pub fn new(d: &Download, log: Vec<Entry>, clearing: bool) -> Self {
         let percent = d.percent();
         let health = d.health();
-        let (bar_class, state) = bar_class_and_state(health);
+        // Not a `Health`: nothing has been asked of the swarm and aria2's
+        // reading has not changed, so this is a fact about a request in flight
+        // rather than about the download. It still outranks the reading —
+        // "ready" beside a spinner is the confusion the mark exists to remove.
+        let (bar_class, state) = if clearing {
+            ("progress-info", "clearing")
+        } else {
+            bar_class_and_state(health)
+        };
         let (size, done) = d.display_totals();
 
         let (skipped_count, skipped_bytes) = d
@@ -240,6 +252,7 @@ impl Row {
                 .collect(),
             finished: d.is_finished(),
             paused: d.status == Status::Paused,
+            clearing,
         }
     }
 }
@@ -393,8 +406,12 @@ mod tests {
     }
 
     fn render_with_log(d: &Download, log: Vec<Entry>) -> String {
+        render_row(d, log, false)
+    }
+
+    fn render_row(d: &Download, log: Vec<Entry>, clearing: bool) -> String {
         (Downloads {
-            rows: vec![Row::new(d, log)],
+            rows: vec![Row::new(d, log, clearing)],
         })
         .render()
         .expect("downloads template renders")
@@ -1042,6 +1059,49 @@ mod tests {
         });
         assert!(finished.contains("badge-success"));
         assert!(!render(&moving()).contains("badge-success"));
+    }
+
+    /// A finished torrent is one press from being done with, and the press
+    /// keeps every file — so the button says so and is coloured like the badge
+    /// beside it, rather than reading as the quiet sibling of the destructive
+    /// one it shares a slot with.
+    #[test]
+    fn a_finished_row_offers_done_and_an_unfinished_one_offers_the_destructive_button() {
+        let finished = render(&Download {
+            completed_length: 1_073_741_824,
+            download_speed: 0,
+            ..moving()
+        });
+        assert!(finished.contains("Done"), "{finished}");
+        assert!(!finished.contains("btn-error"));
+
+        let unfinished = render(&moving());
+        assert!(unfinished.contains("Delete download"), "{unfinished}");
+    }
+
+    /// #316: the press had nothing to show for itself. aria2 takes a moment to
+    /// let go and the list is redrawn from aria2 once a second, so a row being
+    /// removed kept reading "ready" beside a button that could be pressed
+    /// again — which is what "it does nothing" was. Every control goes and the
+    /// state says what is happening.
+    #[test]
+    fn a_row_being_cleared_says_so_and_offers_nothing_to_press() {
+        let seeding = Download {
+            completed_length: 1_073_741_824,
+            download_speed: 0,
+            ..moving()
+        };
+        let html = render_row(&seeding, Vec::new(), true);
+        assert!(html.contains("clearing"), "{html}");
+        assert!(html.contains("loading-spinner"), "{html}");
+        assert!(
+            !html.contains("data-on:click"),
+            "a row on its way out has nothing worth pressing: {html}"
+        );
+        assert!(
+            !html.contains("badge-success"),
+            "a row being cleared is not finished with: {html}"
+        );
     }
 
     /// The collapsed half of a row, which is what these assert about — the
