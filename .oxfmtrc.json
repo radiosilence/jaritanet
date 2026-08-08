@@ -16,8 +16,8 @@
     "**/*.yml",
     "**/*.yaml",
     "**/*.toml",
-    "apps/*/assets/datastar.js",
     "apps/*/assets/*.css",
+    "apps/*/assets/*.js",
     "apps/*/target",
     "apps/*/templates"
   ]

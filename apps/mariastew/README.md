@@ -15,14 +15,15 @@ Datastar evaluates a `data-on:*` attribute as a function body, so an attribute
 will hold anything JavaScript can express — which is how a click handler becomes
 a program written in HTML. Signal writes and one `@action` stay in the
 attribute, where they read as markup; anything with control flow in it is a
-helper on `ms` in `assets/app.js`, and the attribute calls it. Elements are
+helper on `ms` in `web/app.ts`, and the attribute calls it. Elements are
 reached through `data-ref` rather than `document.getElementById`, so a template
 holds one definition of what an id is.
 
-That boundary is a lint boundary, not a taste one. `assets/app.js` is the only
-file under `assets/` that oxlint and oxfmt see (the stylesheet and the vendored
-bundle are build outputs and ignored by name), and JavaScript written inside an
-attribute is seen by nothing at all until a browser runs it.
+That boundary is a lint and typecheck boundary, not a taste one. `web/app.ts`
+is source; `assets/app.js` is its compiled, committed output (see "Rebuilding
+the browser script" below) and, like the stylesheet and the vendored bundle, is
+a build artefact oxlint, oxfmt and `tsc` all ignore by name. JavaScript written
+inside an attribute is seen by nothing at all until a browser runs it.
 
 Nothing checks the two halves against each other at build time, so a test does:
 `every_ms_helper_a_template_calls_is_defined` renders the page, collects every
@@ -733,7 +734,7 @@ device's emoji font at its own weight, colour and baseline rather than the
 text's, and `⌂` is missing from enough fonts to have arrived as a tofu box on
 the one control that had nothing else in it.
 
-Nothing is fetched or generated — they weigh less than the request that would
+Nothing is fetched at runtime — they weigh less than the request that would
 fetch them, and there is no JavaScript on this page to draw them with.
 The shared presentation attributes live on `.icon` in `styles/app.css`, sized
 in `em` so an icon is the size of the text it sits beside; a macro takes a
@@ -745,15 +746,27 @@ arriving through a different door. `.disclosure` takes it off and turns the
 chevron inside instead; a disclosure written later gets that by using the same
 two class names.
 
-Adding one: take the shapes from
-`https://unpkg.com/lucide-static/icons/<name>.svg` into a new macro — the
-`<path>`/`<polyline>`/`<circle>` children and nothing else, since everything
-on the `<svg>` itself is on `.icon` already — then
-rebuild the stylesheet if the call site introduced a class. Every icon names
-itself with `data-icon`, which is what tests assert on — a count of `<svg>`s
-only says the number changed, which every new call site does.
-`views::tests::nothing_is_drawn_with_a_unicode_glyph` fails the build if a
-character is used instead.
+Adding one: call `icons::<name>(class="")` from a template, run
+
+```sh
+mise run mariastew:icons
+```
+
+and it adds a macro for any name a template calls that `icons.html` doesn't
+define yet, sourced from `lucide-static`'s `<name>.svg` (kebab-cased) —
+the `<path>`/`<polyline>`/`<circle>` children and nothing else, since
+everything on the `<svg>` itself is on `.icon` already. It never touches a
+macro that already exists: `trash`'s shape is actually `trash-2.svg`'s under
+a plainer name, and nothing records that on purpose, so a name-guessed
+overwrite would have silently dropped two of its paths. It warns instead, if
+an existing macro's content no longer matches its name-guessed source — worth
+a look, not necessarily wrong. Rebuild the stylesheet too if the call site
+introduced a class.
+
+Every icon names itself with `data-icon`, which is what tests assert on — a
+count of `<svg>`s only says the number changed, which every new call site
+does. `views::tests::nothing_is_drawn_with_a_unicode_glyph` fails the build if
+a character is used instead.
 
 ## Rebuilding the stylesheet
 
@@ -769,3 +782,24 @@ This runs `tailwindcss` from `apps/mariastew/node_modules/.bin` (the app's
 own devDependencies — `package.json` here declares `@jaritanet/mariastew-styles`,
 separate from the Rust crate) against `styles/app.css`, minified, into
 `assets/app.css`.
+
+## Rebuilding the browser script
+
+Same deal as the stylesheet: `web/app.ts` is source, `assets/app.js` is the
+committed output, and only editing the source needs Node:
+
+```sh
+mise run js
+```
+
+This runs `tsc` from `apps/mariastew/node_modules/.bin` against
+`tsconfig.web.json` — a browser config (DOM lib, real emit), which is what
+`mise run typecheck` picks up. It does not extend the monorepo root:
+mariastew is slated to move to its own repo (#299), and a path two
+directories up is one more thing to unpick when it does.
+
+There is no bundler. `app.ts` imports nothing, so there is no module graph to
+build — and the one thing worth bundling in, Datastar, cannot come from npm at
+the version this app runs (`@starfederation/datastar` publishes a
+`1.0.0-beta`, against the v1.0.2 release vendored at `assets/datastar.js`), so
+it stays a `<script>` tag rather than an import.
