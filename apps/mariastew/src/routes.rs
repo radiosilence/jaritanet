@@ -883,15 +883,19 @@ mod tests {
         /// index 1 was what got selected — the video only by luck.
         #[tokio::test]
         async fn finish_add_reads_the_selection_from_the_followed_downloads_file_list() {
-            // Index 1 and 3 are unambiguous `filter::is_garbage` matches
-            // (`.jpg`, `.nfo`) — the point is that the real video sits at
-            // index 2, not 1, so a selection computed from the wrong file
-            // list (the metadata gid's own, always length 1) could only ever
-            // have picked it by coincidence.
+            // The shape of the second live failure: a multi-file release
+            // with the video at index 2 (not 1) and a nested `Other/`
+            // subdirectory — a torrent's `files` list has no directory
+            // entries of its own, only full paths, so `Other/...` shows up
+            // exactly like any other nested path. Index 1 and the `Other/`
+            // entry are unambiguous `filter::is_garbage` matches (`.nfo`,
+            // `.jpg`); a selection computed from the wrong file list (the
+            // metadata gid's own, always length 1) could only ever have
+            // picked the right one by coincidence.
             let child_files = serde_json::json!([
-                {"index": "1", "path": "/mnt/kontent/movies/www.YTS.MX.jpg", "length": "53226", "selected": "true"},
-                {"index": "2", "path": "/mnt/kontent/movies/Pulp.Fiction.1994.2160p.mkv", "length": "7835426779", "selected": "true"},
-                {"index": "3", "path": "/mnt/kontent/movies/Pulp.Fiction.1994.nfo", "length": "473", "selected": "true"},
+                {"index": "1", "path": "/mnt/kontent/movies/Pulp Fiction (1994) [1080p]/RARBG.nfo", "length": "473", "selected": "true"},
+                {"index": "2", "path": "/mnt/kontent/movies/Pulp Fiction (1994) [1080p]/Pulp.Fiction.1994.1080p.BrRip.x264.YIFY.mp4", "length": "1932735283", "selected": "true"},
+                {"index": "3", "path": "/mnt/kontent/movies/Pulp Fiction (1994) [1080p]/Other/YTS.MX.jpg", "length": "53226", "selected": "true"},
             ]);
             let mock = mock_server(
                 serde_json::json!({"result": "metadata-gid"}),
