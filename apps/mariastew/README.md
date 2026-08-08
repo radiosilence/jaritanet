@@ -296,7 +296,7 @@ device's emoji font at its own weight, colour and baseline rather than the
 text's, and `⌂` is missing from enough fonts to have arrived as a tofu box on
 the one control that had nothing else in it.
 
-Nothing is fetched or generated — seven icons weigh less than the request that
+Nothing is fetched or generated — eight icons weigh less than the request that
 would fetch them, and there is no JavaScript on this page to draw them with.
 The shared presentation attributes live on `.icon` in `styles/app.css`, sized
 in `em` so an icon is the size of the text it sits beside; a macro takes a

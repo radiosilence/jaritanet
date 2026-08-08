@@ -2,7 +2,7 @@
      v1.30.0 — one macro per icon, holding only the paths that differ. The
      shared presentation attributes live on `.icon` in `styles/app.css`.
 
-     Inlined rather than fetched as a sprite or drawn by a script: seven
+     Inlined rather than fetched as a sprite or drawn by a script: eight
      icons weigh less than the request that would fetch them, they need no
      JavaScript to appear (nothing else on this page does either), and an
      inline `<svg>` takes its colour from `currentColor` and its size from
@@ -18,6 +18,8 @@
      that file is needed. #}
 
 {% macro check(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{% endmacro %}
+
+{% macro plus(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>{% endmacro %}
 
 {% macro folder(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>{% endmacro %}
 

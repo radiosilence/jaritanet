@@ -7,6 +7,7 @@
      bottom sheet's buttons sit under the home indicator. #}
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>mariastew</title>
+{% import "icons.html" as icons %}
 <link rel="stylesheet" href="/assets/app.css">
 <script type="module" src="/assets/datastar.js"></script>
 </head>
@@ -24,10 +25,15 @@
 
 {# The header is the primary action, not a name plus an action — the person
      already knows what they opened, and the name would only spend the
-     vertical space a phone in portrait can least afford. #}
+     vertical space a phone in portrait can least afford. The label went for
+     the same reason it did: the only control in the header of an app for
+     adding downloads does not need saying twice. It keeps its accessible
+     name in `aria-label` — the icon is `aria-hidden`, so without it the
+     button would announce as nothing at all. #}
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
-    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal()">Add download</button>
+    aria-label="Add download" title="Add download"
+    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal()">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
 </header>
 
 {% if aria2_unreachable %}

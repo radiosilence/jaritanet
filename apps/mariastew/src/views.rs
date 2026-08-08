@@ -501,6 +501,17 @@ mod tests {
         // Home and Up, the two only reachable below a root.
         assert_eq!(browse.matches("<svg class=\"icon").count(), 2);
         assert_eq!(glyph(&browse), None, "{browse}");
+
+        // The whole page, which is also the only place the add button and
+        // its icon-only label appear.
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: true,
+        }
+        .render()
+        .unwrap();
+        assert_eq!(glyph(&page), None, "{page}");
     }
 
     /// A real release name — title and year first, encoding detail last —
@@ -741,6 +752,11 @@ mod tests {
     /// opened, and on a phone in portrait that text only costs the vertical
     /// space the download button could use instead. `<title>` is unrelated:
     /// that names the browser tab and stays.
+    ///
+    /// The button's own label went too, so the name it is asserted on here is
+    /// `aria-label` rather than text. That is the part worth holding: its
+    /// icon is `aria-hidden`, so an `aria-label` dropped from this element
+    /// leaves the only control on the page announcing as nothing.
     #[test]
     fn the_header_is_only_the_add_button_not_a_name_plus_one() {
         let page = Page {
@@ -758,7 +774,7 @@ mod tests {
             "the app name is still in the header: {header}"
         );
         assert!(
-            header.contains("btn-lg") && header.contains("Add download"),
+            header.contains("btn-lg") && header.contains(r#"aria-label="Add download""#),
             "the header is not a single prominent primary action: {header}"
         );
     }
