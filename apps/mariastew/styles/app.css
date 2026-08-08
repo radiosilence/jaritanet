@@ -29,7 +29,10 @@
    the same "whatever the device decides it is" problem the unicode icons had,
    arriving through a different door. `.disclosure` takes it off (both the
    standard property and WebKit's separate pseudo-element, which `list-style`
-   alone does not reach) and the chevron inside turns instead.
+   alone does not reach) and the chevron inside turns instead. A `display:
+   flex` summary drops the marker on its own, so these two rules are the
+   belt to that brace — what the class is really for is the rotation below,
+   which nothing else supplies.
 
    The rotation is on the icon rather than a `[open]` variant per call site,
    so a disclosure added later gets it by writing the same two class names. */
