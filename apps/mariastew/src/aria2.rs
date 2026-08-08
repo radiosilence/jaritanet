@@ -54,8 +54,23 @@ impl FromStr for Status {
 /// just a percentage.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Health {
-    /// The magnet has not resolved yet, so there is no size and no percentage.
-    Resolving,
+    /// Behind `maxConcurrentDownloads`. Nothing is wrong and nothing is
+    /// happening — which is the one thing the old catch-all could not say,
+    /// so a queued torrent read as "no seeders" and looked broken.
+    Queued,
+    /// The magnet is resolving and no peer has answered yet. Nobody has been
+    /// found who will serve the torrent file, which is a different problem
+    /// from a slow one and the reason "starting" was split: this is the state
+    /// that stays put forever on a dead magnet.
+    FindingPeers,
+    /// Peers are connected and the torrent file itself is on its way. Slow
+    /// here is ordinary; stuck here is not.
+    FetchingMetadata,
+    /// aria2 is hashing what is already on disk before downloading anything —
+    /// a resumed download, or one whose files were already there. Reads as
+    /// zero speed with peers connected, which is otherwise indistinguishable
+    /// from stalled.
+    Verifying,
     /// Bytes are arriving.
     Moving,
     /// Peers connected, nothing arriving. May recover on its own.
@@ -71,6 +86,44 @@ pub enum Health {
     /// "active" to aria2 — but it is watchable, which is what the row means.
     Complete,
     Errored,
+}
+
+/// aria2's numeric reason for stopping, in words.
+///
+/// `errorMessage` is the obvious place to look and is routinely empty — aria2
+/// fills it in for some failures and not others, and a row that failed with no
+/// message at all was the common shape of "it broke and nothing says why".
+/// The code is always there. Only the ones reachable from a magnet are named;
+/// anything else keeps its number, which is still a thing to search for.
+pub fn error_code_meaning(code: u32) -> Option<&'static str> {
+    Some(match code {
+        1 => "unknown error",
+        2 => "timed out",
+        3 => "the resource was not found",
+        4 => "gave up after too many missing files",
+        5 => "too slow, and aria2 gave up",
+        6 => "network problem",
+        7 => "stopped with downloads still unfinished",
+        8 => "the server does not support resuming",
+        9 => "not enough disk space",
+        10 => "piece length differs from the control file",
+        11 => "the same file is already downloading",
+        12 => "this torrent is already downloading",
+        13 => "the file already exists",
+        14 => "renaming the file failed",
+        15 => "could not open the file",
+        16 => "could not create the file",
+        17 => "reading or writing the file failed",
+        18 => "could not create the directory",
+        19 => "name resolution failed",
+        25 => "could not parse the torrent",
+        26 => "the torrent file is corrupt",
+        27 => "the magnet link is bad",
+        28 => "a bad or unrecognised option",
+        29 => "the server is overloaded or down for maintenance",
+        32 => "checksum mismatch",
+        _ => return None,
+    })
 }
 
 #[derive(Clone, Debug)]
@@ -107,13 +160,30 @@ pub struct Download {
     pub status: Status,
     pub total_length: u64,
     pub completed_length: u64,
+    /// Bytes sent to the swarm over this download's life, which is what a
+    /// share ratio is computed from — not `upload_speed`, an instantaneous
+    /// reading that says nothing about what has been given back.
+    pub upload_length: u64,
     pub download_speed: u64,
     pub upload_speed: u64,
     pub connections: u32,
     pub num_seeders: u32,
     pub error_message: Option<String>,
+    /// aria2's numeric reason for stopping, which it reports on stopped and
+    /// completed downloads. `None` on a download that has not stopped, and on
+    /// one that stopped successfully — aria2 reports `0` there, and a success
+    /// code sitting in an error field is worse than no code at all.
+    pub error_code: Option<u32>,
     pub dir: String,
     pub files: Vec<File>,
+    pub piece_length: u64,
+    pub num_pieces: u32,
+    /// Bytes hashed so far, present only while aria2 is checking existing data
+    /// — so its presence, not its value, is what says a check is running.
+    pub verified_length: Option<u64>,
+    /// Queued for a hash check that has not started.
+    pub verify_integrity_pending: bool,
+    pub info_hash: Option<String>,
     /// The torrent's own name, once metadata has arrived.
     pub bittorrent_name: Option<String>,
     /// Gids of downloads aria2 generated from this one. A `bt-metadata-only`
@@ -184,6 +254,37 @@ impl Download {
         Some(done as f64 / total as f64 * 100.0)
     }
 
+    /// aria2 names the download that resolves a magnet `[METADATA]<name>` for
+    /// as long as it exists, and that marker is the only thing telling it
+    /// apart from the real download it goes on to spawn.
+    pub fn is_metadata(&self) -> bool {
+        self.name().starts_with("[METADATA]")
+    }
+
+    /// Seconds until every selected byte has arrived, at the current rate.
+    /// `None` when nothing is moving: an ETA divided out of a zero rate is
+    /// infinity, and one taken off a rate that has just collapsed is a lie
+    /// with a number on it. A row with no ETA and a state of "stalled" says
+    /// more than "4 days" would.
+    pub fn eta_secs(&self) -> Option<u64> {
+        if self.download_speed == 0 || self.is_finished() {
+            return None;
+        }
+        let (total, done) = self.display_totals();
+        total
+            .checked_sub(done)
+            .map(|left| left / self.download_speed)
+    }
+
+    /// Uploaded over downloaded. aria2 runs here with no ratio limit
+    /// (`--seed-ratio=0.0`, see the README), so this is a reading rather than
+    /// a countdown to anything — but it is the only answer to "is this
+    /// actually seeding, or just sitting in the list".
+    pub fn ratio(&self) -> Option<f64> {
+        let (_, done) = self.display_totals();
+        (done > 0).then(|| self.upload_length as f64 / done as f64)
+    }
+
     pub fn health(&self) -> Health {
         // Status first: paused and errored are decisions made about the
         // download, not observations of its traffic, so they outrank
@@ -198,8 +299,24 @@ impl Download {
             Health::Paused
         } else if self.is_finished() {
             Health::Complete
-        } else if self.total_length == 0 {
-            Health::Resolving
+        } else if self.status == Status::Waiting {
+            Health::Queued
+        } else if self.verify_integrity_pending || self.verified_length.is_some() {
+            // Ahead of every traffic reading below: a hash check runs at zero
+            // download speed with peers still connected, which the "why is
+            // nothing moving" branches would diagnose as stalled.
+            Health::Verifying
+        } else if self.is_metadata() || self.total_length == 0 {
+            // The half of "starting" that was worth splitting. Both mean the
+            // magnet has not resolved, but only one of them is a swarm that
+            // is answering: no connection at all is the state a dead magnet
+            // sits in indefinitely, and it now says so rather than looking
+            // like an ordinary slow start.
+            if self.connections > 0 {
+                Health::FetchingMetadata
+            } else {
+                Health::FindingPeers
+            }
         } else if self.download_speed > 0 {
             Health::Moving
         } else if self.connections > 0 {
@@ -230,6 +347,37 @@ impl Download {
     }
 }
 
+#[cfg(test)]
+impl Download {
+    /// A plain active torrent for tests to vary one field of. Every field has
+    /// to be named somewhere; naming them in four test modules is how adding
+    /// one to the wire shape becomes four unrelated edits.
+    pub(crate) fn fixture() -> Self {
+        Download {
+            gid: "gid1".to_string(),
+            status: Status::Active,
+            total_length: 0,
+            completed_length: 0,
+            upload_length: 0,
+            download_speed: 0,
+            upload_speed: 0,
+            connections: 0,
+            num_seeders: 0,
+            error_message: None,
+            error_code: None,
+            dir: "/mnt/kontent/movies".to_string(),
+            files: Vec::new(),
+            piece_length: 0,
+            num_pieces: 0,
+            verified_length: None,
+            verify_integrity_pending: false,
+            info_hash: None,
+            bittorrent_name: None,
+            followed_by: Vec::new(),
+        }
+    }
+}
+
 /// aria2's wire shape for one download: every count and size arrives as a
 /// string, and `bittorrent`/`numSeeders` are present only when they apply.
 /// This is the only place that shape exists — [`Download`] is what the rest
@@ -244,6 +392,8 @@ struct RawDownload {
     total_length: String,
     #[serde(default, rename = "completedLength")]
     completed_length: String,
+    #[serde(default, rename = "uploadLength")]
+    upload_length: String,
     #[serde(default, rename = "downloadSpeed")]
     download_speed: String,
     #[serde(default, rename = "uploadSpeed")]
@@ -254,10 +404,24 @@ struct RawDownload {
     num_seeders: Option<String>,
     #[serde(default, rename = "errorMessage")]
     error_message: Option<String>,
+    #[serde(default, rename = "errorCode")]
+    error_code: Option<String>,
     #[serde(default)]
     dir: String,
     #[serde(default)]
     files: Vec<RawFile>,
+    #[serde(default, rename = "pieceLength")]
+    piece_length: String,
+    #[serde(default, rename = "numPieces")]
+    num_pieces: String,
+    // Both absent unless a hash check is pending or running — which is the
+    // whole signal, so neither may default to a value that looks like one.
+    #[serde(default, rename = "verifiedLength")]
+    verified_length: Option<String>,
+    #[serde(default, rename = "verifyIntegrityPending")]
+    verify_integrity_pending: Option<String>,
+    #[serde(default, rename = "infoHash")]
+    info_hash: Option<String>,
     #[serde(default)]
     bittorrent: Option<RawBittorrent>,
     #[serde(default, rename = "followedBy")]
@@ -305,13 +469,26 @@ impl RawDownload {
             status,
             total_length: self.total_length.parse().unwrap_or(0),
             completed_length: self.completed_length.parse().unwrap_or(0),
+            upload_length: self.upload_length.parse().unwrap_or(0),
             download_speed: self.download_speed.parse().unwrap_or(0),
             upload_speed: self.upload_speed.parse().unwrap_or(0),
             connections: self.connections.parse().unwrap_or(0),
             num_seeders: self.num_seeders.and_then(|s| s.parse().ok()).unwrap_or(0),
             error_message: self.error_message,
+            // aria2 reports `0` for a download that stopped successfully, and
+            // a success code carried in a field named for errors is how a
+            // finished torrent ends up explaining itself as a failure.
+            error_code: self
+                .error_code
+                .and_then(|c| c.parse::<u32>().ok())
+                .filter(|c| *c != 0),
             dir: self.dir,
             files: self.files.into_iter().map(File::from).collect(),
+            piece_length: self.piece_length.parse().unwrap_or(0),
+            num_pieces: self.num_pieces.parse().unwrap_or(0),
+            verified_length: self.verified_length.and_then(|v| v.parse().ok()),
+            verify_integrity_pending: self.verify_integrity_pending.as_deref() == Some("true"),
+            info_hash: self.info_hash,
             bittorrent_name,
             followed_by: self.followed_by,
         })
@@ -460,19 +637,8 @@ mod tests {
 
     fn download(status: Status) -> Download {
         Download {
-            gid: "gid1".to_string(),
             status,
-            total_length: 0,
-            completed_length: 0,
-            download_speed: 0,
-            upload_speed: 0,
-            connections: 0,
-            num_seeders: 0,
-            error_message: None,
-            dir: "/downloads".to_string(),
-            files: Vec::new(),
-            bittorrent_name: None,
-            followed_by: Vec::new(),
+            ..Download::fixture()
         }
     }
 
@@ -565,10 +731,102 @@ mod tests {
         assert_eq!(d.health(), Health::Complete);
     }
 
+    /// The split that replaced "starting". Both of these are an unresolved
+    /// magnet, but only one of them has anyone to ask — and a magnet nobody
+    /// answers is the case that sits there indefinitely looking identical to
+    /// a slow one.
     #[test]
-    fn health_resolving() {
+    fn health_finding_peers_when_nothing_has_answered_the_magnet_yet() {
         let d = download(Status::Active);
-        assert_eq!(d.health(), Health::Resolving);
+        assert_eq!(d.health(), Health::FindingPeers);
+    }
+
+    #[test]
+    fn health_fetching_metadata_once_a_peer_is_connected() {
+        let mut d = download(Status::Active);
+        d.connections = 2;
+        assert_eq!(d.health(), Health::FetchingMetadata);
+    }
+
+    /// A download aria2 has parked behind `maxConcurrentDownloads` has no
+    /// traffic and no peers, which every branch below `Waiting` would read as
+    /// a dead swarm.
+    #[test]
+    fn health_queued_rather_than_diagnosed_as_a_dead_swarm() {
+        let mut d = download(Status::Waiting);
+        d.total_length = 100;
+        assert_eq!(d.health(), Health::Queued);
+    }
+
+    /// A hash check also shows zero speed with peers connected — "stalled"
+    /// under the traffic branches, and the one state where nothing is wrong
+    /// and there is nothing to do but wait.
+    #[test]
+    fn health_verifying_outranks_the_traffic_reading_it_would_otherwise_get() {
+        let mut d = download(Status::Active);
+        d.total_length = 100;
+        d.connections = 2;
+        d.verified_length = Some(0);
+        assert_eq!(d.health(), Health::Verifying);
+
+        d.verified_length = None;
+        d.verify_integrity_pending = true;
+        assert_eq!(d.health(), Health::Verifying);
+    }
+
+    #[test]
+    fn eta_is_none_without_a_rate_to_divide_by() {
+        let mut d = download(Status::Active);
+        d.total_length = 100;
+        assert_eq!(d.eta_secs(), None);
+    }
+
+    #[test]
+    fn eta_is_the_remaining_selected_bytes_over_the_current_rate() {
+        let mut d = download(Status::Active);
+        d.total_length = 1000;
+        d.completed_length = 400;
+        d.download_speed = 60;
+        assert_eq!(d.eta_secs(), Some(10));
+    }
+
+    #[test]
+    fn ratio_is_uploaded_over_downloaded_and_absent_before_anything_downloaded() {
+        let mut d = download(Status::Active);
+        assert_eq!(d.ratio(), None);
+        d.total_length = 1000;
+        d.completed_length = 500;
+        d.upload_length = 250;
+        assert_eq!(d.ratio(), Some(0.5));
+    }
+
+    /// aria2 reports `errorCode` on completed downloads too, where it is `0`.
+    /// Carried through as an error it would explain every finished torrent as
+    /// a failure.
+    #[test]
+    fn a_success_code_is_not_an_error_code() {
+        let value = serde_json::json!({
+            "gid": "abc123", "status": "complete", "errorCode": "0",
+            "totalLength": "100", "completedLength": "100", "downloadSpeed": "0",
+            "uploadSpeed": "0", "connections": "0", "dir": "/downloads", "files": [],
+        });
+        assert_eq!(parse_download(value).unwrap().error_code, None);
+
+        let value = serde_json::json!({
+            "gid": "abc123", "status": "error", "errorCode": "9",
+            "totalLength": "100", "completedLength": "0", "downloadSpeed": "0",
+            "uploadSpeed": "0", "connections": "0", "dir": "/downloads", "files": [],
+        });
+        assert_eq!(parse_download(value).unwrap().error_code, Some(9));
+    }
+
+    /// The reason the table exists: aria2 routinely leaves `errorMessage`
+    /// empty, and the code is the only thing left to explain the failure.
+    #[test]
+    fn the_error_codes_worth_explaining_have_words() {
+        assert_eq!(error_code_meaning(9), Some("not enough disk space"));
+        assert_eq!(error_code_meaning(27), Some("the magnet link is bad"));
+        assert_eq!(error_code_meaning(9999), None);
     }
 
     #[test]

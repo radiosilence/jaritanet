@@ -54,7 +54,7 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
             .tell_stopped(0, 100)
             .await?
             .into_iter()
-            .filter(|d| !is_metadata_row(d)),
+            .filter(|d| !d.is_metadata()),
     );
     // Every magnet `add` resolves under its own gid before `follow-torrent`
     // spawns the real download from it (see `finish_add_inner`), and aria2
@@ -78,8 +78,15 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
     Ok(downloads)
 }
 
-fn is_metadata_row(d: &Download) -> bool {
-    d.name().starts_with("[METADATA]")
+/// Every download rendered, each carrying its own history. The log is read
+/// per row rather than once for the list because it is keyed by gid and a
+/// download that has none — anything already in aria2 before this pod
+/// started — simply renders without the panel.
+fn rows(state: &AppState, downloads: &[Download]) -> Vec<Row> {
+    downloads
+        .iter()
+        .map(|d| Row::new(d, state.activity.entries(&d.gid)))
+        .collect()
 }
 
 /// The `data:` payload for a `datastar-patch-elements` event: every line of
@@ -117,7 +124,7 @@ pub async fn page(State(state): State<AppState>) -> AppResult<Html<String>> {
     // real error — those are asking aria2 to do something, and a silent
     // success there would be the wrong kind of tolerant.
     let (rows, aria2_unreachable) = match all_downloads(&state).await {
-        Ok(downloads) => (downloads.iter().map(Row::from).collect(), false),
+        Ok(downloads) => (rows(&state, &downloads), false),
         Err(e) => {
             tracing::warn!(error = %e, "page: aria2 unreachable, rendering with an empty list");
             (Vec::new(), true)
@@ -169,8 +176,11 @@ pub async fn stream(
                     continue;
                 }
             };
-            let rows: Vec<Row> = downloads.iter().map(Row::from).collect();
-            let html = match (views::Downloads { rows }).render() {
+            let html = match (views::Downloads {
+                rows: rows(&state, &downloads),
+            })
+            .render()
+            {
                 Ok(h) => h,
                 Err(e) => {
                     tracing::error!(error = %e, "stream: template render failed, retrying next tick");
@@ -292,6 +302,13 @@ pub async fn add(
         }
     };
 
+    state
+        .activity
+        .record(&metadata_gid, format!("added — destination {dir}"));
+    state
+        .activity
+        .record(&metadata_gid, "looking for peers who have the torrent file");
+
     tokio::spawn(finish_add(
         state,
         session.sub,
@@ -322,6 +339,12 @@ async fn finish_add(
             error = %e,
             "add: failed after the request was already accepted"
         );
+        // The response is long gone, so this log was the only record — and
+        // nobody reads a pod's log to find out why a row on their phone has
+        // said "finding peers" for ten minutes. The row itself says now.
+        state
+            .activity
+            .record(&metadata_gid, format!("failed — {e}"));
     }
 }
 
@@ -385,6 +408,14 @@ async fn finish_add_inner(
         tokio::time::sleep(Duration::from_millis(500)).await;
     };
 
+    // Before anything else: the history so far was written under the gid that
+    // resolved the magnet, and that gid is about to leave every list this UI
+    // reads. From here both names reach one log.
+    state.activity.link(metadata_gid, &child_gid);
+    state
+        .activity
+        .record(&child_gid, "torrent file arrived — choosing files");
+
     // Freshly created and, without `bt-metadata-only`, already fetching
     // aria2's default selection — every file. Pausing closes most of that
     // window before `changeOption` narrows it; best-effort, because a
@@ -434,6 +465,15 @@ async fn finish_add_inner(
         %dir,
         "starting download"
     );
+    state.activity.record(
+        &child_gid,
+        format!(
+            "keeping {} of {} files, skipping {skipped} ({})",
+            indices.len(),
+            files.len(),
+            views::bytes(skipped_bytes)
+        ),
+    );
 
     state
         .aria2
@@ -446,17 +486,20 @@ async fn finish_add_inner(
     if paused {
         state.aria2.unpause(&child_gid).await?;
     }
+    state.activity.record(&child_gid, "downloading");
 
     Ok(())
 }
 
 pub async fn pause(State(state): State<AppState>, Path(gid): Path<String>) -> AppResult<Response> {
     state.aria2.pause(&gid).await?;
+    state.activity.record(&gid, "paused");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 pub async fn resume(State(state): State<AppState>, Path(gid): Path<String>) -> AppResult<Response> {
     state.aria2.unpause(&gid).await?;
+    state.activity.record(&gid, "resumed");
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -525,6 +568,9 @@ pub async fn remove(
     if !status.is_finished() {
         delete_partial(&state, &status).await;
     }
+    // Nothing will render this row again, so its history has nothing left to
+    // explain — this is the one place a log goes away before the cap takes it.
+    state.activity.forget(&gid);
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -694,6 +740,7 @@ mod tests {
             }),
             aria2: Aria2::new(aria2_rpc_url, reqwest::Client::new()),
             sessions: Sessions::new(),
+            activity: crate::activity::Activity::new(),
             http: reqwest::Client::new(),
         }
     }
@@ -1036,6 +1083,50 @@ mod tests {
             assert_eq!(params[1]["dir"], "/mnt/kontent/movies");
         }
 
+        /// The account of an add is written under the gid that resolves the
+        /// magnet, and that gid leaves every list this UI reads the moment
+        /// the real download exists. Without the link in `finish_add_inner`
+        /// the only row left on screen would have no history at all — which
+        /// is the half of #298 that a per-torrent log panel exists for.
+        #[tokio::test]
+        async fn the_history_of_an_add_follows_the_download_it_produced() {
+            let child_files = serde_json::json!([
+                {"index": "1", "path": "/mnt/kontent/movies/movie.mkv", "length": "100", "selected": "true"},
+                {"index": "2", "path": "/mnt/kontent/movies/RARBG.nfo", "length": "473", "selected": "true"},
+            ]);
+            let mock = mock_server(
+                serde_json::json!({"result": "metadata-gid"}),
+                MetadataOutcome::ResolvesWithChild {
+                    child_gid: "child-gid".to_string(),
+                    child_files,
+                },
+            )
+            .await;
+            let state = test_state(mock.url);
+            let activity = state.activity.clone();
+
+            add(State(state), CurrentSession(session()), Form(add_form())).await;
+            wait_for_calls(&mock.calls, 6).await;
+
+            let messages: Vec<String> = activity
+                .entries("child-gid")
+                .into_iter()
+                .map(|e| e.message)
+                .collect();
+            assert!(
+                messages
+                    .iter()
+                    .any(|m| m.contains("added — destination /mnt/kontent/movies")),
+                "the child lost what was recorded before it existed: {messages:?}"
+            );
+            assert!(
+                messages
+                    .iter()
+                    .any(|m| m.contains("keeping 1 of 2 files, skipping 1")),
+                "the filter's decision is not in the log: {messages:?}"
+            );
+        }
+
         /// The pause is best-effort — a child that will not pause must not
         /// stop the add, since `notify::sweep_garbage` is the backstop for
         /// whatever it fetches in the meantime. What must not happen is an
@@ -1108,31 +1199,28 @@ mod tests {
     }
 
     /// The row a resolving magnet is shown as, once the marker is stripped.
-    /// Nothing about "starting" should read as an implementation detail.
+    /// Nothing about the state should read as an implementation detail —
+    /// which is also why it now names which half of resolving it is in.
     #[test]
-    fn a_resolving_magnet_is_named_without_the_marker_and_reads_as_starting() {
+    fn a_resolving_magnet_is_named_without_the_marker_and_says_what_it_is_waiting_on() {
         let metadata = Download {
             gid: "m1".to_string(),
-            status: Status::Active,
-            total_length: 0,
-            completed_length: 0,
-            download_speed: 0,
-            upload_speed: 0,
-            connections: 0,
-            num_seeders: 0,
-            error_message: None,
-            dir: String::new(),
-            files: Vec::new(),
             bittorrent_name: Some("[METADATA]abc123".to_string()),
-            followed_by: Vec::new(),
+            ..Download::fixture()
         };
-        let row = crate::views::Row::from(&metadata);
+        let row = Row::new(&metadata, Vec::new());
         assert_eq!(row.name, "abc123", "the marker should not be on screen");
-        assert_eq!(row.state, "starting");
+        assert_eq!(row.state, "finding peers");
         assert!(
             row.percent.is_none(),
             "nothing is known about size yet, so the bar is indeterminate"
         );
+
+        let answering = Download {
+            connections: 4,
+            ..metadata
+        };
+        assert_eq!(Row::new(&answering, Vec::new()).state, "fetching metadata");
     }
 
     /// aria2 marks the metadata-only pass with this literal prefix for as
@@ -1142,27 +1230,17 @@ mod tests {
     #[test]
     fn metadata_only_rows_are_recognised_by_name_and_real_ones_are_not() {
         let metadata = Download {
-            gid: "m1".to_string(),
             status: Status::Complete,
-            total_length: 0,
-            completed_length: 0,
-            download_speed: 0,
-            upload_speed: 0,
-            connections: 0,
-            num_seeders: 0,
-            error_message: None,
-            dir: String::new(),
-            files: Vec::new(),
             bittorrent_name: Some("[METADATA]Some.Show.S01".to_string()),
-            followed_by: Vec::new(),
+            ..Download::fixture()
         };
-        assert!(is_metadata_row(&metadata));
+        assert!(metadata.is_metadata());
 
         let real = Download {
             bittorrent_name: Some("Some.Show.S01".to_string()),
             ..metadata
         };
-        assert!(!is_metadata_row(&real));
+        assert!(!real.is_metadata());
     }
 
     #[test]
