@@ -1,4 +1,4 @@
-import { cpuRequests } from "@jaritanet/k8s";
+import { resourceRequests } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
@@ -151,7 +151,7 @@ export function createAuth(
                 },
                 resources: {
                   limits: { cpu: "100m", memory: "64Mi" },
-                  ...cpuRequests("100m"),
+                  ...resourceRequests({ cpu: "100m" }),
                 },
                 securityContext: { allowPrivilegeEscalation: false },
               },
@@ -227,7 +227,7 @@ export function createAuth(
                 },
                 resources: {
                   limits: conf.limits,
-                  ...cpuRequests(conf.limits?.cpu),
+                  ...resourceRequests(conf.limits),
                 },
                 securityContext: {
                   allowPrivilegeEscalation: false,

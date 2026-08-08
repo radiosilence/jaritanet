@@ -1,4 +1,4 @@
-import { cpuRequests } from "@jaritanet/k8s";
+import { resourceRequests } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
@@ -194,7 +194,7 @@ export function createMariastew(
                 },
                 resources: {
                   limits: conf.limits,
-                  ...cpuRequests(conf.limits.cpu),
+                  ...resourceRequests(conf.limits),
                 },
                 securityContext: { allowPrivilegeEscalation: false },
                 volumeMounts: mounts,
@@ -248,6 +248,12 @@ export function createMariastew(
                     hostPort: conf.aria2.listenPort,
                   },
                 ],
+                // The container that actually does the work, and until now
+                // the only one with no ceiling and no reservation at all.
+                resources: {
+                  limits: conf.aria2.limits,
+                  ...resourceRequests(conf.aria2.limits),
+                },
                 securityContext: { allowPrivilegeEscalation: false },
                 volumeMounts: mounts,
               },

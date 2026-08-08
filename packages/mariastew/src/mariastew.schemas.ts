@@ -50,6 +50,22 @@ export const Aria2ConfSchema = z.strictObject({
    * rank unconnectable peers last when choking, so it depresses download
    * speed as well — the usual explanation for a well-seeded torrent crawling.
    */
+  /**
+   * aria2's own ceiling, separate from the service's.
+   *
+   * The two containers do not resemble each other. `limits` below sized the
+   * Rust service — which polls a JSON-RPC socket and renders a list, and was
+   * measured at 6Mi — while aria2 beside it ran with no limits and no
+   * requests at all, so the ceiling was declared for the container that could
+   * not reach it and withheld from the one that could. Hashing pieces,
+   * holding buffers for concurrent torrents and checking integrity is the
+   * work here, and none of it belongs to the process serving the page.
+   *
+   * High ceiling, low request, on purpose: torrenting is intensive only while
+   * it is doing something, and the request is what the scheduler reserves
+   * forever. See `resourceRequests`.
+   */
+  limits: LimitsSchema.default({ cpu: "4", memory: "2Gi" }),
   listenPort: z.number().int().min(1024).max(65535).default(51413),
   /**
    * Ask the router to forward `listenPort` over UPnP IGD, and keep asking.
@@ -97,7 +113,12 @@ export const MariastewConfSchema = z.object({
   aria2: Aria2ConfSchema.prefault({}),
   hostname: z.string().default(""),
   image: ImageSchema,
-  limits: LimitsSchema.default({ cpu: "2000m", memory: "1Gi" }),
+  /**
+   * The service's ceiling, which is not aria2's — see `aria2.limits`. This
+   * process polls a socket and renders a list; it was measured at 6Mi while
+   * holding a reservation of 1Gi.
+   */
+  limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
   /**
    * Where to send the browser, and under what name. That is the whole of what
    * a relying party knows about identity: the registration — the secret and
