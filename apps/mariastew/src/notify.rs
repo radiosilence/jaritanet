@@ -101,13 +101,13 @@ pub fn spawn_watcher(state: AppState) {
                     if d.status == Status::Error {
                         let error = d.error_message.as_deref().unwrap_or("unknown error");
                         state.activity.record(&d.gid, format!("failed — {error}"));
-                        failed(&state, d.name(), error).await;
+                        failed(&state, d.display_name(), error).await;
                     } else {
                         sweep_garbage(&state, d).await;
                         state
                             .activity
                             .record(&d.gid, format!("finished — {}", d.dir));
-                        finished(&state, d.name(), &d.dir).await;
+                        finished(&state, d.display_name(), &d.dir).await;
                     }
                 }
                 seen.insert(
