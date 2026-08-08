@@ -81,7 +81,10 @@ impl From<&Download> for Row {
         let (size, done) = d.display_totals();
         Row {
             gid: d.gid.clone(),
-            name: d.name().to_string(),
+            // A still-resolving magnet is named `[METADATA]<infohash>` by
+            // aria2. The marker is how the row is classified, not something
+            // to read — the state badge already says "starting".
+            name: d.name().trim_start_matches("[METADATA]").to_string(),
             percent,
             percent_display: percent.map(|p| format!("{p:.0}")),
             health,
