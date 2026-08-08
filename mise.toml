@@ -84,6 +84,13 @@ description = "Add a macro for any icons::<name> a template calls that templates
 dir = "apps/mariastew"
 run = "./scripts/gen-icons.ts"
 
+[tasks."mariastew:app-icons"]
+description = "Render icons/icon.svg into the favicon, apple-touch and manifest icons (needs `brew install librsvg`)"
+dir = "apps/mariastew"
+# The outputs are committed, same deal as app.css: main.rs include_bytes!s
+# them, so no build ever needs librsvg.
+run = "./scripts/gen-app-icons.ts"
+
 [tasks."check:profiles"]
 description = "Validate every profile shape against the real sing-box binary (needs docker)"
 run = "./scripts/check-profiles.ts"
