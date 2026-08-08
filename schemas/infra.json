@@ -6,9 +6,7 @@
       "$ref": "#/$defs/__schema0"
     }
   },
-  "required": [
-    "config"
-  ],
+  "required": ["config"],
   "description": "Schema for infrastructure configuration",
   "title": "Infrastructure Configuration Schema",
   "$defs": {
@@ -27,9 +25,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -50,9 +46,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -84,9 +78,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -107,9 +99,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -126,9 +116,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -145,23 +133,16 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
                 }
               },
-              "required": [
-                "clientId",
-                "clientSecret"
-              ]
+              "required": ["clientId", "clientSecret"]
             }
           },
-          "required": [
-            "image"
-          ],
+          "required": ["image"],
           "additionalProperties": false
         },
         "jaritanet:bluesky": {
@@ -179,17 +160,13 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "did"
-          ]
+          "required": ["did"]
         },
         "jaritanet:cloudflare": {
           "type": "object",
@@ -207,9 +184,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -227,18 +202,13 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "accountId",
-            "apiToken"
-          ]
+          "required": ["accountId", "apiToken"]
         },
         "jaritanet:clusterDomain": {
           "default": "cluster.local",
@@ -253,9 +223,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -268,10 +236,7 @@
             "properties": {
               "hysteria": {
                 "default": {
-                  "altPorts": [
-                    3478,
-                    4500
-                  ],
+                  "altPorts": [3478, 4500],
                   "port": 443,
                   "sni": "www.bing.com",
                   "image": "docker.io/tobyxdd/hysteria:v2.10.0"
@@ -291,9 +256,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -311,9 +274,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -330,9 +291,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -367,9 +326,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -379,9 +336,7 @@
                 "$ref": "#/$defs/__schema6"
               }
             },
-            "required": [
-              "name"
-            ]
+            "required": ["name"]
           }
         },
         "jaritanet:exits": {
@@ -403,9 +358,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -423,9 +376,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -442,9 +393,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -461,9 +410,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -488,20 +435,13 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
               }
             },
-            "required": [
-              "name",
-              "node",
-              "nodeLabel",
-              "server"
-            ]
+            "required": ["name", "node", "nodeLabel", "server"]
           }
         },
         "jaritanet:fastmail": {
@@ -522,9 +462,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -543,9 +481,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -554,11 +490,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "none",
-                    "quarantine",
-                    "reject"
-                  ]
+                  "enum": ["none", "quarantine", "reject"]
                 },
                 {
                   "type": "object",
@@ -567,9 +499,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -586,9 +516,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -626,9 +554,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -645,9 +571,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -668,9 +592,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -688,9 +610,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -725,9 +645,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -745,9 +663,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -768,9 +684,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -788,9 +702,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -809,9 +721,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -837,9 +747,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -873,17 +781,13 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
                 }
               },
-              "required": [
-                "serverNames"
-              ]
+              "required": ["serverNames"]
             }
           }
         },
@@ -900,9 +804,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -920,9 +822,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -941,9 +841,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -963,10 +861,7 @@
                     "$ref": "#/$defs/__schema17"
                   }
                 },
-                "required": [
-                  "kind",
-                  "args"
-                ],
+                "required": ["kind", "args"],
                 "additionalProperties": false,
                 "description": "A container behind Traefik — the default for anything ordinary"
               },
@@ -986,19 +881,13 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
                   },
                   "allowedNetworks": {
-                    "default": [
-                      "100.64.0.0/10",
-                      "192.168.0.0/16",
-                      "127.0.0.1"
-                    ],
+                    "default": ["100.64.0.0/10", "192.168.0.0/16", "127.0.0.1"],
                     "type": "array",
                     "items": {
                       "anyOf": [
@@ -1012,9 +901,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "secure"
-                          ],
+                          "required": ["secure"],
                           "additionalProperties": false
                         }
                       ]
@@ -1032,9 +919,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1060,9 +945,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1087,9 +970,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1107,9 +988,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1118,11 +997,7 @@
                     "$ref": "#/$defs/__schema19"
                   }
                 },
-                "required": [
-                  "guestAccount",
-                  "shares",
-                  "kind"
-                ],
+                "required": ["guestAccount", "shares", "kind"],
                 "additionalProperties": false
               },
               {
@@ -1141,9 +1016,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1183,9 +1056,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1194,10 +1065,7 @@
                     "$ref": "#/$defs/__schema19"
                   }
                 },
-                "required": [
-                  "folders",
-                  "kind"
-                ],
+                "required": ["folders", "kind"],
                 "additionalProperties": false
               },
               {
@@ -1216,9 +1084,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1239,9 +1105,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1269,9 +1133,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1322,11 +1184,7 @@
                           "$ref": "#/$defs/__schema33"
                         }
                       },
-                      "required": [
-                        "id",
-                        "name",
-                        "image"
-                      ]
+                      "required": ["id", "name", "image"]
                     }
                   },
                   "kind": {
@@ -1342,18 +1200,13 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
                   }
                 },
-                "required": [
-                  "image",
-                  "kind"
-                ],
+                "required": ["image", "kind"],
                 "additionalProperties": false
               },
               {
@@ -1369,11 +1222,7 @@
                     "$ref": "#/$defs/__schema35"
                   }
                 },
-                "required": [
-                  "kind",
-                  "hostname",
-                  "image"
-                ],
+                "required": ["kind", "hostname", "image"],
                 "additionalProperties": false,
                 "description": "The per-user sing-box subscription server"
               },
@@ -1414,9 +1263,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "secure"
-                            ],
+                            "required": ["secure"],
                             "additionalProperties": false
                           }
                         ]
@@ -1452,9 +1299,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "secure"
-                            ],
+                            "required": ["secure"],
                             "additionalProperties": false
                           }
                         ]
@@ -1472,9 +1317,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "secure"
-                            ],
+                            "required": ["secure"],
                             "additionalProperties": false
                           }
                         ]
@@ -1492,9 +1335,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "secure"
-                            ],
+                            "required": ["secure"],
                             "additionalProperties": false
                           }
                         ]
@@ -1515,9 +1356,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1552,9 +1391,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -1563,11 +1400,7 @@
                     "$ref": "#/$defs/__schema19"
                   }
                 },
-                "required": [
-                  "image",
-                  "roots",
-                  "kind"
-                ],
+                "required": ["image", "roots", "kind"],
                 "additionalProperties": false
               }
             ]
@@ -1592,9 +1425,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -1614,9 +1445,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -1636,9 +1465,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -1655,18 +1482,13 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
                 }
               },
-              "required": [
-                "clientId",
-                "clientSecret"
-              ]
+              "required": ["clientId", "clientSecret"]
             },
             "tagOwners": {
               "default": [],
@@ -1683,9 +1505,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -1706,9 +1526,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -1731,9 +1549,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -1751,18 +1567,13 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "botToken",
-            "chatId"
-          ]
+          "required": ["botToken", "chatId"]
         },
         "jaritanet:traefik": {
           "type": "object",
@@ -1781,9 +1592,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -1801,17 +1610,13 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
             }
           },
-          "required": [
-            "acmeEmail"
-          ]
+          "required": ["acmeEmail"]
         },
         "jaritanet:ubuntuProToken": {
           "anyOf": [
@@ -1825,9 +1630,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -1847,9 +1650,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -1865,10 +1666,7 @@
                   "anyOf": [
                     {
                       "type": "string",
-                      "enum": [
-                        "bluesky",
-                        "fastmail"
-                      ]
+                      "enum": ["bluesky", "fastmail"]
                     },
                     {
                       "type": "object",
@@ -1877,9 +1675,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "secure"
-                      ],
+                      "required": ["secure"],
                       "additionalProperties": false
                     }
                   ]
@@ -1901,19 +1697,13 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
               }
             },
-            "required": [
-              "modules",
-              "name",
-              "zoneId"
-            ]
+            "required": ["modules", "name", "zoneId"]
           }
         },
         "cloudflare:apiToken": {
@@ -1928,9 +1718,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -1947,9 +1735,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -1974,11 +1760,7 @@
           "anyOf": [
             {
               "type": "string",
-              "enum": [
-                "Always",
-                "IfNotPresent",
-                "Never"
-              ]
+              "enum": ["Always", "IfNotPresent", "Never"]
             },
             {
               "type": "object",
@@ -1987,9 +1769,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -2006,9 +1786,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -2025,18 +1803,13 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
         }
       },
-      "required": [
-        "repository",
-        "tag"
-      ],
+      "required": ["repository", "tag"],
       "additionalProperties": false
     },
     "__schema2": {
@@ -2066,9 +1839,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2077,10 +1848,7 @@
       "type": "object",
       "properties": {
         "altPorts": {
-          "default": [
-            3478,
-            4500
-          ],
+          "default": [3478, 4500],
           "type": "array",
           "items": {
             "$ref": "#/$defs/__schema5"
@@ -2099,9 +1867,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -2134,9 +1900,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2154,9 +1918,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2174,9 +1936,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2198,9 +1958,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2218,9 +1976,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2238,9 +1994,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2257,9 +2011,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2277,9 +2029,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2306,9 +2056,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -2325,9 +2073,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -2377,9 +2123,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
@@ -2396,18 +2140,13 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "secure"
-                        ],
+                        "required": ["secure"],
                         "additionalProperties": false
                       }
                     ]
                   }
                 },
-                "required": [
-                  "name",
-                  "value"
-                ]
+                "required": ["name", "value"]
               }
             },
             "initialDelaySeconds": {
@@ -2429,9 +2168,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -2492,9 +2229,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -2514,9 +2249,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -2526,11 +2259,7 @@
                 "type": "boolean"
               }
             },
-            "required": [
-              "hostPath",
-              "mountPath",
-              "name"
-            ],
+            "required": ["hostPath", "mountPath", "name"],
             "additionalProperties": false
           }
         },
@@ -2578,9 +2307,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -2597,9 +2324,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -2620,9 +2345,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -2640,9 +2363,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "secure"
-                    ],
+                    "required": ["secure"],
                     "additionalProperties": false
                   }
                 ]
@@ -2702,10 +2423,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "Recreate",
-                    "RollingUpdate"
-                  ]
+                  "enum": ["Recreate", "RollingUpdate"]
                 },
                 {
                   "type": "object",
@@ -2714,9 +2432,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secure"
-                  ],
+                  "required": ["secure"],
                   "additionalProperties": false
                 }
               ]
@@ -2725,9 +2441,7 @@
           "additionalProperties": false
         }
       },
-      "required": [
-        "image"
-      ],
+      "required": ["image"],
       "additionalProperties": false
     },
     "__schema16": {
@@ -2743,9 +2457,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2768,9 +2480,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -2792,9 +2502,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -2803,10 +2511,7 @@
           "$ref": "#/$defs/__schema16"
         }
       },
-      "required": [
-        "name",
-        "hostPath"
-      ]
+      "required": ["name", "hostPath"]
     },
     "__schema19": {
       "default": "jaritanet.radiosilence.dev/file-node",
@@ -2827,9 +2532,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -2838,10 +2541,7 @@
           "$ref": "#/$defs/__schema16"
         }
       },
-      "required": [
-        "name",
-        "hostPath"
-      ]
+      "required": ["name", "hostPath"]
     },
     "__schema21": {
       "anyOf": [
@@ -2855,9 +2555,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2874,9 +2572,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2893,9 +2589,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2915,9 +2609,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "secure"
-            ],
+            "required": ["secure"],
             "additionalProperties": false
           }
         ]
@@ -2940,9 +2632,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2959,9 +2649,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -2983,9 +2671,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -3002,9 +2688,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -3021,9 +2705,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -3043,9 +2725,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -3062,9 +2742,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -3084,9 +2762,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
@@ -3103,19 +2779,13 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "secure"
-                ],
+                "required": ["secure"],
                 "additionalProperties": false
               }
             ]
           }
         },
-        "required": [
-          "id",
-          "label",
-          "header"
-        ]
+        "required": ["id", "label", "header"]
       }
     },
     "__schema29": {
@@ -3133,9 +2803,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -3152,9 +2820,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -3171,9 +2837,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -3193,9 +2857,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -3212,9 +2874,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -3231,9 +2891,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -3250,17 +2908,13 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
         }
       },
-      "required": [
-        "query"
-      ]
+      "required": ["query"]
     },
     "__schema34": {
       "anyOf": [
@@ -3275,9 +2929,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -3294,9 +2946,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "secure"
-          ],
+          "required": ["secure"],
           "additionalProperties": false
         }
       ]
@@ -3317,9 +2967,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "secure"
-              ],
+              "required": ["secure"],
               "additionalProperties": false
             }
           ]
@@ -3328,10 +2976,7 @@
           "$ref": "#/$defs/__schema16"
         }
       },
-      "required": [
-        "name",
-        "hostPath"
-      ],
+      "required": ["name", "hostPath"],
       "additionalProperties": false
     }
   }
