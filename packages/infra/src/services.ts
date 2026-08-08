@@ -94,24 +94,30 @@ export type Route = {
 /**
  * The services that need to sign people in, and where each is sent back to.
  *
- * Derived rather than declared, and that is the security control rather than
- * tidiness: the redirect allowlist is what stands between the provider and an
- * open redirect, so a list generated from the hostname a service already
- * publishes cannot hold a typo, cannot keep an entry for a service that moved,
- * and gives no service a way to widen its own permissions.
+ * Everything about the registration is derived, and that is the security
+ * control rather than tidiness: the redirect allowlist is what stands between
+ * the provider and an open redirect, so a list generated from the hostname a
+ * service already publishes cannot hold a typo, cannot keep an entry for a
+ * service that moved, and gives no service a way to widen its own permissions.
  *
- * A `switch` for the same reason `createOne` is one — the callback path is the
- * service's own, not something every kind shares — and it stays a switch of one
- * until a second kind needs it.
+ * The client id is the service's own name, so it is not a second thing to
+ * choose and cannot disagree with anything. `/auth/callback` is a convention
+ * both relying parties implement rather than a per-service setting — when a
+ * third needs a different path, that is when it becomes one.
+ *
+ * The kinds are named rather than looked up in a set, for the reason the
+ * `switch` in `createOne` exists: comparing the discriminant narrows the union,
+ * and `Set.has` does not, so a set would need a cast to read `hostname`.
  */
 export function relyingParties(
   services: Record<string, z.infer<typeof ServiceConfSchema>>,
 ) {
   return Object.entries(services).flatMap(([name, service]) =>
-    service.kind === "mariastew" && service.oidc?.issuer && service.hostname
+    (service.kind === "mariastew" || service.kind === "mcp-gateway") &&
+    service.hostname
       ? [
           {
-            id: service.oidc.clientId,
+            id: name,
             name,
             redirectUri: `https://${service.hostname}/auth/callback`,
           },
@@ -151,11 +157,13 @@ function createOne(
     case "mcp-gateway": {
       // No OAuth app, no gateway: it exists to authenticate people, and one
       // that cannot would front every backend unauthenticated.
-      if (!service.github || !service.hostname || !ctx.authHostname) return [];
+      // No identity provider, no gateway: the dashboard signs people in
+      // through it, and one that cannot would front every backend with no way
+      // to say who is asking.
+      if (!service.hostname || !ctx.authHostname) return [];
       createMcpGateway(provider, namespace, service, {
-        githubClientId: service.github.clientId,
-        githubClientSecret: pulumi.secret(service.github.clientSecret),
-        githubAllowed: service.github.allowed,
+        oidcClientId: name,
+        oidcClientSecret: ctx.oidcClientSecrets[name],
         authHostname: ctx.authHostname,
       });
       // Two public hostnames: the gateway and Hydra's public API, the latter
@@ -210,13 +218,13 @@ function createOne(
       // A write endpoint onto the media library is not published without a
       // way to authenticate, so an unconfigured one is not deployed rather
       // than deployed open.
-      // The issuer rather than the block: config carries `oidc: { issuer: "" }`
-      // in the clear and sets the real value as a secret out of band, so an
-      // unconfigured deployment has the object and an empty string in it.
-      if (!service.oidc?.issuer || !service.hostname) return [];
+      if (!service.hostname || !ctx.authHostname) return [];
       createMariastew(provider, namespace, service, {
         nodeLabel: service.nodeLabel,
-        oidcClientSecret: ctx.oidcClientSecrets[service.oidc.clientId],
+        oidcClientSecret: ctx.oidcClientSecrets[name],
+        // Read once at the top level and handed down, so no service carries its
+        // own copy of where identity lives.
+        oidc: { issuer: `https://${ctx.authHostname}`, clientId: name },
         telegram: ctx.telegram
           ? {
               botToken: pulumi.secret(ctx.telegram.botToken),

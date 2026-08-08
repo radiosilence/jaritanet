@@ -262,22 +262,10 @@ export const ServiceConfSchema = z.discriminatedUnion("kind", [
     kind: z.literal("syncthing"),
     nodeLabel: FileNodeLabel,
   }).strict(),
-  McpGatewayConfSchema.extend({
-    kind: z.literal("mcp-gateway"),
-    /**
-     * This deployment's, not the component's: the gateway needs some OAuth app,
-     * and which one is a fact about who runs it. Extended here so the package
-     * keeps knowing nothing about jaritanet.
-     */
-    github: z
-      .object({
-        /** Login allowlist, comma-separated. Not a secret — these are usernames. */
-        allowed: z.string().default(""),
-        clientId: z.string(),
-        clientSecret: z.string(),
-      })
-      .optional(),
-  }).strict(),
+  // No `github` block: the gateway had its own OAuth app while it was the
+  // login provider, and is an ordinary client of `auth` now. Which upstream
+  // vouches for anyone is a single fact, at the top level, read once.
+  McpGatewayConfSchema.extend({ kind: z.literal("mcp-gateway") }).strict(),
   z
     .strictObject({
       kind: z.literal("singbox-profiles"),
