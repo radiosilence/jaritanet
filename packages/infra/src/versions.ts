@@ -57,7 +57,37 @@ export type Decision =
 export const normaliseVersion = (tag: string) => tag.replace(/^\D*/, "");
 
 /**
- * The newest release belonging to one component, given tags newest first.
+ * Numeric segment by segment, so `0.1.19` sorts above `0.1.9` — comparing the
+ * whole string the ordinary way puts it below, because `1` < `9`.
+ */
+function compareVersions(a: string, b: string) {
+  const partsA = normaliseVersion(a).split(/[.-]/);
+  const partsB = normaliseVersion(b).split(/[.-]/);
+  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+    const partA = partsA[i] ?? "";
+    const partB = partsB[i] ?? "";
+    const numA = Number(partA);
+    const numB = Number(partB);
+    if (
+      partA !== "" &&
+      partB !== "" &&
+      !Number.isNaN(numA) &&
+      !Number.isNaN(numB)
+    ) {
+      if (numA !== numB) return numA - numB;
+      continue;
+    }
+    if (partA !== partB) return partA < partB ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
+ * The newest release belonging to one component.
+ *
+ * The releases API is not reliably newest-first — this repo's own release
+ * history for `mariastew` came back with `0.1.9` ahead of `0.1.19` — so this
+ * has to sort rather than trust the order it is handed.
  *
  * A repo publishing several things cuts prefixed releases — this one releases
  * `serve-from-env-v1.2.0` and `files-v1.0.0` — and "the latest release" is then
@@ -65,7 +95,9 @@ export const normaliseVersion = (tag: string) => tag.replace(/^\D*/, "");
  * released most recently and pin itself to an image that was never built.
  */
 export const pickLatestTag = (tags: string[], prefix?: string) =>
-  (prefix ? tags.filter((tag) => tag.startsWith(prefix)) : tags)[0];
+  (prefix ? tags.filter((tag) => tag.startsWith(prefix)) : tags)
+    .toSorted(compareVersions)
+    .at(-1);
 
 export const applyTemplate = (template: string, version: string) =>
   template.replaceAll("{version}", version);
