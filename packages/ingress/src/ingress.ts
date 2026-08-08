@@ -59,25 +59,22 @@ export function createIngress(
           },
         },
         // Per-route request rates, response codes and latencies — the other
-        // half of "is anything actually broken". The router and service labels
-        // are off by default and are the whole point: without them the numbers
-        // are a single total for the whole estate.
+        // half of "is anything actually broken". Only the labels are set here:
+        // the chart enables its Prometheus endpoint by default and annotates
+        // its own pod with `prometheus.io/scrape` and the metrics entrypoint's
+        // port, which is what @jaritanet/metrics discovers it by. Adding a
+        // `podAnnotations` block of our own is both redundant and rejected —
+        // the key lives under `deployment`, and the chart's values schema
+        // fails the release rather than ignoring it.
         //
-        // The endpoint is on the chart's own `metrics` entrypoint (:9100 inside
-        // the pod, not on the host), and the annotations are what
-        // @jaritanet/metrics discovers it by. Unconditional: an unscraped
-        // counter costs nothing, and gating it would put "is there a metrics
-        // stack" into the config of the thing that publishes one.
+        // `addRoutersLabels` is the one that is off by default and is the whole
+        // point: without it the numbers are a single total for the estate.
         metrics: {
           prometheus: {
             addEntryPointsLabels: true,
             addRoutersLabels: true,
             addServicesLabels: true,
           },
-        },
-        podAnnotations: {
-          "prometheus.io/scrape": "true",
-          "prometheus.io/port": "9100",
         },
         service: {
           // `service.spec.type`, not `service.type` — same trap as
