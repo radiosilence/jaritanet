@@ -52,6 +52,20 @@ export const Aria2ConfSchema = z.strictObject({
    */
   listenPort: z.number().int().min(1024).max(65535).default(51413),
   /**
+   * Ask the router to forward `listenPort` over UPnP IGD, and keep asking.
+   *
+   * aria2 1.37 has no UPnP or NAT-PMP of its own — `--bt-external-ip` is the
+   * whole of its NAT support — so something else has to place the mapping.
+   * That something has to sit on the LAN, because discovery is an SSDP
+   * multicast the pod network does not carry, which is what the separate
+   * host-network mapper alongside this deployment is for.
+   *
+   * Set false where the router has UPnP disabled or a forward is configured
+   * by hand; the mapper simply is not created, and aria2 stays outbound-only
+   * rather than failing.
+   */
+  upnp: z.boolean().default(true),
+  /**
    * The speed aria2 tries to sustain per torrent before it stops opening new
    * connections. The default is 50K, which was chosen for dial-up-era links
    * and makes aria2 stop recruiting peers almost immediately.

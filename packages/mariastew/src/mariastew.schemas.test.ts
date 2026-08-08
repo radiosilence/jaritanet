@@ -44,6 +44,7 @@ describe("MariastewConfSchema", () => {
     const { aria2 } = MariastewConfSchema.parse({ image, roots });
     expect(aria2).toEqual({
       listenPort: 51413,
+      upnp: true,
       peerSpeedLimit: "50M",
       btMaxPeers: 0,
       maxConcurrentDownloads: 16,

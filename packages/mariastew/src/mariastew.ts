@@ -23,6 +23,37 @@ const secretRef = (key: string) => ({
  * depend on. Retrying until it answers is the same guarantee arrived at from
  * the other side.
  */
+/**
+ * Places the peer-port forward on the router, then keeps replacing it.
+ *
+ * `miniupnpc` is installed at start rather than baked into an image of our
+ * own: it is one binary invoked in a loop, and a container built and released
+ * here would need a version, a workflow and a tracked-versions entry to carry
+ * it. If the mirror is unreachable the pod crash-loops and retries, which is
+ * the same outcome as a missing mapping — outbound-only.
+ */
+const PORTMAP = `set -eu
+apk add --no-cache miniupnpc >/dev/null
+
+# Asked of the routing table rather than configured. This pod follows a label
+# to whichever machine is the file node, and that machine's address comes from
+# DHCP, so neither is a thing to write down.
+lan() { ip -4 route get 1.1.1.1 | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}'; }
+
+while :; do
+  ip=$(lan)
+  for proto in TCP UDP; do
+    if upnpc -e aria2 -a "$ip" "$PORT" "$PORT" "$proto" "$LEASE" >/dev/null 2>&1; then
+      echo "mapped $proto $PORT -> $ip:$PORT for $LEASE""s"
+    else
+      echo "WARNING: could not map $proto $PORT — aria2 stays outbound-only"
+    fi
+  done
+  # Half the lease, so a refusal has a full cycle to recover in before the
+  # router drops the mapping.
+  sleep $((LEASE / 2))
+done`;
+
 const REGISTER_CLIENT = `set -eu
 body=$(printf '{"client_id":"%s","client_name":"mariastew","client_secret":"%s","grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scope":"openid offline_access","redirect_uris":["%s"],"token_endpoint_auth_method":"client_secret_post"}' "$CLIENT_ID" "$SECRET" "$REDIRECT")
 code=$(curl -s --retry 30 --retry-all-errors --retry-delay 5 -o /tmp/out -w '%{http_code}' -X PUT -H 'content-type: application/json' -d "$body" "$ADMIN/admin/clients/$CLIENT_ID")
@@ -303,6 +334,70 @@ export function createMariastew(
     },
     { deleteBeforeReplace: true, provider },
   );
+
+  /**
+   * Keeps a UPnP forward for the peer port alive on the house router.
+   *
+   * Its own pod, not a container beside aria2, and the reason is the
+   * NetworkPolicy below. UPnP discovery is an SSDP multicast to
+   * 239.255.255.250, which the pod network does not carry — the mapper has to
+   * be on the LAN, which means `hostNetwork`, which means leaving the policy's
+   * reach. Putting it in the mariastew pod would take the pod that writes to
+   * the media library and terminates traffic from the internet out of its
+   * confinement to buy a port mapping. This pod reads nothing, mounts nothing
+   * and holds no credential, so being unconfined costs nothing.
+   *
+   * Mappings carry a lease and the router drops them on reboot, so this
+   * re-places rather than sets-and-forgets. A failure is logged and retried at
+   * the next tick: an expired mapping means outbound-only, which is where
+   * everything was before this existed.
+   */
+  if (conf.aria2.upnp) {
+    const lease = 3600;
+    new k8s.apps.v1.Deployment(
+      "mariastew-portmap",
+      {
+        metadata: { name: "mariastew-portmap", namespace },
+        spec: {
+          replicas: 1,
+          selector: { matchLabels: { app: "mariastew-portmap" } },
+          template: {
+            metadata: { labels: { app: "mariastew-portmap" } },
+            spec: {
+              automountServiceAccountToken: false,
+              hostNetwork: true,
+              // The router is an address, not a name, so this resolves only
+              // its own package mirror. Public resolvers for the same reason
+              // as the deployment above — no reason to borrow the cluster's
+              // failure domain for it.
+              dnsPolicy: "None",
+              dnsConfig: { nameservers: ["1.1.1.1", "9.9.9.9"] },
+              // Follows the file node, because the mapping has to point at
+              // whichever machine is actually running aria2.
+              nodeSelector: { [opts.nodeLabel]: "true" },
+              containers: [
+                {
+                  name: "portmap",
+                  image: "alpine:3.21",
+                  command: ["sh", "-c", PORTMAP],
+                  env: [
+                    { name: "PORT", value: String(conf.aria2.listenPort) },
+                    { name: "LEASE", value: String(lease) },
+                  ],
+                  securityContext: { allowPrivilegeEscalation: false },
+                  resources: {
+                    requests: { cpu: "5m", memory: "16Mi" },
+                    limits: { memory: "32Mi" },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+      { provider },
+    );
+  }
 
   // Named for what `createIngressRoute` derives from the route prefix.
   const service = new k8s.core.v1.Service(
