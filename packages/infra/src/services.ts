@@ -48,6 +48,13 @@ export type ServiceContext = {
   dnsTarget?: pulumi.Output<string>;
   /** IngressRoute is a CRD the Traefik chart brings; routes wait on it. */
   traefik?: pulumi.Resource;
+  /**
+   * Where the authorization server stands and the identity provider answers.
+   * Read once at the top level and handed to everything that needs it, so two
+   * readers cannot disagree about it — the shape `vpnEntryLabel` uses. Absent
+   * → nothing that depends on being able to authenticate is deployed.
+   */
+  authHostname?: string;
   /** Rotates the profile slug along with every other VPN credential. */
   credentialRotation: string;
   exits: Exit[];
@@ -66,7 +73,16 @@ export type ServiceContext = {
  * Service `<prefix>-service` and `createIngressRoute` derives the same backend
  * from the same prefix, so a route names the pair rather than either half.
  */
-type Route = { service: string; hostname: string };
+export type Route = {
+  service: string;
+  hostname: string;
+  /**
+   * Only for the hostname two workloads share. Absent means the whole host,
+   * which is what everything else wants — see `routeMatch`.
+   */
+  paths?: string[];
+  priority?: number;
+};
 
 function createOne(
   ctx: ServiceContext,
@@ -99,18 +115,20 @@ function createOne(
     case "mcp-gateway": {
       // No OAuth app, no gateway: it exists to authenticate people, and one
       // that cannot would front every backend unauthenticated.
-      if (!service.github || !service.hostname || !service.authHostname)
-        return [];
+      if (!service.github || !service.hostname || !ctx.authHostname) return [];
       createMcpGateway(provider, namespace, service, {
         githubClientId: service.github.clientId,
         githubClientSecret: pulumi.secret(service.github.clientSecret),
         githubAllowed: service.github.allowed,
+        authHostname: ctx.authHostname,
       });
-      // Two public hostnames: the gateway and Hydra's public API. Admin stays
-      // in-cluster, with no route at all.
+      // Two public hostnames: the gateway and Hydra's public API, the latter
+      // shared with the identity provider and split by path — so this claims
+      // the bare host and the provider claims the specific paths within it.
+      // Admin stays in-cluster, with no route at all.
       return [
         { service: "mcp-gateway", hostname: service.hostname },
-        { service: "mcp-gateway-hydra", hostname: service.authHostname },
+        { service: "mcp-gateway-hydra", hostname: ctx.authHostname },
       ];
     }
 
@@ -190,33 +208,50 @@ export function createServices(
   ctx: ServiceContext,
   services: Record<string, z.infer<typeof ServiceConfSchema>>,
 ) {
+  return publishRoutes(
+    ctx,
+    Object.entries(services).flatMap(([name, service]) =>
+      createOne(ctx, name, service),
+    ),
+  );
+}
+
+/**
+ * Give a set of routes an A record and an IngressRoute, and report them.
+ *
+ * Separate from `createServices` because the identity provider is not a
+ * service — it is the thing that authenticates for them, the way Traefik is the
+ * thing that publishes them — but it still has an address, and publishing it by
+ * hand would be the fifth copy of "split the hostname, find the zone, make an A
+ * record, make an IngressRoute" that this function exists to have replaced.
+ */
+export function publishRoutes(ctx: ServiceContext, routes: Route[]) {
   const published: Record<string, { hostname: string; service: string }> = {};
 
-  for (const [name, service] of Object.entries(services)) {
-    for (const route of createOne(ctx, name, service)) {
-      // Zones are two labels here, which is what makes this work. A zone with
-      // three (`example.co.uk`) would be looked up as `co.uk`, find nothing and
-      // silently skip the record — createServiceRecord splits the same way when
-      // it derives the record's own name, so fixing one half alone would only
-      // move the disagreement.
-      const zone = ctx.zones.find(
-        (z) => z.name === route.hostname.split(".").slice(-2).join("."),
-      );
-      if (ctx.dnsTarget && zone) {
-        createServiceRecord(ctx.dnsTarget, zone, route.hostname);
-      }
-      createIngressRoute(
-        ctx.provider,
-        route.service,
-        route.hostname,
-        ctx.namespace,
-        ctx.traefik,
-      );
-      published[route.service] = {
-        hostname: route.hostname,
-        service: `${route.service}-service`,
-      };
+  for (const route of routes) {
+    // Zones are two labels here, which is what makes this work. A zone with
+    // three (`example.co.uk`) would be looked up as `co.uk`, find nothing and
+    // silently skip the record — createServiceRecord splits the same way when
+    // it derives the record's own name, so fixing one half alone would only
+    // move the disagreement.
+    const zone = ctx.zones.find(
+      (z) => z.name === route.hostname.split(".").slice(-2).join("."),
+    );
+    if (ctx.dnsTarget && zone) {
+      createServiceRecord(ctx.dnsTarget, zone, route.hostname);
     }
+    createIngressRoute(
+      ctx.provider,
+      route.service,
+      route.hostname,
+      ctx.namespace,
+      ctx.traefik,
+      { paths: route.paths, priority: route.priority },
+    );
+    published[route.service] = {
+      hostname: route.hostname,
+      service: `${route.service}-service`,
+    };
   }
 
   return published;

@@ -6,6 +6,7 @@
   "type": "module",
   "main": "./src/main.ts",
   "dependencies": {
+    "@jaritanet/auth": "workspace:*",
     "@jaritanet/dns": "workspace:*",
     "@jaritanet/hetzner": "workspace:*",
     "@jaritanet/home": "workspace:*",

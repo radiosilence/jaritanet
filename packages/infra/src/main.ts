@@ -1,3 +1,4 @@
+import { authRoutes, createAuth } from "@jaritanet/auth";
 import {
   createBlueskyRecords,
   createFastmailRecords,
@@ -25,7 +26,11 @@ import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { createEdge, EDGE_TAILNET_TAG } from "./edge.ts";
 import { createGateway } from "./gateway.ts";
-import { createServices } from "./services.ts";
+import {
+  createServices,
+  publishRoutes,
+  type ServiceContext,
+} from "./services.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
 export default async function () {
@@ -363,27 +368,58 @@ export default async function () {
     ...edgeNodes,
   ];
 
-  const services = createServices(
-    {
-      provider,
-      namespace: nsName,
-      zones: conf.zones,
-      dnsTarget,
-      traefik: traefikRelease,
-      credentialRotation: gatewayConf?.credentialRotation ?? "1",
-      exits,
-      magicdnsSuffix: conf.tailnet.magicdnsSuffix,
-      singboxNodes,
-      users,
-      telegram: conf.telegram,
-    },
-    conf.services,
-  );
+  const serviceContext: ServiceContext = {
+    provider,
+    namespace: nsName,
+    zones: conf.zones,
+    dnsTarget,
+    traefik: traefikRelease,
+    credentialRotation: gatewayConf?.credentialRotation ?? "1",
+    exits,
+    magicdnsSuffix: conf.tailnet.magicdnsSuffix,
+    singboxNodes,
+    users,
+    telegram: conf.telegram,
+    authHostname: conf.auth?.hostname,
+  };
+
+  const services = createServices(serviceContext, conf.services);
+
+  // The identity provider, on the hostname Hydra already stands at, claiming
+  // the paths it answers. Higher priority than Hydra's bare `Host()` rule, so
+  // the specific match wins — everything it does not claim (`/oauth2/*`,
+  // `/.well-known/*`, `/userinfo`) still reaches Hydra, which is what keeps the
+  // issuer every relying party discovered from changing.
+  //
+  // No OAuth app means nobody can sign in, and a login screen that cannot
+  // authenticate is worse than one that is not there — so it is skipped rather
+  // than deployed broken.
+  const auth =
+    conf.auth?.hostname && conf.auth.github
+      ? (createAuth(provider, nsName, conf.auth, {
+          githubClientId: conf.auth.github.clientId,
+          githubClientSecret: pulumi.secret(conf.auth.github.clientSecret),
+          githubAllowed: conf.auth.github.allowed,
+          // Hydra is stood up by the mcp-gateway kind and reached at a bare
+          // service name in the same namespace, so this is derived from that
+          // deployment rather than configured twice.
+          hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
+          clients: [],
+        }),
+        publishRoutes(serviceContext, [
+          {
+            service: "auth",
+            hostname: conf.auth.hostname,
+            paths: authRoutes(),
+            priority: 100,
+          },
+        ]))
+      : {};
 
   return {
     ...(gatewayProvider && { gatewayProvider }),
     namespace,
-    services,
+    services: { ...services, ...auth },
     ...(dnsTarget && { vpsIp: dnsTarget }),
     // Per-user credentials + share URLs are now delivered as individual sing-box
     // profiles (see createProfileServer), so only the shared, non-secret

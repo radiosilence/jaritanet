@@ -17,6 +17,7 @@ import {
   ZoneConfSchema,
   ZonesConfSchema,
 } from "@jaritanet/dns";
+import { AuthConfSchema as AuthComponentConfSchema } from "@jaritanet/auth";
 import { K3sConfSchema } from "@jaritanet/hetzner";
 import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
@@ -303,6 +304,28 @@ export const ServiceConfSchema = z.discriminatedUnion("kind", [
 
 export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
 
+/**
+ * The identity provider, and the OAuth app it authenticates people against.
+ *
+ * The app is this deployment's rather than the component's — it needs *some*
+ * upstream, and which one is a fact about who runs it — so it is extended on
+ * here exactly as the MCP gateway's is, and the package keeps knowing nothing
+ * about jaritanet.
+ *
+ * `clientId` and `allowed` stay plain deliberately. Marking `allowed` secret
+ * makes Pulumi redact the literal string from all output, which mangles every
+ * path containing it.
+ */
+export const AuthConfSchema = AuthComponentConfSchema.extend({
+  github: z
+    .object({
+      allowed: z.string().default(""),
+      clientId: z.string(),
+      clientSecret: z.string(),
+    })
+    .optional(),
+}).strict();
+
 export const ConfSchema = z.object({
   /**
    * Break-glass admin key, installed on the gateway and every edge over SSH
@@ -320,6 +343,17 @@ export const ConfSchema = z.object({
       "adminSshKey must be an OpenSSH public key line (`ssh-ed25519 AAAA…`)",
     )
     .optional(),
+  /**
+   * Top level, beside `traefik`, and for the same reason: not because there is
+   * only one of it — there is only one navidrome — but because it is the same
+   * kind of thing. Traefik cannot be a service because it is what publishes
+   * them; this cannot because it is what authenticates for them. Every service
+   * depends on it and it depends on none of them.
+   *
+   * It still emits a hostname and a route, but that makes it a thing with an
+   * address rather than a thing the cluster exists to serve.
+   */
+  auth: AuthConfSchema.optional(),
   bluesky: BlueskyConfSchema,
   cloudflare: CloudflareConfSchema,
   clusterDomain: z.string().default("cluster.local"),
