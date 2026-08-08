@@ -1,0 +1,55 @@
+# One-command local dev loop: `docker compose up --build`, then
+# http://localhost:8080/auth/dev-login. See README's "Local development" for
+# what dev-login does and does not need, and Dockerfile.dev for why this
+# builds a debug binary rather than reusing the production Dockerfile.
+services:
+  # Owns the shared network namespace and the published port, mirroring the
+  # pod: one image, two containers, aria2's RPC reachable only from
+  # 127.0.0.1 inside it. aria2 below joins this network rather than getting
+  # its own, so `ARIA2_RPC_URL`'s 127.0.0.1 is the same loopback for both.
+  mariastew:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: mariastew-dev
+    ports:
+      - "8080:8080"
+    environment:
+      ROOTS: "downloads:/downloads"
+      PUBLIC_URL: "http://localhost:8080"
+      ARIA2_RPC_URL: "http://127.0.0.1:6800/jsonrpc"
+      # Never actually reached: /auth/dev-login mints a session without
+      # touching Hydra. Config::from_env still requires all three to be set.
+      OIDC_ISSUER: "https://dev.invalid"
+      OIDC_CLIENT_ID: "dev"
+      OIDC_CLIENT_SECRET: "dev"
+      RUST_LOG: "info,mariastew=debug"
+    volumes:
+      - ./dev-data/downloads:/downloads
+
+  # Same image, run as aria2c instead of mariastew — see "One image, run
+  # twice" in the README. `--rpc-listen-all=false` binds the RPC port to
+  # loopback only, which is why this has to share mariastew's network
+  # namespace rather than talk to it over a compose bridge network.
+  aria2:
+    image: mariastew-dev
+    depends_on:
+      - mariastew
+    network_mode: "service:mariastew"
+    entrypoint:
+      - /usr/bin/aria2c
+      - --enable-rpc
+      - --rpc-listen-all=false
+      - --rpc-listen-port=6800
+      - --dir=/downloads
+      - --continue=true
+      - --check-integrity=true
+      # Nothing is preallocated, so a file the filter rejected never touches
+      # disk — see "Why files land straight in the library" in the README.
+      - --file-allocation=none
+      - --seed-ratio=0.0
+      - --enable-dht=true
+      - --bt-enable-lpd=true
+      - --enable-peer-exchange=true
+    volumes:
+      - ./dev-data/downloads:/downloads

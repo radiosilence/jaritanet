@@ -183,6 +183,45 @@ empty download list and a banner saying so — rather than a 500; `/add`,
 asking aria2 to do something. Point `ARIA2_RPC_URL` at a real instance to see
 downloads move.
 
+### docker compose, if you want aria2 too
+
+`docker compose up --build` (or `mise run mariastew:dev` from the repo root)
+brings up the full flow — mariastew and a real aria2c — with one command:
+
+```sh
+cd apps/mariastew
+docker compose up --build
+```
+
+Then visit `http://localhost:8080/auth/dev-login`. Downloads land in
+`apps/mariastew/dev-data/downloads/` on the host, bind-mounted into both
+containers at `/downloads`, and `ROOTS` is preset to point at it. `docker
+compose down` stops and removes both containers and the network; the
+downloads directory is yours and is left alone.
+
+This mirrors "One image, run twice" above rather than inventing a second
+image: `docker-compose.yml` builds one image and runs it as both services,
+overriding the aria2 container's entrypoint to run `aria2c` with the same
+`--enable-rpc --rpc-listen-all=false --rpc-listen-port=6800` the production
+pod uses. Because that flag binds the RPC port to loopback only, the aria2
+service joins mariastew's network namespace
+(`network_mode: "service:mariastew"`) instead of talking to it over a
+compose bridge network — the same shared-netns relationship the pod gives
+the two containers for free.
+
+The image is built from `Dockerfile.dev`, not the production `Dockerfile`:
+same two-stage layout and dependency-caching trick, but a debug build, so
+`/auth/dev-login` is actually compiled in. The production Dockerfile is
+untouched and still `--release` — nothing here can affect what CI ships.
+
+**Iteration loop:** `docker compose up --build` again after a source change.
+The dependency-caching trick means only the final `cargo build` layer
+reruns — a few seconds for a small change to `src/`, not a from-scratch
+compile. A template change needs the same rebuild, for the reason above
+("compiled into the binary by Askama") — there is no hot reload for
+templates or the stylesheet; run `mise run css` first if a template edit
+touched a class, then rebuild the image.
+
 ## Rebuilding the stylesheet
 
 The stylesheet is generated with Tailwind + DaisyUI but the *output*
