@@ -24,12 +24,20 @@ than a percentage:
 - **The state is granular where the waiting happens.** "starting" used to
   cover everything between pasting a magnet and the first byte, which is the
   whole of the time anyone spends wondering. It is now *finding peers* (the
-  magnet has resolved to nobody yet — the state a dead magnet sits in
-  forever), *fetching metadata* (peers are answering; slow here is ordinary),
-  *queued* (parked behind `maxConcurrentDownloads` — previously diagnosed as
-  "no seeders", which looks like a fault and is not one), or *checking files*
-  (aria2 is hashing data that was already on disk, which reads as zero speed
-  with peers connected and was otherwise indistinguishable from stalled).
+  magnet has not resolved), *queued* (parked behind `maxConcurrentDownloads`
+  — previously diagnosed as "no seeders", which looks like a fault and is not
+  one), or *checking files* (aria2 is hashing data that was already on disk,
+  which reads as zero speed with peers connected and was otherwise
+  indistinguishable from stalled).
+
+  *finding peers* is deliberately **not** split further on the connection
+  count. It was, briefly, on the theory that peers connected meant metadata
+  was on its way — and a real dead magnet disproved it: DHT hands out peers
+  that have never heard of the infohash, so the count oscillates between zero
+  and a handful every few seconds while nothing arrives, which flapped both
+  the badge and the activity log. Nothing in one `tellStatus` separates a
+  magnet nobody has from one that is merely slow. How long it has been does,
+  and that is what the log's timestamps answer.
 - **Readings, not just a bar:** bytes done against total, up and down rates,
   bytes given back and the share ratio, peers against seeders, and the piece
   count and size — which is the explanation for both lumpy progress and for a
