@@ -18,6 +18,7 @@ import { createIngressRoute } from "@jaritanet/ingress";
 import { createService } from "@jaritanet/k8s";
 import { createMariastew } from "@jaritanet/mariastew";
 import { createMcpGateway } from "@jaritanet/mcp-gateway";
+import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import {
   createProfileServer,
   type Exit,
@@ -101,9 +102,11 @@ export type Route = {
  * service that moved, and gives no service a way to widen its own permissions.
  *
  * The client id is the service's own name, so it is not a second thing to
- * choose and cannot disagree with anything. `/auth/callback` is a convention
- * both relying parties implement rather than a per-service setting — when a
- * third needs a different path, that is when it becomes one.
+ * choose and cannot disagree with anything. The callback *path* is per kind
+ * because Grafana's is fixed by Grafana — `/login/generic_oauth`, not the
+ * `/auth/callback` the two services written here implement. What stays derived
+ * is the part that matters: the host half comes from the hostname the service
+ * already publishes, so no service can name where it is sent back to.
  *
  * The kinds are named rather than looked up in a set, for the reason the
  * `switch` in `createOne` exists: comparing the discriminant narrows the union,
@@ -112,18 +115,16 @@ export type Route = {
 export function relyingParties(
   services: Record<string, z.infer<typeof ServiceConfSchema>>,
 ) {
-  return Object.entries(services).flatMap(([name, service]) =>
-    (service.kind === "mariastew" || service.kind === "mcp-gateway") &&
-    service.hostname
-      ? [
-          {
-            id: name,
-            name,
-            redirectUri: `https://${service.hostname}/auth/callback`,
-          },
-        ]
-      : [],
-  );
+  return Object.entries(services).flatMap(([name, service]) => {
+    const redirectUri =
+      service.kind === "mariastew" || service.kind === "mcp-gateway"
+        ? service.hostname && `https://${service.hostname}/auth/callback`
+        : service.kind === "metrics"
+          ? service.hostname &&
+            `https://${service.hostname}/login/generic_oauth`
+          : undefined;
+    return redirectUri ? [{ id: name, name, redirectUri }] : [];
+  });
 }
 
 function createOne(
@@ -233,6 +234,23 @@ function createOne(
           : undefined,
       });
       return [{ service: "mariastew", hostname: service.hostname }];
+    }
+
+    case "metrics": {
+      // The collection half stands either way: a store that is filling is
+      // worth having even on a deploy that cannot publish a dashboard. Grafana
+      // is the part that is skipped, because it has no local login form — one
+      // deployed with nowhere to sign in is a page nobody can open.
+      if (!service.hostname || !ctx.authHostname) {
+        createMetrics(provider, namespace, service);
+        return [];
+      }
+      createMetrics(provider, namespace, service, {
+        authHostname: ctx.authHostname,
+        clientId: name,
+        clientSecret: ctx.oidcClientSecrets[name],
+      });
+      return [{ service: GRAFANA, hostname: service.hostname }];
     }
   }
 }

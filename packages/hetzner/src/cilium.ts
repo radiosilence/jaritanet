@@ -49,7 +49,29 @@ export function createCilium(
       values: {
         // Single node — the default of two operator replicas leaves one pending
         // forever, which looks like a broken cluster to anyone reading pods.
-        operator: { replicas: 1 },
+        operator: { replicas: 1, prometheus: { enabled: true } },
+        /**
+         * Metrics, on by request rather than by default.
+         *
+         * The agent's own counters (`:9962`) and Hubble's flow counters
+         * (`:9965`) are two servers on the same hostNetwork pod, which is why
+         * @jaritanet/metrics scrapes both as static targets on the node rather
+         * than discovering them from a `prometheus.io/port` annotation that can
+         * only describe one of them.
+         *
+         * `drop` is the one that pays for the rest. `ServiceArgsSchema` still
+         * carries the warning that `networkPolicy` and `restrictIngress` were
+         * decorative under flannel; they are enforced under Cilium and have
+         * never been verified. `hubble_drop_total{reason="POLICY_DENIED"}` is
+         * how that stops being a belief.
+         *
+         * The enabled list is deliberately short. Every context added to a
+         * Hubble metric multiplies its series count, and this runs on the box
+         * that also carries the control plane — `httpV2` in particular is a
+         * label per path.
+         */
+        prometheus: { enabled: true },
+        hubble: { metrics: { enabled: ["drop", "flow", "tcp", "dns"] } },
         // k3s allocates each node a podCIDR, so Cilium can follow that rather
         // than running its own allocator.
         ipam: { mode: "kubernetes" },
