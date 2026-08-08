@@ -10,31 +10,16 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 
-/// How often aria2 is asked what it is doing while a page is open. One tick is
-/// one RPC and one render for the whole process regardless of how many pages
-/// there are (see `poll`), and only rows that changed go down a stream, so
-/// what this really buys is aria2's own CPU: it serialises the file list of
-/// every download it knows about on every call, and that is the part no amount
-/// of diffing removes.
-///
-/// Ten a second reads as continuous — a rate and a byte count move faster than
-/// anyone can follow, which is the whole complaint against once a second — and
-/// leaves the headroom to go further. Turn it up here rather than guessing:
-/// the ceiling is whichever of aria2's CPU or the browser's morph gives first,
-/// and which one that is depends on how many downloads are in the list.
+/// Poll rate with viewers. One RPC and render per tick regardless of pages
+/// (see `poll`). Rate limit is aria2's CPU (serializing every download's file
+/// list) or browser morph, depending on list size.
 const DEFAULT_POLL_MS: u64 = 100;
 
-/// The rate with nobody watching, which is the notifier's alone — it is
-/// looking for a download that finished or failed, and nothing about that is
-/// in a hurry. Every page closed is a process doing this and nothing else.
+/// Poll rate with no viewers (notifier only).
 const DEFAULT_IDLE_POLL_MS: u64 = 5_000;
 
-/// A directory the picker browses and the process may write to.
-///
-/// The host path and the container path are the same string. That is what lets
-/// a path travel from the browse endpoint to aria2's `dir` without either side
-/// translating it — aria2 writes where the pod mounted it, and the mount is the
-/// root, so there is one name for a place rather than two that can disagree.
+/// A browseable download destination. Host and container paths are identical
+/// so paths pass directly to aria2 without translation.
 pub struct Root {
     pub name: String,
     pub path: PathBuf,
@@ -55,8 +40,7 @@ pub struct Config {
     pub bind_addr: String,
     pub aria2_rpc_url: String,
     pub roots: Vec<Root>,
-    /// Where this is reached from outside, which is what the OAuth redirect URI
-    /// has to match — the pod cannot infer it from a request it has not had yet.
+    /// Public URL for OAuth redirect URI (cannot be inferred from requests).
     pub public_url: String,
     pub oidc: Oidc,
     pub telegram: Option<Telegram>,
@@ -72,16 +56,11 @@ fn var_or(key: &str, default: &str) -> String {
     std::env::var(key).unwrap_or_else(|_| default.to_string())
 }
 
-/// A duration in milliseconds, refused rather than defaulted when it is set to
-/// something that is not one: this is the knob the poll rate is tuned with, and
-/// a typo silently reverting to the default is how a tuning session concludes
-/// that nothing it tried made any difference.
+/// Parse duration from milliseconds, refusing invalid values (not defaulting).
 fn millis_or(key: &str, default: u64) -> Result<Duration> {
     parse_millis(key, std::env::var(key).ok().as_deref(), default)
 }
 
-/// Split from [`millis_or`] so the refusals are testable without setting a
-/// process-wide environment variable out from under every other test.
 fn parse_millis(key: &str, raw: Option<&str>, default: u64) -> Result<Duration> {
     let ms = match raw {
         Some(raw) => raw
@@ -102,8 +81,7 @@ impl Config {
             bail!("ROOTS is empty: with no root there is nowhere to download to");
         }
 
-        // Both halves or neither. A bot token with no chat id fails on the first
-        // send, hours after the deploy that introduced it.
+        // Both halves or neither to avoid failures on first send.
         let telegram = match (
             std::env::var("TELEGRAM_BOT_TOKEN")
                 .ok()
@@ -137,16 +115,8 @@ impl Config {
         format!("{}/auth/callback", self.public_url)
     }
 
-    /// Resolve a path the browser sent into one inside a configured root.
-    ///
-    /// This is the containment boundary, and it is deliberately lexical rather
-    /// than filesystem-based: `canonicalize` cannot answer for a directory that
-    /// does not exist yet, which is exactly the case `mkdir` and a new season
-    /// folder present. So `..` is refused outright rather than resolved and
-    /// checked, since a rejected traversal needs no argument about symlinks.
-    ///
-    /// An empty path means "the roots themselves" and resolves to nothing —
-    /// callers list `roots` for that rather than asking here.
+    /// Resolve to a configured root. Lexical (not filesystem) for pre-existing
+    /// paths, rejecting `..` outright. Empty path means roots themselves.
     pub fn resolve(&self, path: &str) -> Option<PathBuf> {
         let candidate = Path::new(path);
         if !candidate.is_absolute() {

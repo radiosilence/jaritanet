@@ -5,7 +5,7 @@
 {# `viewport-fit=cover` is what gives `env(safe-area-inset-*)` a value other
      than zero. Without it the insets below silently resolve to 0 and the
      bottom sheet's buttons sit under the home indicator. #}
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">{# For safe-area-insets #}
 <title>mariastew</title>
 {% import "icons.html" as icons %}
 <link rel="stylesheet" href="/assets/app.css">
@@ -126,10 +126,7 @@
     <span data-text="$addMessage"></span>
   </p>
 
-  {# The one row that has to clear the home indicator: a bottom sheet ends at
-       the physical bottom of the screen, so `p-4` alone put Cancel and Add
-       under it on any phone with a gesture bar. `max()` keeps the ordinary
-       padding on hardware with no inset. #}
+  {# max(padding, safe-area-inset) clears home indicator on gesture phones. #}
   <div class="flex gap-2 border-t border-base-300 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
     <form method="dialog" class="flex-1">
       <button class="btn btn-ghost min-h-12 w-full">Cancel</button>

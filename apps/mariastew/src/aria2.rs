@@ -199,8 +199,6 @@ pub struct Download {
 }
 
 impl Download {
-    /// The torrent's name, the first file's, or the gid — in that order. A
-    /// magnet that has not resolved has none of the first two.
     pub fn name(&self) -> &str {
         if let Some(name) = &self.bittorrent_name {
             return name;
@@ -259,18 +257,12 @@ impl Download {
         Some(done as f64 / total as f64 * 100.0)
     }
 
-    /// aria2 names the download that resolves a magnet `[METADATA]<name>` for
-    /// as long as it exists, and that marker is the only thing telling it
-    /// apart from the real download it goes on to spawn.
     pub fn is_metadata(&self) -> bool {
         self.name().starts_with("[METADATA]")
     }
 
-    /// Seconds until every selected byte has arrived, at the current rate.
-    /// `None` when nothing is moving: an ETA divided out of a zero rate is
-    /// infinity, and one taken off a rate that has just collapsed is a lie
-    /// with a number on it. A row with no ETA and a state of "stalled" says
-    /// more than "4 days" would.
+    /// `None` when nothing is moving — an ETA with zero speed is infinity, and
+    /// one taken off a collapsing rate is misleading.
     pub fn eta_secs(&self) -> Option<u64> {
         if self.download_speed == 0 || self.is_finished() {
             return None;
@@ -281,10 +273,8 @@ impl Download {
             .map(|left| left / self.download_speed)
     }
 
-    /// Uploaded over downloaded. aria2 runs here with no ratio limit
-    /// (`--seed-ratio=0.0`, see the README), so this is a reading rather than
-    /// a countdown to anything — but it is the only answer to "is this
-    /// actually seeding, or just sitting in the list".
+    /// Share ratio. With no ratio limit (`--seed-ratio=0.0`), this is just
+    /// the only way to tell if a torrent is actually seeding.
     pub fn ratio(&self) -> Option<f64> {
         let (_, done) = self.display_totals();
         (done > 0).then(|| self.upload_length as f64 / done as f64)
@@ -324,14 +314,9 @@ impl Download {
         }
     }
 
-    /// Complete for the purpose of watching it. A finished torrent seeds
-    /// indefinitely under this deployment's `--seed-ratio=0.0` and so never
-    /// reaches `Status::Complete` on its own — a list where nothing ever
-    /// finishes is a list nobody can read, which is why this cannot lean on
-    /// status alone. It also cannot lean on the aggregate byte counters for a
-    /// download with a selection: see [`Self::selected_totals`]. A torrent
-    /// with files selected is finished when every one of *those* is; nothing
-    /// else the deselected files still owe it matters.
+    /// Finished *for display*. With `--seed-ratio=0.0`, status never reaches
+    /// Complete on its own, and aggregate byte counts lie with selections. A
+    /// torrent is finished when all *selected* files are done.
     pub fn is_finished(&self) -> bool {
         if self.status == Status::Complete {
             return true;
@@ -342,11 +327,9 @@ impl Download {
         total > 0 && done >= total
     }
 
-    /// aria2 has stopped it, which is a different question from whether it
-    /// finished — an errored download and a torrent that is no longer seeding
-    /// are both here. It decides which of the two removal calls applies:
-    /// `remove` refuses a download aria2 has already stopped, and
-    /// `removeDownloadResult` refuses one it has not. See `routes::clear`.
+    /// aria2 has stopped it (error, complete, or removed). Decides which of
+    /// the two removal calls applies: `remove` for active, `removeDownloadResult`
+    /// for stopped.
     pub fn is_stopped(&self) -> bool {
         matches!(
             self.status,
@@ -357,9 +340,6 @@ impl Download {
 
 #[cfg(test)]
 impl Download {
-    /// A plain active torrent for tests to vary one field of. Every field has
-    /// to be named somewhere; naming them in four test modules is how adding
-    /// one to the wire shape becomes four unrelated edits.
     pub(crate) fn fixture() -> Self {
         Download {
             gid: "gid1".to_string(),
@@ -386,10 +366,7 @@ impl Download {
     }
 }
 
-/// aria2's wire shape for one download: every count and size arrives as a
-/// string, and `bittorrent`/`numSeeders` are present only when they apply.
-/// This is the only place that shape exists — [`Download`] is what the rest
-/// of the program reads.
+/// aria2's wire shape — everything is a string, some fields are optional.
 #[derive(Deserialize, Default)]
 struct RawDownload {
     #[serde(default)]
@@ -463,10 +440,7 @@ struct RawBtInfo {
 }
 
 impl RawDownload {
-    /// Every numeric field defaults to 0 rather than
-    /// failing, because a blank or transient counter is not worth losing the
-    /// row over. Only a status aria2 has never documented — a sign the wire
-    /// shape itself has drifted — is worth failing the whole download on.
+    /// Numeric fields default to 0; only an unrecognized status fails the download.
     fn into_download(self) -> AppResult<Download> {
         let status = self.status.parse::<Status>().map_err(|_| {
             AppError::Upstream(format!("aria2: unrecognised status {:?}", self.status))
