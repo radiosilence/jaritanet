@@ -39,8 +39,24 @@
              is a full path and the tail is exactly what answers "which
              season folder did it land in", so hiding it with an ellipsis
              would recreate the problem that fix solved, just here instead
-             of there. #}
-        <p class="mt-1 text-xs break-words opacity-60">→ {{ row.dir }}</p>
+             of there. `min-w-0` is load-bearing now that it shares a flex
+             row: without it the path will not shrink to wrap, it overflows.
+
+             Sharing that row is the rate and the time left, which are the
+             answer to the question a bar raises and cannot settle — "is
+             this going to be done tonight". They were a tap away in the
+             readings panel, which is one tap too many for the two numbers
+             most likely to be the reason for opening the page at all.
+             Nested rather than combined because `eta` is `None` whenever
+             `down` is: there is no rate to divide the remaining bytes by.
+             Absent entirely when idle — a seeding or paused row has no
+             countdown, and the badge beside the name already says so. #}
+        <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
+          <p class="min-w-0 break-words opacity-60">→ {{ row.dir }}</p>
+          {% if let Some(down) = row.down %}
+          <span class="shrink-0 font-medium tabular-nums">↓ {{ down }}{% if let Some(eta) = row.eta %} · {{ eta }} left{% endif %}</span>
+          {% endif %}
+        </div>
       </div>
     </summary>
 
@@ -62,11 +78,11 @@
         </div>
         <div class="flex justify-between gap-2">
           <dt class="opacity-60">down</dt>
-          <dd class="text-right">{{ row.down }}</dd>
+          <dd class="text-right">{% if let Some(down) = row.down %}{{ down }}{% else %}—{% endif %}</dd>
         </div>
         <div class="flex justify-between gap-2">
           <dt class="opacity-60">up</dt>
-          <dd class="text-right">{{ row.up }}</dd>
+          <dd class="text-right">{% if let Some(up) = row.up %}{{ up }}{% else %}—{% endif %}</dd>
         </div>
         <div class="flex justify-between gap-2">
           <dt class="opacity-60">peers</dt>
