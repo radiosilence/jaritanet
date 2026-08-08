@@ -32,7 +32,8 @@
   "ignorePatterns": [
     "schemas/**",
     "node_modules/**",
-    "apps/*/assets/**",
+    "apps/*/assets/datastar.js",
+    "apps/*/assets/*.css",
     "apps/*/target/**"
   ]
 }
