@@ -256,12 +256,35 @@ impl Download {
             .unwrap_or((self.total_length, self.completed_length))
     }
 
+    /// What the bar is drawn from, and the bytes printed beside it.
+    ///
+    /// A hash check has progress of its own, and it is not the download's.
+    /// aria2 counts every piece in the control file as complete before it
+    /// starts hashing, so through the whole check `display_totals` reads full
+    /// for a restored seed and frozen for a restored partial, while
+    /// `verifiedLength` climbs from zero to the total — measured at the
+    /// poller's own rate on a real restore, 57MB to 762MB in 1.4s on an SSD,
+    /// and the same read is minutes on the disks this actually runs on. So a
+    /// bar tracking downloaded bytes is a bar that does not move for the one
+    /// wait it was most wanted for.
+    ///
+    /// Capped at the total: aria2 hashes whole pieces, so a selective torrent
+    /// can verify past the size of the files it chose, and a bar over 100% is
+    /// worse than one that saturates.
+    pub fn progress_totals(&self) -> (u64, u64) {
+        let (total, done) = self.display_totals();
+        match self.verified_length {
+            Some(verified) => (total, verified.min(total)),
+            None => (total, done),
+        }
+    }
+
     /// `None` until the magnet resolves, which a `<progress>` with no value
     /// renders as indeterminate. That is the honest rendering: with
     /// `total_length` at zero a percentage is a division by zero, and
     /// "resolving the magnet" is a different state from "downloading nothing".
     pub fn percent(&self) -> Option<f64> {
-        let (total, done) = self.display_totals();
+        let (total, done) = self.progress_totals();
         if total == 0 {
             return None;
         }
@@ -294,24 +317,29 @@ impl Download {
     pub fn health(&self) -> Health {
         // Status first: paused and errored are decisions made about the
         // download, not observations of its traffic, so they outrank
-        // whatever the speed and seeder counts happen to say. Completion
-        // comes next because a finished torrent still shows connections and
-        // zero speed while idling. Only after all of that does the question
-        // become "why is nothing moving", which is what the rest of the
-        // branches diagnose in order from most to least fixable locally.
+        // whatever the speed and seeder counts happen to say. Only after all
+        // of that does the question become "why is nothing moving", which is
+        // what the rest of the branches diagnose in order from most to least
+        // fixable locally.
         if self.status == Status::Error {
             Health::Errored
         } else if self.status == Status::Paused {
             Health::Paused
+        } else if self.verify_integrity_pending || self.verified_length.is_some() {
+            // Ahead of every traffic reading below, because a hash check runs
+            // at zero download speed with peers still connected, which those
+            // would diagnose as stalled — and ahead of `is_finished`, which
+            // otherwise answers for the case the check matters most in.
+            // aria2 counts every piece in the control file as complete before
+            // it starts hashing them, so a restored *seeding* torrent reads
+            // as fully downloaded for the entire check and said "downloaded"
+            // through the longest wait a deploy has: re-reading gigabytes off
+            // a mechanical disk.
+            Health::Verifying
         } else if self.is_finished() {
             Health::Complete
         } else if self.status == Status::Waiting {
             Health::Queued
-        } else if self.verify_integrity_pending || self.verified_length.is_some() {
-            // Ahead of every traffic reading below: a hash check runs at zero
-            // download speed with peers still connected, which the "why is
-            // nothing moving" branches would diagnose as stalled.
-            Health::Verifying
         } else if self.is_metadata() || self.total_length == 0 {
             Health::Resolving
         } else if self.download_speed > 0 {
@@ -770,6 +798,45 @@ mod tests {
         d.verified_length = None;
         d.verify_integrity_pending = true;
         assert_eq!(d.health(), Health::Verifying);
+    }
+
+    /// The case the check matters most in, and the one it used to answer for
+    /// last. aria2 counts every piece in the control file as complete before
+    /// it starts hashing them, so a restored seeding torrent reads as fully
+    /// downloaded for the whole check — and `is_finished` above said
+    /// "downloaded" through the longest wait a deploy has.
+    #[test]
+    fn health_verifying_outranks_a_completion_aria2_has_not_rechecked_yet() {
+        let mut d = download(Status::Active);
+        d.total_length = 100;
+        d.completed_length = 100;
+        d.verified_length = Some(30);
+        assert_eq!(d.health(), Health::Verifying);
+
+        d.verified_length = None;
+        assert_eq!(d.health(), Health::Complete);
+    }
+
+    /// The bar has to follow the check, because nothing else about the
+    /// download moves while one runs: the byte counters are already at their
+    /// final value and `verifiedLength` is the only thing climbing.
+    #[test]
+    fn the_bar_follows_the_hash_check_while_one_is_running() {
+        let mut d = download(Status::Active);
+        d.total_length = 100;
+        d.completed_length = 100;
+
+        d.verified_length = Some(30);
+        assert_eq!(d.progress_totals(), (100, 30));
+        assert_eq!(d.percent(), Some(30.0));
+
+        // aria2 hashes whole pieces, so a selective torrent can verify past
+        // the size of the files it chose. A saturated bar beats one at 140%.
+        d.verified_length = Some(140);
+        assert_eq!(d.progress_totals(), (100, 100));
+
+        d.verified_length = None;
+        assert_eq!(d.progress_totals(), (100, 100));
     }
 
     #[test]
