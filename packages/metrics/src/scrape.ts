@@ -53,6 +53,30 @@ export function scrapeConfig(scrapeInterval: string) {
     static_configs: onThisNode(10250),
   });
 
+  /**
+   * k3s runs the apiserver, etcd, scheduler and controller-manager inside the
+   * same process as the kubelet, so they share one Prometheus registry and the
+   * kubelet's `/metrics` hands back all of it. Measured on the first deploy:
+   * 40k of the estate's 61k series came from that one endpoint, nearly all of
+   * it latency histograms of the control plane talking to itself.
+   *
+   * The buckets go and the `_count`/`_sum` stay, so request rates and mean
+   * latencies survive and only the per-bucket breakdown — the part that
+   * multiplies by twelve — does not. That is the difference between a store
+   * that fits in single-digit GB a year, as planned, and one that fills the
+   * gateway's disk inside a year.
+   */
+  const dropControlPlaneHistograms = {
+    metric_relabel_configs: [
+      {
+        source_labels: ["__name__"],
+        regex:
+          "(apiserver|etcd|scheduler|workqueue|apiextensions_apiserver|authentication|authorization)_.*_bucket",
+        action: "drop",
+      },
+    ],
+  };
+
   return yaml.stringify({
     global: {
       scrape_interval: scrapeInterval,
@@ -63,7 +87,11 @@ export function scrapeConfig(scrapeInterval: string) {
     },
     scrape_configs: [
       { job_name: "node-exporter", static_configs: onThisNode(9100) },
-      { job_name: "kubelet", ...kubelet("/metrics") },
+      {
+        job_name: "kubelet",
+        ...kubelet("/metrics"),
+        ...dropControlPlaneHistograms,
+      },
       { job_name: "cadvisor", ...kubelet("/metrics/cadvisor") },
       // NetworkPolicy drop counters, which is how "the policies are enforced
       // now" stops being a belief. `up` going to 0 here means Cilium was
@@ -90,15 +118,22 @@ export function scrapeConfig(scrapeInterval: string) {
             regex: "true",
             action: "keep",
           },
-          // The annotated port replaces whatever the first container declares.
+          // Discovery emits one target per declared container port, so a pod
+          // with four of them — Traefik has web, websecure, traefik and
+          // metrics — produced four targets that a port rewrite then collapsed
+          // onto one address, three of which were dropped as duplicates with an
+          // error logged for each. Selecting the port the annotation names
+          // instead means one target is discovered rather than one surviving.
+          //
+          // The contract this creates: the annotated port has to be a declared
+          // `containerPort`. A pod annotating a port it does not declare is not
+          // scraped, which the "Scrape targets up" panel is there to show.
           {
             source_labels: [
-              "__address__",
+              "__meta_kubernetes_pod_container_port_number",
               "__meta_kubernetes_pod_annotation_prometheus_io_port",
             ],
-            regex: String.raw`([^:]+)(?::\d+)?;(\d+)`,
-            replacement: "$1:$2",
-            target_label: "__address__",
+            action: "keep_if_equal",
           },
           {
             source_labels: [
