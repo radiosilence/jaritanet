@@ -7,12 +7,16 @@ use crate::activity::Activity;
 use crate::aria2::Aria2;
 use crate::auth::session::Sessions;
 use crate::config::Config;
+use crate::poll::Poll;
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
     pub aria2: Aria2,
     pub sessions: Sessions,
+    /// The single poll of aria2 every page and the notifier read from, rather
+    /// than each running its own.
+    pub poll: Poll,
     /// What happened to each download, for the part of it aria2 does not know
     /// — see `activity`.
     pub activity: Activity,

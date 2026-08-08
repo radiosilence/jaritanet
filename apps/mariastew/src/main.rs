@@ -12,6 +12,7 @@ mod config;
 mod error;
 mod filter;
 mod notify;
+mod poll;
 mod routes;
 mod state;
 mod views;
@@ -58,9 +59,13 @@ async fn main() -> anyhow::Result<()> {
         config: Arc::new(config),
         sessions: auth::session::Sessions::new(),
         activity: activity::Activity::new(),
+        poll: poll::Poll::new(),
         http,
     };
 
+    // The poller before the watcher: the watcher reads its snapshots and would
+    // otherwise sit on an empty channel until the first tick anyway.
+    poll::spawn(state.clone());
     notify::spawn_watcher(state.clone());
 
     // Only what is genuinely public sits outside the auth layer: the probe the

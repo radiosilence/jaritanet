@@ -268,12 +268,22 @@ impl Page {
     }
 }
 
-/// The list on its own, pushed down the stream. Its root element carries the
-/// same id as the one in the page, which is how Datastar morphs it in place.
+/// The list on its own. Its root element carries the same id as the one in the
+/// page, which is how Datastar morphs it in place — and why it is only sent
+/// when a download appears or disappears, since morphing by id can do neither.
 #[derive(Template)]
 #[template(path = "downloads.html")]
 pub struct Downloads {
     pub rows: Vec<Row>,
+}
+
+/// One row, which is what the stream sends for every change that is not a
+/// download arriving or leaving. Same markup, same id, rendered from the same
+/// file the list renders each of its rows from.
+#[derive(Template)]
+#[template(path = "row.html")]
+pub struct RowMarkup<'a> {
+    pub row: &'a Row,
 }
 
 #[derive(Template)]

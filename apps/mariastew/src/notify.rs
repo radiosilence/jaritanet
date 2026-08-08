@@ -16,17 +16,11 @@
 //! for a runtime event.
 
 use std::collections::HashMap;
-use std::time::Duration;
 
 use crate::aria2::{Download, Health, Status};
 use crate::filter;
-use crate::routes::all_downloads;
 use crate::state::AppState;
 use crate::views;
-
-/// How often to poll aria2 for a finished or failed download. The whole point
-/// of this is not having to keep a page open, so nothing here is in a hurry.
-const WATCH_INTERVAL: Duration = Duration::from_secs(5);
 
 /// What the last poll saw of a download, which is what makes this tick a
 /// transition detector rather than a repeated announcement.
@@ -38,8 +32,15 @@ struct Seen {
 /// Watch aria2 and announce transitions, independently of anyone looking.
 ///
 /// The stream only runs while a page is open, and the whole point is not
-/// having to keep one open. So this is a background task rather than something
-/// the view does on the side.
+/// having to keep one open. So this reads the poller's snapshots rather than
+/// anything a view produces — and reads them rather than polling itself,
+/// because a second poll of the same daemon on its own timer was exactly the
+/// duplication that made going faster expensive.
+///
+/// It registers no interest in the rate. Watching the queue for something that
+/// finished is not a thing that benefits from ten looks a second, and while
+/// nobody has a page open the poller drops to `IDLE_POLL_MS` — which is this
+/// task's old interval, arrived at from the other direction.
 ///
 /// It seeds itself from the first poll rather than announcing what it finds:
 /// on a restart everything already finished is still in the queue seeding, and
@@ -52,22 +53,15 @@ struct Seen {
 /// having a record of afterwards.
 pub fn spawn_watcher(state: AppState) {
     tokio::spawn(async move {
+        let mut snapshots = state.poll.subscribe();
         let mut seen: HashMap<String, Seen> = HashMap::new();
         let mut seeded = false;
 
-        loop {
-            tokio::time::sleep(WATCH_INTERVAL).await;
-
-            let downloads = match all_downloads(&state).await {
-                Ok(d) => d,
-                Err(e) => {
-                    tracing::warn!(error = %e, "notify: aria2 poll failed, retrying next tick");
-                    continue;
-                }
-            };
+        while snapshots.changed().await.is_ok() {
+            let downloads = snapshots.borrow_and_update().downloads.clone();
 
             if !seeded {
-                for d in &downloads {
+                for d in downloads.iter() {
                     seen.insert(
                         d.gid.clone(),
                         Seen {
@@ -80,7 +74,7 @@ pub fn spawn_watcher(state: AppState) {
                 continue;
             }
 
-            for d in &downloads {
+            for d in downloads.iter() {
                 let previous = seen.get(&d.gid);
                 let already = previous.is_some_and(|s| s.announced);
                 let health = d.health();
@@ -214,7 +208,7 @@ mod tests {
     use super::*;
     use crate::aria2::{Aria2, File};
     use crate::auth::session::Sessions;
-    use crate::config::{Config, Oidc, Root};
+    use crate::config::{Config, Root};
 
     fn file(index: u32, path: &str, selected: bool) -> File {
         File {
@@ -239,23 +233,16 @@ mod tests {
     fn state(root: std::path::PathBuf) -> AppState {
         AppState {
             config: Arc::new(Config {
-                bind_addr: String::new(),
-                aria2_rpc_url: String::new(),
                 roots: vec![Root {
                     name: "media".to_string(),
                     path: root,
                 }],
-                public_url: String::new(),
-                oidc: Oidc {
-                    issuer: String::new(),
-                    client_id: String::new(),
-                    client_secret: String::new(),
-                },
-                telegram: None,
+                ..Config::fixture()
             }),
             aria2: Aria2::new(String::new(), reqwest::Client::new()),
             sessions: Sessions::new(),
             activity: crate::activity::Activity::new(),
+            poll: crate::poll::Poll::new(),
             http: reqwest::Client::new(),
         }
     }
