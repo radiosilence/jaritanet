@@ -294,7 +294,7 @@ config:
         # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
         # to be a sha pushed here by that repo's CI on every build.
         repository: "ghcr.io/radiosilence/mcp-gateway"
-        tag: v0.6.0
+        tag: v0.7.0
         pullPolicy: "Always"
       # Each entry is both a backend pod and its entry in the registry the gateway
       # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
@@ -401,11 +401,6 @@ config:
               secret: true
               required: false
               hint: "32 hex characters"
-      github:
-        clientId: Ov23li4FvfOrmoadwJfH
-        clientSecret:
-          secure: AAABAD8e8FYYbQJwlY3iLFFc0rtqNQpsQo9K4kA1FqyW9JjSfHPFv4zbtLaZgetjgsZ/25gSRPG1p89Jwq5BC45m/rmzJC6t
-        allowed: radiosilence
     singbox-profiles:
       kind: singbox-profiles
       hostname:
@@ -416,12 +411,12 @@ config:
     # download. Each root is both the pod's mount and a root the picker
     # browses, declared once.
     #
-    # hostname and oidc.issuer are set as encrypted config out of band and
-    # left blank here — the same reasoning the other service hostnames carry:
-    # certificate transparency publishes them anyway, but a public repository
-    # should not hand out the address of a write endpoint onto the media
-    # library. An empty hostname or oidc.issuer means the service is not
-    # deployed.
+    # The hostname is set as encrypted config out of band, the same reasoning
+    # the other service hostnames carry: certificate transparency publishes
+    # them anyway, but a public repository should not hand out the address of a
+    # write endpoint onto the media library. An empty hostname means the
+    # service is not deployed. Where it sends people to sign in is derived from
+    # `auth.hostname` rather than configured here.
     mariastew:
       kind: mariastew
       hostname:
@@ -430,9 +425,6 @@ config:
         repository: "ghcr.io/radiosilence/mariastew"
         tag: 0.1.7
         pullPolicy: "Always"
-      oidc:
-        issuer:
-          secure: AAABAAlGKXHClVKudcIEmNXB0SVsCfXV9BAdLbmmrzEiOz8z4nxBYGRU7A3AVQcCyFQ3+Q==
       roots:
         - name: tv
           hostPath: /mnt/kontent/tv

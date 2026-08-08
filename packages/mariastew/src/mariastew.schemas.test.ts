@@ -55,17 +55,4 @@ describe("MariastewConfSchema", () => {
       seedRatio: "0.0",
     });
   });
-
-  it("defaults the OAuth client id, so only the issuer has to be configured", () => {
-    const conf = MariastewConfSchema.parse({
-      image,
-      roots,
-      oidc: { issuer: "https://auth.example.com" },
-    });
-    expect(conf.oidc?.clientId).toBe("mariastew");
-  });
-
-  it("treats oidc as optional, which is how an unpublished deployment parses", () => {
-    expect(MariastewConfSchema.parse({ image, roots }).oidc).toBeUndefined();
-  });
 });

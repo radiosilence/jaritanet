@@ -36,21 +36,6 @@ export const MariastewRootSchema = z.strictObject({
  */
 export const Aria2ConfSchema = z.strictObject({
   /**
-   * The BitTorrent peer port, fixed rather than ephemeral.
-   *
-   * aria2 picks a port out of a range by default, which is fine for a client
-   * that only ever dials out and useless for one that wants to be dialled.
-   * Nothing can forward a port that changes on restart, so pinning it is the
-   * prerequisite for every way of becoming reachable — a router forward, a
-   * DNAT on the gateway, or IPv6 — and it costs nothing while none of them is
-   * in place. The same number serves TCP peers and the UDP DHT.
-   *
-   * Being unreachable is not only a seeding problem. A peer nobody can dial
-   * connects only to those who accept its own connections, and many clients
-   * rank unconnectable peers last when choking, so it depresses download
-   * speed as well — the usual explanation for a well-seeded torrent crawling.
-   */
-  /**
    * aria2's own ceiling, separate from the service's.
    *
    * The two containers do not resemble each other. `limits` below sized the
@@ -66,6 +51,21 @@ export const Aria2ConfSchema = z.strictObject({
    * forever. See `resourceRequests`.
    */
   limits: LimitsSchema.default({ cpu: "4", memory: "2Gi" }),
+  /**
+   * The BitTorrent peer port, fixed rather than ephemeral.
+   *
+   * aria2 picks a port out of a range by default, which is fine for a client
+   * that only ever dials out and useless for one that wants to be dialled.
+   * Nothing can forward a port that changes on restart, so pinning it is the
+   * prerequisite for every way of becoming reachable — a router forward, a
+   * DNAT on the gateway, or IPv6 — and it costs nothing while none of them is
+   * in place. The same number serves TCP peers and the UDP DHT.
+   *
+   * Being unreachable is not only a seeding problem. A peer nobody can dial
+   * connects only to those who accept its own connections, and many clients
+   * rank unconnectable peers last when choking, so it depresses download
+   * speed as well — the usual explanation for a well-seeded torrent crawling.
+   */
   listenPort: z.number().int().min(1024).max(65535).default(51413),
   /**
    * Ask the router to forward `listenPort` over UPnP IGD, and keep asking.
@@ -99,7 +99,7 @@ export const Aria2ConfSchema = z.strictObject({
  * The torrent web UI, and the aria2 it fronts.
  *
  * `hostname` empty means built but not published, the same convention the other
- * services use. `oidc` absent — or carrying an empty issuer, which is how the
+ * services use. An empty hostname means the service is not deployed, the way
  * repository holds the value in the clear while the real one is set as a
  * secret — means the service is not deployed at all: it is a write endpoint
  * onto the media library, and one that cannot authenticate should not exist.
@@ -119,19 +119,5 @@ export const MariastewConfSchema = z.object({
    * holding a reservation of 1Gi.
    */
   limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
-  /**
-   * Where to send the browser, and under what name. That is the whole of what
-   * a relying party knows about identity: the registration — the secret and
-   * the redirect URI — belongs to the provider, which derives the URI from the
-   * hostname below and generates the secret itself. A service that could type
-   * its own redirect URI would be a service that could widen its own
-   * permissions.
-   */
-  oidc: z
-    .object({
-      clientId: z.string().default("mariastew"),
-      issuer: z.string(),
-    })
-    .optional(),
   roots: z.array(MariastewRootSchema).min(1),
 });

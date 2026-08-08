@@ -1,4 +1,4 @@
-import { resourceRequests } from "@jaritanet/k8s";
+import { resourceRequests, sha256hex } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
@@ -183,7 +183,18 @@ export function createAuth(
         replicas: conf.replicas,
         selector: { matchLabels: { app: APP } },
         template: {
-          metadata: { labels: { app: APP } },
+          metadata: {
+            labels: { app: APP },
+            // The registry reaches the pod as env from a Secret, which is read
+            // once at start — so changing who is registered changes nothing
+            // until something rolls these pods. Hashing it into the spec is
+            // what makes adding a relying party take effect on the deploy that
+            // adds it, rather than on the next unrelated restart. A hash, so
+            // the client secrets it is derived from stay out of the pod spec.
+            annotations: {
+              "jaritanet.radiosilence.dev/clients": sha256hex(registry),
+            },
+          },
           spec: {
             containers: [
               {

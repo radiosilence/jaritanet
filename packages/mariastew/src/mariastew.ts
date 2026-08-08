@@ -67,15 +67,16 @@ export function createMariastew(
      * every relying party need to know how identity works.
      */
     oidcClientSecret: pulumi.Input<string>;
+    /**
+     * Everything this service knows about identity: where to send the browser.
+     * Its registration — the client id, the secret, the redirect URI — belongs
+     * to the provider, which derives them rather than being told.
+     */
+    oidc: { issuer: string; clientId: string };
     telegram?: { botToken: pulumi.Input<string>; chatId: pulumi.Input<string> };
   },
 ) {
   const options = { provider };
-  const oidc = conf.oidc;
-  if (!oidc) {
-    throw new Error("createMariastew needs `oidc`: see the caller's guard");
-  }
-
   const clientSecret = pulumi.output(opts.oidcClientSecret);
 
   const secret = new k8s.core.v1.Secret(
@@ -168,8 +169,8 @@ export function createMariastew(
                       .join(","),
                   },
                   { name: "PUBLIC_URL", value: `https://${conf.hostname}` },
-                  { name: "OIDC_ISSUER", value: oidc.issuer },
-                  { name: "OIDC_CLIENT_ID", value: oidc.clientId },
+                  { name: "OIDC_ISSUER", value: opts.oidc.issuer },
+                  { name: "OIDC_CLIENT_ID", value: opts.oidc.clientId },
                   {
                     name: "OIDC_CLIENT_SECRET",
                     ...secretRef("oidc-client-secret"),
