@@ -90,6 +90,30 @@
   path: [config, "jaritanet:services", mcp-gateway, mcps, { id: tfl }, image]
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
 
+# The metrics stack. VictoriaMetrics releases the store and the agent from one
+# repo and one tag, so both entries take the same release — a pair that must not
+# skew, since the agent speaks the store's remote-write protocol.
+- app: VictoriaMetrics
+  repo: VictoriaMetrics/VictoriaMetrics
+  path: [config, "jaritanet:services", metrics, vmsingle, image]
+  value: "docker.io/victoriametrics/victoria-metrics:v{version}"
+
+- app: vmagent
+  repo: VictoriaMetrics/VictoriaMetrics
+  path: [config, "jaritanet:services", metrics, vmagent, image]
+  value: "docker.io/victoriametrics/vmagent:v{version}"
+
+- app: node-exporter
+  repo: prometheus/node_exporter
+  path: [config, "jaritanet:services", metrics, nodeExporter, image]
+  value: "quay.io/prometheus/node-exporter:v{version}"
+
+# Grafana's image tags carry no leading v, unlike its release tags.
+- app: Grafana
+  repo: grafana/grafana
+  path: [config, "jaritanet:services", metrics, grafana, image]
+  value: "docker.io/grafana/grafana:{version}"
+
 # The internet-facing daemons. These terminate traffic from hostile networks,
 # so they are the entries where a stale pin actually costs something — and all
 # four were hardcoded in TypeScript until they moved into config so this file

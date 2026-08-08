@@ -24,6 +24,7 @@ import { TraefikConfSchema } from "@jaritanet/ingress";
 import { ServiceArgsSchema } from "@jaritanet/k8s";
 import { MariastewConfSchema } from "@jaritanet/mariastew";
 import { McpGatewayConfSchema, McpSchema } from "@jaritanet/mcp-gateway";
+import { MetricsConfSchema } from "@jaritanet/metrics";
 import {
   ExitConfSchema,
   HysteriaConfSchema,
@@ -43,6 +44,7 @@ export {
   MariastewConfSchema,
   McpGatewayConfSchema,
   McpSchema,
+  MetricsConfSchema,
   SambaConfSchema,
   SyncthingConfSchema,
   TailnetConfSchema,
@@ -288,6 +290,10 @@ export const ServiceConfSchema = z.discriminatedUnion("kind", [
      */
     nodeLabel: FileNodeLabel,
   }).strict(),
+  // One kind rather than four services: a store, two collectors and a
+  // dashboard, wired to each other by names none of them configures. See
+  // MetricsConfSchema.
+  MetricsConfSchema.extend({ kind: z.literal("metrics") }).strict(),
 ]);
 
 export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);

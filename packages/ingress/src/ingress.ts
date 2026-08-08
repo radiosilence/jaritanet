@@ -58,6 +58,27 @@ export function createIngress(
             hostPort: 8443,
           },
         },
+        // Per-route request rates, response codes and latencies — the other
+        // half of "is anything actually broken". The router and service labels
+        // are off by default and are the whole point: without them the numbers
+        // are a single total for the whole estate.
+        //
+        // The endpoint is on the chart's own `metrics` entrypoint (:9100 inside
+        // the pod, not on the host), and the annotations are what
+        // @jaritanet/metrics discovers it by. Unconditional: an unscraped
+        // counter costs nothing, and gating it would put "is there a metrics
+        // stack" into the config of the thing that publishes one.
+        metrics: {
+          prometheus: {
+            addEntryPointsLabels: true,
+            addRoutersLabels: true,
+            addServicesLabels: true,
+          },
+        },
+        podAnnotations: {
+          "prometheus.io/scrape": "true",
+          "prometheus.io/port": "9100",
+        },
         service: {
           // `service.spec.type`, not `service.type` — same trap as
           // updateStrategy below. Left at the chart's LoadBalancer default it
