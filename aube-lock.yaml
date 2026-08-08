@@ -108,6 +108,9 @@ importers:
 
   packages/hetzner:
     dependencies:
+      '@jaritanet/remote':
+        specifier: workspace:*
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@6.0.3)
@@ -169,6 +172,9 @@ importers:
         specifier: workspace:*
         version: 0.0.0
       '@jaritanet/mcp-gateway':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/remote':
         specifier: workspace:*
         version: 0.0.0
       '@jaritanet/vpn':
@@ -283,9 +289,14 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/remote: {}
+
   packages/vpn:
     dependencies:
       '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/remote':
         specifier: workspace:*
         version: 0.0.0
       '@pulumi/command':

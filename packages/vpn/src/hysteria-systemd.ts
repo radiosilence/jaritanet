@@ -1,3 +1,4 @@
+import { remotePreamble } from "@jaritanet/remote";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
@@ -56,23 +57,7 @@ export function createHysteriaSystemd(
     `${p}hysteria-install`,
     {
       connection,
-      create: pulumi.interpolate`set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
+      create: pulumi.interpolate`${remotePreamble}
 export DEBIAN_FRONTEND=noninteractive
 apt-get update && apt-get install -y openssl
 # Official installer: binary + hysteria-server.service systemd unit.
@@ -94,23 +79,7 @@ fi`,
     `${p}hysteria-config`,
     {
       connection,
-      create: pulumi.interpolate`set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
+      create: pulumi.interpolate`${remotePreamble}
 # Every listener is the same server on a different port, so the config is
 # written by one function and the extras ride the installer's
 # hysteria-server@.service template unit (reads /etc/hysteria/<instance>.yaml).

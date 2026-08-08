@@ -1,3 +1,4 @@
+import { remotePreamble } from "@jaritanet/remote";
 import * as command from "@pulumi/command";
 import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
@@ -174,16 +175,13 @@ export function createAutomaticPatching(
     `${name}-automatic-patching`,
     {
       connection,
-      create: pulumi.secret(pulumi.interpolate`set -euo pipefail
-# Same wait the k3s install opens with, and needed here for the same reason:
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes, and \`pro attach\` shells out to apt. This command depends
-# only on the server, so on a freshly created box it races both — and since
-# changing the image replaces the server, a fresh box is the normal case rather
-# than the first-run one. Under \`set -e\` losing that race is a failed deploy.
-cloud-init status --wait >/dev/null 2>&1 || true
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\\n' > /etc/apt/apt.conf.d/99-lock-timeout
+      // The preamble earns its place here in particular: `pro attach` shells
+      // out to apt, and this command depends only on the server, so on a
+      // freshly created box it races cloud-init and the dpkg lock both. Under
+      // `set -e` losing that race is a failed deploy, and since changing the
+      // image replaces the server, a fresh box is the normal case rather than
+      // the first-run one.
+      create: pulumi.secret(pulumi.interpolate`${remotePreamble}
 
 cat > /etc/apt/apt.conf.d/51unattended-upgrades-local << 'EOF'
 Unattended-Upgrade::Automatic-Reboot "true";
