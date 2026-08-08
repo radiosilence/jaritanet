@@ -335,6 +335,7 @@ mod tests {
             sessions: Sessions::new(),
             activity: crate::activity::Activity::new(),
             poll: crate::poll::Poll::new(),
+            clearing: crate::state::Clearing::default(),
             http: reqwest::Client::new(),
         }
     }

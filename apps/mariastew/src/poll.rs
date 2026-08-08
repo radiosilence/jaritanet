@@ -224,6 +224,7 @@ mod tests {
             aria2: crate::aria2::Aria2::new(String::new(), reqwest::Client::new()),
             sessions: crate::auth::session::Sessions::new(),
             activity: crate::activity::Activity::new(),
+            clearing: crate::state::Clearing::default(),
             poll: Poll::new(),
             http: reqwest::Client::new(),
         }

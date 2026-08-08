@@ -7,6 +7,7 @@
      bottom sheet's buttons sit under the home indicator. #}
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>mariastew</title>
+{% import "icons.html" as icons %}
 <link rel="stylesheet" href="/assets/app.css">
 <script type="module" src="/assets/datastar.js"></script>
 </head>
@@ -24,14 +25,30 @@
 
 {# The header is the primary action, not a name plus an action — the person
      already knows what they opened, and the name would only spend the
-     vertical space a phone in portrait can least afford. #}
+     vertical space a phone in portrait can least afford. The label went for
+     the same reason it did: the only control in the header of an app for
+     adding downloads does not need saying twice. It keeps its accessible
+     name in `aria-label` — the icon is `aria-hidden`, so without it the
+     button would announce as nothing at all. #}
+{# The clipboard read happens here, in the click handler, because that is the
+     only place it can: every browser gates `readText()` on transient user
+     activation, and `showModal()` does not spend it. Whether a prompt appears
+     is the browser's call — Safari draws its own Paste button, Chrome grants
+     it silently on the gesture, an insecure origin has no `navigator.clipboard`
+     at all — so both arms are handled and none of them are an error: a refusal
+     or a clipboard holding something else just leaves an empty field to type
+     into. Only a magnet is pasted, since that is the only thing `/add` accepts,
+     and only into a field still empty, because the prompt can outlast the
+     moment someone gives up waiting and starts typing. #}
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
-    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal()">Add download</button>
+    aria-label="Add download" title="Add download"
+    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal(); navigator.clipboard?.readText().then((text) => { const field = document.querySelector('#add-form [name=magnet]'); if (!field.value && text.trim().startsWith('magnet:?')) field.value = text.trim() }, () => {})">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
 </header>
 
 {% if aria2_unreachable %}
 <div role="alert" class="alert alert-warning mx-4 mt-4">
+  {% call icons::triangle_alert() %}{% endcall %}
   <span>Download service is unreachable — showing an empty list.</span>
 </div>
 {% endif %}
@@ -77,6 +94,7 @@
      bottom edge it used to occupy is free. #}
 <div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]" data-show="JSON.stringify($add) && $add.status === 'ok'">
   <div role="alert" class="alert alert-success">
+    {% call icons::circle_check() %}{% endcall %}
     <span>Added — it will show up in the list shortly.</span>
   </div>
 </div>
@@ -105,8 +123,10 @@
   <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
     <input name="magnet" required placeholder="Paste a magnet link"
       class="input input-bordered input-lg min-h-14 w-full text-base" autofocus>
-    <details class="rounded-box border border-base-300">
+    <details class="disclosure rounded-box border border-base-300">
       <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
+        {% call icons::chevron_right() %}{% endcall %}
+        {% call icons::folder() %}{% endcall %}
         Destination <span class="opacity-50">— tap to choose</span>
       </summary>
       <div class="border-t border-base-300 p-3">
@@ -121,8 +141,14 @@
        needs nothing from the server beyond the message it already computed
        for the plain-text body today. Same JSON.stringify($add) prefix as
        the effect above and for the same reason. #}
-  <p class="px-4 text-sm text-error" data-show="JSON.stringify($add) && $add.status === 'error'"
-    data-text="JSON.stringify($add) && $add.message"></p>
+  {# The icon is a sibling of the message, not inside it: `data-text`
+       replaces the element's whole content, so anything nested in the same
+       element is gone the first time an error arrives. #}
+  <p class="flex items-start gap-1.5 px-4 text-sm text-error"
+    data-show="JSON.stringify($add) && $add.status === 'error'">
+    {% call icons::triangle_alert() %}{% endcall %}
+    <span data-text="JSON.stringify($add) && $add.message"></span>
+  </p>
 
   {# The one row that has to clear the home indicator: a bottom sheet ends at
        the physical bottom of the screen, so `p-4` alone put Cancel and Add

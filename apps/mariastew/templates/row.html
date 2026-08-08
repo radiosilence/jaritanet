@@ -15,6 +15,7 @@
      — which is also what makes the panels below live: they are re-rendered
      into an element the browser is already showing, for as long as they are
      open. #}
+{% import "icons.html" as icons %}
   <details id="dl-{{ row.gid }}" data-preserve-attr="open"
     class="rounded-box border border-base-300 bg-base-100">
     <summary class="flex min-h-14 cursor-pointer items-center gap-3 p-3">
@@ -25,8 +26,8 @@
                should read as different from every state still in motion,
                at the same glance that used to require re-reading the whole
                list to notice it changed. #}
-          {% if row.finished %}
-          <span class="badge badge-sm badge-success shrink-0">✓ {{ row.state }}</span>
+          {% if row.finished && !row.clearing %}
+          <span class="badge badge-sm badge-success shrink-0">{% call icons::check() %}{% endcall %} {{ row.state }}</span>
           {% else %}
           <span class="badge badge-sm badge-outline shrink-0">{{ row.state }}</span>
           {% endif %}
@@ -56,9 +57,9 @@
              Absent entirely when idle — a seeding or paused row has no
              countdown, and the badge beside the name already says so. #}
         <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
-          <p class="min-w-0 break-words opacity-60">→ {{ row.dir }}</p>
+          <p class="min-w-0 break-words opacity-60">{% call icons::folder() %}{% endcall %} {{ row.dir }}</p>
           {% if let Some(down) = row.down %}
-          <span class="shrink-0 font-medium tabular-nums">↓ {{ down }}{% if let Some(eta) = row.eta %} · {{ eta }} left{% endif %}</span>
+          <span class="shrink-0 font-medium tabular-nums" aria-label="download rate">{% call icons::arrow_down() %}{% endcall %} {{ down }}{% if let Some(eta) = row.eta %} · {{ eta }} left{% endif %}</span>
           {% endif %}
         </div>
       </div>
@@ -116,14 +117,18 @@
            "downloaded wrong" was previously only explicable from the pod's
            log, and this is where anyone would actually look. #}
       {% if !row.files.is_empty() %}
-      <details id="files-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
-        {# Symmetric padding rather than `min-h-11`: a minimum height on a
-             `list-item` summary leaves the whole difference *below* one line
-             of `text-xs`, which reads as a box with its label stuck to the
-             ceiling. The target stays comfortable because the row is full
-             width, and `p-2.5` keeps the marker `display: flex` would
-             remove. #}
-        <summary class="cursor-pointer p-2.5 text-xs">
+      <details id="files-{{ row.gid }}" data-preserve-attr="open" class="disclosure rounded-box bg-base-200">
+        {# Symmetric padding rather than `min-h-11`: a minimum height around
+             one line of `text-xs` leaves the whole difference *below* it,
+             which reads as a box with its label stuck to the ceiling. The
+             target stays comfortable because the row is full width.
+
+             `flex` lays out the chevron and the icon, and also removes the
+             user agent's own marker — which is wanted here, since that
+             marker is the glyph the chevron replaces. #}
+        <summary class="flex cursor-pointer items-center gap-2 p-2.5 text-xs">
+          {% call icons::chevron_right() %}{% endcall %}
+          {% call icons::files() %}{% endcall %}
           Files <span class="opacity-60">— keeping {{ row.selected_count }} of {{ row.file_count }}{% if let Some(skipped) = row.skipped %}, {{ skipped }}{% endif %}</span>
         </summary>
         <ul class="flex flex-col gap-2 border-t border-base-300 p-2">
@@ -151,8 +156,10 @@
            for the same reason the rest of the row is — see the note at the
            top of this file. #}
       {% if !row.log.is_empty() %}
-      <details id="log-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
-        <summary class="cursor-pointer p-2.5 text-xs">
+      <details id="log-{{ row.gid }}" data-preserve-attr="open" class="disclosure rounded-box bg-base-200">
+        <summary class="flex cursor-pointer items-center gap-2 p-2.5 text-xs">
+          {% call icons::chevron_right() %}{% endcall %}
+          {% call icons::scroll_text() %}{% endcall %}
           Logs <span class="opacity-60">— {{ row.log.len() }} entries</span>
         </summary>
         <ol class="flex flex-col gap-1 border-t border-base-300 p-2 font-mono text-xs">
@@ -173,7 +180,14 @@
       {% endif %}
 
       {% if row.error.is_some() || row.error_code.is_some() %}
-      <div class="rounded-box bg-base-200 p-2 font-mono text-xs break-words text-error">
+      {# Marked, not only coloured: red alone is what a washed-out phone
+           screen in daylight does not deliver. The icon leads the message
+           rather than heading the block with a word — the badge above
+           already says "failed", and saying it twice in one row is not the
+           same as saying it once where colour is the only other clue. #}
+      <div class="flex gap-2 rounded-box bg-base-200 p-2 text-xs text-error">
+        {% call icons::triangle_alert() %}{% endcall %}
+        <div class="min-w-0 flex-1 font-mono break-words">
         {% if let Some(e) = row.error %}<p>{{ e }}</p>{% endif %}
         {# aria2 leaves errorMessage empty for plenty of failures and always
              sets the code, so this is the line that carries the reason as
@@ -181,23 +195,42 @@
         {% if let Some(code) = row.error_code %}<p>{{ code }}</p>{% endif %}
         <p class="mt-1 opacity-70">gid {{ row.gid }}</p>
         <p class="opacity-70">dir {{ row.dir }}</p>
+        </div>
       </div>
       {% endif %}
 
+      {# Every control goes at once while aria2 is being asked to let go: a row
+           on its way out has nothing worth pressing, and a spinner in its place
+           is what says the press landed. The list is redrawn from aria2 once a
+           second, so a state held only in the browser would be morphed away
+           before it was read — the mark is server-side (`state::Clearing`) and
+           so is this. #}
       <div class="flex gap-2">
+        {% if row.clearing %}
+        <button type="button" class="btn btn-sm min-h-11 flex-1" disabled>
+          <span class="loading loading-spinner loading-xs"></span>Clearing…
+        </button>
+        {% else %}
         {% if row.paused %}
         <button type="button" class="btn btn-sm min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/resume')">{% call icons::play() %}{% endcall %} Resume</button>
         {% else %}
         <button type="button" class="btn btn-sm min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/pause')">{% call icons::pause() %}{% endcall %} Pause</button>
         {% endif %}
+        {# Done rather than "stop seeding", and affirmative rather than ghost:
+             on a finished row this is the ordinary end of a download and keeps
+             every file, which is the opposite of what the destructive button
+             beside it on an unfinished row does. The tick is the same one the
+             badge carries, for the same reason — this button is the one that
+             agrees with it. #}
         {% if row.finished %}
-        <button type="button" class="btn btn-sm btn-ghost min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
+        <button type="button" class="btn btn-sm btn-success min-h-11 flex-1"
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">{% call icons::check() %}{% endcall %} Done</button>
         {% else %}
         <button type="button" class="btn btn-sm btn-error min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">{% call icons::trash() %}{% endcall %} Delete download</button>
+        {% endif %}
         {% endif %}
       </div>
     </div>

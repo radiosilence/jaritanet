@@ -167,6 +167,7 @@ mod tests {
         AppState {
             config: std::sync::Arc::new(Config::fixture()),
             activity: crate::activity::Activity::new(),
+            clearing: crate::state::Clearing::default(),
             aria2: Aria2::new(String::new(), reqwest::Client::new()),
             sessions: crate::auth::session::Sessions::new(),
             poll: crate::poll::Poll::new(),

@@ -60,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
         sessions: auth::session::Sessions::new(),
         activity: activity::Activity::new(),
         poll: poll::Poll::new(),
+        clearing: state::Clearing::default(),
         http,
     };
 
