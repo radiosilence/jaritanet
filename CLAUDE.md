@@ -193,8 +193,20 @@ Rewrites go through the YAML document API and mutate the existing scalar, so a b
 
 Builds and publishes each container on changes to its own directory, one job per
 architecture on a runner of that architecture (via `blit-workflows`) rather than
-emulating arm64 under QEMU. The Rust ones are also checked by the `containers`
-job in `ci-cd.yml` (fmt, clippy, `cargo test`).
+emulating arm64 under QEMU.
+
+Each Rust one carries a `check` job — fmt, clippy, `cargo test` — which the
+publish depends on, so no image is built from code that does not pass. It gates
+the publish and not the compile: the compile is the long pole, so it starts at
+once and the check runs beside it, where putting it in front would add the
+check to the critical path of every green run to save a compile on a red one.
+
+It lives here rather than in `ci-cd.yml` because that is what makes it fire on
+the crate's own path filter — as a matrix job in the infra pipeline it
+recompiled all three crates for a change that touched no Rust, and gated
+nothing. The toolchains differ on purpose: `check` takes the floating
+`rust = "1"` from `mise.toml`, where a compiler bump breaking is the point,
+while the compile pins the version that ships.
 
 **Where the compile happens is the difference between the two Rust shapes.** A
 `cargo build` inside a Dockerfile is one atomic layer, so a single crate moving
