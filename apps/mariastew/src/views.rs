@@ -89,8 +89,7 @@ impl From<&Download> for Row {
             state,
             down: rate(d.download_speed),
             up: rate(d.upload_speed),
-            // Same totals the bar is drawn from, so "80.0 KiB / 6.42 GiB"
-            // beside a full bar cannot happen again.
+            // The same totals the bar is drawn from — see `display_totals`.
             size: bytes(size),
             done: bytes(done),
             connections: d.connections,

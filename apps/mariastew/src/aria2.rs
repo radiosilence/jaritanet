@@ -149,18 +149,8 @@ impl Download {
     /// against a real daemon, it stays the whole torrent's size — so those
     /// two only ever agree once every byte has arrived, selected or not.
     /// Each file's own `length`/`completed_length` carry no such ambiguity.
-    /// While a magnet is still resolving, the only entry aria2 reports is a
-    /// `[METADATA]` pseudo-file standing for the torrent file itself: a few
-    /// hundred bytes, selected, and complete the moment it arrives. Counted
-    /// as a selection it reads as 100% of a few hundred bytes, which is why
-    /// a barely-started 6.42 GiB download drew a full green bar next to
-    /// "80.0 KiB / 6.42 GiB". It describes the lookup, not the download.
     pub fn selected_totals(&self) -> Option<(u64, u64)> {
-        let selected: Vec<&File> = self
-            .files
-            .iter()
-            .filter(|f| f.selected && !f.path.contains("[METADATA]"))
-            .collect();
+        let selected: Vec<&File> = self.files.iter().filter(|f| f.selected).collect();
         if selected.is_empty() {
             return None;
         }
@@ -169,12 +159,14 @@ impl Download {
         Some((total, done))
     }
 
-    /// What the row should print for size and progress, from one source, so
-    /// the bar and the bytes beside it can never disagree. Falls back to the
-    /// download-level counters, which is right before the file list arrives
-    /// and wrong afterwards — aria2 never shrinks `total_length` to a
-    /// selection, so the fallback overstates a partial selection until
-    /// `selected_totals` can answer.
+    /// What the row prints for size and progress, from one source.
+    ///
+    /// The bar was drawn from the selected files and the bytes beside it from
+    /// aria2's download-level counters, which are not the same number: aria2
+    /// never shrinks `total_length` to a selection, so a torrent with one file
+    /// of four chosen showed the whole torrent's size next to a bar tracking
+    /// only the chosen one. Falls back to the download-level counters, which
+    /// is right until the file list arrives and nothing else can answer.
     pub fn display_totals(&self) -> (u64, u64) {
         self.selected_totals()
             .unwrap_or((self.total_length, self.completed_length))
