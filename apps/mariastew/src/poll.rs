@@ -212,6 +212,7 @@ mod tests {
             sessions: crate::auth::session::Sessions::new(),
             activity: crate::activity::Activity::new(),
             clearing: crate::state::Clearing::default(),
+            adding: Default::default(),
             poll: Poll::new(),
             http: reqwest::Client::new(),
         }

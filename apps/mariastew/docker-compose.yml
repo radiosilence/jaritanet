@@ -77,6 +77,13 @@ services:
       - --dir=/tv
       - --continue=true
       - --check-integrity=true
+      # Production sets this (see packages/mariastew/src/mariastew.ts) and the
+      # add path is shaped around it: the followed download is created stopped
+      # so the filter's selection lands before anything is fetched. Without it
+      # here, local dev would exercise a different sequence from the one that
+      # ships — and the one case that only shows up in the combination is the
+      # kind this file exists to make visible.
+      - --pause-metadata=true
       # Nothing is preallocated, so a file the filter rejected never touches
       # disk — see "Why files land straight in the library" in the README.
       - --file-allocation=none

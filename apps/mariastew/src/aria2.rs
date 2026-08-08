@@ -656,6 +656,26 @@ impl Aria2 {
             .await?;
         Ok(())
     }
+
+    /// Whether `select-file` has been set on this download.
+    ///
+    /// The one durable mark that an add finished. aria2 holds it — nothing on
+    /// this side does — and it is written exactly once, by
+    /// `routes::finish_add_inner`, at the end of the sequence that narrows a
+    /// download to the files worth keeping. So its absence says the add did
+    /// not get that far, and `resume` reads it to tell a download waiting to
+    /// be finished from one somebody deliberately paused.
+    ///
+    /// Absent rather than empty when unset: aria2 omits the key from
+    /// `getOption` entirely, which is why this answers a bool rather than
+    /// handing back a string nobody would know how to read.
+    pub async fn has_selection(&self, gid: &str) -> AppResult<bool> {
+        let options = self.call("getOption", serde_json::json!([gid])).await?;
+        Ok(options
+            .get("select-file")
+            .and_then(|v| v.as_str())
+            .is_some_and(|v| !v.is_empty()))
+    }
 }
 
 #[cfg(test)]

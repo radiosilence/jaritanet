@@ -419,63 +419,64 @@ const RESOLVE_TIMEOUT: Duration = Duration::from_secs(600);
 /// `addUri` also means there is no infohash collision to resolve: one
 /// download exists for this magnet from start to finish, under one gid.
 ///
-/// `bt-metadata-only` used to stop aria2 right at that boundary, so the
-/// selection was in place before a single content byte arrived. Without it
-/// (see `add` for why it had to go — it also stops `followedBy` from ever
-/// appearing), the child starts downloading everything the instant it
-/// exists. That is what the pause/change/unpause sequence below is for.
+/// `--pause-metadata` is what makes the narrowing safe, and it is set on the
+/// aria2 process rather than here. aria2 creates the followed download already
+/// paused, so the selection is in place before a single content byte arrives
+/// and this only has to release it at the end.
+///
+/// Two earlier shapes are worth remembering, because both are worse. Asking
+/// for `bt-metadata-only` stops aria2 *before* it spawns the followed download
+/// at all, so `followedBy` never appears and every add runs out the clock —
+/// see `add`. Pausing the child from here instead lost a race with itself:
+/// aria2 refuses to unpause a group until it has finished stopping, the child
+/// fetched every file in the torrent in the meantime, and a process that died
+/// in that window left a download aria2 serialised as paused with nothing that
+/// would ever start it.
+///
+/// So the pause is not made here and its absence is not assumed either — the
+/// child's own status decides whether there is anything to release, which is
+/// also what keeps this working against an aria2 started without the option.
 pub(crate) async fn finish_add_inner(
     state: &AppState,
     sub: &str,
     dir: &str,
     metadata_gid: &str,
 ) -> AppResult<()> {
-    let deadline = tokio::time::Instant::now() + RESOLVE_TIMEOUT;
-    let child_gid = loop {
-        let status = state.aria2.tell_status(metadata_gid).await?;
-        if status.status == Status::Error {
-            return Err(AppError::Upstream(
-                status
-                    .error_message
-                    .unwrap_or_else(|| "metadata fetch failed".to_string()),
-            ));
-        }
-        if let Some(gid) = status.followed_by.into_iter().next() {
-            break gid;
-        }
-        if tokio::time::Instant::now() >= deadline {
-            // Not the caller's mistake — a sparse swarm, or one that never
-            // shows up at all, is an upstream condition and reads as one.
-            return Err(AppError::Upstream(format!(
-                "the magnet did not resolve within {}s",
-                RESOLVE_TIMEOUT.as_secs()
-            )));
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    };
+    // Held for the whole sequence, so the reconciler in `resume` — which
+    // recognises an unfinished add by exactly the state this is standing in
+    // the middle of — leaves this one alone. Dropped on every exit, `?`
+    // included.
+    let _adding = state.adding.claim(metadata_gid);
 
-    // Before anything else: the history so far was written under the gid that
-    // resolved the magnet, and that gid is about to leave every list this UI
-    // reads. From here both names reach one log.
-    state.activity.link(metadata_gid, &child_gid);
+    let child_gid = follow(state, metadata_gid).await?;
+
+    // An adopted add is already the download it would have been followed to
+    // (see `follow`), so there is no second gid to link a history to and no
+    // second claim to take — both were done under this one.
+    let followed = child_gid != metadata_gid;
+
+    // The history so far was written under the gid that resolved the magnet,
+    // and that gid is about to leave every list this UI reads. From here both
+    // names reach one log.
+    let _adding_child = followed.then(|| {
+        // Claimed before the first await that could let the reconciler see it:
+        // a child born paused with no selection is exactly what `resume`
+        // adopts, and this is the task already doing that.
+        state.activity.link(metadata_gid, &child_gid);
+        state.adding.claim(&child_gid)
+    });
     state
         .activity
         .record(&child_gid, "torrent file arrived — choosing files");
 
-    // Freshly created and, without `bt-metadata-only`, already fetching
-    // aria2's default selection — every file. Pausing closes most of that
-    // window before `changeOption` narrows it; best-effort, because a
-    // download that will not pause just keeps fetching everything for the
-    // few seconds this takes, which `notify::sweep_garbage` already exists
-    // to clean up after. Unpausing back out is not best-effort: if the pause
-    // took, it must be undone, or the download sits paused forever with
-    // nothing left to tell anyone it is stuck.
-    let paused = state.aria2.pause(&child_gid).await.is_ok();
-
     // The child's file list is already known the moment it is queryable —
     // aria2 only creates it once it has parsed a complete torrent out of the
-    // resolved metadata, so there is nothing left to wait for here.
-    let files = state.aria2.tell_status(&child_gid).await?.files;
+    // resolved metadata, so a paused child still answers with every file in
+    // it, which is the whole reason the selection can be applied before
+    // anything is fetched.
+    let child = state.aria2.tell_status(&child_gid).await?;
+    let paused = child.status == Status::Paused;
+    let files = child.files;
     if files.is_empty() {
         return Err(AppError::Upstream(
             "aria2 followed the metadata pass but the download it created has no files".to_string(),
@@ -535,6 +536,51 @@ pub(crate) async fn finish_add_inner(
     state.activity.record(&child_gid, "downloading");
 
     Ok(())
+}
+
+/// The download a selection has to be applied to, given the gid an add is
+/// known by.
+///
+/// Normally that is not the same gid: a magnet resolves under its own, and
+/// `follow-torrent` spawns the real download beside it. But `resume` adopts an
+/// add by whatever aria2 is holding, and after a restart that is often the
+/// spawned download itself — `--bt-load-saved-metadata` reads the torrent off
+/// the disk during start-up, so there is no metadata pass left to wait for and
+/// no `followedBy` that will ever appear. Waiting for one anyway is ten
+/// minutes of polling followed by a timeout, with the download running
+/// unnarrowed the whole time. That is what this exists to tell apart.
+///
+/// The two are distinguishable and not by their gids: aria2 gives an
+/// unresolved magnet no `bittorrent.info.name` and a single file called
+/// `[METADATA]<dn>`, which is what `is_metadata` reads, while a real download
+/// carries the torrent's own name and its real file list.
+async fn follow(state: &AppState, gid: &str) -> AppResult<String> {
+    let deadline = tokio::time::Instant::now() + RESOLVE_TIMEOUT;
+    loop {
+        let status = state.aria2.tell_status(gid).await?;
+        if status.status == Status::Error {
+            return Err(AppError::Upstream(
+                status
+                    .error_message
+                    .unwrap_or_else(|| "metadata fetch failed".to_string()),
+            ));
+        }
+        if let Some(child) = status.followed_by.first() {
+            return Ok(child.clone());
+        }
+        if !status.is_metadata() && !status.files.is_empty() {
+            return Ok(gid.to_string());
+        }
+        if tokio::time::Instant::now() >= deadline {
+            // Not the caller's mistake — a sparse swarm, or one that never
+            // shows up at all, is an upstream condition and reads as one.
+            return Err(AppError::Upstream(format!(
+                "the magnet did not resolve within {}s",
+                RESOLVE_TIMEOUT.as_secs()
+            )));
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
 }
 
 /// How long to keep offering aria2 the chance to accept the unpause above.
@@ -914,6 +960,7 @@ mod tests {
             activity: crate::activity::Activity::new(),
             poll: crate::poll::Poll::new(),
             clearing: crate::state::Clearing::default(),
+            adding: Default::default(),
             http: reqwest::Client::new(),
         }
     }
@@ -1078,9 +1125,10 @@ mod tests {
             change_option_calls: Arc<Mutex<Vec<serde_json::Value>>>,
             metadata_add_result: Arc<serde_json::Value>,
             metadata_outcome: MetadataOutcome,
-            /// Lets a test exercise the case where the child will not pause —
-            /// `finish_add_inner` treats that as tolerable and best-effort.
-            pause_should_succeed: bool,
+            /// How aria2 hands the followed download over. `--pause-metadata`
+            /// makes that "paused" in production; "active" is an aria2 started
+            /// without it, which must not then be unpaused.
+            child_status: &'static str,
             /// How many `unpause` calls are refused before one is accepted,
             /// standing in for the window a real pause takes to settle. See
             /// [`unpause_settled`].
@@ -1120,13 +1168,11 @@ mod tests {
                 "aria2.addUri" => {
                     panic!("a second addUri means the duplicate-infohash bug is back")
                 }
-                "aria2.pause" => {
-                    if mock.pause_should_succeed {
-                        serde_json::json!({"result": "OK"})
-                    } else {
-                        serde_json::json!({"error": {"code": 1, "message": "not pausable"}})
-                    }
-                }
+                // The add pauses nothing any more: `--pause-metadata` hands
+                // the child over already stopped, which is what closed both
+                // the race with our own pause and the window where aria2 was
+                // fetching every file in the torrent.
+                "aria2.pause" => panic!("finish_add must not pause anything itself"),
                 "aria2.unpause" => {
                     let mut refusals = mock.unpause_refusals.lock().unwrap();
                     if *refusals > 0 {
@@ -1152,7 +1198,7 @@ mod tests {
                             },
                             g,
                         ) if g == child_gid => {
-                            download_result(child_gid, "active", child_files.clone())
+                            download_result(child_gid, mock.child_status, child_files.clone())
                         }
                         (MetadataOutcome::ResolvesWithChild { child_gid, .. }, _) => {
                             let mut result =
@@ -1186,16 +1232,16 @@ mod tests {
             metadata_add_result: serde_json::Value,
             metadata_outcome: MetadataOutcome,
         ) -> Mock {
-            mock_server_with(metadata_add_result, metadata_outcome, true, 0).await
+            mock_server_with(metadata_add_result, metadata_outcome, "paused", 0).await
         }
 
-        /// The two ways aria2 declines to be driven across the metadata
-        /// boundary: a group it will not pause, and one it will not unpause
-        /// *yet*.
+        /// `child_status` is how aria2 hands the followed download over, and
+        /// `unpause_refusals` is it declining to take it back — the two ends
+        /// of the only thing `finish_add_inner` still does to a pause.
         async fn mock_server_with(
             metadata_add_result: serde_json::Value,
             metadata_outcome: MetadataOutcome,
-            pause_should_succeed: bool,
+            child_status: &'static str,
             unpause_refusals: u32,
         ) -> Mock {
             let calls = Arc::new(Mutex::new(Vec::new()));
@@ -1205,7 +1251,7 @@ mod tests {
                 change_option_calls: change_option_calls.clone(),
                 metadata_add_result: Arc::new(metadata_add_result),
                 metadata_outcome,
-                pause_should_succeed,
+                child_status,
                 unpause_refusals: Arc::new(Mutex::new(unpause_refusals)),
             };
             let app = axum::Router::new().route("/", post(rpc)).with_state(mock);
@@ -1325,13 +1371,12 @@ mod tests {
 
             add(State(state), CurrentSession(session()), Form(add_form())).await;
 
-            wait_for_calls(&mock.calls, 6).await;
+            wait_for_calls(&mock.calls, 5).await;
             assert_eq!(
                 mock.calls.lock().unwrap().as_slice(),
                 [
                     "aria2.addUri",
                     "aria2.tellStatus",
-                    "aria2.pause",
                     "aria2.tellStatus",
                     "aria2.changeOption",
                     "aria2.unpause",
@@ -1369,7 +1414,7 @@ mod tests {
             let activity = state.activity.clone();
 
             add(State(state), CurrentSession(session()), Form(add_form())).await;
-            wait_for_calls(&mock.calls, 6).await;
+            wait_for_calls(&mock.calls, 5).await;
 
             let messages: Vec<String> = activity
                 .entries("child-gid")
@@ -1390,14 +1435,13 @@ mod tests {
             );
         }
 
-        /// The pause is best-effort — a child that will not pause must not
-        /// stop the add, since `notify::sweep_garbage` is the backstop for
-        /// whatever it fetches in the meantime. What must not happen is an
-        /// `unpause` call for a pause that never took: that would either
-        /// error against a gid aria2 never actually paused, or (worse, if
-        /// aria2 tolerated it) mask a real pause/unpause mismatch elsewhere.
+        /// `--pause-metadata` lives on the aria2 process, so the add cannot
+        /// assume it: an aria2 started without it hands the child over already
+        /// running. Unpausing that is not harmless — aria2 answers
+        /// `cannot be unpaused now` for a group it never paused — so the
+        /// child's own status is what decides, not what this hoped for.
         #[tokio::test]
-        async fn finish_add_tolerates_a_child_that_will_not_pause() {
+        async fn a_child_aria2_handed_over_running_is_not_unpaused() {
             let child_files = serde_json::json!([
                 {"index": "1", "path": "/mnt/kontent/movies/movie.mkv", "length": "100", "selected": "true"},
             ]);
@@ -1407,7 +1451,7 @@ mod tests {
                     child_gid: "child-gid".to_string(),
                     child_files,
                 },
-                false,
+                "active",
                 0,
             )
             .await;
@@ -1415,17 +1459,16 @@ mod tests {
 
             add(State(state), CurrentSession(session()), Form(add_form())).await;
 
-            wait_for_calls(&mock.calls, 5).await;
+            wait_for_calls(&mock.calls, 4).await;
             assert_eq!(
                 mock.calls.lock().unwrap().as_slice(),
                 [
                     "aria2.addUri",
                     "aria2.tellStatus",
-                    "aria2.pause",
                     "aria2.tellStatus",
                     "aria2.changeOption",
                 ],
-                "a failed pause must not be followed by an unpause"
+                "a child that was never paused must not be unpaused"
             );
         }
 
@@ -1445,7 +1488,7 @@ mod tests {
                     child_gid: "child-gid".to_string(),
                     child_files,
                 },
-                true,
+                "paused",
                 2,
             )
             .await;
@@ -1453,7 +1496,7 @@ mod tests {
 
             add(State(state), CurrentSession(session()), Form(add_form())).await;
 
-            wait_for_calls(&mock.calls, 8).await;
+            wait_for_calls(&mock.calls, 7).await;
             assert_eq!(
                 mock.calls
                     .lock()

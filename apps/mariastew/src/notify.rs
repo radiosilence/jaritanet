@@ -332,6 +332,7 @@ mod tests {
             activity: crate::activity::Activity::new(),
             poll: crate::poll::Poll::new(),
             clearing: crate::state::Clearing::default(),
+            adding: Default::default(),
             http: reqwest::Client::new(),
         }
     }

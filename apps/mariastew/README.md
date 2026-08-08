@@ -170,18 +170,27 @@ magnet resolves under its own gid first, `follow-torrent` spawns the real
 download from the resolved metadata, `filter::is_garbage` picks the indices
 worth keeping from *that* download's own file list — not the resolving gid's,
 which always has exactly one entry, itself — and `aria2.changeOption` applies
-the selection to it. `finish_add_inner` pauses the download the moment it
-exists and unpauses it only after `changeOption` has taken, which closes most
-(not all — see below) of the window a full, unfiltered selection would
-otherwise fetch in.
+the selection to it.
 
-There is no `bt-metadata-only` pass ahead of this that stops before any
-content flows: it stops `follow-torrent` from ever spawning the real download
-at all, so `finish_add_inner` would poll for a `followedBy` that never
-arrives (see the commit that removed it for the production incident this
-caused). Selection is applied to a download that is already running, not one
-that hasn't started yet — the pause above is what limits the exposure, not
-a delay before it exists.
+`--pause-metadata` is what makes that safe. aria2 creates the followed download
+already stopped, with its full file list readable, so the selection is in place
+before a single content byte arrives — measured against a real swarm, nothing
+reaches the disk in that window but the saved `.torrent`. `finish_add_inner`
+only has to release it at the end.
+
+Two earlier shapes were worse, and both are worth remembering. `bt-metadata-only`
+stops `follow-torrent` from ever spawning the real download at all, so
+`finish_add_inner` polls for a `followedBy` that never arrives — see the commit
+that removed it for the production incident. Pausing the download from here
+instead lost a race with itself: aria2 refuses to unpause a group until it has
+finished stopping, the download fetched every file in the torrent meanwhile,
+and a process that died in that window left one aria2 serialised as paused with
+nothing that would ever start it.
+
+The option lives on the aria2 process, so the add does not assume it: the
+child's own status decides whether there is a pause to release, and an aria2
+started without it still works — with the old exposure, which is the sweep
+below's problem.
 
 aria2 also downloads whole pieces regardless of selection, so a small
 deselected file sharing a piece boundary with a selected one can land anyway
@@ -361,13 +370,35 @@ aria2 serialises `pause=true` alongside the magnet, and a restored paused
 magnet does not even ask for metadata. The download sat there permanently,
 with the selection never applied and nothing left that would ever apply it.
 
-`resume` adopts them. A metadata download still in aria2's queues when this
-process starts is by definition an add nobody is finishing — a resolved
-magnet's own gid moves to the stopped list, which the download list already
-sweeps — so each one is released and run through the same finish the request
-would have. Only at startup: a metadata row on screen carries a pause button
-like any other, and overruling someone who pressed it a second ago is a
-different bug.
+**An unfinished add is a paused download with no `select-file`.** aria2 holds
+that mark, `finish_add_inner` writes it exactly once at the end of the
+sequence, and nothing else writes it at all — so `getOption` answers "is
+anybody finishing this" without inferring anything from names or byte counts,
+and a download somebody deliberately paused is left alone because it already
+carries one.
+
+`resume` reconciles on that rule, off the snapshots the poller already
+publishes, and it costs one `getOption` per *paused* download per tick — a
+running queue asks aria2 nothing extra. An `Adding` claim keeps it from
+adopting the add running beside it, which is the same state for the second or
+two it lasts.
+
+Two earlier rules for this were wrong, and both failed silently:
+
+- **A `[METADATA]` row at startup.** `--bt-load-saved-metadata` reads the
+  torrent off the disk before aria2 answers a single RPC, so a restored magnet
+  comes back named after its file and never matches. The two fixes cancelled
+  each other out and the stranding stayed exactly as it was.
+- **Only at startup.** A magnet that resolves a minute after boot produces its
+  paused download a minute after boot, and a one-shot has long since run.
+
+The same restore is why `routes::follow` exists. An adopted add is usually
+*already* the download it would have been followed to — the metadata pass is
+over, `followedBy` will never appear — so waiting for one is ten minutes of
+polling and a timeout with the download running unnarrowed throughout. aria2
+tells the two apart: an unresolved magnet has no `bittorrent.info.name` and one
+file called `[METADATA]<dn>`, a real download has the torrent's own name and
+its real file list.
 
 Nothing the interface cleared comes back. `routes::clear` follows `remove` with
 `removeDownloadResult` and keeps asking until the gid is gone from every list
