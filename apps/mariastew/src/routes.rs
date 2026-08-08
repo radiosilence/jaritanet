@@ -1270,10 +1270,11 @@ mod tests {
     }
 
     /// The row a resolving magnet is shown as, once the marker is stripped.
-    /// Nothing about the state should read as an implementation detail —
-    /// which is also why it now names which half of resolving it is in.
+    /// Nothing about the state should read as an implementation detail — and
+    /// it must not change with the connection count, which on a metadata pass
+    /// oscillates off DHT peers that have nothing (see `Health::Resolving`).
     #[test]
-    fn a_resolving_magnet_is_named_without_the_marker_and_says_what_it_is_waiting_on() {
+    fn a_resolving_magnet_is_named_without_the_marker_and_holds_one_state() {
         let metadata = Download {
             gid: "m1".to_string(),
             bittorrent_name: Some("[METADATA]abc123".to_string()),
@@ -1287,13 +1288,13 @@ mod tests {
             "nothing is known about size yet, so the bar is indeterminate"
         );
 
-        let answering = Download {
+        let with_peers = Download {
             connections: 4,
             ..metadata
         };
         assert_eq!(
-            Row::new(&answering, Vec::new(), false).state,
-            "fetching metadata"
+            Row::new(&with_peers, Vec::new(), false).state,
+            "finding peers"
         );
     }
 

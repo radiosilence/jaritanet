@@ -4,8 +4,6 @@
 //! once here — the numbers formatted, the health resolved — so the markup makes
 //! no decisions and there is one place to test the ones that matter.
 
-use std::time::Instant;
-
 use askama::Template;
 
 use crate::activity::Entry;
@@ -34,12 +32,18 @@ pub struct FileView {
     pub selected: bool,
 }
 
-/// A line of a download's history, with how long ago it happened. Elapsed
-/// rather than a clock time: the question being asked of a log while watching
-/// a download is "how long has it been sat there", and the pod has no
-/// timezone to render a wall clock in anyway.
+/// A line of a download's history, at the time it happened.
+///
+/// Both forms of the timestamp, because the pod has no timezone and the
+/// browser does. `utc` is what the markup carries and what a page with no
+/// working JavaScript keeps; `at_ms` feeds a `data-text` expression that
+/// rewrites it in the reader's own local time. Only an integer is ever
+/// interpolated into that expression — the escaping lesson from the
+/// destination picker is that HTML escaping is no defence inside something
+/// the browser goes on to evaluate, so nothing evaluated may carry a string.
 pub struct LogView {
-    pub ago: String,
+    pub utc: String,
+    pub at_ms: u64,
     pub message: String,
 }
 
@@ -121,12 +125,15 @@ pub struct Row {
 /// whoever is waiting for a film. Each state now says either what is
 /// happening or what is wrong, in the terms of the thing being waited for.
 ///
-/// `Health::Resolving` used to answer for everything between pasting a magnet
-/// and the first byte, which is where a download spends the time someone
-/// actually spends wondering about it — "starting" said the same thing to a
-/// dead magnet, a busy one, a queued one, and a resumed one being hash-checked.
-/// Each of those has a different answer to "should I wait or fix it", so each
-/// says which it is.
+/// "starting" used to answer for everything between pasting a magnet and the
+/// first byte, which is where a download spends the time someone actually
+/// spends wondering about it: an unresolved magnet, one queued behind
+/// `maxConcurrentDownloads`, and a resumed one being hash-checked all said it.
+/// The last two are not even the same *kind* of waiting, and both were being
+/// diagnosed as a dead swarm further down this match, so each now says which
+/// it is. What is deliberately *not* split is the resolving magnet itself —
+/// see the note on `Health::Resolving` for the reading that turned out to
+/// mean nothing.
 fn bar_class_and_state(health: Health) -> (&'static str, &'static str) {
     match health {
         Health::Moving => ("progress-success", "downloading"),
@@ -136,8 +143,7 @@ fn bar_class_and_state(health: Health) -> (&'static str, &'static str) {
         Health::Errored => ("progress-error", "failed"),
         Health::Dead => ("progress-error", "no seeders"),
         Health::Queued => ("progress-info", "queued"),
-        Health::FindingPeers => ("progress-info", "finding peers"),
-        Health::FetchingMetadata => ("progress-info", "fetching metadata"),
+        Health::Resolving => ("progress-info", "finding peers"),
         Health::Verifying => ("progress-info", "checking files"),
         Health::Paused => ("progress-info", "paused"),
     }
@@ -171,7 +177,6 @@ impl Row {
             bar_class_and_state(health)
         };
         let (size, done) = d.display_totals();
-        let now = Instant::now();
 
         let (skipped_count, skipped_bytes) = d
             .files
@@ -233,9 +238,16 @@ impl Row {
                 .then(|| format!("{skipped_count} skipped, {}", bytes(skipped_bytes))),
             log: log
                 .into_iter()
-                .map(|e| LogView {
-                    ago: ago(now.saturating_duration_since(e.at)),
-                    message: e.message,
+                .map(|e| {
+                    let ms =
+                        e.at.duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64;
+                    LogView {
+                        utc: utc_hms(ms),
+                        at_ms: ms,
+                        message: e.message,
+                    }
                 })
                 .collect(),
             finished: d.is_finished(),
@@ -349,18 +361,20 @@ pub fn duration(secs: u64) -> String {
     }
 }
 
-/// How long ago, in one unit. This sits in a narrow gutter beside every log
-/// line, and the question it answers — has this been stuck for a while — is
-/// about magnitude, not precision.
-pub fn ago(elapsed: std::time::Duration) -> String {
-    let secs = elapsed.as_secs();
-    if secs < 60 {
-        format!("{secs}s")
-    } else if secs < 3600 {
-        format!("{}m", secs / 60)
-    } else {
-        format!("{}h", secs / 3600)
-    }
+/// `hh:mm:ss` UTC from epoch milliseconds, which needs no date crate and no
+/// timezone the pod does not have. This is the static content of a log line's
+/// timestamp; the browser rewrites it in local time (see [`LogView`]), so it
+/// is what remains when that does not happen rather than what is normally
+/// read. No date, deliberately — the log is bounded and every line in it is
+/// from the life of a download currently on screen.
+pub fn utc_hms(epoch_ms: u64) -> String {
+    let secs = epoch_ms / 1000 % 86_400;
+    format!(
+        "{:02}:{:02}:{:02}",
+        secs / 3600,
+        secs % 3600 / 60,
+        secs % 60
+    )
 }
 
 #[cfg(test)]
@@ -532,18 +546,14 @@ mod tests {
         );
     }
 
-    /// "starting" used to answer for all four of these. Each has a different
+    /// "starting" used to answer for all three of these. Each has a different
     /// answer to "should I wait or fix this", which is the whole reason the
     /// state is a word rather than just a colour.
     #[test]
     fn the_states_that_replaced_starting_each_say_which_one_they_are() {
         assert_eq!(
-            bar_class_and_state(Health::FindingPeers),
+            bar_class_and_state(Health::Resolving),
             ("progress-info", "finding peers")
-        );
-        assert_eq!(
-            bar_class_and_state(Health::FetchingMetadata),
-            ("progress-info", "fetching metadata")
         );
         assert_eq!(
             bar_class_and_state(Health::Queued),
@@ -559,7 +569,7 @@ mod tests {
     /// show it in — one vocabulary for one set of facts.
     #[test]
     fn the_word_the_log_uses_for_a_state_is_the_word_the_badge_uses() {
-        assert_eq!(state_word(Health::FindingPeers), "finding peers");
+        assert_eq!(state_word(Health::Resolving), "finding peers");
         assert_eq!(state_word(Health::Moving), "downloading");
     }
 
@@ -1279,29 +1289,56 @@ mod tests {
     /// pod's log.
     #[test]
     fn the_log_panel_lists_a_downloads_history_newest_last() {
-        let now = Instant::now();
+        let at =
+            |epoch_secs: u64| std::time::UNIX_EPOCH + std::time::Duration::from_secs(epoch_secs);
         let page = render_with_log(
             &moving(),
             vec![
                 Entry {
-                    at: now - std::time::Duration::from_secs(120),
+                    at: at(1_754_646_731), // 09:52:11 UTC
                     message: "added — destination /mnt/kontent/movies".to_string(),
                 },
                 Entry {
-                    at: now - std::time::Duration::from_secs(3),
+                    at: at(1_754_646_853), // 09:54:13 UTC
                     message: "keeping 1 of 3 files, skipping 2 (52.0 KiB)".to_string(),
                 },
             ],
         );
         assert!(page.contains("Logs"), "no logs disclosure: {page}");
         assert!(page.contains("added — destination /mnt/kontent/movies"));
-        assert!(
-            page.contains("2m"),
-            "no elapsed time on the older line: {page}"
-        );
         let first = page.find("added —").unwrap();
         let second = page.find("keeping 1 of 3").unwrap();
         assert!(first < second, "the log is not in the order it happened");
+    }
+
+    /// A log wants to say *when*, not *how long ago* — every line reading
+    /// "2m" says nothing about the order or the gaps, which is the whole of
+    /// what a log is read for. The markup carries UTC because the pod has no
+    /// timezone; `data-text` rewrites it in the reader's, and `hour12: false`
+    /// keeps it to the eight characters the fixed-width column assumes.
+    #[test]
+    fn a_log_line_is_stamped_with_a_clock_time_the_browser_localises() {
+        let page = render_with_log(
+            &moving(),
+            vec![Entry {
+                at: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_754_646_731),
+                message: "added".to_string(),
+            }],
+        );
+        assert!(page.contains(">09:52:11<"), "no UTC fallback: {page}");
+        assert!(
+            page.contains(
+                r#"data-text="new Date(1754646731000).toLocaleTimeString([], {hour12: false})""#
+            ),
+            "the timestamp is not localised by the browser: {page}"
+        );
+    }
+
+    #[test]
+    fn utc_hms_is_the_time_of_day_from_epoch_millis() {
+        assert_eq!(utc_hms(0), "00:00:00");
+        assert_eq!(utc_hms(1_754_646_731_000), "09:52:11");
+        assert_eq!(utc_hms(86_399_000), "23:59:59");
     }
 
     /// A download already in aria2 when this pod started has no history here
@@ -1317,12 +1354,5 @@ mod tests {
         assert_eq!(duration(45), "45s");
         assert_eq!(duration(125), "2m 5s");
         assert_eq!(duration(7_320), "2h 2m");
-    }
-
-    #[test]
-    fn ago_uses_one_unit() {
-        assert_eq!(ago(std::time::Duration::from_secs(9)), "9s");
-        assert_eq!(ago(std::time::Duration::from_secs(90)), "1m");
-        assert_eq!(ago(std::time::Duration::from_secs(7_200)), "2h");
     }
 }
