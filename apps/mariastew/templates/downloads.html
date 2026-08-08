@@ -2,9 +2,35 @@
      individual rows (`row.html`) and only comes back here when a download
      appears or disappears — morphing by id can neither add an element nor
      remove one, so a membership change is the one thing that needs the
-     container. #}
+     container.
+
+     Which is also why the unreachable notice lives in here rather than
+     beside the header: it is a statement about the list, and the list is
+     what gets replaced when the truth changes. A stream sends this container
+     on its first snapshot whatever the membership (`unsent`), and a snapshot
+     only exists after aria2 has answered — so a page rendered while the
+     sidecar was restarting corrects itself on the next tick instead of
+     carrying the warning until someone reloads. #}
+{% import "icons.html" as icons %}
 <div id="downloads" class="flex flex-col gap-2 p-4">
+{% if aria2_unreachable %}
+<div role="alert" class="alert alert-warning">
+  {% call icons::triangle_alert() %}{% endcall %}
+  <span>The download service is unreachable — the list will fill in when it answers.</span>
+</div>
+{% else if rows.is_empty() %}
+{# An empty queue and a broken page looked the same: nothing under the Add
+     button, and no way to tell "you have no downloads" from "the list failed
+     to render". Said outright, with the one thing to do about it — the same
+     treatment the picker's empty folder already gets. #}
+<div class="rounded-box border border-base-300 bg-base-100 p-8 text-center">
+  {% call icons::inbox(class="text-4xl opacity-30") %}{% endcall %}
+  <p class="mt-3 text-sm font-medium">Nothing downloading</p>
+  <p class="mt-1 text-xs opacity-60">Paste a magnet link into the Add button above to start one.</p>
+</div>
+{% else %}
 {% for row in rows %}
 {% include "row.html" %}
 {% endfor %}
+{% endif %}
 </div>

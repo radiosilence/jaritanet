@@ -46,13 +46,6 @@
     data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal(); navigator.clipboard?.readText().then((text) => { const field = document.querySelector('#add-form [name=magnet]'); if (!field.value && text.trim().startsWith('magnet:?')) field.value = text.trim() }, () => {})">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
 </header>
 
-{% if aria2_unreachable %}
-<div role="alert" class="alert alert-warning mx-4 mt-4">
-  {% call icons::triangle_alert() %}{% endcall %}
-  <span>Download service is unreachable — showing an empty list.</span>
-</div>
-{% endif %}
-
 {# Reacts to $add rather than to the fetch itself, so it does not care
      whether the response was a plain JSON body or an SSE patch — either
      lands here the same way. Closes the dialog and clears the field the
@@ -121,7 +114,15 @@
   class="open:flex flex-col mx-0 mt-auto mb-0 w-full sm:mx-auto sm:mb-auto sm:max-w-sm max-h-[85dvh] rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
   <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
-    <input name="magnet" required placeholder="Paste a magnet link"
+    {# Enter has to be wired by hand. The button that adds is pinned in the
+         footer outside this form, so there is no submit button in it to do
+         implicit submission, and the picker's own text field means the
+         single-field exception does not apply either — the keyboard's Go key
+         did nothing at all, which on a phone is where the paste just
+         happened. Clicking the real button rather than repeating its
+         expression keeps one definition of what Add does. #}
+    <input name="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
+      data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); document.getElementById('add-submit').click() }"
       class="input input-bordered input-lg min-h-14 w-full text-base" autofocus>
     <details class="disclosure rounded-box border border-base-300">
       <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
@@ -170,7 +171,7 @@
          "already registered" errors) and the label. $add is cleared before
          firing so a stale error from a previous attempt does not linger
          through a fresh one. #}
-    <button type="button" class="btn btn-primary min-h-12 flex-[2]"
+    <button type="button" id="add-submit" class="btn btn-primary min-h-12 flex-[2]"
       data-indicator="adding" data-attr:disabled="$adding"
       data-on:click="$add = {status: null, message: null}; @post('/add', {contentType: 'form', selector: '#add-form'})">
       <span data-show="$adding" class="loading loading-spinner loading-sm"></span>

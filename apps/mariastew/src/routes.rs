@@ -166,20 +166,30 @@ pub async fn page(State(state): State<AppState>) -> AppResult<Html<String>> {
 /// snapshot held, which is the whole reason this takes it as an argument: a
 /// client too slow to collect every tick skips some, and a row that changed in
 /// one it never saw still has to reach it.
+///
+/// `None` for `sent` is a connection that has sent nothing yet, and it always
+/// asks for the container. That was already what happened for every list with
+/// a row in it, since no row had been sent; an empty one took the other branch
+/// and sent nothing at all, which left a page rendered while aria2 was down
+/// showing its warning until someone reloaded. The container `#downloads` now
+/// carries that warning, so replacing it once per connection is what retires
+/// it — and a stream's first tick agreeing with the server costs one message.
 fn unsent<'a>(
-    sent: &mut Vec<(String, u64)>,
+    sent: &mut Option<Vec<(String, u64)>>,
     rows: &'a [RenderedRow],
 ) -> Option<Vec<&'a RenderedRow>> {
-    let same_downloads =
-        sent.len() == rows.len() && sent.iter().zip(rows).all(|((gid, _), row)| *gid == row.gid);
-    let changed = same_downloads.then(|| {
-        sent.iter()
-            .zip(rows)
-            .filter(|((_, hash), row)| *hash != row.hash)
-            .map(|(_, row)| row)
-            .collect()
+    let changed = sent.as_ref().and_then(|sent| {
+        let same_downloads = sent.len() == rows.len()
+            && sent.iter().zip(rows).all(|((gid, _), row)| *gid == row.gid);
+        same_downloads.then(|| {
+            sent.iter()
+                .zip(rows)
+                .filter(|((_, hash), row)| *hash != row.hash)
+                .map(|(_, row)| row)
+                .collect()
+        })
     });
-    *sent = rows.iter().map(|r| (r.gid.clone(), r.hash)).collect();
+    *sent = Some(rows.iter().map(|r| (r.gid.clone(), r.hash)).collect());
     changed
 }
 
@@ -205,7 +215,7 @@ pub async fn stream(
     // is gone, and it goes when the response does.
     let mut viewer = state.poll.viewer();
     let s = async_stream::stream! {
-        let mut sent: Vec<(String, u64)> = Vec::new();
+        let mut sent: Option<Vec<(String, u64)>> = None;
         let mut checked = std::time::Instant::now() - SESSION_RECHECK;
 
         while let Some(snapshot) = viewer.next().await {
@@ -893,7 +903,7 @@ mod tests {
     /// and at ten ticks a second re-sending it is the whole bill.
     #[test]
     fn a_row_that_did_not_change_is_not_sent_again() {
-        let mut sent = Vec::new();
+        let mut sent = None;
         let rows = rendered(&[("a", 1), ("b", 2)]);
 
         assert!(unsent(&mut sent, &rows).is_none(), "the first tick has no");
@@ -910,7 +920,7 @@ mod tests {
     /// connection rather than against the previous snapshot.
     #[test]
     fn a_change_made_during_a_skipped_tick_still_reaches_the_client() {
-        let mut sent = Vec::new();
+        let mut sent = None;
         unsent(&mut sent, &rendered(&[("a", 1), ("b", 2)]));
 
         // Tick two changed `a`, and this client never saw it. Tick three
@@ -923,11 +933,23 @@ mod tests {
     /// arriving or leaving is the one change a row patch cannot express.
     #[test]
     fn a_download_arriving_or_leaving_asks_for_the_whole_container() {
-        let mut sent = Vec::new();
+        let mut sent = None;
         unsent(&mut sent, &rendered(&[("a", 1), ("b", 2)]));
 
         assert!(unsent(&mut sent, &rendered(&[("a", 1), ("b", 2), ("c", 3)])).is_none());
         assert!(unsent(&mut sent, &rendered(&[("a", 1), ("c", 3)])).is_none());
+    }
+
+    /// A page rendered while aria2 was down carries a warning inside
+    /// `#downloads`, and nothing else ever replaces that container while the
+    /// queue stays empty. So the first tick has to, even with no rows to send
+    /// — otherwise the warning outlives the outage until someone reloads.
+    #[test]
+    fn an_empty_first_tick_still_asks_for_the_container() {
+        let mut sent = None;
+        assert!(unsent(&mut sent, &[]).is_none());
+        // And only the first: an empty queue that stays empty is silent.
+        assert!(unsent(&mut sent, &[]).unwrap().is_empty());
     }
 
     /// Same downloads, different order — an active one stopping moves it down
@@ -935,7 +957,7 @@ mod tests {
     /// were, so this needs the container too.
     #[test]
     fn a_reordering_asks_for_the_whole_container() {
-        let mut sent = Vec::new();
+        let mut sent = None;
         unsent(&mut sent, &rendered(&[("a", 1), ("b", 2)]));
         assert!(unsent(&mut sent, &rendered(&[("b", 2), ("a", 1)])).is_none());
     }
