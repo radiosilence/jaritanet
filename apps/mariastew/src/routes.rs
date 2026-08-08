@@ -588,11 +588,14 @@ async fn delete_partial(state: &AppState, status: &Download) {
 }
 
 /// How long to keep asking aria2 whether it has actually let go, and how often.
-/// A removal is usually done inside one poll; a torrent with peers to
-/// disconnect takes a moment longer. Giving up hands the row its controls back,
-/// which is the honest outcome — the download really is still there.
-const CLEAR_ATTEMPTS: u32 = 12;
-const CLEAR_POLL: Duration = Duration::from_millis(250);
+/// `forceRemove` stops the download outright, but it arrives in the stopped
+/// list a moment after the call returns and `removeDownloadResult` refuses it
+/// until it does — so one attempt is not enough and a second usually is. The
+/// request is held open for this, which is what keeps the budget to a second:
+/// giving up hands the row its controls back and answers with a status, which
+/// is the honest outcome — the download really is still there.
+const CLEAR_ATTEMPTS: u32 = 10;
+const CLEAR_POLL: Duration = Duration::from_millis(100);
 
 /// Make aria2 forget a download, then delete whatever it should not have left
 /// behind.
@@ -609,8 +612,8 @@ const CLEAR_POLL: Duration = Duration::from_millis(250);
 /// to the stopped list first, and `removeDownloadResult` refuses it until it
 /// arrives. So what decides the outcome here is not whether a call succeeded
 /// but whether the gid is still in a list the page reads — the same question
-/// the row on screen is asking.
-async fn clear(state: &AppState, gid: &str, status: &Download) {
+/// the row on screen is asking, and the answer this returns.
+async fn clear(state: &AppState, gid: &str, status: &Download) -> bool {
     if !status.is_stopped()
         && let Err(e) = state.aria2.remove(gid).await
     {
@@ -645,6 +648,7 @@ async fn clear(state: &AppState, gid: &str, status: &Download) {
         state.activity.record(gid, "aria2 would not let go of it");
     }
     state.clearing.end(gid);
+    gone
 }
 
 /// Two behaviours behind one button, decided by whether the download completed.
@@ -653,10 +657,17 @@ async fn clear(state: &AppState, gid: &str, status: &Download) {
 /// seeding, the files stay: that is stopping an upload, not undoing a download,
 /// and deleting the episode would be astonishing.
 ///
-/// The request only starts it. What aria2 takes to let go is not something a
-/// browser holds a `POST` open for (see `finish_add` for the same shape and the
-/// production abort that motivated it), so the row is marked `clearing` and the
-/// stream reports the outcome.
+/// The response is held until aria2 has actually let go, so the button's own
+/// loading state is the wait rather than a guess at it, and a removal that does
+/// not take answers with a status instead of a silent 204 over a row that is
+/// still there. That is affordable now only because the stop is `forceRemove`:
+/// the graceful one waited on the swarm, which is the open-ended wait
+/// `finish_add` is detached for.
+///
+/// `clear` runs in a task that is then awaited rather than inline. A browser
+/// that gives up on the response drops this future, and the removal has to
+/// outlive that — aria2 has already been told to stop by then, and abandoning
+/// the rest would leave the gid marked `clearing` with nothing left to lift it.
 pub async fn remove(
     State(state): State<AppState>,
     CurrentSession(session): CurrentSession,
@@ -672,11 +683,33 @@ pub async fn remove(
         finished = status.is_finished(),
         "removing download"
     );
-    if state.clearing.begin(&gid) {
-        state.activity.record(&gid, "clearing");
-        tokio::spawn(async move { clear(&state, &gid, &status).await });
+    // A second press while the first removal is still in flight waits on
+    // nothing: the row it would report on is already rendering as `clearing`
+    // from the request that owns it.
+    if !state.clearing.begin(&gid) {
+        return Ok(StatusCode::NO_CONTENT.into_response());
     }
-    Ok(StatusCode::NO_CONTENT.into_response())
+    state.activity.record(&gid, "clearing");
+    let task = tokio::spawn({
+        let state = state.clone();
+        let gid = gid.clone();
+        async move { clear(&state, &gid, &status).await }
+    });
+    match task.await {
+        Ok(true) => Ok(StatusCode::NO_CONTENT.into_response()),
+        Ok(false) => Err(AppError::Upstream(format!(
+            "aria2 still lists {gid} after being told to drop it"
+        ))),
+        // Only a panic reaches here, and `clear` lifts the mark on every path
+        // it returns from — so this is the one place left that can strand a row
+        // as permanently clearing.
+        Err(e) => {
+            state.clearing.end(&gid);
+            Err(AppError::Internal(anyhow::anyhow!(
+                "clearing {gid} panicked: {e}"
+            )))
+        }
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -780,6 +813,9 @@ pub struct MkdirForm {
     pub name: String,
 }
 
+/// How long the filesystem gets — see the call site in `mkdir`.
+const FS_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Rejects anything empty, a bare `.`/`..`, or containing a path separator —
 /// `mkdir` makes one directory, not a path of them.
 fn is_valid_dir_name(name: &str) -> bool {
@@ -806,8 +842,14 @@ pub async fn mkdir(
     let target = parent.join(&form.name);
     let target_str = target.to_string_lossy().into_owned();
 
-    tokio::fs::create_dir_all(&target)
+    // The one mutation here that is not an aria2 call, and so not covered by
+    // that client's own ceiling. A `mkdir` against the library's spinning disks
+    // takes a moment; taking this long is a mount that has gone away, and the
+    // request is held open for it — an uninterruptible `create_dir_all` on a
+    // dead NFS handle would otherwise be a spinner with no end.
+    tokio::time::timeout(FS_TIMEOUT, tokio::fs::create_dir_all(&target))
         .await
+        .map_err(|_| AppError::Internal(anyhow::anyhow!("mkdir timed out: {target_str}")))?
         .map_err(|e| AppError::Internal(e.into()))?;
 
     // `resolve` only ever answered for names; `target` exists now, so
@@ -1631,6 +1673,9 @@ mod tests {
         /// aria2 is not done when `remove` returns: the download has to reach
         /// the stopped list before `removeDownloadResult` will take it. One
         /// attempt left the corpse behind, where it rendered as a live row.
+        ///
+        /// The response is the end of the whole thing now, so nothing here has
+        /// to wait for a detached task to catch up.
         #[tokio::test]
         async fn a_removal_keeps_asking_until_aria2_has_actually_let_go() {
             let mock = mock_server("active", 3).await;
@@ -1645,13 +1690,10 @@ mod tests {
             .await
             .expect("removing an active download must not fail");
 
-            assert!(wait_until_gone(&mock).await, "aria2 still lists it");
-            for _ in 0..100 {
-                if !state.clearing.contains("g1") {
-                    break;
-                }
-                tokio::time::sleep(StdDuration::from_millis(10)).await;
-            }
+            assert!(
+                mock.status.lock().unwrap().is_none(),
+                "the response came back before aria2 had let go"
+            );
             assert!(!state.clearing.contains("g1"), "the mark was never lifted");
             assert!(
                 state.activity.entries("g1").is_empty(),
@@ -1668,13 +1710,12 @@ mod tests {
             );
         }
 
-        /// The press has to be visible before aria2 answers, or it reads as
-        /// nothing having happened — which is the whole complaint. The mark is
-        /// set by the request, not by whatever finishes later.
+        /// Stopping is `forceRemove` — the graceful `remove` announces to every
+        /// tracker and waits for the peers to go, which is the wait the held
+        /// response cannot afford and the press has already decided against.
         #[tokio::test]
-        async fn the_row_is_marked_clearing_before_the_removal_completes() {
-            // Refuses long enough that the mark is still up when this asserts.
-            let mock = mock_server("active", u32::MAX).await;
+        async fn stopping_a_running_download_does_not_wait_for_the_swarm() {
+            let mock = mock_server("active", 0).await;
             let state = state(mock.url.clone());
             remove(
                 State(state.clone()),
@@ -1682,8 +1723,63 @@ mod tests {
                 Path("g1".to_string()),
             )
             .await
-            .expect("removal must be accepted");
-            assert!(state.clearing.contains("g1"));
+            .expect("removing an active download must not fail");
+
+            let calls = mock.calls.lock().unwrap();
+            assert!(
+                calls.iter().any(|m| m == "aria2.forceRemove"),
+                "nothing forced the stop: {calls:?}"
+            );
+            assert!(
+                !calls.iter().any(|m| m == "aria2.remove"),
+                "the graceful call is the wait this avoids: {calls:?}"
+            );
+        }
+
+        /// A removal that does not take is a row that is still there, and
+        /// answering 204 over it is the silence #354 was about. The mark comes
+        /// off either way — the controls it hid have to come back.
+        #[tokio::test]
+        async fn a_removal_aria2_refuses_answers_with_an_error_and_hands_the_row_back() {
+            let mock = mock_server("active", u32::MAX).await;
+            let state = state(mock.url.clone());
+            let err = remove(
+                State(state.clone()),
+                CurrentSession(session()),
+                Path("g1".to_string()),
+            )
+            .await
+            .expect_err("a removal that never took must not answer 204");
+            assert!(matches!(err, AppError::Upstream(_)), "{err:?}");
+            assert!(!state.clearing.contains("g1"), "the mark was never lifted");
+        }
+
+        /// The press has to be visible before aria2 answers, or it reads as
+        /// nothing having happened — which is the whole complaint. Every other
+        /// page open on the same download reads the mark, not this request's
+        /// response, so it is set for the whole time the request is in flight.
+        #[tokio::test]
+        async fn the_row_is_marked_clearing_while_the_removal_is_still_in_flight() {
+            // Refuses for the whole attempt budget, so the request is still
+            // open while this asserts against it.
+            let mock = mock_server("active", u32::MAX).await;
+            let state = state(mock.url.clone());
+            let in_flight = tokio::spawn({
+                let state = state.clone();
+                async move {
+                    remove(State(state), CurrentSession(session()), Path("g1".to_string())).await
+                }
+            });
+
+            let mut marked = false;
+            for _ in 0..200 {
+                if state.clearing.contains("g1") {
+                    marked = true;
+                    break;
+                }
+                tokio::time::sleep(StdDuration::from_millis(5)).await;
+            }
+            assert!(marked, "the press was invisible until the removal finished");
 
             let downloads = all_downloads(&state).await.expect("aria2 answers");
             let row = rows(&state, &downloads)
@@ -1692,6 +1788,8 @@ mod tests {
                 .expect("the row is still there while aria2 holds on");
             assert_eq!(row.state, "clearing");
             assert!(row.clearing);
+
+            in_flight.await.expect("the handler ran to completion").ok();
         }
     }
 }
