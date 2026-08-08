@@ -13,22 +13,32 @@ patched over SSE ([Datastar](https://data-star.dev), vendored at
 
 Downloads are written directly into the media tree the picker offers, not a
 staging directory that something else sweeps later. That is safe because the
-scene-garbage filter (`src/filter.rs`) runs **before** the real download
-starts, not after: adding a magnet does a metadata-only aria2 pass first,
-`follow-torrent` spawns the real download from the resolved metadata,
-`filter::is_garbage` picks the indices worth keeping from *that* download's
-own file list — not the metadata pass's, which always has exactly one entry,
-itself — and `aria2.changeOption` applies the selection to it. Combined with
-aria2's `--file-allocation=none`, a file the filter rejected never touches
-disk for its own sake.
+scene-garbage filter (`src/filter.rs`) runs as early as it can: adding a
+magnet resolves under its own gid first, `follow-torrent` spawns the real
+download from the resolved metadata, `filter::is_garbage` picks the indices
+worth keeping from *that* download's own file list — not the resolving gid's,
+which always has exactly one entry, itself — and `aria2.changeOption` applies
+the selection to it. `finish_add_inner` pauses the download the moment it
+exists and unpauses it only after `changeOption` has taken, which closes most
+(not all — see below) of the window a full, unfiltered selection would
+otherwise fetch in.
 
-aria2 still downloads whole pieces regardless of selection, though, so a
-small deselected file sharing a piece boundary with a selected one can land
-anyway. `notify::sweep_garbage` runs from the same completion watch that
-sends the Telegram message, deletes whatever is both deselected and
-`filter::is_garbage`, and never touches a selected file or one that is merely
-small. This is the "line of code rather than a design change" a stray
-zero-byte file was always expected to need.
+There is no `bt-metadata-only` pass ahead of this that stops before any
+content flows: it stops `follow-torrent` from ever spawning the real download
+at all, so `finish_add_inner` would poll for a `followedBy` that never
+arrives (see the commit that removed it for the production incident this
+caused). Selection is applied to a download that is already running, not one
+that hasn't started yet — the pause above is what limits the exposure, not
+a delay before it exists.
+
+aria2 also downloads whole pieces regardless of selection, so a small
+deselected file sharing a piece boundary with a selected one can land anyway
+even once selection is correct. `notify::sweep_garbage` runs from the same
+completion watch that sends the Telegram message, deletes whatever is both
+deselected and `filter::is_garbage`, and never touches a selected file or one
+that is merely small. This is the "line of code rather than a design change"
+a stray zero-byte file was always expected to need — and now also the
+backstop for whatever the pause above does not catch in time.
 
 ## One image, run twice
 
@@ -97,7 +107,7 @@ files, and `/auth/*` are the only routes outside that layer (`src/main.rs`).
 |---|---|---|
 | `/` | GET | The page: current roots and the download list |
 | `/stream` | GET | SSE stream, one tick per second (`routes::TICK_SECS`), patching the download list in place |
-| `/add` | POST | `magnet` + `dir` form fields — validates and starts the metadata pass, then returns `202` immediately; the poll, the filter, and starting the real download run detached (see `routes::finish_add`), and their outcome shows up through `/stream` like any other download |
+| `/add` | POST | `magnet` + `dir` form fields — validates and starts the magnet resolving, then returns `202` immediately; the poll, the filter, and applying the selection run detached (see `routes::finish_add`), and their outcome shows up through `/stream` like any other download |
 | `/downloads/{gid}/pause` | POST | |
 | `/downloads/{gid}/resume` | POST | |
 | `/downloads/{gid}/remove` | POST | See "Seeding, and why cancel has two meanings" above |
