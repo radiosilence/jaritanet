@@ -85,7 +85,13 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
 fn rows(state: &AppState, downloads: &[Download]) -> Vec<Row> {
     downloads
         .iter()
-        .map(|d| Row::new(d, state.activity.entries(&d.gid)))
+        .map(|d| {
+            Row::new(
+                d,
+                state.activity.entries(&d.gid),
+                state.clearing.contains(&d.gid),
+            )
+        })
         .collect()
 }
 
@@ -541,11 +547,76 @@ async fn delete_partial(state: &AppState, status: &Download) {
     }
 }
 
+/// How long to keep asking aria2 whether it has actually let go, and how often.
+/// A removal is usually done inside one poll; a torrent with peers to
+/// disconnect takes a moment longer. Giving up hands the row its controls back,
+/// which is the honest outcome — the download really is still there.
+const CLEAR_ATTEMPTS: u32 = 12;
+const CLEAR_POLL: Duration = Duration::from_millis(250);
+
+/// Make aria2 forget a download, then delete whatever it should not have left
+/// behind.
+///
+/// The two removal calls apply to different downloads and each refuses the
+/// other's: `remove` stops one that is still running, `removeDownloadResult`
+/// discards one that has already stopped. Every errored row is the second kind
+/// and so is a torrent aria2 is no longer seeding, so the single `remove` this
+/// used to start with failed outright and the handler gave up before reaching
+/// the call that would have worked — the row stayed, and every later press
+/// failed the same way, which is what "the button does nothing" was.
+///
+/// aria2 is also not finished the instant `remove` returns: the download moves
+/// to the stopped list first, and `removeDownloadResult` refuses it until it
+/// arrives. So what decides the outcome here is not whether a call succeeded
+/// but whether the gid is still in a list the page reads — the same question
+/// the row on screen is asking.
+async fn clear(state: &AppState, gid: &str, status: &Download) {
+    if !status.is_stopped()
+        && let Err(e) = state.aria2.remove(gid).await
+    {
+        tracing::warn!(gid = %gid, error = %e, "could not stop download, discarding it anyway");
+    }
+
+    let mut gone = false;
+    for attempt in 0..CLEAR_ATTEMPTS {
+        if attempt > 0 {
+            tokio::time::sleep(CLEAR_POLL).await;
+        }
+        let _ = state.aria2.remove_download_result(gid).await;
+        match all_downloads(state).await {
+            Ok(downloads) => gone = !downloads.iter().any(|d| d.gid == gid),
+            Err(e) => tracing::warn!(gid = %gid, error = %e, "clear: aria2 poll failed"),
+        }
+        if gone {
+            break;
+        }
+    }
+
+    if gone {
+        if !status.is_finished() {
+            delete_partial(state, status).await;
+        }
+        // Nothing will render this row again, so its history has nothing left
+        // to explain — this is the one place a log goes away before the cap
+        // takes it.
+        state.activity.forget(gid);
+    } else {
+        tracing::warn!(gid = %gid, "aria2 still lists the download after removal");
+        state.activity.record(gid, "aria2 would not let go of it");
+    }
+    state.clearing.end(gid);
+}
+
 /// Two behaviours behind one button, decided by whether the download completed.
 /// In progress, the partial data goes with it — a half-downloaded episode
 /// sitting in the library is the mess this exists to avoid. Finished and
 /// seeding, the files stay: that is stopping an upload, not undoing a download,
 /// and deleting the episode would be astonishing.
+///
+/// The request only starts it. What aria2 takes to let go is not something a
+/// browser holds a `POST` open for (see `finish_add` for the same shape and the
+/// production abort that motivated it), so the row is marked `clearing` and the
+/// stream reports the outcome.
 pub async fn remove(
     State(state): State<AppState>,
     CurrentSession(session): CurrentSession,
@@ -561,16 +632,10 @@ pub async fn remove(
         finished = status.is_finished(),
         "removing download"
     );
-    state.aria2.remove(&gid).await?;
-    if let Err(e) = state.aria2.remove_download_result(&gid).await {
-        tracing::warn!(gid = %gid, error = %e, "failed to clear download result");
+    if state.clearing.begin(&gid) {
+        state.activity.record(&gid, "clearing");
+        tokio::spawn(async move { clear(&state, &gid, &status).await });
     }
-    if !status.is_finished() {
-        delete_partial(&state, &status).await;
-    }
-    // Nothing will render this row again, so its history has nothing left to
-    // explain — this is the one place a log goes away before the cap takes it.
-    state.activity.forget(&gid);
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -746,6 +811,7 @@ mod tests {
             aria2: Aria2::new(aria2_rpc_url, reqwest::Client::new()),
             sessions: Sessions::new(),
             activity: crate::activity::Activity::new(),
+            clearing: crate::state::Clearing::default(),
             http: reqwest::Client::new(),
         }
     }
@@ -1214,7 +1280,7 @@ mod tests {
             bittorrent_name: Some("[METADATA]abc123".to_string()),
             ..Download::fixture()
         };
-        let row = Row::new(&metadata, Vec::new());
+        let row = Row::new(&metadata, Vec::new(), false);
         assert_eq!(row.name, "abc123", "the marker should not be on screen");
         assert_eq!(row.state, "finding peers");
         assert!(
@@ -1226,7 +1292,10 @@ mod tests {
             connections: 4,
             ..metadata
         };
-        assert_eq!(Row::new(&with_peers, Vec::new()).state, "finding peers");
+        assert_eq!(
+            Row::new(&with_peers, Vec::new(), false).state,
+            "finding peers"
+        );
     }
 
     /// aria2 marks the metadata-only pass with this literal prefix for as
@@ -1288,5 +1357,240 @@ mod tests {
         assert!(!is_valid_dir_name("."));
         assert!(!is_valid_dir_name(".."));
         assert!(!is_valid_dir_name("a/b"));
+    }
+
+    /// An aria2 that refuses the removal calls the way the real one does. The
+    /// mock in `scripts/mock-aria2.ts` deletes on any of them and so could
+    /// never have shown this: aria2 accepts `remove` only for a download it is
+    /// still running and `removeDownloadResult` only for one it has already
+    /// stopped, and it does not move between those the instant it is asked.
+    mod remove_flow {
+        use std::sync::{Arc, Mutex};
+        use std::time::Duration as StdDuration;
+
+        use axum::Json;
+        use axum::extract::State as AxumState;
+        use axum::routing::post;
+
+        use crate::auth::session::Session;
+
+        use super::*;
+
+        #[derive(Clone)]
+        struct MockAria2 {
+            /// `None` once aria2 has forgotten it, which is what `clear` polls
+            /// the lists for.
+            status: Arc<Mutex<Option<&'static str>>>,
+            /// `removeDownloadResult` calls to refuse before it takes — aria2
+            /// refuses one for a download still on its way to the stopped list.
+            discard_refusals: Arc<Mutex<u32>>,
+            calls: Arc<Mutex<Vec<String>>>,
+        }
+
+        fn error(message: &str) -> serde_json::Value {
+            serde_json::json!({"error": {"code": 1, "message": message}})
+        }
+
+        fn download(gid: &str, status: &str) -> serde_json::Value {
+            serde_json::json!({
+                "gid": gid,
+                "status": status,
+                "totalLength": "100",
+                "completedLength": "100",
+                "downloadSpeed": "0",
+                "uploadSpeed": "0",
+                "connections": "0",
+                "dir": "/mnt/kontent/movies",
+                "files": [],
+            })
+        }
+
+        async fn rpc(
+            AxumState(mock): AxumState<MockAria2>,
+            Json(body): Json<serde_json::Value>,
+        ) -> Json<serde_json::Value> {
+            let method = body["method"].as_str().unwrap_or_default().to_string();
+            mock.calls.lock().unwrap().push(method.clone());
+            let mut status = mock.status.lock().unwrap();
+            let stopped = |s: &str| matches!(s, "complete" | "error" | "removed");
+            let response = match method.as_str() {
+                "aria2.tellStatus" => match *status {
+                    Some(s) => serde_json::json!({"result": download("g1", s)}),
+                    None => error("No such download"),
+                },
+                "aria2.tellActive" => match *status {
+                    Some("active") => serde_json::json!({"result": [download("g1", "active")]}),
+                    _ => serde_json::json!({"result": []}),
+                },
+                "aria2.tellWaiting" => serde_json::json!({"result": []}),
+                "aria2.tellStopped" => match *status {
+                    Some(s) if stopped(s) => serde_json::json!({"result": [download("g1", s)]}),
+                    _ => serde_json::json!({"result": []}),
+                },
+                "aria2.remove" | "aria2.forceRemove" => match *status {
+                    Some(s) if !stopped(s) => {
+                        *status = Some("removed");
+                        serde_json::json!({"result": "g1"})
+                    }
+                    _ => error("GID#g1 cannot be removed now"),
+                },
+                "aria2.removeDownloadResult" => {
+                    let mut refusals = mock.discard_refusals.lock().unwrap();
+                    match *status {
+                        Some(s) if stopped(s) && *refusals == 0 => {
+                            *status = None;
+                            serde_json::json!({"result": "OK"})
+                        }
+                        _ => {
+                            *refusals = refusals.saturating_sub(1);
+                            error("GID#g1 is not found")
+                        }
+                    }
+                }
+                other => panic!("unexpected aria2 method in test: {other}"),
+            };
+            let mut envelope = serde_json::json!({"jsonrpc": "2.0", "id": "mariastew"});
+            envelope
+                .as_object_mut()
+                .unwrap()
+                .extend(response.as_object().unwrap().clone());
+            Json(envelope)
+        }
+
+        struct Mock {
+            url: String,
+            status: Arc<Mutex<Option<&'static str>>>,
+            calls: Arc<Mutex<Vec<String>>>,
+        }
+
+        async fn mock_server(status: &'static str, discard_refusals: u32) -> Mock {
+            let mock = MockAria2 {
+                status: Arc::new(Mutex::new(Some(status))),
+                discard_refusals: Arc::new(Mutex::new(discard_refusals)),
+                calls: Arc::new(Mutex::new(Vec::new())),
+            };
+            let app = axum::Router::new()
+                .route("/", post(rpc))
+                .with_state(mock.clone());
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            tokio::spawn(async move {
+                axum::serve(listener, app).await.unwrap();
+            });
+            Mock {
+                url: format!("http://{addr}/"),
+                status: mock.status,
+                calls: mock.calls,
+            }
+        }
+
+        fn session() -> Session {
+            Session {
+                id: "s".to_string(),
+                sub: "tester".to_string(),
+                expires: std::time::Instant::now() + StdDuration::from_secs(60),
+            }
+        }
+
+        async fn wait_until_gone(mock: &Mock) -> bool {
+            for _ in 0..400 {
+                if mock.status.lock().unwrap().is_none() {
+                    return true;
+                }
+                tokio::time::sleep(StdDuration::from_millis(10)).await;
+            }
+            false
+        }
+
+        /// The bug behind #316. aria2 refuses `remove` for a download it has
+        /// already stopped — every errored row, and any finished torrent it is
+        /// no longer seeding — so the handler failed on the first call and
+        /// never reached `removeDownloadResult`, which would have worked. The
+        /// row stayed, the press showed nothing, and the next press failed
+        /// identically.
+        #[tokio::test]
+        async fn a_download_aria2_has_already_stopped_is_still_discarded() {
+            for status in ["complete", "error"] {
+                let mock = mock_server(status, 0).await;
+                let state = state(mock.url.clone());
+                remove(
+                    State(state.clone()),
+                    CurrentSession(session()),
+                    Path("g1".to_string()),
+                )
+                .await
+                .expect("removing a stopped download must not fail");
+                assert!(
+                    wait_until_gone(&mock).await,
+                    "a {status} download was left in aria2's list"
+                );
+            }
+        }
+
+        /// aria2 is not done when `remove` returns: the download has to reach
+        /// the stopped list before `removeDownloadResult` will take it. One
+        /// attempt left the corpse behind, where it rendered as a live row.
+        #[tokio::test]
+        async fn a_removal_keeps_asking_until_aria2_has_actually_let_go() {
+            let mock = mock_server("active", 3).await;
+            let state = state(mock.url.clone());
+            state.activity.record("g1", "added");
+
+            remove(
+                State(state.clone()),
+                CurrentSession(session()),
+                Path("g1".to_string()),
+            )
+            .await
+            .expect("removing an active download must not fail");
+
+            assert!(wait_until_gone(&mock).await, "aria2 still lists it");
+            for _ in 0..100 {
+                if !state.clearing.contains("g1") {
+                    break;
+                }
+                tokio::time::sleep(StdDuration::from_millis(10)).await;
+            }
+            assert!(!state.clearing.contains("g1"), "the mark was never lifted");
+            assert!(
+                state.activity.entries("g1").is_empty(),
+                "a download nothing will render again keeps no history"
+            );
+            let calls = mock.calls.lock().unwrap();
+            assert!(
+                calls
+                    .iter()
+                    .filter(|m| *m == "aria2.removeDownloadResult")
+                    .count()
+                    > 1,
+                "one attempt is what left the corpse behind: {calls:?}"
+            );
+        }
+
+        /// The press has to be visible before aria2 answers, or it reads as
+        /// nothing having happened — which is the whole complaint. The mark is
+        /// set by the request, not by whatever finishes later.
+        #[tokio::test]
+        async fn the_row_is_marked_clearing_before_the_removal_completes() {
+            // Refuses long enough that the mark is still up when this asserts.
+            let mock = mock_server("active", u32::MAX).await;
+            let state = state(mock.url.clone());
+            remove(
+                State(state.clone()),
+                CurrentSession(session()),
+                Path("g1".to_string()),
+            )
+            .await
+            .expect("removal must be accepted");
+            assert!(state.clearing.contains("g1"));
+
+            let downloads = all_downloads(&state).await.expect("aria2 answers");
+            let row = rows(&state, &downloads)
+                .into_iter()
+                .find(|r| r.gid == "g1")
+                .expect("the row is still there while aria2 holds on");
+            assert_eq!(row.state, "clearing");
+            assert!(row.clearing);
+        }
     }
 }

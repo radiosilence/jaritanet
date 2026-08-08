@@ -238,6 +238,13 @@ function advance() {
 const byStatus = (...wanted: Download["status"][]) =>
   downloads.filter((d) => wanted.includes(d.status));
 
+/** In one of aria2's stopped lists, which is what the removal calls turn on. */
+const isStopped = (d: Download) =>
+  d.status === "complete" || d.status === "error" || d.status === "removed";
+
+/** Gids whose first `removeDownloadResult` has been refused — see below. */
+const discardAsked = new Set<string>();
+
 /**
  * Only the methods `src/aria2.rs` actually calls. An unknown one is answered
  * with a JSON-RPC error rather than an empty result, so a method added on the
@@ -278,11 +285,33 @@ function dispatch(method: string, params: unknown[]): unknown {
       }
       return gid;
     }
+    // The two removal calls apply to different downloads and each refuses the
+    // other's, which is the distinction #316 turned on: deleting on either was
+    // why a button that could only ever fail against the real aria2 worked
+    // perfectly here. `remove` stops one that is still running;
+    // `removeDownloadResult` discards one that has already stopped.
     case "aria2.remove":
-    case "aria2.forceRemove":
-    case "aria2.removeDownloadResult":
-      downloads = downloads.filter((d) => d.gid !== gid);
+    case "aria2.forceRemove": {
+      const d = found();
+      if (!d || isStopped(d))
+        throw new Error(`GID#${gid} cannot be removed now`);
+      d.status = "removed";
       return gid;
+    }
+    case "aria2.removeDownloadResult": {
+      const d = found();
+      if (!d || !isStopped(d)) throw new Error(`GID#${gid} is not found`);
+      // Refused once, because aria2 is not finished when `remove` returns and
+      // the client has to keep asking — which is also what makes the row's
+      // "clearing" state long enough to see here.
+      if (!discardAsked.has(gid)) {
+        discardAsked.add(gid);
+        throw new Error(`GID#${gid} is not found`);
+      }
+      discardAsked.delete(gid);
+      downloads = downloads.filter((x) => x.gid !== gid);
+      return gid;
+    }
     case "aria2.addUri": {
       // Answers the way a magnet does: a metadata gid that resolves later,
       // which is the path `finish_add` polls. `changeOption` then applies a
