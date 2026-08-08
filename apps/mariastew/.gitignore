@@ -1,4 +1,3 @@
-# docker-compose's bind mount for local aria2 downloads — real content, not
-# fixtures, so only the directory itself is tracked.
-dev-data/downloads/*
-!dev-data/downloads/.gitkeep
+# docker-compose's bind-mounted roots: real downloads plus the directory
+# tree scripts/seed-dev-fixtures.ts generates. Neither belongs in git.
+dev-data/
