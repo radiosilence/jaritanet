@@ -1117,9 +1117,9 @@ mod tests {
             // metadata gid's own, always length 1) could only ever have
             // picked the right one by coincidence.
             let child_files = serde_json::json!([
-                {"index": "1", "path": "/mnt/kontent/movies/Pulp Fiction (1994) [1080p]/RARBG.nfo", "length": "473", "selected": "true"},
-                {"index": "2", "path": "/mnt/kontent/movies/Pulp Fiction (1994) [1080p]/Pulp.Fiction.1994.1080p.BrRip.x264.YIFY.mp4", "length": "1932735283", "selected": "true"},
-                {"index": "3", "path": "/mnt/kontent/movies/Pulp Fiction (1994) [1080p]/Other/YTS.MX.jpg", "length": "53226", "selected": "true"},
+                {"index": "1", "path": "/mnt/kontent/movies/Nightfall Harbour (1994) [1080p]/PACKGRP.nfo", "length": "473", "selected": "true"},
+                {"index": "2", "path": "/mnt/kontent/movies/Nightfall Harbour (1994) [1080p]/Nightfall.Harbour.1994.1080p.BrRip.x264.QUARRY.mp4", "length": "1932735283", "selected": "true"},
+                {"index": "3", "path": "/mnt/kontent/movies/Nightfall Harbour (1994) [1080p]/Other/COVERART.jpg", "length": "53226", "selected": "true"},
             ]);
             let mock = mock_server(
                 serde_json::json!({"result": "metadata-gid"}),
@@ -1163,7 +1163,7 @@ mod tests {
         async fn the_history_of_an_add_follows_the_download_it_produced() {
             let child_files = serde_json::json!([
                 {"index": "1", "path": "/mnt/kontent/movies/movie.mkv", "length": "100", "selected": "true"},
-                {"index": "2", "path": "/mnt/kontent/movies/RARBG.nfo", "length": "473", "selected": "true"},
+                {"index": "2", "path": "/mnt/kontent/movies/PACKGRP.nfo", "length": "473", "selected": "true"},
             ]);
             let mock = mock_server(
                 serde_json::json!({"result": "metadata-gid"}),

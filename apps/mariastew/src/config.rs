@@ -260,8 +260,8 @@ mod tests {
         );
         assert_eq!(c.label(Path::new("/mnt/kontent/tv")), "tv");
         assert_eq!(
-            c.label(Path::new("/mnt/kontent/movies/2046/disc 1")),
-            "movies/2046/disc 1"
+            c.label(Path::new("/mnt/kontent/movies/Harbourlight/disc 1")),
+            "movies/Harbourlight/disc 1"
         );
     }
 

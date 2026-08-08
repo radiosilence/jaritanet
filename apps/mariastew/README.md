@@ -9,6 +9,17 @@ memory, so a deploy signs everyone out. The frontend is server-rendered HTML
 patched over SSE ([Datastar](https://data-star.dev), vendored at
 `assets/datastar.js`), not a client-side app.
 
+## Adding one
+
+Tapping Add reads the clipboard and fills the field if what is there is a
+magnet. It happens in the click handler because `readText()` needs the user
+gesture and `showModal()` does not spend it; what the browser does with that
+request is the browser's own business — Safari draws a Paste button, Chrome
+grants it silently, an insecure origin has no clipboard API — and every
+outcome other than "a magnet came back" leaves an empty field to type into. A
+field already typed into is never overwritten, since the prompt can outlive
+someone's patience with it.
+
 ## What a row says it is doing
 
 A collapsed row answers "how is it going" — name, state, bar, destination, and
@@ -430,8 +441,8 @@ containers and the network; `dev-data/` is yours and is left alone.
 
 An empty picker cannot reproduce a layout bug — every one found so far only
 showed up because of what a real name does to the layout. `scripts/seed-dev-fixtures.ts`
-populates `dev-data/movies` with ~140 entries: a fixed set of real names
-from the owner's library, kept verbatim (full-width CJK brackets, runs of
+populates `dev-data/movies` with ~140 entries: a fixed set of invented names
+carrying the shapes that break layouts (full-width CJK brackets, runs of
 consecutive spaces, a leading `www.` prefix, square brackets, commas, names
 past 70 characters), padded out with deterministically generated filler so
 the picker's scroll cap is exercised against a realistic count rather than
