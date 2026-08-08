@@ -9,57 +9,96 @@
 <title>mariastew</title>
 {% import "icons.html" as icons %}
 <link rel="stylesheet" href="/assets/app.css">
+{# Before Datastar: both are modules, so they run in document order and `ms.*`
+     is defined by the time an expression names one. #}
+<script type="module" src="/assets/app.js"></script>
 <script type="module" src="/assets/datastar.js"></script>
 </head>
-{# $add: signal patched by POST /add (JSON body alone, no SSE needed).
-     {status: "ok"} closes dialog; {status: "error", message} keeps open & shows why.
-     __ifmissing seeds once, never overwrites prior patches. #}
+{# `$addStatus` and `$addMessage` are the whole contract with the server for
+     this form: POST /add answers with a JSON body, which Datastar treats as a
+     signal patch on its own (Content-Type: application/json is all it takes, no
+     SSE framing required). `ok` closes the dialog and confirms; `error` keeps it
+     open and says why.
+
+     Two flat signals rather than one `$add` object: a nested signal is tracked
+     only through its parent, so a reader of `$add.status` alone does not re-run
+     when the server patches it, and fails silently when it does not. A
+     top-level signal has no parent. `''` rather than `null` because a null in a
+     `data-signals` patch deletes the key rather than setting it.
+
+     `__ifmissing` seeds them without stomping a patch that arrived first. #}
 <body data-init="@get('/stream')"
-  data-signals__ifmissing="{add: {status: null, message: null}}"
+  data-signals__ifmissing="{addStatus: '', addMessage: ''}"
   class="min-h-screen bg-base-200">
 
-{# Header is primary action (no redundant label). Icon is aria-hidden;
-     aria-label keeps accessible name. #}
-{# Clipboard read in click handler (only place with transient activation).
-     Browser-specific (Safari button, Chrome silent, no clipboard on insecure).
-     Pastes magnet only, only if field empty. Errors swallowed. #}
+{# The header is the primary action, not a name plus an action — the person
+     already knows what they opened, and the name would only spend the
+     vertical space a phone in portrait can least afford. The label went for
+     the same reason it did: the only control in the header of an app for
+     adding downloads does not need saying twice. It keeps its accessible
+     name in `aria-label` — the icon is `aria-hidden`, so without it the
+     button would announce as nothing at all.
+
+     Nothing is reset here: closing is what clears an abandoned attempt, and
+     that is the one event every dismissal raises. #}
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     aria-label="Add download" title="Add download"
-    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal(); navigator.clipboard?.readText().then((text) => { const field = document.querySelector('#add-form [name=magnet]'); if (!field.value && text.trim().startsWith('magnet:?')) field.value = text.trim() }, () => {})">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
+    data-on:click="$addDialog.showModal(); ms.pasteMagnet($magnet)">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
 </header>
 
-{# JSON.stringify($add) is load-bearing (forces parent read for effect re-run).
-     Without it, nested property access doesn't reliably trigger on patches.
-     Failure is silent: dialog never closes. Confirmed by direct testing. #}
-<div data-effect="JSON.stringify($add); if ($add.status === 'ok') { document.getElementById('add-dialog').close(); document.querySelector('#add-form [name=magnet]').value = '' }"></div>
+{# The confirmation the owner asked for: something to actually see once the
+     dialog goes, not just a row that shows up later.
 
-{# on-interval (wraps in Datastar batch) vs setTimeout (doesn't).
-     Fires every 3s instead of once, but resetting null $add is a no-op. #}
-<div data-on-interval__duration.3s="$add = {status: null, message: null}"></div>
+     Bottom, not top: the header is a single full-width Add button and a top
+     toast lands squarely on it — so the confirmation covered the control that
+     produced it, at the one moment someone might want to add a second magnet.
+     The dialog is already closed by the time this shows, so the bottom edge it
+     used to occupy is free.
 
-{# Toast at bottom (not top, which would cover the Add button).
-     Shows ok confirmation when dialog closes. #}
-<div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]" data-show="JSON.stringify($add) && $add.status === 'ok'">
+     It clears the signal it reads, three seconds after the patch that set it,
+     so nothing else has to own its lifetime. A bare `setTimeout` cannot: it
+     writes outside Datastar's batch and the write is never picked up, with no
+     error anywhere. The clear is itself a patch, so this fires once more and
+     then stops — an idle page has no timer running. #}
+<div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]"
+  data-show="$addStatus === 'ok'"
+  data-on-signal-patch__delay.3s="if ($addStatus === 'ok') { $addStatus = ''; $addMessage = '' }">
   <div role="alert" class="alert alert-success">
     {% call icons::circle_check() %}{% endcall %}
     <span>Added — it will show up in the list shortly.</span>
   </div>
 </div>
 
-{# Bottom sheet (not centered). closedby="any" for tap-outside dismiss.
-     Magnet field open; destination collapsed (secondary). Uses dvh for
-     mobile Safari's collapsing toolbar. #}
-{# Reset on close (not open); all dismissals raise close event.
-     Re-fetch picker with no path to reset to roots. #}
-<dialog id="add-dialog" closedby="any"
-  data-on:close="$add = {status: null, message: null}; document.querySelector('#add-form [name=magnet]').value = ''; @get('/browse')"
+{# A bottom sheet, not a centered dialog: pinned to the bottom edge
+     (mt-auto/mb-0 on a UA stylesheet that otherwise centers a <dialog> with
+     margin:auto), which is where a thumb already is and where the rest of
+     this UI's controls live. `closedby="any"` is a tap-outside dismiss with
+     no JS — see #257. The one field that matters, the magnet paste, is the
+     first and only thing shown open; the destination is real but secondary,
+     so it starts collapsed behind its own disclosure rather than dumping a
+     directory tree in front of someone who has not pasted anything yet.
+     `dvh` rather than `vh` because mobile Safari's collapsing toolbar makes
+     `vh` wrong the moment the address bar shows or hides. #}
+{# It closes itself off `$addStatus` rather than off the fetch, so it does not
+     care whether the answer came back as a plain JSON body or an SSE patch.
+
+     Reset on close rather than on open. A chosen destination and a half-typed
+     magnet survived Cancel and every tap-outside dismiss, because nothing ever
+     put the dialog back — reopening showed the previous attempt and the only
+     way out was reloading the page. Closing is the moment an attempt is
+     abandoned, and it is the one event every dismissal raises: Cancel's
+     `method="dialog"`, `closedby="any"`, and Escape alike. Re-fetching the
+     picker with no path returns it to the roots. Only an error is cleared — the
+     success that closed this is what the toast is still showing. #}
+<dialog id="add-dialog" closedby="any" data-ref="addDialog"
+  data-effect="if ($addStatus === 'ok') el.close()"
+  data-on:close="if ($addStatus === 'error') $addStatus = ''; $addMessage = ''; $magnet.value = ''; @get('/browse')"
   class="open:flex flex-col mx-0 mt-auto mb-0 w-full sm:mx-auto sm:mb-auto sm:max-w-sm max-h-[85dvh] rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
   <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
-    {# Enter wired by hand (Add button outside form; no implicit submit). #}
-    <input name="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
-      data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); document.getElementById('add-submit').click() }"
+    <input name="magnet" data-ref="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
+      data-on:keydown="ms.clickOnEnter(evt, $addSubmit)"
       class="input input-bordered input-lg min-h-14 w-full text-base" autofocus>
     <details class="disclosure rounded-box border border-base-300">
       <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
@@ -73,12 +112,18 @@
     </details>
   </form>
 
-  {# Error shown only when $add.status === 'error'. Icon outside message
-       (data-text replaces whole content). #}
+  {# A 400 (magnets only, destination outside a root, magnet never resolved)
+       used to do nothing visible at all — indistinguishable from the dialog
+       just not working. Same contract as success, so it needs nothing from the
+       server beyond the message it already computed for the plain-text body.
+
+       The icon is a sibling of the message, not inside it: `data-text` replaces
+       the element's whole content, so anything nested in the same element is
+       gone the first time an error arrives. #}
   <p class="flex items-start gap-1.5 px-4 text-sm text-error"
-    data-show="JSON.stringify($add) && $add.status === 'error'">
+    data-show="$addStatus === 'error'">
     {% call icons::triangle_alert() %}{% endcall %}
-    <span data-text="JSON.stringify($add) && $add.message"></span>
+    <span data-text="$addMessage"></span>
   </p>
 
   {# max(padding, safe-area-inset) clears home indicator on gesture phones. #}
@@ -86,12 +131,20 @@
     <form method="dialog" class="flex-1">
       <button class="btn btn-ghost min-h-12 w-full">Cancel</button>
     </form>
-    {# selector: form outside button (footer, not scrolling away).
-         data-indicator sets $adding for request duration (disables retries).
-         Clear $add before firing to avoid stale errors. #}
+    {# `selector` because this button lives outside #add-form — pinned in
+         the footer rather than scrolling away with it — so Datastar is told
+         explicitly which form to serialize instead of walking up from here
+         and finding none.
+
+         data-indicator sets $adding for exactly the request's duration, which
+         is what drives both the disabled state (a second tap while the first is
+         still in flight is how the owner's retries piled up duplicate "already
+         registered" errors) and the label. The signals are cleared before
+         firing so a stale error from a previous attempt does not linger through
+         a fresh one. #}
     <button type="button" id="add-submit" class="btn btn-primary min-h-12 flex-[2]"
-      data-indicator="adding" data-attr:disabled="$adding"
-      data-on:click="$add = {status: null, message: null}; @post('/add', {contentType: 'form', selector: '#add-form'})">
+      data-ref="addSubmit" data-indicator="adding" data-attr:disabled="$adding"
+      data-on:click="$addStatus = ''; $addMessage = ''; @post('/add', {contentType: 'form', selector: '#add-form'})">
       <span data-show="$adding" class="loading loading-spinner loading-sm"></span>
       <span data-text="$adding ? 'Adding…' : 'Add'"></span>
     </button>
@@ -101,6 +154,15 @@
 <main class="mx-auto max-w-2xl">
 {% include "downloads.html" %}
 </main>
+
+{# Below the list, which is the one place on this page that costs nothing:
+     the header is a single control by design and the bottom edge is where a
+     version is looked for. It clears the home indicator for the same reason
+     the dialog's footer does — it is the last element on the page, so on a
+     phone with a gesture bar it would otherwise sit under it. #}
+<footer class="pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs opacity-40">
+  v{{ self.version() }}
+</footer>
 
 </body>
 </html>

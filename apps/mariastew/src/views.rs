@@ -266,6 +266,17 @@ impl Page {
         }
         .render()
     }
+
+    /// The build serving this page. `Cargo.toml`'s version is what a release
+    /// is here, so it is the same string the image tag and the GitHub release
+    /// carry — which is the point: neither of those is visible from a phone,
+    /// and "which build am I looking at" is the first question a download
+    /// behaving oddly raises. A method rather than a field because it is
+    /// fixed at compile time and every construction site, tests included,
+    /// would otherwise have to repeat it.
+    fn version(&self) -> &'static str {
+        env!("CARGO_PKG_VERSION")
+    }
 }
 
 /// The list on its own. Its root element carries the same id as the one in the
@@ -588,8 +599,7 @@ mod tests {
         .render()
         .unwrap();
         assert!(
-            page.contains("document.getElementById('add-dialog').showModal()")
-                && page.contains(r#"data-on:click=""#),
+            page.contains("$addDialog.showModal()") && page.contains(r#"data-on:click=""#),
             "add-dialog button markup: {page}"
         );
         // The generic "on" plugin needs the colon (data-on:click) — see the
@@ -600,6 +610,24 @@ mod tests {
         assert!(
             !page.contains("data-on-click") && !page.contains("data-on-submit"),
             "a dash-form data-on- attribute survived and will be silently ignored: {page}"
+        );
+    }
+
+    /// The version is only worth showing if it is the one that shipped. A
+    /// hardcoded string in the template would render fine and be wrong from
+    /// the next release onward, silently.
+    #[test]
+    fn the_page_shows_the_build_it_was_compiled_from() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+            "no version on the page: {page}"
         );
     }
 
@@ -1199,13 +1227,8 @@ mod tests {
         }
         .render()
         .unwrap();
-        // The JSON.stringify($add) prefix is not decorative — see the
-        // comment on this element in page.html. A narrower assertion here
-        // (checking only for `$add.status === 'error'`) would pass with the
-        // prefix silently deleted, which is exactly the change that breaks
-        // this at runtime with no error anywhere.
-        assert!(page.contains(r#"data-show="JSON.stringify($add) && $add.status === 'error'""#));
-        assert!(page.contains(r#"data-text="JSON.stringify($add) && $add.message""#));
+        assert!(page.contains(r#"data-show="$addStatus === 'error'""#));
+        assert!(page.contains(r#"data-text="$addMessage""#));
     }
 
     /// A successful add needs to be seen, not inferred later from a row
@@ -1220,20 +1243,18 @@ mod tests {
         }
         .render()
         .unwrap();
-        assert!(page.contains("JSON.stringify($add); if ($add.status === 'ok')"));
-        assert!(page.contains("add-dialog').close()"));
-        assert!(page.contains(r#"[name=magnet]').value = ''"#));
-        assert!(page.contains(r#"data-show="JSON.stringify($add) && $add.status === 'ok'""#));
+        assert!(page.contains(r#"data-effect="if ($addStatus === 'ok') el.close()""#));
+        assert!(page.contains(r#"$magnet.value = ''"#));
+        assert!(page.contains(r#"data-show="$addStatus === 'ok'""#));
         assert!(page.contains("Added"));
     }
 
-    /// The toast's own dismiss timer: a plain `setTimeout` writing a signal
-    /// was tried and rejected — the write happens outside Datastar's own
-    /// batch, and data-show never picked it up, so the toast stayed on
-    /// screen forever with no error anywhere. `on-interval` wraps its
-    /// callback in that batch and is what actually clears it.
+    /// The toast clears the signal it reads, from a trigger Datastar owns. A
+    /// plain `setTimeout` writing a signal was tried and rejected: the write
+    /// happens outside Datastar's batch, `data-show` never picks it up, and the
+    /// toast stays on screen forever with no error anywhere.
     #[test]
-    fn the_toast_reset_uses_on_interval_not_a_bare_settimeout() {
+    fn the_toast_clears_itself_from_a_trigger_datastar_owns() {
         let page = Page {
             roots: vec![],
             rows: vec![],
@@ -1241,14 +1262,79 @@ mod tests {
         }
         .render()
         .unwrap();
-        assert!(page.contains("data-on-interval__duration.3s="));
-        // "setTimeout" still appears in the explanatory HTML comment above
-        // the interval element — checking for the actual call form, not the
-        // bare word, is what keeps this test honest about what regressed.
+        assert!(page.contains("data-on-signal-patch__delay.3s="));
+        // Guarded on the value it clears, so the clear's own patch fires this
+        // once more and finds nothing to do. Unguarded, it writes every three
+        // seconds for the life of the page.
+        assert!(page.contains("if ($addStatus === 'ok') { $addStatus = ''"));
         assert!(
             !page.contains("setTimeout(() =>"),
             "a bare setTimeout call writing a signal does not get picked up by data-show: {page}"
         );
+    }
+
+    /// Two flat signals, never one `$add` object. A nested signal is tracked
+    /// only through its parent, so a reader of `$add.status` alone does not
+    /// re-run when the server patches it — the dialog, the toast and the error
+    /// each stop working with no error anywhere, which is why every reader of
+    /// the nested shape needed a `JSON.stringify($add)` prefix beside it.
+    #[test]
+    fn the_add_contract_is_flat_signals() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(page.contains(r#"data-signals__ifmissing="{addStatus: '', addMessage: ''}""#));
+        assert!(
+            !page.contains("$add."),
+            "a nested add signal is back: {page}"
+        );
+        assert!(
+            !page.contains("JSON.stringify($add"),
+            "the prefix a nested signal needs is back, so the shape is too: {page}"
+        );
+    }
+
+    /// A template naming a helper the module does not define throws at click
+    /// time and nowhere else: no build step sees the split, so a rename on one
+    /// side of it is otherwise silent until someone presses the button.
+    #[test]
+    fn every_ms_helper_a_template_calls_is_defined() {
+        const SCRIPT: &str = include_str!("../assets/app.js");
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        // `Page` renders the picker inline, so this covers browse.html too.
+        let mut called: Vec<&str> = page
+            .match_indices("ms.")
+            .filter(|(i, _)| {
+                page[..*i]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|c| !c.is_alphanumeric() && c != '_' && c != '$' && c != '.')
+            })
+            .filter_map(|(i, _)| page[i + 3..].split_once('('))
+            .map(|(name, _)| name)
+            .collect();
+        called.sort_unstable();
+        called.dedup();
+        assert!(
+            !called.is_empty(),
+            "no ms.* helper calls found at all: {page}"
+        );
+        for name in called {
+            assert!(
+                SCRIPT.contains(&format!("{name}(")),
+                "a template calls ms.{name}() but assets/app.js does not define it"
+            );
+        }
     }
 
     /// A finished row used to look exactly like every other row except for

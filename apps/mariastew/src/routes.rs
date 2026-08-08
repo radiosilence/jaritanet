@@ -288,9 +288,12 @@ fn magnet_infohash(magnet: &str) -> Option<&str> {
 /// still a warning here, so this is a change to what the browser is told, not
 /// to what we can see.
 fn add_outcome(message: Option<&str>) -> Response {
+    // Flat signal names, not one nested `add` object — see the note on
+    // `data-signals__ifmissing` in page.html for why the client cannot read a
+    // nested one reliably.
     let body = match message {
-        None => serde_json::json!({ "add": { "status": "ok" } }),
-        Some(m) => serde_json::json!({ "add": { "status": "error", "message": m } }),
+        None => serde_json::json!({ "addStatus": "ok" }),
+        Some(m) => serde_json::json!({ "addStatus": "error", "addMessage": m }),
     };
     (StatusCode::OK, axum::Json(body)).into_response()
 }
@@ -1359,11 +1362,9 @@ mod tests {
                 .expect("a small json body");
             let body: serde_json::Value =
                 serde_json::from_slice(&body).expect("add answers with json");
-            assert_eq!(body["add"]["status"], "error");
+            assert_eq!(body["addStatus"], "error");
             assert!(
-                body["add"]["message"]
-                    .as_str()
-                    .is_some_and(|m| !m.is_empty()),
+                body["addMessage"].as_str().is_some_and(|m| !m.is_empty()),
                 "the rejection has to say something, got {body}"
             );
         }
