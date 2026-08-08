@@ -263,9 +263,9 @@ pub struct Page {
     pub roots: Vec<RootView>,
     pub rows: Vec<Row>,
     /// Set when the aria2 poll behind this render failed. The page still
-    /// renders — with an empty `rows` and a visible banner — rather than a
-    /// blank 500, because a restarted sidecar should not take the UI down
-    /// with it.
+    /// renders — with an empty `rows` and, inside `#downloads`, a warning in
+    /// place of the list — rather than a blank 500, because a restarted
+    /// sidecar should not take the UI down with it.
     pub aria2_unreachable: bool,
 }
 
@@ -300,6 +300,11 @@ impl Page {
 #[template(path = "downloads.html")]
 pub struct Downloads {
     pub rows: Vec<Row>,
+    /// Always false from the poller: a snapshot only exists once aria2 has
+    /// answered, so a container coming down the stream is by construction the
+    /// list of a reachable service — which is what retires the warning the
+    /// page may have rendered with.
+    pub aria2_unreachable: bool,
 }
 
 /// One row, which is what the stream sends for every change that is not a
@@ -422,6 +427,7 @@ mod tests {
     fn render_row(d: &Download, log: Vec<Entry>, clearing: bool) -> String {
         (Downloads {
             rows: vec![Row::new(d, log, clearing)],
+            aria2_unreachable: false,
         })
         .render()
         .expect("downloads template renders")
@@ -634,6 +640,53 @@ mod tests {
         assert!(
             page.contains(r#"id="add-dialog""#) && page.contains("open:flex"),
             "dialog is not styled to appear once the browser sets [open]: {page}"
+        );
+    }
+
+    /// An empty queue and a page that failed to render its list looked
+    /// identical — nothing at all under the Add button. The container has to
+    /// say which it is, and say what to do about it.
+    #[test]
+    fn an_empty_list_says_so_rather_than_rendering_nothing() {
+        let empty = Downloads {
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            empty.contains("Nothing downloading") && empty.contains(r#"data-icon="inbox""#),
+            "no empty state in the list container: {empty}"
+        );
+
+        let occupied = Downloads {
+            rows: vec![Row::new(&moving(), Vec::new(), false)],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            !occupied.contains("Nothing downloading") && occupied.contains(r#"id="dl-abc""#),
+            "the empty state showed alongside a download: {occupied}"
+        );
+    }
+
+    /// The two empty lists are not the same empty list. "Paste a magnet link"
+    /// is advice that cannot work while the service that would accept it is
+    /// unreachable, so the warning replaces the invitation rather than sitting
+    /// above it.
+    #[test]
+    fn an_unreachable_service_is_not_an_empty_queue() {
+        let down = Downloads {
+            rows: vec![],
+            aria2_unreachable: true,
+        }
+        .render()
+        .unwrap();
+        assert!(down.contains("unreachable"), "no warning: {down}");
+        assert!(
+            !down.contains("Nothing downloading"),
+            "an outage was reported as an empty queue: {down}"
         );
     }
 

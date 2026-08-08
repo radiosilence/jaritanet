@@ -101,20 +101,31 @@
        morph. #}
   <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm"
     data-class:opacity-50="$browsing" data-class:pointer-events-none="$browsing">
+    {# A `<button>`, not an `<a>`. These were anchors with no `href`, which is
+         neither focusable nor announced as anything actionable — the whole
+         picker was unreachable from a keyboard and silent to a screen reader,
+         while looking identical. `text-left` because a button centres its
+         label and these are wrapped paths. #}
     {% for d in dirs %}
-    <li><a class="block min-h-11 break-words rounded-field px-3 py-2 hover:bg-base-300"
-      data-dir="{{ d.path }}">{{ d.name }}</a></li>
+    <li><button type="button" class="block w-full min-h-11 break-words rounded-field px-3 py-2 text-left hover:bg-base-300"
+      data-dir="{{ d.path }}">{{ d.name }}</button></li>
     {% endfor %}
   </ul>
   {% endif %}
 
   <div class="flex gap-2">
     <input type="hidden" name="parent" value="{{ path }}">
-    <input name="name" placeholder="New folder name" class="input input-bordered input-sm flex-1 min-h-11">
+    {# Enter creates the folder, for the same reason it adds the magnet — see
+         the note on that field. A text field whose button is right beside it
+         and whose Enter key does nothing is the one place a keyboard is
+         guaranteed to be open. #}
+    <input name="name" placeholder="New folder name" enterkeyhint="done"
+      data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); document.getElementById('mkdir-submit').click() }"
+      class="input input-bordered input-sm flex-1 min-h-11">
     {# Icon-only, like the home button above: this row is a text field and
          its button on a phone, and the word took the width a folder name
          needs to be typed in. #}
-    <button type="button" class="btn btn-sm min-h-11 min-w-11"
+    <button type="button" id="mkdir-submit" class="btn btn-sm min-h-11 min-w-11"
       aria-label="Create folder" title="Create folder"
       data-on:click="@post('/mkdir', {contentType: 'form'})">{% call icons::folder_plus(class="text-lg") %}{% endcall %}</button>
   </div>
