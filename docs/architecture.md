@@ -690,9 +690,15 @@ swarm from a datacentre range, and those get tracker-blocked far more readily
 than a residential one; and an exit's whole point is *selectable* egress
 location, which buys nothing here since the pod already runs on the node
 holding the disks it writes to — the same file-node label samba and syncthing
-use. It also has no inbound port: the home network forwards nothing, so aria2
-only ever dials out, and a swarm with no incoming peer connected is this
-service's normal resting state rather than a symptom.
+use. Peers reach it on a fixed port the `mariastew-portmap` pod forwards from
+the house router over UPnP, renewing on half the lease because IGD mappings
+expire and do not survive a reboot. That pod is separate and host-network
+because UPnP discovery is an SSDP multicast the pod network does not carry, so
+placing a mapping means being on the LAN — and the pod holding write access to
+the media library is not the one to lift out of its NetworkPolicy to get
+there. Where the mapping cannot be placed aria2 falls back to dialling out
+only, which costs download speed as well as seeding: clients rank peers they
+cannot dial last when choking.
 
 ## Multi-user access (admin / guest)
 

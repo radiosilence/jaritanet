@@ -46,11 +46,27 @@ The service and `aria2c` ship in the same container image (see `Dockerfile`);
 the pod runs it as two containers sharing a network namespace. That puts
 aria2's JSON-RPC on `127.0.0.1:6800`, reachable only from inside the pod — so
 aria2 carries no credential of its own, and this service is the only gate in
-front of it. There is no inbound port: the machine mariastew runs on forwards
-nothing from the internet, so aria2 is an outbound-only participant in
-whatever swarm it joins. That caps throughput on a sparse swarm and makes a
-row sitting at "blocked" (peers exist, none connected) the normal state rather
-than a fault — see `Health` in `src/aria2.rs`.
+front of it.
+
+Peers reach aria2 on a fixed port (`listenPort`, 51413), published on the
+node and forwarded from the house router by the `mariastew-portmap` pod. The
+port is fixed because nothing can forward one that changes on restart, and
+the mapper is a separate host-network pod because UPnP discovery is an SSDP
+multicast the pod network does not carry — being on the LAN means leaving the
+NetworkPolicy, and the pod that writes to the media library is not the one to
+take out of its confinement for that.
+
+Being reachable is not only about seeding. A peer nobody can dial connects
+only to those who accept its own connections, and clients rank unconnectable
+peers last when choking, so it depresses download speed too — the usual
+explanation for a well-seeded torrent crawling. Before this existed a finished
+torrent sat at `seeder: true` with zero peers and zero bytes uploaded, which
+is seeding in name only.
+
+Set `upnp: false` where the router has UPnP disabled or a forward is
+configured by hand. The mapper is then not created and aria2 goes back to
+being outbound-only, which makes a row reading "can't connect" (peers exist,
+none connected) ordinary rather than a fault — see `Health` in `src/aria2.rs`.
 
 Bandwidth is intentionally unthrottled in both directions
 (`maxOverallDownloadLimit` / `maxOverallUploadLimit` default to `0`). The

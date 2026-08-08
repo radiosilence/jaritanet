@@ -61,8 +61,8 @@ pub enum Health {
     /// Peers connected, nothing arriving. May recover on its own.
     Choked,
     /// Seeders exist and none is connected — a local problem, and the one worth
-    /// acting on. Also the ordinary state of a sparse swarm here, because the
-    /// home network forwards no port and so accepts no incoming peer.
+    /// acting on. Ordinary in a sparse swarm whenever the peer port is not
+    /// forwarded, since an unreachable client can only ever dial out.
     Blocked,
     /// No seeders. Nothing to wait for; the fix is a different magnet.
     Dead,
@@ -149,7 +149,7 @@ impl Download {
     /// against a real daemon, it stays the whole torrent's size — so those
     /// two only ever agree once every byte has arrived, selected or not.
     /// Each file's own `length`/`completed_length` carry no such ambiguity.
-    fn selected_totals(&self) -> Option<(u64, u64)> {
+    pub fn selected_totals(&self) -> Option<(u64, u64)> {
         let selected: Vec<&File> = self.files.iter().filter(|f| f.selected).collect();
         if selected.is_empty() {
             return None;
@@ -159,14 +159,25 @@ impl Download {
         Some((total, done))
     }
 
+    /// What the row prints for size and progress, from one source.
+    ///
+    /// The bar was drawn from the selected files and the bytes beside it from
+    /// aria2's download-level counters, which are not the same number: aria2
+    /// never shrinks `total_length` to a selection, so a torrent with one file
+    /// of four chosen showed the whole torrent's size next to a bar tracking
+    /// only the chosen one. Falls back to the download-level counters, which
+    /// is right until the file list arrives and nothing else can answer.
+    pub fn display_totals(&self) -> (u64, u64) {
+        self.selected_totals()
+            .unwrap_or((self.total_length, self.completed_length))
+    }
+
     /// `None` until the magnet resolves, which a `<progress>` with no value
     /// renders as indeterminate. That is the honest rendering: with
     /// `total_length` at zero a percentage is a division by zero, and
     /// "resolving the magnet" is a different state from "downloading nothing".
     pub fn percent(&self) -> Option<f64> {
-        let (total, done) = self
-            .selected_totals()
-            .unwrap_or((self.total_length, self.completed_length));
+        let (total, done) = self.display_totals();
         if total == 0 {
             return None;
         }
