@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -173,7 +174,7 @@ describe("service template", () => {
         if (found) return found;
         // Sequential is the point — polling for something to appear.
         // oxlint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 5));
+        await sleep(5);
       }
       throw new Error(`${name} was never registered`);
     };

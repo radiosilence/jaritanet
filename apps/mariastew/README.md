@@ -9,6 +9,26 @@ memory, so a deploy signs everyone out. The frontend is server-rendered HTML
 patched over SSE ([Datastar](https://data-star.dev), vendored at
 `assets/datastar.js`), not a client-side app.
 
+## Where the JavaScript lives
+
+Datastar evaluates a `data-on:*` attribute as a function body, so an attribute
+will hold anything JavaScript can express — which is how a click handler becomes
+a program written in HTML. Signal writes and one `@action` stay in the
+attribute, where they read as markup; anything with control flow in it is a
+helper on `ms` in `assets/app.js`, and the attribute calls it. Elements are
+reached through `data-ref` rather than `document.getElementById`, so a template
+holds one definition of what an id is.
+
+That boundary is a lint boundary, not a taste one. `assets/app.js` is the only
+file under `assets/` that oxlint and oxfmt see (the stylesheet and the vendored
+bundle are build outputs and ignored by name), and JavaScript written inside an
+attribute is seen by nothing at all until a browser runs it.
+
+Nothing checks the two halves against each other at build time, so a test does:
+`every_ms_helper_a_template_calls_is_defined` renders the page, collects every
+`ms.*` it names, and fails if `app.js` does not define one. A rename is
+otherwise silent until someone presses the button.
+
 ## Adding one
 
 Tapping Add reads the clipboard and fills the field if what is there is a
@@ -403,7 +423,7 @@ rather than by remembering to decorate it.
 
 ## Routes
 
-Everything below `/` requires a session; `/healthz`, the two `/assets/*`
+Everything below `/` requires a session; `/healthz`, the three `/assets/*`
 files, and `/auth/*` are the only routes outside that layer (`src/main.rs`).
 
 | Route | Method | What |
