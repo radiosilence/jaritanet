@@ -112,6 +112,23 @@ multicast the pod network does not carry — being on the LAN means leaving the
 NetworkPolicy, and the pod that writes to the media library is not the one to
 take out of its confinement for that.
 
+**TCP only, and the UDP half must stay unpublished.** aria2 sends its tracker
+announces and DHT queries from the same port it listens on. Give that port a
+UDP `hostPort` and the replies arrive addressed to it, so Cilium matches them
+against the hostPort service on the way into the pod and rewrites their source
+port; aria2 keys a reply to the endpoint it asked, sees a stranger, and drops
+it. Every announce then times out
+(`UDPT received CONNECT reply from <tracker>:<random> invalid transaction_id`)
+and every DHT lookup goes unanswered — a client with no way to find a peer, so
+magnets sit on "starting" forever while the swarm is healthy. Outbound DHT and
+uTP are unaffected, which is how any client behind a NAT operates anyway.
+
+DHT needs one more thing to be real: a bootstrap node (`--dht-entry-point`)
+and a routing-table file it can actually write. `--dht-file-path` defaults
+under `$HOME/.cache`, and HOME is unset here, so aria2 resolved it to
+`//.cache` and could neither load nor save — leaving every peer lookup to run
+against an empty table.
+
 Being reachable is not only about seeding. A peer nobody can dial connects
 only to those who accept its own connections, and clients rank unconnectable
 peers last when choking, so it depresses download speed too — the usual
