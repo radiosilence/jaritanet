@@ -69,9 +69,9 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
     // Sweeping it from *every* list was hiding the add itself. Resolving a
     // magnet means finding peers who will serve the torrent file, which takes
     // as long as it takes and sometimes never finishes — and for that whole
-    // window the metadata row was the only record that anything had been
-    // added, so the list stayed empty behind a toast promising it would "show
-    // up shortly". A magnet that never resolves showed nothing, forever.
+    // window the metadata row is the only record that anything has been added.
+    // A magnet that never resolves showed nothing, forever. It is also what the
+    // UI confirms an add with, now that nothing else does.
     //
     // While it is active or waiting it is exactly the row that should be on
     // screen. Once the real download exists the metadata gid moves to the
