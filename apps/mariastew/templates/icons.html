@@ -18,9 +18,12 @@
      the number changed, which every future call site will do, while a name
      says whether the tick is still on the finished badge.
 
-     Adding one: take the `<path>` elements from
-     https://unpkg.com/lucide-static/icons/<name>.svg — nothing else from
-     that file is needed. #}
+     Adding one: call `icons::<name>()` from a template and run
+     `mise run mariastew:icons` — it adds a macro sourced from
+     `lucide-static`'s `<name>.svg` (kebab-cased), the `<path>` elements and
+     nothing else from that file. It never overwrites a macro that already
+     exists (see `scripts/gen-icons.ts`), so a shape that diverged from its
+     name on purpose, like `trash`'s, stays put. #}
 
 {% macro check(class="") %}<svg class="icon {{ class }}" data-icon="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{% endmacro %}
 

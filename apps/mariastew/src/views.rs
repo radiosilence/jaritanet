@@ -282,6 +282,13 @@ impl Page {
     fn version(&self) -> &'static str {
         env!("CARGO_PKG_VERSION")
     }
+
+    /// Same reasoning as `version`: fixed at compile time, so a method rather
+    /// than a field every construction site would have to repeat. See
+    /// `crate::APP_JS_PATH`, which this and the route it names both read.
+    fn app_js_path(&self) -> &'static str {
+        crate::APP_JS_PATH
+    }
 }
 
 /// The list on its own. Its root element carries the same id as the one in the
@@ -1357,7 +1364,7 @@ mod tests {
     /// side of it is otherwise silent until someone presses the button.
     #[test]
     fn every_ms_helper_a_template_calls_is_defined() {
-        const SCRIPT: &str = include_str!("../assets/app.js");
+        const SCRIPT: &str = include_str!(concat!("../assets/", env!("APP_JS_FILENAME")));
         let page = Page {
             roots: vec![],
             rows: vec![],

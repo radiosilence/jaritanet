@@ -5,6 +5,9 @@
   "devDependencies": {
     "@tailwindcss/cli": "4.3.3",
     "daisyui": "5.7.16",
-    "tailwindcss": "4.3.3"
+    "lucide-static": "1.30.0",
+    "rolldown": "1.2.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
   }
 }

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="/assets/app.css">
 {# Before Datastar: both are modules, so they run in document order and `ms.*`
      is defined by the time an expression names one. #}
-<script type="module" src="/assets/app.js"></script>
+<script type="module" src="{{ self.app_js_path() }}"></script>
 <script type="module" src="/assets/datastar.js"></script>
 </head>
 {# `$addStatus` and `$addMessage` are the whole contract with the server for

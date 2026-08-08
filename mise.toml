@@ -35,7 +35,7 @@ run = "oxfmt --check"
 
 [tasks.typecheck]
 description = "Type check every package"
-run = 'for p in packages/*/tsconfig.json; do echo "→ $p" && tsc -p "$p" || exit 1; done'
+run = 'for p in packages/*/tsconfig.json apps/*/tsconfig*.json; do echo "→ $p" && tsc -p "$p" || exit 1; done'
 
 [tasks.test]
 description = "Run the test suite (vitest on Node — Pulumi needs Node's v8)"
@@ -61,6 +61,26 @@ dir = "apps/mariastew"
 run = "./node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --minify"
 # The output is committed, so cargo build needs no node toolchain and the
 # container build has one artefact rather than two.
+
+[tasks."js"]
+description = "Rebuild mariastew's browser script after changing web/app.ts"
+dir = "apps/mariastew"
+# Typechecking is `mise run typecheck`'s job (tsconfig.web.json is noEmit);
+# this only bundles. app.ts still imports nothing, so rolldown has no module
+# graph to speak of here — it exists to fingerprint the output filename, so a
+# deploy's new script can't be served from a browser cache holding the old
+# one. Sequential: the old hash's file has to be gone before build.rs globs
+# for the new one, or it finds two and refuses to guess.
+run = [
+  "rm -f assets/app-*.js",
+  "./node_modules/.bin/rolldown web/app.ts --platform browser --format esm --dir assets --entryFileNames app-[hash].js",
+]
+# The output is committed, same deal as app.css.
+
+[tasks."mariastew:icons"]
+description = "Add a macro for any icons::<name> a template calls that templates/icons.html doesn't define yet"
+dir = "apps/mariastew"
+run = "./scripts/gen-icons.ts"
 
 [tasks."check:profiles"]
 description = "Validate every profile shape against the real sing-box binary (needs docker)"

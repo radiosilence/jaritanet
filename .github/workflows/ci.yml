@@ -18,6 +18,9 @@ on:
     paths:
       - .github/workflows/ci.yml
       - "packages/**"
+      # Apps hold their own build tooling (aube-workspace.yaml), so this is
+      # where mariastew's own tsconfig/lint/fmt actually get checked.
+      - "apps/**"
       - "*.config.*"
       - package.json
   workflow_call:
