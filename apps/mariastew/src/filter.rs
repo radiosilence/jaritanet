@@ -51,7 +51,7 @@ fn strip_copy_suffix(stem: &str) -> &str {
 }
 
 /// Whether a `.txt` stem is nothing but a bare hostname — `sitename.tld` and
-/// nothing else, the shape of `AhaShare.com.txt`.
+/// nothing else, the shape of `SiteName.com.txt`.
 ///
 /// Deliberately narrow: the *entire* stem has to be domain-shaped, not
 /// merely contain something that looks like one. That is what keeps a real
@@ -168,34 +168,36 @@ mod tests {
         assert!(is_garbage("FILE_ID.DIZ"));
     }
 
-    /// The three real filenames a fake torrent left in the library, verbatim.
+    /// The three shapes tracker spam arrives in, with the site names invented:
+    /// a bare domain used as the filename, and the attribution phrase with and
+    /// without Windows' duplicate marker.
     #[test]
-    fn real_tracker_spam_filenames_are_garbage() {
-        assert!(is_garbage("Other/AhaShare.com.txt"));
+    fn tracker_spam_filenames_are_garbage() {
+        assert!(is_garbage("Other/SiteName.com.txt"));
         assert!(is_garbage(
-            "Other/Torrent downloaded from Demonoid.com - Copy.txt"
+            "Other/Torrent downloaded from TrackerSite.com - Copy.txt"
         ));
         assert!(is_garbage(
-            "Other/Torrent Downloaded From ExtraTorrent.com.txt"
+            "Other/Torrent Downloaded From AnotherTracker.net.txt"
         ));
     }
 
     #[test]
     fn tracker_spam_is_garbage_regardless_of_case() {
-        assert!(is_garbage("AHASHARE.COM.TXT"));
+        assert!(is_garbage("SITENAME.COM.TXT"));
         assert!(is_garbage(
-            "torrent downloaded from demonoid.com - copy.txt"
+            "torrent downloaded from trackersite.com - copy.txt"
         ));
-        assert!(is_garbage("TORRENT DOWNLOADED FROM EXTRATORRENT.COM.TXT"));
+        assert!(is_garbage("TORRENT DOWNLOADED FROM ANOTHERTRACKER.NET.TXT"));
     }
 
     /// The `" - Copy"` suffix combined with a bare-hostname stem rather than
-    /// the attribution phrase — the one shape none of the three real names
-    /// happens to exercise, since the only one carrying the suffix is caught
-    /// by the phrase rule regardless of what follows it.
+    /// the attribution phrase — the one shape none of the three above happens
+    /// to exercise, since the only one carrying the suffix is caught by the
+    /// phrase rule regardless of what follows it.
     #[test]
     fn a_bare_hostname_txt_is_garbage_even_with_a_copy_suffix() {
-        assert!(is_garbage("AhaShare.com - Copy.txt"));
+        assert!(is_garbage("SiteName.com - Copy.txt"));
     }
 
     /// The failure mode that matters more: a real `.txt` must never be

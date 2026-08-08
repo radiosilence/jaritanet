@@ -1,15 +1,16 @@
 #!/usr/bin/env -S node --experimental-strip-types
 /**
  * Populates docker-compose's bind-mounted roots (../dev-data/{tv,movies})
- * with directory names shaped like the owner's real library.
+ * with directory names shaped like a real media library.
  *
  * One empty `downloads` folder cannot reproduce a layout bug — every picker
  * bug found so far only showed up because of what a real name does to the
  * layout: full-width CJK brackets, runs of consecutive spaces, a leading
  * `www.` site prefix, square brackets, commas, names past 70 characters. The
- * real names below are verbatim from that library, not sanitised, and stay
- * present alongside generated filler so the ~140-entry scroll cap is
- * genuinely exercised rather than tested against three tidy names.
+ * titles and release groups below are invented, but each carries one of those
+ * shapes verbatim, and they stay present alongside generated filler so the
+ * ~140-entry scroll cap is genuinely exercised rather than tested against
+ * three tidy names.
  *
  * The filler is deterministic (seeded PRNG, not Math.random()) so a bug
  * report against "entry #83" points at the same name on every machine and
@@ -32,30 +33,32 @@ const DEV_DATA = join(
   "dev-data",
 );
 
-// Verbatim from the owner's library — the actual adversarial cases, not a
-// paraphrase of them.
-const REAL_MOVIES = [
-  "Atomic Blonde (2017) (2160p BluRay x265 HEVC 10bit HDR AAC 7.1 Tigole)",
-  "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1",
-  "Citizenfour (2014) [1080p]",
-  "Clerks Trilogy 1994,2006,2022 1080p BluRay HEVC x265",
-  "Crash (1996) Criterion (1080p BluRay x265 HEVC 10bit AAC 5.1)",
-  "Deliverance (1972) [1080p]",
-  "El Mariachi (1992) (1080p BluRay x265 HEVC 10bit AAC 2.0)",
-  "England is Mine",
-  "Four Lions 2010 (1080p Bluray x265 HEVC 10bit AAC 5.1 Tigole)",
-  "Furiosa.A.Mad.Max.Saga.2024.2160p.WEB.H265-FuriousMax",
-  "Heavy.Metal.1981.1080p.BluRay.DDP5.1.x265.10bit-Galaxy",
-  "Louis Theroux Inside The Manosphere (2026) 1080p WEBRip x265 LAMA",
-  "Mad.Max.3.Beyond.Thunderdome.1985.1080p.BrRip.x264.【ThumperDC】",
-  "Mystify.Michael.Hutchence.2019.1080p.BluRay.x264-GETiT[TGx]",
-  "O.Brother.Where.Art.Thou.2000.1080p.BluRay.DDP5.1.x265.GalaxyRG265[TGx]",
-  "Once Upon a Time in Mexico (2003) (1080p BluRay x265 HEVC 10bit Tigole)",
-  "The.7th.Voyage.Of.Sinbad.1958.Eng.REMASTERED.1080p.BluRay",
-  "V for Vendetta (2005) (2160p BluRay x265 HEVC 10bit HDR AAC 7.1 Tigole)",
-  "www.UIndex.org    -    Made In Britain 1982 BluRay 1080p DTS 2 0 AVC REMUX-FraMeSToR",
-  "www.UIndex.org    -    Obsession.2026.1080p.TELESYNC.x264-UNiON",
-  "Zoolander (2001) [1080p] [YTS.AG]",
+// Invented titles and groups carrying the adversarial shapes: nested
+// parentheses, dot separators, square brackets, commas, a bare title with no
+// metadata at all, full-width CJK brackets, a `www.` prefix with runs of
+// consecutive spaces, and names past 70 characters.
+const SHAPED_MOVIES = [
+  "Nightfall Harbour (2017) (2160p BluRay x265 HEVC 10bit HDR AAC 7.1 Cormorant)",
+  "Static.Tide.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1",
+  "Glass Vantage (2014) [1080p]",
+  "Hollow Creek Trilogy 1994,2006,2022 1080p BluRay HEVC x265",
+  "Ash Field (1996) Criterion (1080p BluRay x265 HEVC 10bit AAC 5.1)",
+  "Marrow Ridge (1972) [1080p]",
+  "Silver Basin (1992) (1080p BluRay x265 HEVC 10bit AAC 2.0)",
+  "Copper Is Mine",
+  "Quiet Fault 2010 (1080p Bluray x265 HEVC 10bit AAC 5.1 Cormorant)",
+  "Amberline.The.Salt.Saga.2024.2160p.WEB.H265-SaltRush",
+  "Ember.Signal.1981.1080p.BluRay.DDP5.1.x265.10bit-Meridian",
+  "Rust Drift Inside The Long Dark (2026) 1080p WEBRip x265 PELICAN",
+  "Low.Tide.3.Beyond.The.Verge.1985.1080p.BrRip.x264.【WinterFold】",
+  "Vantage.North.2019.1080p.BluRay.x264-KESTREL[QTx]",
+  "Wake.Of.The.Ember.Line.2000.1080p.BluRay.DDP5.1.x265.MeridianRG265[QTx]",
+  "Once Upon a Tide in Harbour (2003) (1080p BluRay x265 HEVC 10bit Cormorant)",
+  "The.7th.Crossing.Of.Marrow.1958.Eng.REMASTERED.1080p.BluRay",
+  "N for Nightfall (2005) (2160p BluRay x265 HEVC 10bit HDR AAC 7.1 Cormorant)",
+  "www.QIndex.test    -    Made In Copper 1982 BluRay 1080p DTS 2 0 AVC REMUX-StoneWork",
+  "www.QIndex.test    -    Fault.Line.2026.1080p.TELESYNC.x264-QUARRY",
+  "Driftwood (2001) [1080p] [LOFT.AG]",
 ];
 
 // Two shows named for the same problem two different ways — #257 exists
@@ -65,10 +68,16 @@ const REAL_MOVIES = [
 const DIVERGENT_SPELLINGS = ["Show Name S02", "Show.Name.Season.2"];
 
 const SHOWS: Record<string, string[]> = {
-  Deadwood: ["Season 01", "Season 02", "Season 03"],
-  "Chernobyl (2019)": ["Season 01"],
-  "The Wire": ["Season 01", "Season 02", "Season 03", "Season 04", "Season 05"],
-  Fargo: ["Season 01", "Season 02", "Season 03", "Season 04", "Season 05"],
+  "Deadfall Creek": ["Season 01", "Season 02", "Season 03"],
+  "Ashfield (2019)": ["Season 01"],
+  "The Ember Line": [
+    "Season 01",
+    "Season 02",
+    "Season 03",
+    "Season 04",
+    "Season 05",
+  ],
+  Saltmarsh: ["Season 01", "Season 02", "Season 03", "Season 04", "Season 05"],
 };
 
 const TARGET_MOVIE_COUNT = 140;
@@ -128,16 +137,16 @@ const SOURCES = ["BluRay", "WEBRip", "WEB", "BDRip", "DVDRip", "REMUX"];
 const CODECS = ["x264", "x265", "HEVC"];
 const AUDIO = ["AAC 5.1", "DDP5.1", "AC3", "DTS", "AAC 2.0"];
 const GROUPS = [
-  "Tigole",
-  "GalaxyRG",
-  "YTS.AG",
-  "FraMeSToR",
-  "LAMA",
-  "GETiT",
-  "RARBG",
-  "EVO",
-  "SPARKS",
-  "NTG",
+  "Cormorant",
+  "MeridianRG",
+  "LOFT.AG",
+  "StoneWork",
+  "PELICAN",
+  "KESTREL",
+  "QUARRY",
+  "VELD",
+  "EMBERS",
+  "NTQ",
 ];
 
 function fillerMovieName(): string {
@@ -153,10 +162,10 @@ function fillerMovieName(): string {
 
 function movieNames(): string[] {
   const filler = Array.from(
-    { length: Math.max(0, TARGET_MOVIE_COUNT - REAL_MOVIES.length) },
+    { length: Math.max(0, TARGET_MOVIE_COUNT - SHAPED_MOVIES.length) },
     fillerMovieName,
   );
-  return [...REAL_MOVIES, ...filler];
+  return [...SHAPED_MOVIES, ...filler];
 }
 
 async function seedRoot(root: string, names: string[]) {

@@ -373,8 +373,8 @@ containers and the network; `dev-data/` is yours and is left alone.
 
 An empty picker cannot reproduce a layout bug — every one found so far only
 showed up because of what a real name does to the layout. `scripts/seed-dev-fixtures.ts`
-populates `dev-data/movies` with ~140 entries: a fixed set of real names
-from the owner's library, kept verbatim (full-width CJK brackets, runs of
+populates `dev-data/movies` with ~140 entries: a fixed set of invented names
+carrying the shapes that break layouts (full-width CJK brackets, runs of
 consecutive spaces, a leading `www.` prefix, square brackets, commas, names
 past 70 characters), padded out with deterministically generated filler so
 the picker's scroll cap is exercised against a realistic count rather than
