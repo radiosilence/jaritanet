@@ -122,6 +122,32 @@ handing the tree to `prune`, which deletes any directory under a size
 threshold. That stays a decision for someone watching it happen; only
 directories this sweep itself emptied go.
 
+## The destination picker waits, and says so
+
+Every drill-down is an uncached `readdir` against the media volume — a
+mechanical disk in a USB enclosure — where a root with a hundred-plus direct
+children is the ordinary case. Seconds is its normal speed. That is not worked
+around: the obvious in-memory cache keyed by path is wrong the moment the
+picker's own Create folder writes a directory it does not know about, and it
+would be buying back a second of a wait nobody is blocked on, at the price of a
+picker that can show a folder which is not there.
+
+So the wait is shown instead. What that has to get right is the second in the
+middle, because the picker is a bottom sheet and the list is the only thing in
+it: dimming the current list to half opacity said "working" honestly enough,
+but everything it dimmed belonged to the folder just left, which is the one
+thing on screen actively answering the wrong question — and reading it for a
+moment is what makes someone tap again. Skeleton rows assert nothing. They are
+overlaid on the real list rather than swapped in for it, so the list keeps its
+box (`invisible`, not `hidden`) and the sheet does not resize under the thumb
+that just tapped and back again a second later.
+
+Create folder carries its own `data-indicator` even though the picker it lives
+in already has one: Datastar's indicator plugin only counts requests raised by
+its own element, so the signal the delegated browse handler sets says nothing
+about that button, and pressing it showed nothing at all while it created a
+directory and re-listed the parent.
+
 ## One image, run twice
 
 The service and `aria2c` ship in the same container image (see `Dockerfile`);
