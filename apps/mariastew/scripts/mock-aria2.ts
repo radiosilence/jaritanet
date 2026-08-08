@@ -193,24 +193,35 @@ let downloads = fixtures();
 
 const MOVING = "1000000000000002";
 const RESOLVING = "1000000000000001";
-/** Polls before the magnet resolves — `routes::TICK_SECS` is one second. */
-const RESOLVE_AFTER = 8;
-let polls = 0;
+/** How long the magnet spends unresolved, long enough to watch it happen. */
+const RESOLVE_AFTER_MS = 8_000;
+const started = Date.now();
+let advanced = started;
 
 /**
  * Called once per list poll, so what the page shows changes between SSE
- * patches. Only two rows move: everything else is a state, and a state that
- * drifted would stop being the thing it was put there to show.
+ * patches.
+ *
+ * It advances on the clock rather than on a count of calls. How often the
+ * server polls is a setting (`POLL_MS`), so a fixture moving a fixed step per
+ * call would download ten times faster the moment someone turned the rate up
+ * — and the thing being looked at while turning it up is exactly whether the
+ * numbers move at a believable speed.
+ *
+ * Only two rows move: everything else is a state, and a state that drifted
+ * would stop being the thing it was put there to show.
  */
 function advance() {
-  polls += 1;
+  const now = Date.now();
+  const elapsed = (now - advanced) / 1000;
+  advanced = now;
 
   const moving = downloads.find((d) => d.gid === MOVING);
   if (moving && moving.status === "active") {
     const speed = Number(moving.downloadSpeed);
     const done = Math.min(
       Number(moving.totalLength),
-      Number(moving.completedLength) + speed,
+      Number(moving.completedLength) + speed * elapsed,
     );
     moving.completedLength = n(done);
     moving.files[0].completedLength = n(done);
@@ -220,7 +231,11 @@ function advance() {
   // metadata gid moves to the stopped list — which is where `all_downloads`
   // sweeps it, so the real row replaces it rather than joining it.
   const resolving = downloads.find((d) => d.gid === RESOLVING);
-  if (resolving && polls === RESOLVE_AFTER) {
+  if (
+    resolving &&
+    resolving.status !== "complete" &&
+    now - started >= RESOLVE_AFTER_MS
+  ) {
     resolving.status = "complete";
     resolving.followedBy = ["1000000000000010"];
     downloads.push(

@@ -161,26 +161,16 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Respon
 mod tests {
     use super::*;
     use crate::aria2::Aria2;
-    use crate::config::{Config, Oidc};
+    use crate::config::Config;
 
     fn state() -> AppState {
         AppState {
-            config: std::sync::Arc::new(Config {
-                bind_addr: String::new(),
-                aria2_rpc_url: String::new(),
-                roots: vec![],
-                public_url: String::new(),
-                oidc: Oidc {
-                    issuer: String::new(),
-                    client_id: String::new(),
-                    client_secret: String::new(),
-                },
-                telegram: None,
-            }),
+            config: std::sync::Arc::new(Config::fixture()),
             activity: crate::activity::Activity::new(),
             clearing: crate::state::Clearing::default(),
             aria2: Aria2::new(String::new(), reqwest::Client::new()),
             sessions: crate::auth::session::Sessions::new(),
+            poll: crate::poll::Poll::new(),
             http: reqwest::Client::new(),
         }
     }

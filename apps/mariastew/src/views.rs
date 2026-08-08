@@ -49,7 +49,7 @@ pub struct LogView {
 
 /// Files listed before the rest are folded into a count. A season pack is
 /// twenty entries and reads fine; a discography is five hundred and would be
-/// the largest thing on the page, re-sent every second to say nothing.
+/// the largest thing on the page, re-sent at the poll rate to say nothing.
 const MAX_FILES_SHOWN: usize = 24;
 
 pub struct Row {
@@ -293,12 +293,22 @@ impl Page {
     }
 }
 
-/// The list on its own, pushed down the stream. Its root element carries the
-/// same id as the one in the page, which is how Datastar morphs it in place.
+/// The list on its own. Its root element carries the same id as the one in the
+/// page, which is how Datastar morphs it in place — and why it is only sent
+/// when a download appears or disappears, since morphing by id can do neither.
 #[derive(Template)]
 #[template(path = "downloads.html")]
 pub struct Downloads {
     pub rows: Vec<Row>,
+}
+
+/// One row, which is what the stream sends for every change that is not a
+/// download arriving or leaving. Same markup, same id, rendered from the same
+/// file the list renders each of its rows from.
+#[derive(Template)]
+#[template(path = "row.html")]
+pub struct RowMarkup<'a> {
+    pub row: &'a Row,
 }
 
 #[derive(Template)]
@@ -1393,7 +1403,8 @@ mod tests {
     }
 
     /// A file list is unbounded — a discography is hundreds of entries, and
-    /// this markup is re-sent down the stream once a second.
+    /// this markup is re-sent down the stream every time anything else in its
+    /// row moves.
     #[test]
     fn a_very_long_file_list_is_capped_and_says_how_many_it_left_out() {
         let files = (1..=40)
