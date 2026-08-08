@@ -177,7 +177,11 @@ fn render(state: &AppState, downloads: &[Download]) -> Option<View> {
             })
         })
         .collect();
-    let full = views::Downloads { rows }.render();
+    let full = views::Downloads {
+        rows,
+        aria2_unreachable: false,
+    }
+    .render();
     match (rendered, full) {
         (Ok(rows), Ok(full)) => Some(View {
             rows,

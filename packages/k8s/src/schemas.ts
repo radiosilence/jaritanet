@@ -89,7 +89,15 @@ export const PersistenceSchema = z.strictObject({
 });
 
 export const ImageSchema = z.strictObject({
-  pullPolicy: z.enum(["Always", "IfNotPresent", "Never"]).optional(),
+  // Every tag here is a version, and a version is immutable: a change to an
+  // image is a new number, published by that container's own workflow and
+  // moved by update-apps. So `Always` bought a registry round-trip on every
+  // container start to re-fetch a digest that cannot have moved. It was set
+  // back when the pins were `main`, where it was the only thing that worked.
+  // Anything that does pin a moving tag has to say `Always` for itself.
+  pullPolicy: z
+    .enum(["Always", "IfNotPresent", "Never"])
+    .default("IfNotPresent"),
   repository: z.string(),
   tag: z.string(),
 });

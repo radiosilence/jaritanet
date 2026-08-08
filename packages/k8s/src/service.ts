@@ -238,7 +238,7 @@ export function createService(
               {
                 name: serviceName,
                 image: `${image.repository}:${image.tag}`,
-                imagePullPolicy: image.pullPolicy ?? "Always",
+                imagePullPolicy: image.pullPolicy,
                 ports: [
                   { name: "http", containerPort: httpPort },
                   ...ports.map(([hostPort, containerPort]) => ({
