@@ -379,6 +379,21 @@ already on disk for each restored row, on a mechanical disk, on every deploy —
 the price of never trusting bytes nobody verified, and the reason to press
 **Done** on rows that are finished with rather than leaving them in the list.
 
+### Saying so while it happens
+
+That read is the longest wait a deploy has, and the row used to report it as
+`downloaded` with a full still bar. aria2 counts every piece in the control
+file as complete *before* it starts hashing them, so `completedLength` is
+already final for the whole check and only `verifiedLength` moves — sampled on
+a real restore, 57MB to 762MB in 1.4s on an SSD, and minutes on the disks this
+runs on.
+
+So `Health::Verifying` is decided ahead of completion rather than after it, and
+the bar is drawn from `verifiedLength` while a check is running. The row reads
+`checking files` with `230 MB of 754 MB` beside a bar that moves. Capped at the
+total, because aria2 hashes whole pieces and a selective torrent can verify
+past the size of the files it chose.
+
 ### Where it lives
 
 `statePath` (default `/var/lib/mariastew`) is a directory of its own on the
