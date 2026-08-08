@@ -1110,6 +1110,89 @@ mod tests {
         assert!(browse.contains("No destinations are configured"));
     }
 
+    /// The listing left on screen during a browse belongs to the folder being
+    /// left, so dimming it showed the wrong answer legibly for the whole of a
+    /// multi-second wait. Both halves are asserted together because either
+    /// one alone is the bug: a skeleton that never covers anything, or a list
+    /// hidden with nothing put in its place.
+    #[test]
+    fn the_previous_listing_is_covered_by_a_skeleton_while_browsing() {
+        let browse = Browse {
+            parent: Some("/mnt/kontent".into()),
+            path: "/mnt/kontent/tv".into(),
+            label: "tv".into(),
+            dirs: vec![DirView {
+                name: "Some Show".into(),
+                path: "/mnt/kontent/tv/Some Show".into(),
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            browse.contains(r#"class="skeleton"#),
+            "no skeleton rows to stand in for the listing: {browse}"
+        );
+        assert!(
+            browse.contains(r#"data-show="$browsing""#),
+            "the skeleton is not gated on the in-flight signal: {browse}"
+        );
+        assert!(
+            browse.contains(r#"data-class:invisible="$browsing""#),
+            "the stale listing is still readable underneath: {browse}"
+        );
+        assert!(
+            !browse.contains("data-class:opacity-50"),
+            "the old dim-the-stale-list treatment is still applied: {browse}"
+        );
+    }
+
+    /// `invisible`, not `hidden`: the picker is a bottom sheet, so a list that
+    /// gives up its box mid-wait resizes it under the thumb that just tapped
+    /// and resizes it back a second later.
+    #[test]
+    fn the_hidden_listing_keeps_the_space_it_occupied() {
+        let browse = Browse {
+            parent: None,
+            path: String::new(),
+            label: String::new(),
+            dirs: vec![DirView {
+                name: "tv".into(),
+                path: "/mnt/kontent/tv".into(),
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            !browse.contains("data-class:hidden"),
+            "the listing collapses its box instead of only going invisible: {browse}"
+        );
+    }
+
+    /// Creating a folder answers with the same picker after the same readdir,
+    /// and the indicator plugin only counts requests raised by its own
+    /// element — so the signal `#picker` sets says nothing about this button
+    /// and pressing it showed nothing at all.
+    #[test]
+    fn creating_a_folder_shows_the_same_wait_as_browsing_does() {
+        let browse = Browse {
+            parent: None,
+            path: String::new(),
+            label: String::new(),
+            dirs: vec![],
+        }
+        .render()
+        .unwrap();
+        let mkdir = browse
+            .split_once("@post('/mkdir'")
+            .expect("a create-folder button")
+            .0;
+        let tag = &mkdir[mkdir.rfind("<button").expect("a button tag")..];
+        assert!(
+            tag.contains(r#"data-indicator="browsing""#),
+            "the create-folder button raises a request with no indicator: {tag}"
+        );
+    }
+
     /// Loading state and the corresponding disable: `data-indicator` and
     /// `data-attr:disabled` are the two attributes that turn "the owner
     /// tapped Add three times because nothing seemed to happen" into a

@@ -49,69 +49,106 @@
          submit. #}
     <span class="font-mono opacity-70 break-words min-w-0 flex-1">{% if label.is_empty() %}All destinations{% else %}{{ label }}{% endif %}</span>
     {# The listing is a `readdir` against spinning disks holding a media
-         library, so seconds is its normal speed, not a fault. Without this
-         a tap produced nothing observable until the new list appeared and
-         the picker read as hung — the reason "the entire UI seizes up"
-         was reported for what is really an honest wait. #}
+         library, so seconds is its normal speed, not a fault, and the wait
+         is shown rather than removed. Kept alongside the skeleton below
+         because this line is the one thing the wait leaves standing and
+         stale: the path still names the folder being left until the answer
+         arrives, so something beside it has to say that is not the answer. #}
     <span class="loading loading-spinner loading-xs shrink-0" data-show="$browsing"></span>
   </div>
 
-  {# Bounded and internally scrolling: a root with a hundred-plus direct
-       children (a real movie library, one folder per film) is one level of
-       browsing, not a bug, and it must not push the rest of the dialog —
-       the magnet field above, the Add/Cancel row below — off screen.
+  {# Skeleton rows for the wait, rather than the previous folder's contents
+       dimmed to 50%. The dim said "working" and was honest about that, but
+       everything it was saying it about belonged to the folder just left —
+       the one thing on screen that was actively wrong, and the thing a
+       second of reading it makes someone tap again. A skeleton asserts
+       nothing.
 
-       Plain utilities rather than DaisyUI's `.menu`: `.menu` sizes itself
-       to `width: fit-content` and lays each item out as a `display: grid`
-       row with a `max-content` track, both built for a sidebar/dropdown
-       that should hug its widest item — exactly backwards for a list that
-       must wrap a name to the width it is given. `.menu`'s own item rule
-       out-specifies a plain utility class, so overriding `display` on the
-       link one property at a time turns into a losing fight with the
-       component; a plain list styled by hand does not have that fight. #}
-  {% if dirs.is_empty() %}
-  {# A blank <ul> and a folder with nothing in it looked identical — the
-       owner drilled into `downloads` and, seeing nothing, had no way to
-       tell "empty" from "broken". Said outright instead. #}
-  <div class="rounded-box bg-base-200 p-4 text-center text-sm opacity-60">
-    {% if parent.is_some() %}
-    This folder is empty.
+       Overlaid, not swapped in. The real list keeps its box (`invisible`,
+       which also takes its pointer events, rather than `hidden`), so a
+       bottom sheet under a thumb does not resize on the way into the wait
+       and again on the way out. `min-h-40` covers the one case with no box
+       worth keeping — browsing up out of an empty folder, where what is
+       being covered is a single line of text.
+
+       Ten rows, clipped: the list is capped at 40vh and this has to fill it
+       on a desktop viewport, where a phone-sized handful would leave the
+       bottom half of the box empty and reading as a short answer that had
+       already arrived. #}
+  <div class="relative" data-class:min-h-40="$browsing">
+    {% if dirs.is_empty() %}
+    {# A blank <ul> and a folder with nothing in it looked identical — the
+         owner drilled into `downloads` and, seeing nothing, had no way to
+         tell "empty" from "broken". Said outright instead. #}
+    <div class="rounded-box bg-base-200 p-4 text-center text-sm opacity-60"
+      data-class:invisible="$browsing">
+      {% if parent.is_some() %}
+      This folder is empty.
+      {% else %}
+      No destinations are configured.
+      {% endif %}
+    </div>
     {% else %}
-    No destinations are configured.
-    {% endif %}
-  </div>
-  {% else %}
-  {# Each name is wrapped with no line cap, not truncated with an ellipsis
-       and not clamped to a fixed number of lines either. A real release name
-       puts the title and year first and encoding detail last
-       (`Static.Tide.1994.Criterion.1080p.BluRay.x265...`), so an
-       end-ellipsis usually only hides junk — except when two folders differ
-       near the end (a part number, a disc, a cut), which is exactly the case
-       a picker has to get right. A 2-line clamp was tried first and
-       rejected: a name long enough to need three lines clips its third line
-       right where a PART1/PART2-style suffix usually lives, which is the one
-       case this whole choice exists to protect. Unbounded wrap costs list
-       height on the rare very long name; the list already scrolls to absorb
-       that, so nothing is ever hidden regardless of how long a name gets.
+    {# Bounded and internally scrolling: a root with a hundred-plus direct
+         children (a real movie library, one folder per film) is one level of
+         browsing, not a bug, and it must not push the rest of the dialog —
+         the magnet field above, the Add/Cancel row below — off screen.
 
-       This note sits above the loop, not inside it. Askama renders an HTML
-       comment as output, so a paragraph like this one written between
-       `{% for %}` and `{% endfor %}` shipped once per folder: 155KB of a
-       205KB response, invisible in the browser and re-parsed on every
-       morph. #}
-  <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm"
-    data-class:opacity-50="$browsing" data-class:pointer-events-none="$browsing">
-    {# A `<button>`, not an `<a>`. These were anchors with no `href`, which is
-         neither focusable nor announced as anything actionable — the whole
-         picker was unreachable from a keyboard and silent to a screen reader,
-         while looking identical. `text-left` because a button centres its
-         label and these are wrapped paths. #}
-    {% for d in dirs %}
-    <li><button type="button" class="block w-full min-h-11 break-words rounded-field px-3 py-2 text-left hover:bg-base-300"
-      data-dir="{{ d.path }}">{{ d.name }}</button></li>
-    {% endfor %}
-  </ul>
-  {% endif %}
+         Plain utilities rather than DaisyUI's `.menu`: `.menu` sizes itself
+         to `width: fit-content` and lays each item out as a `display: grid`
+         row with a `max-content` track, both built for a sidebar/dropdown
+         that should hug its widest item — exactly backwards for a list that
+         must wrap a name to the width it is given. `.menu`'s own item rule
+         out-specifies a plain utility class, so overriding `display` on the
+         link one property at a time turns into a losing fight with the
+         component; a plain list styled by hand does not have that fight.
+
+         Each name is wrapped with no line cap, not truncated with an ellipsis
+         and not clamped to a fixed number of lines either. A real release name
+         puts the title and year first and encoding detail last
+         (`Static.Tide.1994.Criterion.1080p.BluRay.x265...`), so an
+         end-ellipsis usually only hides junk — except when two folders differ
+         near the end (a part number, a disc, a cut), which is exactly the case
+         a picker has to get right. A 2-line clamp was tried first and
+         rejected: a name long enough to need three lines clips its third line
+         right where a PART1/PART2-style suffix usually lives, which is the one
+         case this whole choice exists to protect. Unbounded wrap costs list
+         height on the rare very long name; the list already scrolls to absorb
+         that, so nothing is ever hidden regardless of how long a name gets.
+
+         This note sits above the loop, not inside it. Askama renders an HTML
+         comment as output, so a paragraph like this one written between
+         `{% for %}` and `{% endfor %}` shipped once per folder: 155KB of a
+         205KB response, invisible in the browser and re-parsed on every
+         morph. #}
+    <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm"
+      data-class:invisible="$browsing">
+      {# A `<button>`, not an `<a>`. These were anchors with no `href`, which
+           is neither focusable nor announced as anything actionable — the
+           whole destination tree was unreachable from a keyboard and silent to
+           a screen reader, while looking identical. `text-left` because a
+           button centres its label and these are wrapped paths. #}
+      {% for d in dirs %}
+      <li><button type="button" class="block w-full min-h-11 break-words rounded-field px-3 py-2 text-left hover:bg-base-300"
+        data-dir="{{ d.path }}">{{ d.name }}</button></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="absolute inset-0 flex flex-col gap-1 overflow-hidden rounded-box bg-base-200 p-2"
+      data-show="$browsing" aria-hidden="true">
+      <div class="skeleton h-11 w-11/12 shrink-0"></div>
+      <div class="skeleton h-11 w-2/3 shrink-0"></div>
+      <div class="skeleton h-11 w-5/6 shrink-0"></div>
+      <div class="skeleton h-11 w-3/4 shrink-0"></div>
+      <div class="skeleton h-11 w-11/12 shrink-0"></div>
+      <div class="skeleton h-11 w-1/2 shrink-0"></div>
+      <div class="skeleton h-11 w-5/6 shrink-0"></div>
+      <div class="skeleton h-11 w-2/3 shrink-0"></div>
+      <div class="skeleton h-11 w-3/4 shrink-0"></div>
+      <div class="skeleton h-11 w-11/12 shrink-0"></div>
+    </div>
+  </div>
 
   <div class="flex gap-2">
     <input type="hidden" name="parent" value="{{ path }}">
@@ -125,8 +162,13 @@
     {# Icon-only, like the home button above: this row is a text field and
          its button on a phone, and the word took the width a folder name
          needs to be typed in. #}
+    {# Its own `data-indicator`, even though `#picker` above already has one:
+         the indicator plugin only counts requests whose *own* element raised
+         them, so the signal `#picker` sets covers the delegated handler and
+         nothing else. Creating a folder answers with the same picker after
+         the same readdir, and showed nothing at all while it did. #}
     <button type="button" id="mkdir-submit" class="btn btn-sm min-h-11 min-w-11"
-      aria-label="Create folder" title="Create folder"
+      aria-label="Create folder" title="Create folder" data-indicator="browsing"
       data-on:click="@post('/mkdir', {contentType: 'form'})">{% call icons::folder_plus(class="text-lg") %}{% endcall %}</button>
   </div>
 

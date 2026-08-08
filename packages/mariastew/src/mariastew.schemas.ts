@@ -89,6 +89,38 @@ export const Aria2ConfSchema = z.strictObject({
    * and makes aria2 stop recruiting peers almost immediately.
    */
   peerSpeedLimit: z.string().default("50M"),
+  /**
+   * Where aria2 keeps what has to outlive the pod: the session it reloads on
+   * start, and the DHT routing table.
+   *
+   * A directory of its own on the node's internal disk, deliberately not one of
+   * `roots`. Those are the media library — a share people browse and a tree
+   * Infuse scans — and aria2's bookkeeping is neither media nor something to
+   * hand a media scanner. It also writes `aria2.session__temp` beside the
+   * session file and renames it into place, so the directory takes churn the
+   * library should not see.
+   *
+   * The internal disk rather than the media drive, because this is the
+   * machine's state: an unmounted enclosure already leaves the pod `Pending` on
+   * the roots, and state on the drive would go missing exactly when the drive
+   * does.
+   *
+   * Mounted `Directory`, so it has to exist — kubelet creates a missing
+   * hostPath as root, `fsGroup` does not apply to hostPath volumes, and this
+   * pod runs as 1000, so a created-on-demand directory is one aria2 cannot
+   * write. `scripts/make-seed-drive` makes it, the same as the other local
+   * volumes on that node.
+   */
+  statePath: AbsolutePath.default("/var/lib/mariastew"),
+  /**
+   * How often the session is written, in seconds, rather than only on a clean
+   * exit — which is the difference between losing the interval and losing
+   * everything since the last graceful shutdown. A pod is killed, not asked.
+   *
+   * aria2 hashes the session before writing and skips an unchanged one, so this
+   * costs a write when something actually moved rather than one per tick.
+   */
+  saveSessionInterval: z.number().int().positive().default(60),
   btMaxPeers: z.number().int().nonnegative().default(0),
   maxConcurrentDownloads: z.number().int().positive().default(16),
   maxConnectionPerServer: z.number().int().positive().default(16),

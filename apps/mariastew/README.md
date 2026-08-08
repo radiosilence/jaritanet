@@ -153,6 +153,32 @@ handing the tree to `prune`, which deletes any directory under a size
 threshold. That stays a decision for someone watching it happen; only
 directories this sweep itself emptied go.
 
+## The destination picker waits, and says so
+
+Every drill-down is an uncached `readdir` against the media volume — a
+mechanical disk in a USB enclosure — where a root with a hundred-plus direct
+children is the ordinary case. Seconds is its normal speed. That is not worked
+around: the obvious in-memory cache keyed by path is wrong the moment the
+picker's own Create folder writes a directory it does not know about, and it
+would be buying back a second of a wait nobody is blocked on, at the price of a
+picker that can show a folder which is not there.
+
+So the wait is shown instead. What that has to get right is the second in the
+middle, because the picker is a bottom sheet and the list is the only thing in
+it: dimming the current list to half opacity said "working" honestly enough,
+but everything it dimmed belonged to the folder just left, which is the one
+thing on screen actively answering the wrong question — and reading it for a
+moment is what makes someone tap again. Skeleton rows assert nothing. They are
+overlaid on the real list rather than swapped in for it, so the list keeps its
+box (`invisible`, not `hidden`) and the sheet does not resize under the thumb
+that just tapped and back again a second later.
+
+Create folder carries its own `data-indicator` even though the picker it lives
+in already has one: Datastar's indicator plugin only counts requests raised by
+its own element, so the signal the delegated browse handler sets says nothing
+about that button, and pressing it showed nothing at all while it created a
+directory and re-listed the parent.
+
 ## One image, run twice
 
 The service and `aria2c` ship in the same container image (see `Dockerfile`);
@@ -184,7 +210,8 @@ DHT needs one more thing to be real: a bootstrap node (`--dht-entry-point`)
 and a routing-table file it can actually write. `--dht-file-path` defaults
 under `$HOME/.cache`, and HOME is unset here, so aria2 resolved it to
 `//.cache` and could neither load nor save — leaving every peer lookup to run
-against an empty table.
+against an empty table. It now points into `statePath` below rather than at
+`/tmp`, so the table is not thrown away with the container on every deploy.
 
 Being reachable is not only about seeding. A peer nobody can dial connects
 only to those who accept its own connections, and clients rank unconnectable
@@ -213,6 +240,72 @@ traffic is ordinary home-network downloading, and datacentre IP ranges are
 widely tracker-blocked, so routing it through an exit would make it slower
 and less welcome on the swarm for no benefit.
 
+## The queue outlives the pod
+
+There is no database on this side, so aria2 holding all the state means aria2
+losing all the state is the whole service losing it. Every version bump
+recreates the pod — `strategy: Recreate`, one node, hostPath mounts — and aria2
+came back knowing nothing: the bytes survived and `--continue=true` would have
+resumed them, but only if someone remembered which magnet it was and pasted it
+back. Seeding torrents just stopped. Nothing said anything had been dropped;
+the row was simply gone, which is cheap to notice at 1% and expensive at 90%.
+
+`--save-session` and `--input-file` now name the same file, so what a deploy
+tears down is where the next one starts. Three things make that actually work:
+
+- **`--save-session-interval`.** A pod is killed, not asked, so a session
+  written only on a clean exit is a session that is often not written. The
+  interval bounds the loss to itself. aria2 hashes the session before writing
+  and skips an unchanged one, and it writes `aria2.session__temp` and renames
+  it into place, so there is no torn file to come back to.
+- **`--force-save=true`.** aria2 calls a download whose data is complete
+  *finished* even while it is still seeding, and the serialiser skips finished
+  downloads unless forced. Without this the case with nothing left to resume and
+  everything left to lose — a 7.84GB torrent seeding to the swarm — was the one
+  case the session did not cover. It also keeps the `.aria2` control file for
+  those, which is what makes a restored seed a resume rather than a
+  rediscovery.
+- **An init container that touches the file.** `--input-file` on a path that
+  does not exist is fatal, not empty: aria2 exits with
+  `errorCode=1 Failed to open the file` and the pod crash-loops. An empty file
+  is fine and so is a malformed one — unknown lines are warnings — so
+  "missing" is the only case there is to handle.
+
+A magnet added through `addUri` is saved as the magnet, and the options changed
+on the resolved download go with it — aria2 serialises whatever is set on the
+group — so a restored torrent keeps the `dir` it was heading for and the
+`select-file` the filter narrowed it to, rather than starting over and pulling
+down the scene garbage that was deselected. Restoring re-fetches metadata from
+the infohash, which is what the persisted DHT table now makes quick.
+
+Nothing the interface cleared comes back. `routes::clear` follows `remove` with
+`removeDownloadResult` and keeps asking until the gid is gone from every list
+aria2 keeps, and a result aria2 no longer holds is not one it can save — which
+is the property `--force-save` would otherwise put at risk.
+
+`--check-integrity=true` still applies on the way back in, so a restored
+torrent is re-hashed before it resumes or seeds. That is a read of everything
+already on disk for each restored row, on a mechanical disk, on every deploy —
+the price of never trusting bytes nobody verified, and the reason to press
+**Done** on rows that are finished with rather than leaving them in the list.
+
+### Where it lives
+
+`statePath` (default `/var/lib/mariastew`) is a directory of its own on the
+node's internal disk, holding the session and the DHT table. Deliberately not
+one of `roots`: those are the media library, a share people browse and a tree
+Infuse scans, and aria2's bookkeeping is neither media nor something to hand a
+media scanner. The internal disk rather than the media drive because this is
+the machine's state — an unmounted enclosure already leaves the pod `Pending`
+on the roots, and state on the drive would go missing exactly when the drive
+did.
+
+It is mounted `Directory`, so it has to exist. kubelet creates a missing
+hostPath as root, `fsGroup` does not apply to hostPath volumes, and the pod runs
+as 1000, so a directory created on demand is one aria2 cannot write —
+`scripts/make-seed-drive` makes it and chowns it, alongside the other local
+volumes on that node. A node missing it leaves the pod `Pending` with a reason,
+which is the failure worth having.
 ## Polling
 
 aria2 has no notification for byte-level progress, so a moving bar means
@@ -371,13 +464,19 @@ it's replacing.
 Two decisions worth stating plainly, because they diverge from what an
 initial plan for this service assumed:
 
-- **The crate compiles inside the `Dockerfile`**, rather than a CI job
-  building a binary that the image then copies in. The repository's reusable
-  container workflow builds from a Dockerfile context and has no way to
-  consume a pre-built artefact, so a copied-in binary would mean a bespoke
-  pipeline instead of the one every other container here already uses. Each
-  architecture builds on its own native runner, so nothing is paid in QEMU
-  emulation for compiling on-image.
+- **The crate compiles on the CI runner, not inside the `Dockerfile`.** A
+  `cargo build` in a Dockerfile is one atomic layer, so any movement in
+  `Cargo.lock` recompiles every dependency — 168s of them against the 15s
+  this crate's own code costs. The stub-`main` layer reorders that; it does
+  not subdivide it, and neither does `cargo-chef`. Cargo's own cache has the
+  right granularity but cannot survive between runs inside `docker build`,
+  since the `type=gha` backend does not export cache mounts. So the compile
+  job holds it with `Swatinem/rust-cache` and hands the binary over as an
+  artefact, which the reusable container workflow unpacks into the build
+  context (`context-artifact`). Still one native runner per architecture, so
+  nothing is paid in QEMU emulation either way. The cost is that
+  `Dockerfile` no longer builds on its own — it wants the binary beside it —
+  which is why local iteration goes through `Dockerfile.dev` instead.
 - **The runtime base is `alpine`, not `scratch`.** It has to carry `aria2c`
   regardless, and needs a CA bundle even for the Rust binary alone: reqwest's
   `rustls` feature pulls in `rustls-platform-verifier`, which reads the
@@ -507,9 +606,10 @@ compose bridge network — the same shared-netns relationship the pod gives
 the two containers for free.
 
 The image is built from `Dockerfile.dev`, not the production `Dockerfile`:
-same two-stage layout and dependency-caching trick, but a debug build, so
-`/auth/dev-login` is actually compiled in. The production Dockerfile is
-untouched and still `--release` — nothing here can affect what CI ships.
+a debug build, so `/auth/dev-login` is actually compiled in. It is also the
+only one of the two that still compiles inside `docker build` — the
+production `Dockerfile` wants a binary handed to it by CI and will not build
+from a bare checkout. Nothing here can affect what CI ships.
 
 **Iteration loop:** `docker compose up --build` again after a source change.
 The dependency-caching trick means only the final `cargo build` layer
