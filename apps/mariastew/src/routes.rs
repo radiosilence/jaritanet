@@ -46,17 +46,35 @@ pub fn router() -> Router<AppState> {
 pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> {
     let mut downloads = state.aria2.tell_active().await?;
     downloads.extend(state.aria2.tell_waiting(0, 100).await?);
-    downloads.extend(state.aria2.tell_stopped(0, 100).await?);
-    // Every magnet `add` starts resolves under its own gid before
-    // `follow-torrent` spawns the real download from it (see
-    // `finish_add_inner`), and aria2 keeps that resolving gid in the stopped
-    // list forever afterward — nothing here ever removes it, since the real
-    // download is applied to the gid `follow-torrent` spawned rather than a
-    // second `addUri` that would need this one's gid freed first. aria2
-    // names it `[METADATA]<torrent name>` for as long as it exists, which is
-    // how it is told apart from a real download: it is never something the
-    // user asked to watch.
-    downloads.retain(|d| !is_metadata_row(d));
+    // Only the *stopped* list is swept for metadata rows. A resolving one is
+    // the only evidence an add exists — see the note below.
+    downloads.extend(
+        state
+            .aria2
+            .tell_stopped(0, 100)
+            .await?
+            .into_iter()
+            .filter(|d| !is_metadata_row(d)),
+    );
+    // Every magnet `add` resolves under its own gid before `follow-torrent`
+    // spawns the real download from it (see `finish_add_inner`), and aria2
+    // keeps that resolving gid in the stopped list forever afterward —
+    // nothing here ever removes it, since the real download is applied to the
+    // gid `follow-torrent` spawned rather than a second `addUri` that would
+    // need this one's gid freed first. aria2 names it `[METADATA]<name>` for
+    // as long as it exists, which is how it is told apart.
+    //
+    // Sweeping it from *every* list was hiding the add itself. Resolving a
+    // magnet means finding peers who will serve the torrent file, which takes
+    // as long as it takes and sometimes never finishes — and for that whole
+    // window the metadata row was the only record that anything had been
+    // added, so the list stayed empty behind a toast promising it would "show
+    // up shortly". A magnet that never resolves showed nothing, forever.
+    //
+    // While it is active or waiting it is exactly the row that should be on
+    // screen. Once the real download exists the metadata gid moves to the
+    // stopped list, where it is still swept, so it is replaced rather than
+    // duplicated.
     Ok(downloads)
 }
 
@@ -1089,9 +1107,38 @@ mod tests {
         }
     }
 
+    /// The row a resolving magnet is shown as, once the marker is stripped.
+    /// Nothing about "starting" should read as an implementation detail.
+    #[test]
+    fn a_resolving_magnet_is_named_without_the_marker_and_reads_as_starting() {
+        let metadata = Download {
+            gid: "m1".to_string(),
+            status: Status::Active,
+            total_length: 0,
+            completed_length: 0,
+            download_speed: 0,
+            upload_speed: 0,
+            connections: 0,
+            num_seeders: 0,
+            error_message: None,
+            dir: String::new(),
+            files: Vec::new(),
+            bittorrent_name: Some("[METADATA]abc123".to_string()),
+            followed_by: Vec::new(),
+        };
+        let row = crate::views::Row::from(&metadata);
+        assert_eq!(row.name, "abc123", "the marker should not be on screen");
+        assert_eq!(row.state, "starting");
+        assert!(
+            row.percent.is_none(),
+            "nothing is known about size yet, so the bar is indeterminate"
+        );
+    }
+
     /// aria2 marks the metadata-only pass with this literal prefix for as
-    /// long as it exists — the signal `all_downloads` filters on so it never
-    /// reaches the list as if it were something the user asked to watch.
+    /// long as it exists. It is swept from the stopped list, where it lingers
+    /// forever after the real download has taken over — but *not* from the
+    /// active one, where it is the only evidence an add happened at all.
     #[test]
     fn metadata_only_rows_are_recognised_by_name_and_real_ones_are_not() {
         let metadata = Download {
