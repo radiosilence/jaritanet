@@ -1,20 +1,13 @@
-{# One delegated handler for the whole picker rather than a `@get` per row.
-     Two reasons, and the second is the one that mattered. A hundred-plus
-     folders meant a hundred-plus expressions for Datastar to compile on
-     every morph, and the same number of URLs inlined into the HTML — a
-     real library sent 205KB of which the overwhelming majority was
-     repeated per-row markup. And a path reaching the browser as a plain
-     attribute value is never parsed as an expression, so a folder named
-     with a quote cannot break out into the handler the way it could when
-     each URL was interpolated into one.
+{# One delegated handler for the whole picker rather than a `@get` per row —
+     see `ms.browseUrl` for why.
 
-     It lives on `#picker` because that is the element the response
-     patches: Datastar morphs by id rather than replacing, so the handler
-     and its in-flight `$browsing` signal survive the swap they trigger.
-     Anything below it is free to be replaced wholesale. #}
+     It lives on `#picker` because that is the element the response patches:
+     Datastar morphs by id rather than replacing, so the handler and its
+     in-flight `$browsing` signal survive the swap they trigger. Anything below
+     it is free to be replaced wholesale. #}
 {% import "icons.html" as icons %}
 <div id="picker" class="flex flex-col gap-2" data-indicator="browsing"
-  data-on:click="const t = evt.target.closest('[data-dir]'); if (t) @get('/browse?path=' + encodeURIComponent(t.dataset.dir))">
+  data-on:click="const url = ms.browseUrl(evt); if (url) @get(url)">
   {# Centred, not top-aligned: the buttons are 44px touch targets and the
        path is a 20px line, so aligning their tops leaves the home icon
        sitting 12px below the text it belongs to. A path long enough to wrap past 44px
@@ -153,11 +146,11 @@
   <div class="flex gap-2">
     <input type="hidden" name="parent" value="{{ path }}">
     {# Enter creates the folder, for the same reason it adds the magnet — see
-         the note on that field. A text field whose button is right beside it
-         and whose Enter key does nothing is the one place a keyboard is
-         guaranteed to be open. #}
+         `ms.clickOnEnter`. A text field whose button is right beside it and
+         whose Enter key does nothing is the one place a keyboard is guaranteed
+         to be open. #}
     <input name="name" placeholder="New folder name" enterkeyhint="done"
-      data-on:keydown="if (evt.key === 'Enter') { evt.preventDefault(); document.getElementById('mkdir-submit').click() }"
+      data-on:keydown="ms.clickOnEnter(evt, $mkdirSubmit)"
       class="input input-bordered input-sm flex-1 min-h-11">
     {# Icon-only, like the home button above: this row is a text field and
          its button on a phone, and the word took the width a folder name
@@ -168,7 +161,8 @@
          nothing else. Creating a folder answers with the same picker after
          the same readdir, and showed nothing at all while it did. #}
     <button type="button" id="mkdir-submit" class="btn btn-sm min-h-11 min-w-11"
-      aria-label="Create folder" title="Create folder" data-indicator="browsing"
+      aria-label="Create folder" title="Create folder"
+      data-ref="mkdirSubmit" data-indicator="browsing"
       data-on:click="@post('/mkdir', {contentType: 'form'})">{% call icons::folder_plus(class="text-lg") %}{% endcall %}</button>
   </div>
 

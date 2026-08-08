@@ -27,10 +27,27 @@ use axum::routing::get;
 use crate::config::Config;
 use crate::state::AppState;
 
-/// Served from the binary rather than a volume: they are build outputs, so a
-/// mount would be a second thing to keep in step with the image.
-const DATASTAR: &str = include_str!("../assets/datastar.js");
-const STYLESHEET: &str = include_str!("../assets/app.css");
+/// Served from the binary rather than a volume: the stylesheet and the vendored
+/// bundle are build outputs, so a mount would be a second thing to keep in step
+/// with the image, and `app.js` travels with them because it is the same thing
+/// to the browser.
+const ASSETS: [(&str, &str, &str); 3] = [
+    (
+        "/assets/app.js",
+        "text/javascript; charset=utf-8",
+        include_str!("../assets/app.js"),
+    ),
+    (
+        "/assets/datastar.js",
+        "text/javascript; charset=utf-8",
+        include_str!("../assets/datastar.js"),
+    ),
+    (
+        "/assets/app.css",
+        "text/css; charset=utf-8",
+        include_str!("../assets/app.css"),
+    ),
+];
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -71,35 +88,25 @@ async fn main() -> anyhow::Result<()> {
 
     // Only what is genuinely public sits outside the auth layer: the probe the
     // kubelet calls, the login round-trip that cannot require a session to
-    // establish one, and two static assets. Everything else is inside
+    // establish one, and the static assets. Everything else is inside
     // `routes::router`, which the layer wraps whole.
-    let app = Router::new()
+    let mut app = Router::new()
         .merge(routes::router().layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::extract::require_session,
         )))
         .merge(auth::routes::router())
-        .route("/healthz", get(|| async { "ok" }))
-        .route(
-            "/assets/datastar.js",
-            get(|| async {
-                (
-                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
-                    DATASTAR,
-                )
-                    .into_response()
-            }),
-        )
-        .route(
-            "/assets/app.css",
-            get(|| async {
-                (
-                    [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
-                    STYLESHEET,
-                )
-                    .into_response()
-            }),
-        )
+        .route("/healthz", get(|| async { "ok" }));
+    for (path, content_type, body) in ASSETS {
+        app =
+            app.route(
+                path,
+                get(move || async move {
+                    ([(header::CONTENT_TYPE, content_type)], body).into_response()
+                }),
+            );
+    }
+    let app = app
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(state);
 

@@ -29,7 +29,7 @@ export type SingboxNode = {
 };
 
 /** The same shape with Outputs resolved to plain strings (for JSON.stringify). */
-type ResolvedNode = {
+export type ResolvedNode = {
   name: string;
   server: string;
   hysteria: {
@@ -56,7 +56,7 @@ export type Exit = {
   server: pulumi.Input<string>;
 };
 
-type ResolvedExit = {
+export type ResolvedExit = {
   name: string;
   port: number;
   method: string;

@@ -1,4 +1,5 @@
 import * as crypto from "node:crypto";
+import { sha256hex } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "./users.ts";
@@ -6,6 +7,8 @@ import {
   buildProfile,
   type Exit,
   notifyProfileUrls,
+  type ResolvedExit,
+  type ResolvedNode,
   type SingboxNode,
 } from "./singbox.ts";
 
@@ -70,11 +73,9 @@ export function createProfileServer(
             JSON.stringify(
               buildProfile(
                 user,
-                // biome-ignore lint/suspicious/noExplicitAny: resolved Outputs
-                resolved as any,
+                resolved as ResolvedNode[],
                 opts.magicdnsSuffix,
-                // biome-ignore lint/suspicious/noExplicitAny: resolved Outputs
-                resolvedExits as any,
+                resolvedExits as ResolvedExit[],
               ),
               null,
               2,
@@ -84,11 +85,9 @@ export function createProfileServer(
       ),
     );
 
-  const routesHash = pulumi
-    .secret(routes)
-    .apply((r) =>
-      crypto.createHash("sha256").update(r).digest("hex").slice(0, 16),
-    );
+  const routesHash = sha256hex(pulumi.secret(routes)).apply((h) =>
+    h.slice(0, 16),
+  );
 
   const secret = new k8s.core.v1.Secret(
     "singbox-profiles",
