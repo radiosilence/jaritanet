@@ -176,7 +176,31 @@ fn is_magnet(s: &str) -> bool {
     s.starts_with("magnet:?")
 }
 
-/// Metadata first, then the real download with only the wanted files selected.
+/// aria2's own wording when an `addUri` names an infohash it already has
+/// registered — not a parse of any structured field, because the RPC error is
+/// a plain string and this is the only thing in it worth matching on.
+fn is_already_registered(message: &str) -> bool {
+    message.contains("is already registered")
+}
+
+/// The `btih:` hash out of a magnet's `xt` parameter, for logging only —
+/// nothing here acts on it, aria2 already knows the download by its gid. Not
+/// a URI parser, in the same spirit as [`is_magnet`]: this only ever needs to
+/// find the one parameter a magnet is expected to carry.
+fn magnet_infohash(magnet: &str) -> Option<&str> {
+    let after = magnet.split_once("btih:")?.1;
+    Some(after.split('&').next().unwrap_or(after))
+}
+
+/// Validates and starts the metadata pass, then hands the rest to the
+/// background — resolving a magnet's metadata can take real time, and the
+/// browser does not hold a `POST` open for it (production: `NS_BINDING_ABORTED`
+/// around two seconds, followed by a retry that collided with the still-
+/// registered infohash from the abandoned first attempt). `addUri` itself is
+/// not what was slow: aria2 answers with a gid immediately and resolves the
+/// magnet on its own side afterward, so it is safe to run synchronously and
+/// is what makes the already-registered case below a real 4xx rather than
+/// something only the background task ever sees.
 pub async fn add(
     State(state): State<AppState>,
     CurrentSession(session): CurrentSession,
@@ -193,14 +217,71 @@ pub async fn add(
     })?;
     let dir = dir.to_string_lossy().into_owned();
 
-    let metadata_gid = state
+    let metadata_gid = match state
         .aria2
         .add_uri(
             &form.magnet,
             serde_json::json!({"bt-metadata-only": "true", "follow-torrent": "mem"}),
         )
-        .await?;
+        .await
+    {
+        Ok(gid) => gid,
+        // Not a server fault: this infohash is already known to aria2,
+        // either genuinely downloading or a metadata pass a previous attempt
+        // never got to free — the pod dying mid-`add` being the likely way,
+        // now that finishing it runs detached from the request that started
+        // it. aria2's error does not say which, and guessing wrong is worse
+        // than asking: forcibly clearing it here would silently cancel a
+        // real download if it guessed wrong. The download list is already on
+        // the page — that is where "which one is it" gets answered.
+        Err(AppError::Upstream(msg)) if is_already_registered(&msg) => {
+            return Err(AppError::BadRequest(
+                "this magnet is already added or downloading".to_string(),
+            ));
+        }
+        Err(e) => return Err(e),
+    };
 
+    tokio::spawn(finish_add(
+        state,
+        session.sub,
+        form.magnet,
+        dir,
+        metadata_gid,
+    ));
+
+    Ok(StatusCode::ACCEPTED.into_response())
+}
+
+/// Everything about adding a magnet that cannot happen inside the request
+/// that asked for it. Detached by `tokio::spawn`, so the only way its outcome
+/// reaches anyone is the SSE stream the page already keeps open — a resolving
+/// magnet shows as the `Resolving` row it always did — and, on failure, the
+/// log: there is no response left to carry it back to.
+async fn finish_add(
+    state: AppState,
+    sub: String,
+    magnet: String,
+    dir: String,
+    metadata_gid: String,
+) {
+    if let Err(e) = finish_add_inner(&state, &sub, &magnet, &dir, &metadata_gid).await {
+        tracing::error!(
+            gid = %metadata_gid,
+            infohash = magnet_infohash(&magnet).unwrap_or("unknown"),
+            error = %e,
+            "add: failed after the request was already accepted"
+        );
+    }
+}
+
+async fn finish_add_inner(
+    state: &AppState,
+    sub: &str,
+    magnet: &str,
+    dir: &str,
+    metadata_gid: &str,
+) -> AppResult<()> {
     // `Complete` is what "the metadata has arrived" actually means. Waiting for a
     // non-empty file list instead is racy: aria2 populates `files` slightly
     // before it flips the status, so the pass could still be active when the
@@ -208,7 +289,7 @@ pub async fn add(
     // rejected as a duplicate of a download that had not finished letting go.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
     let files = loop {
-        let status = state.aria2.tell_status(&metadata_gid).await?;
+        let status = state.aria2.tell_status(metadata_gid).await?;
         if status.status == Status::Error {
             return Err(AppError::Upstream(
                 status
@@ -248,7 +329,7 @@ pub async fn add(
         .filter(|f| filter::is_garbage(&f.path))
         .fold((0u32, 0u64), |(n, b), f| (n + 1, b + f.length));
     tracing::info!(
-        sub = %session.sub,
+        sub = %sub,
         magnet_files = files.len(),
         wanted = indices.len(),
         skipped,
@@ -257,17 +338,17 @@ pub async fn add(
         "starting download"
     );
 
-    free_infohash(&state, &metadata_gid).await?;
+    free_infohash(state, metadata_gid).await?;
 
     state
         .aria2
         .add_uri(
-            &form.magnet,
+            magnet,
             serde_json::json!({"dir": dir, "select-file": indices.join(",")}),
         )
         .await?;
 
-    Ok(StatusCode::NO_CONTENT.into_response())
+    Ok(())
 }
 
 /// Stop and purge the metadata-only pass so its infohash is free again.
@@ -591,6 +672,244 @@ mod tests {
             result.is_err(),
             "must not report the infohash free as fine when aria2 could not be reached at all"
         );
+    }
+
+    #[test]
+    fn already_registered_is_recognised_by_aria2s_own_wording() {
+        assert!(is_already_registered(
+            "InfoHash abcd1234 is already registered."
+        ));
+        assert!(!is_already_registered("connection refused"));
+    }
+
+    #[test]
+    fn magnet_infohash_reads_the_btih_parameter_and_stops_at_the_next_one() {
+        assert_eq!(
+            magnet_infohash("magnet:?xt=urn:btih:ABCD1234&dn=Some.Show"),
+            Some("ABCD1234")
+        );
+        assert_eq!(magnet_infohash("magnet:?dn=no-hash-here"), None);
+    }
+
+    /// Everything below builds a fake aria2 on axum (already a dependency —
+    /// its `hyper` server handles connection reuse without a hand-rolled
+    /// listener) to exercise `add` and the detached `finish_add` together,
+    /// the way a real request does.
+    mod add_flow {
+        use std::sync::{Arc, Mutex};
+        use std::time::Duration as StdDuration;
+
+        use axum::Json;
+        use axum::extract::State as AxumState;
+        use axum::routing::post;
+
+        use crate::auth::session::Session;
+        use crate::config::Root;
+
+        use super::*;
+
+        /// What the mock hands back for `aria2.tellStatus` on the metadata
+        /// gid — `Active` forever pins "the caller never waits for this",
+        /// `Complete` on the first poll lets the rest of the flow run to
+        /// completion inside a test.
+        #[derive(Clone, Copy)]
+        enum MetadataOutcome {
+            NeverResolves,
+            ResolvesImmediately,
+        }
+
+        #[derive(Clone)]
+        struct MockAria2 {
+            calls: Arc<Mutex<Vec<String>>>,
+            metadata_add_result: Arc<serde_json::Value>,
+            metadata_outcome: MetadataOutcome,
+        }
+
+        async fn rpc(
+            AxumState(mock): AxumState<MockAria2>,
+            Json(body): Json<serde_json::Value>,
+        ) -> Json<serde_json::Value> {
+            let method = body["method"].as_str().unwrap_or_default().to_string();
+            mock.calls.lock().unwrap().push(method.clone());
+            let response = match method.as_str() {
+                "aria2.addUri" => {
+                    if body["params"][1].get("bt-metadata-only").is_some() {
+                        (*mock.metadata_add_result).clone()
+                    } else {
+                        serde_json::json!({"result": "real-gid"})
+                    }
+                }
+                "aria2.tellStatus" => {
+                    let status = match mock.metadata_outcome {
+                        MetadataOutcome::NeverResolves => "active",
+                        MetadataOutcome::ResolvesImmediately => "complete",
+                    };
+                    serde_json::json!({"result": {
+                        "gid": "metadata-gid",
+                        "status": status,
+                        "totalLength": "100",
+                        "completedLength": "0",
+                        "downloadSpeed": "0",
+                        "uploadSpeed": "0",
+                        "connections": "0",
+                        "dir": "/mnt/kontent/movies",
+                        "files": [{"index": "1", "path": "/mnt/kontent/movies/Movie.mkv", "length": "100"}],
+                    }})
+                }
+                "aria2.remove" | "aria2.removeDownloadResult" => {
+                    serde_json::json!({"result": "OK"})
+                }
+                other => panic!("unexpected aria2 method in test: {other}"),
+            };
+            let mut envelope = serde_json::json!({"jsonrpc": "2.0", "id": "mariastew"});
+            envelope
+                .as_object_mut()
+                .unwrap()
+                .extend(response.as_object().unwrap().clone());
+            Json(envelope)
+        }
+
+        async fn mock_server(
+            metadata_add_result: serde_json::Value,
+            metadata_outcome: MetadataOutcome,
+        ) -> (String, Arc<Mutex<Vec<String>>>) {
+            let calls = Arc::new(Mutex::new(Vec::new()));
+            let mock = MockAria2 {
+                calls: calls.clone(),
+                metadata_add_result: Arc::new(metadata_add_result),
+                metadata_outcome,
+            };
+            let app = axum::Router::new().route("/", post(rpc)).with_state(mock);
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            tokio::spawn(async move {
+                axum::serve(listener, app).await.unwrap();
+            });
+            (format!("http://{addr}/"), calls)
+        }
+
+        fn test_state(aria2_url: String) -> AppState {
+            let mut s = state(aria2_url.clone());
+            s.config = Arc::new(Config {
+                bind_addr: String::new(),
+                aria2_rpc_url: aria2_url,
+                roots: vec![Root {
+                    name: "movies".to_string(),
+                    path: std::path::PathBuf::from("/mnt/kontent/movies"),
+                }],
+                public_url: String::new(),
+                oidc: Oidc {
+                    issuer: String::new(),
+                    client_id: String::new(),
+                    client_secret: String::new(),
+                },
+                telegram: None,
+            });
+            s
+        }
+
+        fn add_form() -> AddForm {
+            AddForm {
+                magnet: "magnet:?xt=urn:btih:abc".to_string(),
+                dir: "/mnt/kontent/movies".to_string(),
+            }
+        }
+
+        fn session() -> Session {
+            Session {
+                id: "s".to_string(),
+                sub: "tester".to_string(),
+                expires: std::time::Instant::now() + StdDuration::from_secs(60),
+            }
+        }
+
+        async fn wait_for_calls(calls: &Mutex<Vec<String>>, expected: usize) {
+            for _ in 0..200 {
+                if calls.lock().unwrap().len() >= expected {
+                    return;
+                }
+                tokio::time::sleep(StdDuration::from_millis(10)).await;
+            }
+            panic!(
+                "timed out waiting for {expected} calls, saw {:?}",
+                calls.lock().unwrap()
+            );
+        }
+
+        /// The bug this whole task exists to fix: `add` used to hold the
+        /// connection open for as long as the metadata poll took — up to 60s
+        /// — which the browser does not wait for. Here the metadata never
+        /// resolves at all, and `add` still has to return well inside a
+        /// fraction of a second, because the only thing standing between the
+        /// caller and a response is one `addUri` round trip.
+        #[tokio::test]
+        async fn add_returns_before_the_metadata_poll_completes() {
+            let (url, _calls) = mock_server(
+                serde_json::json!({"result": "metadata-gid"}),
+                MetadataOutcome::NeverResolves,
+            )
+            .await;
+            let state = test_state(url);
+
+            let response = tokio::time::timeout(
+                StdDuration::from_millis(500),
+                add(State(state), CurrentSession(session()), Form(add_form())),
+            )
+            .await
+            .expect("add must return promptly, not wait on the metadata poll")
+            .expect("add must accept a valid magnet and destination");
+
+            assert_eq!(response.status(), StatusCode::ACCEPTED);
+        }
+
+        /// Pins the ordering the original "InfoHash ... is already
+        /// registered" bug lived in, now running detached: the real `addUri`
+        /// must not be issued until `remove`/`removeDownloadResult` have run.
+        #[tokio::test]
+        async fn finish_add_frees_the_metadata_infohash_before_the_real_add() {
+            let (url, calls) = mock_server(
+                serde_json::json!({"result": "metadata-gid"}),
+                MetadataOutcome::ResolvesImmediately,
+            )
+            .await;
+            let state = test_state(url);
+
+            add(State(state), CurrentSession(session()), Form(add_form()))
+                .await
+                .unwrap();
+
+            wait_for_calls(&calls, 5).await;
+            assert_eq!(
+                calls.lock().unwrap().as_slice(),
+                [
+                    "aria2.addUri",
+                    "aria2.tellStatus",
+                    "aria2.remove",
+                    "aria2.removeDownloadResult",
+                    "aria2.addUri",
+                ]
+            );
+        }
+
+        /// This magnet already being known to aria2 is not a server fault —
+        /// it must read as a 4xx the caller can act on, not the 502 an
+        /// unrecognised upstream error gets.
+        #[tokio::test]
+        async fn add_maps_an_already_registered_infohash_to_bad_request() {
+            let (url, _calls) = mock_server(
+                serde_json::json!({"error": {"code": 1, "message": "InfoHash abc is already registered."}}),
+                MetadataOutcome::NeverResolves,
+            )
+            .await;
+            let state = test_state(url);
+
+            let result = add(State(state), CurrentSession(session()), Form(add_form())).await;
+
+            assert!(
+                matches!(result, Err(AppError::BadRequest(_))),
+                "expected BadRequest, got {result:?}"
+            );
+        }
     }
 
     /// aria2 marks the metadata-only pass with this literal prefix for as
