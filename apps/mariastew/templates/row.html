@@ -22,14 +22,18 @@
       <div class="min-w-0 flex-1">
         <div class="flex items-baseline justify-between gap-2">
           <span class="truncate text-sm font-medium">{{ row.name }}</span>
-          {# Filled, not outlined, once finished — the one state that
-               should read as different from every state still in motion,
-               at the same glance that used to require re-reading the whole
-               list to notice it changed. #}
+          {# A badge once finished and bare text every other time. Only one
+               state is worth interrupting a scan of the list for, and giving
+               every state a pill of its own spent the loudest shape in the
+               row on "downloading" — which the moving progress bar directly
+               underneath is already saying, better. So the states still in
+               motion are the same quiet `text-xs opacity-60` as the rest of
+               the row's secondary text, and the filled green one has the
+               glance to itself. #}
           {% if row.finished && !row.clearing %}
           <span class="badge badge-sm badge-success shrink-0">{% call icons::check() %}{% endcall %} {{ row.state }}</span>
           {% else %}
-          <span class="badge badge-sm badge-outline shrink-0">{{ row.state }}</span>
+          <span class="shrink-0 text-xs opacity-60">{{ row.state }}</span>
           {% endif %}
         </div>
         {% if row.percent.is_some() %}

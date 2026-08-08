@@ -1,5 +1,111 @@
 @import "tailwindcss";
-@plugin "daisyui";
+
+/* `themes: false` drops daisyUI's own light and dark, so the only palette the
+   stylesheet carries is the one below. It is what took 96KB of theme
+   definitions out of a file that only ever rendered one of them. */
+@plugin "daisyui" {
+  themes: false;
+}
+
+/* The palette is the app icon read out loud: amber is the stew, steel is the
+   magnet, and the red is its poles — so `btn-primary`, the download bars and
+   a failed download are literally the three colours in `icons/icon.svg`.
+   `base-200` is the icon's own tile, which is what lets the watermark below
+   sit on the page rather than on top of it.
+
+   The two that are not in the drawing are `success` and `info`, which have to
+   be told apart from each other and from `warning` at a glance across a
+   progress bar — that is a job for hue distance, not for brand.
+
+   One theme rather than a light and a dark: this is a thing you open at night
+   to start a download, `prefersdark` and `default` both point at it, and a
+   second palette is a second set of contrast decisions to keep true for a
+   preference nobody has expressed yet. */
+@plugin "daisyui/theme" {
+  name: "mariastew";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(22.87% 0.0178 42.86);
+  --color-base-200: oklch(19.32% 0.0157 32.78);
+  --color-base-300: oklch(15.88% 0.0125 27.83);
+  --color-base-content: oklch(93.92% 0.0136 60.57);
+
+  --color-primary: oklch(76.86% 0.1647 70.08);
+  --color-primary-content: oklch(19.32% 0.0157 32.78);
+  --color-secondary: oklch(86.9% 0.0198 252.89);
+  --color-secondary-content: oklch(19.32% 0.0157 32.78);
+  --color-accent: oklch(83.69% 0.1644 84.43);
+  --color-accent-content: oklch(19.32% 0.0157 32.78);
+  --color-neutral: oklch(26.21% 0.0215 37.79);
+  --color-neutral-content: oklch(93.92% 0.0136 60.57);
+
+  --color-info: oklch(75.35% 0.139 232.66);
+  --color-info-content: oklch(19.32% 0.0157 32.78);
+  --color-success: oklch(80.03% 0.1821 151.71);
+  --color-success-content: oklch(19.32% 0.0157 32.78);
+  --color-warning: oklch(83.69% 0.1644 84.43);
+  --color-warning-content: oklch(19.32% 0.0157 32.78);
+  --color-error: oklch(63.68% 0.2078 25.33);
+  --color-error-content: oklch(19.32% 0.0157 32.78);
+
+  /* Flat, and rounded only enough to notice. daisyUI's own themes make a
+     badge a pill — a full-height radius reads as a tag stuck onto the row
+     rather than part of it, and there are enough of them in a list to matter.
+     These three step up with the size of the thing instead: a badge, then a
+     button or an input, then the surfaces they sit on.
+
+     `depth` and `noise` are what daisyUI 5 adds on top of a flat theme — a
+     gradient overlay and a texture on every surface — and both are off, so a
+     button is its fill and its border and nothing else. */
+  --radius-selector: 0.375rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* The icon, once, very faint, behind everything.
+
+   It is the icon's *silhouette* and not the icon: flattening the drawing to
+   one colour fills the gap between the poles, and the U — the only thing that
+   makes it a magnet — stops reading. So the amber core is dropped here and
+   the magnet body carries the shape on its own. Anything that changes the
+   drawing's outline has to change this too; nothing enforces that, because
+   the outline is the part that does not move.
+
+   A `background-image` on `body` rather than a fixed pseudo-element: the
+   colour under it is already `bg-base-200` on the same element, so the two
+   layer without a stacking context, and no rule has to be written to keep the
+   header and the list above it. `fixed` so it stays put while the list
+   scrolls — a watermark that scrolls is a texture.
+
+   The rows on top of it are opaque, so with a full list this is a background
+   in the literal sense: seen around and between the cards, and most of it not
+   seen at all. Where it does the work is everything that is not a full list —
+   the empty state, the sign-in page, a short queue, the space under the last
+   row. That is what the opacity is set against; loud enough to read across
+   open space is already too loud for the gaps between rows.
+
+   The poles are cut away from the legs by a gap rather than sitting on them
+   as they do in the icon. One flat colour merges the two into a plain U and
+   loses the ends entirely, which are the part that says magnet; a gap says
+   the same thing the colour change says, using the only ink this has.
+
+   `opacity` on the group and not `fill-opacity` on each shape, so the three
+   are composited before they are faded — otherwise anywhere two of them meet
+   is a second translucent fill on top of the first, and reads as a seam. */
+@layer base {
+  body {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%23f59e0b' opacity='.06'%3E%3Cpath d='M9 16.5h14v16a9 9 0 0 0 18 0v-16h14v16a23 23 0 0 1-46 0z'/%3E%3Cpath d='M12 8.5h8a3 3 0 0 1 3 3V15H9v-3.5a3 3 0 0 1 3-3z'/%3E%3Cpath d='M44 8.5h8a3 3 0 0 1 3 3V15H41v-3.5a3 3 0 0 1 3-3z'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: min(96vmin, 620px);
+    background-attachment: fixed;
+  }
+}
 
 /* Lucide's own presentation attributes, hoisted off every icon in
    templates/icons.html onto one class — what differs between icons is the
