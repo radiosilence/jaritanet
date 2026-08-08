@@ -1,29 +1,16 @@
-# Compiled inside the Dockerfile rather than copied in from CI like
-# mcp-gateway's static binary: the reusable workflow this repo standardises on
-# (blit-workflows/build-publish-container.yml) builds from a Dockerfile
-# context and has no way to consume a pre-built artefact, so a copied-in
-# binary means a bespoke pipeline instead of the working one — the cost that
-# pattern exists to avoid. Each architecture builds on its own native runner,
-# so there is no emulation penalty to pay for compiling here.
-FROM rust:1.97-alpine AS build
-
-RUN apk add --no-cache musl-dev
-WORKDIR /src
-
-# Dependencies first, against a stub main, so editing the source doesn't rebuild
-# them.
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && \
-    cargo build --release --locked && \
-    rm -rf src
-
-COPY src ./src
-COPY templates ./templates
-COPY assets ./assets
-# Cargo would otherwise reuse the stub's artefact — same crate, and the only
-# newer input is a path it has already built.
-RUN touch src/main.rs && cargo build --release --locked
-
+# `mariastew` is compiled by the CI job that calls this build, not here: a
+# `cargo build` inside a Dockerfile is one atomic layer, so any movement in
+# Cargo.lock recompiles every dependency — 168s of them against 15s of our own
+# code. Cargo's cache subdivides by crate, but it only survives between runs
+# somewhere Docker isn't, which is the runner. See
+# .github/workflows/build-mariastew-container.yml.
+#
+# So this file no longer builds on its own: it wants a `mariastew` binary for
+# the target architecture sitting beside it, which CI unpacks from the artefact
+# its compile job uploaded. Local iteration never comes through here — `mise
+# run mariastew:dev` builds Dockerfile.dev, which still compiles inline
+# because no job feeds it.
+#
 # alpine, not scratch: the pod runs this image twice, service and an aria2c
 # sidecar, so the image has to carry aria2c itself, not just the compiled
 # binary.
@@ -43,7 +30,9 @@ FROM alpine:3.24
 # at once because they share the OS trust store.
 RUN apk add --no-cache aria2 ca-certificates
 
-COPY --from=build /src/target/release/mariastew /mariastew
+# --chmod because actions/upload-artifact does not preserve modes, so the
+# binary arrives in the context without its exec bit.
+COPY --chmod=755 mariastew /mariastew
 
 EXPOSE 8080
 ENV BIND_ADDR=0.0.0.0:8080
