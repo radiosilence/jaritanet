@@ -1,4 +1,4 @@
-import { cpuRequests } from "@jaritanet/k8s";
+import { resourceRequests } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
@@ -195,7 +195,7 @@ export function createMariastew(
                 },
                 resources: {
                   limits: conf.limits,
-                  ...cpuRequests(conf.limits.cpu),
+                  ...resourceRequests(conf.limits),
                 },
                 securityContext: { allowPrivilegeEscalation: false },
                 volumeMounts: mounts,
@@ -249,6 +249,12 @@ export function createMariastew(
                     hostPort: conf.aria2.listenPort,
                   },
                 ],
+                // The container that actually does the work, and until now
+                // the only one with no ceiling and no reservation at all.
+                resources: {
+                  limits: conf.aria2.limits,
+                  ...resourceRequests(conf.aria2.limits),
+                },
                 securityContext: { allowPrivilegeEscalation: false },
                 volumeMounts: mounts,
               },
@@ -319,9 +325,13 @@ export function createMariastew(
                     { name: "LEASE", value: String(lease) },
                   ],
                   securityContext: { allowPrivilegeEscalation: false },
+                  // Sized for `apk add`, not for the loop. Unpacking a
+                  // package peaks far above what `upnpc` then needs, and
+                  // 32Mi OOM-killed it three times before it ever placed a
+                  // mapping; steady state is a sleeping shell.
                   resources: {
                     requests: { cpu: "5m", memory: "16Mi" },
-                    limits: { memory: "32Mi" },
+                    limits: { memory: "128Mi" },
                   },
                 },
               ],

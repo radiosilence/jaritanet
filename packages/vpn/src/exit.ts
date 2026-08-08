@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import { cpuRequests, sha256hex } from "@jaritanet/k8s";
+import { resourceRequests, sha256hex } from "@jaritanet/k8s";
 
 /** An exit with its host port resolved (see deriveExitPort). */
 export type ResolvedExit = {
@@ -163,7 +163,7 @@ export function createExit(
                 ],
                 resources: {
                   limits: LIMITS,
-                  ...cpuRequests(LIMITS.cpu),
+                  ...resourceRequests(LIMITS),
                 },
               },
             ],

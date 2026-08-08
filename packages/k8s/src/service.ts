@@ -2,7 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import type * as z from "zod";
 import type { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import type { ServiceArgsSchema } from "./service.schemas.ts";
-import { cpuRequests } from "./util.ts";
+import { resourceRequests } from "./util.ts";
 
 const annotations = {
   "pulumi.com/skipAwait": "false",
@@ -246,7 +246,7 @@ export function createService(
                     containerPort,
                   })),
                 ],
-                resources: { limits, ...cpuRequests(limits?.cpu) },
+                resources: { limits, ...resourceRequests(limits) },
                 env: Object.entries(env).map(([name, value]) => ({
                   name,
                   value,

@@ -43,6 +43,7 @@ describe("MariastewConfSchema", () => {
   it("defaults the aria2 tuning that the deployment relies on", () => {
     const { aria2 } = MariastewConfSchema.parse({ image, roots });
     expect(aria2).toEqual({
+      limits: { cpu: "4", memory: "2Gi" },
       listenPort: 51413,
       upnp: true,
       peerSpeedLimit: "50M",
