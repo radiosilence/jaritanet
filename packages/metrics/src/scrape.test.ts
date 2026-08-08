@@ -41,6 +41,55 @@ describe("scrapeConfig", () => {
     });
   });
 
+  /**
+   * A pod declaring four container ports is discovered four times. Rewriting
+   * the address instead of selecting the port made three of those duplicates
+   * that vmagent dropped, loudly, on every reload.
+   */
+  it("discovers one target per annotated pod, not one per container port", () => {
+    const relabels = jobs.pods?.relabel_configs as {
+      source_labels?: string[];
+      action?: string;
+    }[];
+    expect(relabels).toContainEqual({
+      source_labels: [
+        "__meta_kubernetes_pod_container_port_number",
+        "__meta_kubernetes_pod_annotation_prometheus_io_port",
+      ],
+      action: "keep_if_equal",
+    });
+    expect(relabels.some((r) => r.source_labels?.includes("__address__"))).toBe(
+      false,
+    );
+  });
+
+  /**
+   * k3s serves the apiserver, etcd and scheduler registries from the kubelet's
+   * port, and their latency histograms were two thirds of the whole estate's
+   * series on the first deploy.
+   */
+  it("drops the control plane's histogram buckets from the kubelet", () => {
+    const drop = (
+      jobs.kubelet?.metric_relabel_configs as {
+        regex: string;
+        action: string;
+      }[]
+    )?.[0];
+    expect(drop?.action).toBe("drop");
+    const matcher = new RegExp(`^${drop?.regex}$`);
+    expect(matcher.test("apiserver_request_duration_seconds_bucket")).toBe(
+      true,
+    );
+    expect(matcher.test("etcd_request_duration_seconds_bucket")).toBe(true);
+    // The count and sum survive, so rates and mean latencies still answer.
+    expect(matcher.test("apiserver_request_duration_seconds_count")).toBe(
+      false,
+    );
+    // cAdvisor and the kubelet's own metrics are the point of the job.
+    expect(matcher.test("kubelet_running_pods")).toBe(false);
+    expect(matcher.test("container_memory_working_set_bytes")).toBe(false);
+  });
+
   /** Discovery across every namespace would pull in the cluster's own pods. */
   it("discovers pods in its own namespace only", () => {
     expect(jobs.pods?.kubernetes_sd_configs).toEqual([
