@@ -79,6 +79,13 @@ pub struct File {
     pub index: u32,
     pub path: String,
     pub length: u64,
+    /// `false` for a file `select-file` left out — aria2 still downloads
+    /// whole pieces regardless, so a small deselected file sharing a piece
+    /// boundary with a selected one can still land on disk. This is what
+    /// tells the completion sweep (`notify::sweep_garbage`) which files were
+    /// never meant to be there in the first place, as opposed to one that
+    /// simply happens to be small.
+    pub selected: bool,
 }
 
 impl From<RawFile> for File {
@@ -87,6 +94,7 @@ impl From<RawFile> for File {
             index: f.index.parse().unwrap_or(0),
             path: f.path,
             length: f.length.parse().unwrap_or(0),
+            selected: f.selected == "true",
         }
     }
 }
@@ -106,6 +114,11 @@ pub struct Download {
     pub files: Vec<File>,
     /// The torrent's own name, once metadata has arrived.
     pub bittorrent_name: Option<String>,
+    /// Gids of downloads aria2 generated from this one. A `bt-metadata-only`
+    /// pass has exactly one once its metadata resolves: the real download,
+    /// spawned by `follow-torrent`, with the torrent's actual file list —
+    /// which the metadata gid's own `files` (one entry: itself) is not.
+    pub followed_by: Vec<String>,
 }
 
 impl Download {
@@ -200,6 +213,8 @@ struct RawDownload {
     files: Vec<RawFile>,
     #[serde(default)]
     bittorrent: Option<RawBittorrent>,
+    #[serde(default, rename = "followedBy")]
+    followed_by: Vec<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -210,6 +225,8 @@ struct RawFile {
     path: String,
     #[serde(default)]
     length: String,
+    #[serde(default)]
+    selected: String,
 }
 
 #[derive(Deserialize, Default)]
@@ -247,6 +264,7 @@ impl RawDownload {
             dir: self.dir,
             files: self.files.into_iter().map(File::from).collect(),
             bittorrent_name,
+            followed_by: self.followed_by,
         })
     }
 }
@@ -373,6 +391,18 @@ impl Aria2 {
             .await?;
         Ok(())
     }
+
+    /// Changes options on a download already added — `dir` and `select-file`
+    /// among them, which is how a torrent's real destination and file
+    /// selection get set on the download `follow-torrent` spawned from a
+    /// resolved magnet, rather than on a second `addUri` racing its infohash.
+    /// aria2 restarts the download internally to apply it; no second gid, no
+    /// caller-visible interruption.
+    pub async fn change_option(&self, gid: &str, options: serde_json::Value) -> AppResult<()> {
+        self.call("changeOption", serde_json::json!([gid, options]))
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -393,6 +423,7 @@ mod tests {
             dir: "/downloads".to_string(),
             files: Vec::new(),
             bittorrent_name: None,
+            followed_by: Vec::new(),
         }
     }
 
@@ -425,7 +456,9 @@ mod tests {
         assert_eq!(d.bittorrent_name.as_deref(), Some("Movie"));
         assert_eq!(d.files.len(), 2);
         assert_eq!(d.files[0].index, 1);
+        assert!(d.files[0].selected);
         assert_eq!(d.files[1].index, 2);
+        assert!(!d.files[1].selected);
     }
 
     #[test]
@@ -537,6 +570,7 @@ mod tests {
             index: 1,
             path: "/downloads/Show/S01E01.mkv".to_string(),
             length: 0,
+            selected: true,
         });
         assert_eq!(d.name(), "S01E01.mkv");
 
