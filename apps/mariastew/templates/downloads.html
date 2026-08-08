@@ -1,12 +1,14 @@
 {# Each row is a native disclosure. Collapsed — the only state most visits
      ever need — shows exactly what "how is it going" requires: the name,
-     the state, the bar. Rate, peers, controls and any error are real but
-     secondary, and stay one tap away rather than crowding a list meant to
-     be scanned at arm's length. The pattern already exists on this page for
-     an error (see the details below) — this just applies it to the whole
-     row, and for the same reason: no JavaScript, and open/closed survives
-     the SSE morph because patch-elements matches by id rather than
-     replacing the subtree. #}
+     the state, the bar. Everything below is what "what is it actually
+     doing" requires, and stays one tap away rather than crowding a list
+     meant to be scanned at arm's length.
+
+     Nothing here needs JavaScript, and open/closed survives the SSE morph
+     because patch-elements matches by id rather than replacing the subtree
+     — which is also what makes the panels below live: they are re-rendered
+     into an element the browser is already showing, once a second, for as
+     long as they are open. #}
 <div id="downloads" class="flex flex-col gap-2 p-4">
 {% for row in rows %}
   <details id="dl-{{ row.gid }}" data-preserve-attr="open"
@@ -37,24 +39,130 @@
              is a full path and the tail is exactly what answers "which
              season folder did it land in", so hiding it with an ellipsis
              would recreate the problem that fix solved, just here instead
-             of there. #}
-        <p class="mt-1 text-xs break-words opacity-60">→ {{ row.dir }}</p>
+             of there. `min-w-0` is load-bearing now that it shares a flex
+             row: without it the path will not shrink to wrap, it overflows.
+
+             Sharing that row is the rate and the time left, which are the
+             answer to the question a bar raises and cannot settle — "is
+             this going to be done tonight". They were a tap away in the
+             readings panel, which is one tap too many for the two numbers
+             most likely to be the reason for opening the page at all.
+             Nested rather than combined because `eta` is `None` whenever
+             `down` is: there is no rate to divide the remaining bytes by.
+             Absent entirely when idle — a seeding or paused row has no
+             countdown, and the badge beside the name already says so. #}
+        <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
+          <p class="min-w-0 break-words opacity-60">→ {{ row.dir }}</p>
+          {% if let Some(down) = row.down %}
+          <span class="shrink-0 font-medium tabular-nums">↓ {{ down }}{% if let Some(eta) = row.eta %} · {{ eta }} left{% endif %}</span>
+          {% endif %}
+        </div>
       </div>
     </summary>
 
     <div class="flex flex-col gap-3 border-t border-base-300 p-3">
-      <div class="flex justify-between text-xs opacity-70">
-        <span>{{ row.done }} / {{ row.size }}</span>
-        <span>↓ {{ row.down }} ↑ {{ row.up }}</span>
-      </div>
-      <div class="flex items-center gap-3 text-xs opacity-70">
-        <span aria-label="connections">🔗 {{ row.connections }}</span>
-        <span aria-label="seeders">🌱 {{ row.seeders }}</span>
-      </div>
+      {# The readings, as pairs rather than a run-on line of symbols. Two
+           columns on a phone: every value here is short, and stacking them
+           one per line pushed the controls off the bottom of the sheet. #}
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        {# Nothing is known about size until the magnet resolves, and
+             "0 B / 0 B" reads as a finished download of nothing. Same
+             condition as the indeterminate bar above, for the same reason. #}
+        <div class="flex justify-between gap-2">
+          <dt class="opacity-60">done</dt>
+          <dd class="text-right">{% if row.percent.is_some() %}{{ row.done }} / {{ row.size }}{% else %}—{% endif %}</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="opacity-60">left</dt>
+          <dd class="text-right">{% if let Some(eta) = row.eta %}{{ eta }}{% else %}—{% endif %}</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="opacity-60">down</dt>
+          <dd class="text-right">{% if let Some(down) = row.down %}{{ down }}{% else %}—{% endif %}</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="opacity-60">up</dt>
+          <dd class="text-right">{% if let Some(up) = row.up %}{{ up }}{% else %}—{% endif %}</dd>
+        </div>
+        <div class="flex justify-between gap-2">
+          <dt class="opacity-60">peers</dt>
+          <dd class="text-right">{{ row.connections }} of {{ row.seeders }} seeding</dd>
+        </div>
+        {# Uploaded rather than upload speed: the question a seeding row
+             raises is whether it has given anything back at all, which an
+             instantaneous rate of "—" answers badly. #}
+        <div class="flex justify-between gap-2">
+          <dt class="opacity-60">shared</dt>
+          <dd class="text-right">{{ row.uploaded }}{% if let Some(ratio) = row.ratio %} · {{ ratio }}×{% endif %}</dd>
+        </div>
+      </dl>
 
-      {% if let Some(e) = row.error %}
+      {# Identity and shape, dimmer than the readings above because they
+           never change: worth having when a torrent has to be looked up
+           somewhere else, worth nothing on a row that is simply working. #}
+      {% if row.pieces.is_some() || row.info_hash.is_some() %}
+      <div class="font-mono text-xs break-all opacity-50">
+        {% if let Some(pieces) = row.pieces %}<p>{{ pieces }} pieces</p>{% endif %}
+        {% if let Some(hash) = row.info_hash %}<p>{{ hash }}</p>{% endif %}
+      </div>
+      {% endif %}
+
+      {# Which files, and which ones the garbage filter refused. That
+           decision reached the disk and nowhere else — a torrent that
+           "downloaded wrong" was previously only explicable from the pod's
+           log, and this is where anyone would actually look. #}
+      {% if !row.files.is_empty() %}
+      <details id="files-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
+        <summary class="min-h-11 cursor-pointer p-2 text-xs">
+          Files <span class="opacity-60">— keeping {{ row.selected_count }} of {{ row.file_count }}{% if let Some(skipped) = row.skipped %}, {{ skipped }}{% endif %}</span>
+        </summary>
+        <ul class="flex flex-col gap-2 border-t border-base-300 p-2">
+        {% for file in row.files %}
+          <li class="{% if !file.selected %}opacity-40{% endif %}">
+            <div class="flex items-baseline justify-between gap-2 text-xs">
+              <span class="break-words">{{ file.name }}</span>
+              <span class="shrink-0 opacity-60">{% if file.selected %}{{ file.size }}{% else %}skipped{% endif %}</span>
+            </div>
+            {% if let Some(percent) = file.percent_display %}
+            <progress class="progress mt-1 h-1 w-full" value="{{ percent }}" max="100"></progress>
+            {% endif %}
+          </li>
+        {% endfor %}
+        </ul>
+        {% if row.file_count > row.files.len() %}
+        <p class="px-2 pb-2 text-xs opacity-60">…and {{ row.file_count - row.files.len() }} more</p>
+        {% endif %}
+      </details>
+      {% endif %}
+
+      {# The account of the add itself, which aria2 has never heard of: the
+           resolve, the file selection, the failure that used to reach only
+           the pod's log while the row said "starting" indefinitely. Live
+           for the same reason the rest of the row is — see the note at the
+           top of this file. #}
+      {% if !row.log.is_empty() %}
+      <details id="log-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
+        <summary class="min-h-11 cursor-pointer p-2 text-xs">
+          Logs <span class="opacity-60">— {{ row.log.len() }} entries</span>
+        </summary>
+        <ol class="flex flex-col gap-1 border-t border-base-300 p-2 font-mono text-xs">
+        {% for entry in row.log %}
+          <li class="flex gap-2">
+            <span class="w-8 shrink-0 text-right opacity-50">{{ entry.ago }}</span>
+            <span class="break-words">{{ entry.message }}</span>
+          </li>
+        {% endfor %}
+        </ol>
+      </details>
+      {% endif %}
+
+      {% if row.error.is_some() || row.error_code.is_some() %}
       <div class="rounded-box bg-base-200 p-2 font-mono text-xs break-words text-error">
-        <p>{{ e }}</p>
+        {% if let Some(e) = row.error %}<p>{{ e }}</p>{% endif %}
+        {# aria2 leaves errorMessage empty for plenty of failures and always
+             sets the code, so this is the line that carries the reason as
+             often as not. #}
+        {% if let Some(code) = row.error_code %}<p>{{ code }}</p>{% endif %}
         <p class="mt-1 opacity-70">gid {{ row.gid }}</p>
         <p class="opacity-70">dir {{ row.dir }}</p>
       </div>

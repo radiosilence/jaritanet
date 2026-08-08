@@ -117,6 +117,32 @@ impl Config {
             .then(|| candidate.to_path_buf())
     }
 
+    /// What the picker calls a path: the root's name, then whatever is below
+    /// it, so `/mnt/kontent/tv/some-show` reads as `tv/some-show`.
+    ///
+    /// The mount point above a root is a fact about how the pod is assembled
+    /// and answers nothing about where a download lands, but it is the part of
+    /// a path a phone-width line spends its width on first — and the tail, the
+    /// part that does answer, is what gets pushed onto a second line or off the
+    /// end. The root's own name is used rather than its last path segment
+    /// because `ROOTS` names each root independently of where it is mounted.
+    ///
+    /// A path outside every root comes back unchanged. Nothing renders one —
+    /// the picker only labels paths it has already resolved — so there is
+    /// nothing to design for beyond not losing the string.
+    pub fn label(&self, path: &Path) -> String {
+        self.roots
+            .iter()
+            .find_map(|root| {
+                let rest = path.strip_prefix(&root.path).ok()?;
+                Some(match rest.as_os_str().is_empty() {
+                    true => root.name.clone(),
+                    false => format!("{}/{}", root.name, rest.display()),
+                })
+            })
+            .unwrap_or_else(|| path.display().to_string())
+    }
+
     /// Resolve a path that must already exist, following symlinks.
     ///
     /// [`Self::resolve`] cannot answer for symlinks, because it is deciding
@@ -223,6 +249,45 @@ mod tests {
         assert_eq!(c.resolve("/etc/passwd"), None);
         assert_eq!(c.resolve("relative/path"), None);
         assert_eq!(c.resolve(""), None);
+    }
+
+    #[test]
+    fn label_starts_at_the_root_that_was_picked() {
+        let c = conf(&[("tv", "/mnt/kontent/tv"), ("movies", "/mnt/kontent/movies")]);
+        assert_eq!(
+            c.label(Path::new("/mnt/kontent/tv/some-show")),
+            "tv/some-show"
+        );
+        assert_eq!(c.label(Path::new("/mnt/kontent/tv")), "tv");
+        assert_eq!(
+            c.label(Path::new("/mnt/kontent/movies/2046/disc 1")),
+            "movies/2046/disc 1"
+        );
+    }
+
+    /// The root's name is the label, not its last path segment — `ROOTS` sets
+    /// the two independently and the picker offers the name, so a label built
+    /// from the mount would disagree with the entry that was tapped to get
+    /// here.
+    #[test]
+    fn label_uses_the_configured_name_rather_than_the_directory_name() {
+        let c = conf(&[("music", "/mnt/kontent/navidrome-media")]);
+        assert_eq!(
+            c.label(Path::new("/mnt/kontent/navidrome-media/Boards of Canada")),
+            "music/Boards of Canada"
+        );
+    }
+
+    /// Nothing renders a path from outside a root, but losing the string would
+    /// turn a bug into a blank line saying nothing.
+    #[test]
+    fn label_leaves_a_path_outside_every_root_alone() {
+        let c = conf(&[("tv", "/mnt/kontent/tv")]);
+        assert_eq!(c.label(Path::new("/etc/passwd")), "/etc/passwd");
+        assert_eq!(
+            c.label(Path::new("/mnt/kontent/tv-old")),
+            "/mnt/kontent/tv-old"
+        );
     }
 
     /// A sibling whose name merely starts with the root's is not inside it.

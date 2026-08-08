@@ -9,6 +9,68 @@ memory, so a deploy signs everyone out. The frontend is server-rendered HTML
 patched over SSE ([Datastar](https://data-star.dev), vendored at
 `assets/datastar.js`), not a client-side app.
 
+## What a row says it is doing
+
+A collapsed row answers "how is it going" — name, state, bar, destination, and
+beside the destination the current rate and the time left. Those last two are
+there because a bar raises "will this be done tonight" and cannot settle it;
+behind a tap they were one tap too many. Both are absent rather than zeroed
+when nothing is moving, which is also why there is no countdown on a seeding
+row.
+
+Expanding it answers "what is aria2 actually doing", which needs rather more
+than a percentage:
+
+- **The state is granular where the waiting happens.** "starting" used to
+  cover everything between pasting a magnet and the first byte, which is the
+  whole of the time anyone spends wondering. It is now *finding peers* (the
+  magnet has resolved to nobody yet — the state a dead magnet sits in
+  forever), *fetching metadata* (peers are answering; slow here is ordinary),
+  *queued* (parked behind `maxConcurrentDownloads` — previously diagnosed as
+  "no seeders", which looks like a fault and is not one), or *checking files*
+  (aria2 is hashing data that was already on disk, which reads as zero speed
+  with peers connected and was otherwise indistinguishable from stalled).
+- **Readings, not just a bar:** bytes done against total, up and down rates,
+  bytes given back and the share ratio, peers against seeders, and the piece
+  count and size — which is the explanation for both lumpy progress and for a
+  deselected file landing anyway.
+- **The file list, deselected files included.** What `filter::is_garbage`
+  refused reached the disk and the pod's log and nowhere else, so "why did it
+  not download that one" had no answer on the page.
+- **`errorCode` in words.** aria2 fills `errorMessage` in for some failures
+  and leaves it empty for plenty of others; a row that failed with nothing
+  written on it was the ordinary shape of "it broke and nothing says why". The
+  code is always there, so the ones reachable from a magnet are named
+  (`error_code_meaning` in `src/aria2.rs`).
+
+### The Logs panel
+
+Per torrent, in the expanded row: the account of what happened to it, kept in
+memory by `src/activity.rs`. It exists because the interesting part of adding
+a magnet happens *here* and aria2 has never heard of it — `routes::finish_add`
+runs detached from the request that started it, and its resolve, its file
+selection and its failures went only to the pod's log. A magnet that never
+resolved left a row reading "starting" indefinitely with the explanation
+sitting in `kubectl logs`.
+
+It is live for free: the panel is part of the row markup the SSE stream
+already patches once a second (`patch_elements`), so an open panel refreshes
+in place with no second connection per torrent and nothing to leak when it is
+closed.
+
+A log follows the torrent rather than the gid. A magnet resolves under one gid
+and `follow-torrent` spawns the real download under another; the first
+disappears from every list this UI reads at the moment the second appears, so
+`Activity::link` points the second at the first's log and both names reach one
+record from then on.
+
+This is the only state on this side of aria2, and it is deliberately bounded
+and lost on restart: it explains how a download got where it is, while *where
+it is* still comes from aria2. A restarted pod re-reads reality exactly as
+before and loses only the narrative — a download already in the queue when the
+pod started simply has no panel, rather than an empty one implying its history
+went missing.
+
 ## Why files land straight in the library
 
 Downloads are written directly into the media tree the picker offers, not a
@@ -67,6 +129,23 @@ the mapper is a separate host-network pod because UPnP discovery is an SSDP
 multicast the pod network does not carry — being on the LAN means leaving the
 NetworkPolicy, and the pod that writes to the media library is not the one to
 take out of its confinement for that.
+
+**TCP only, and the UDP half must stay unpublished.** aria2 sends its tracker
+announces and DHT queries from the same port it listens on. Give that port a
+UDP `hostPort` and the replies arrive addressed to it, so Cilium matches them
+against the hostPort service on the way into the pod and rewrites their source
+port; aria2 keys a reply to the endpoint it asked, sees a stranger, and drops
+it. Every announce then times out
+(`UDPT received CONNECT reply from <tracker>:<random> invalid transaction_id`)
+and every DHT lookup goes unanswered — a client with no way to find a peer, so
+magnets sit on "starting" forever while the swarm is healthy. Outbound DHT and
+uTP are unaffected, which is how any client behind a NAT operates anyway.
+
+DHT needs one more thing to be real: a bootstrap node (`--dht-entry-point`)
+and a routing-table file it can actually write. `--dht-file-path` defaults
+under `$HOME/.cache`, and HOME is unset here, so aria2 resolved it to
+`//.cache` and could neither load nor save — leaving every peer lookup to run
+against an empty table.
 
 Being reachable is not only about seeding. A peer nobody can dial connects
 only to those who accept its own connections, and clients rank unconnectable
@@ -158,7 +237,7 @@ startup rather than the request that first needs it.
 
 | Variable | Required | Default | What |
 |---|---|---|---|
-| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under |
+| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under. The name is also what the picker calls the place: a destination reads `tv/some-show`, never the mount above it |
 | `PUBLIC_URL` | Yes | — | Where this is reached from outside; must match the OIDC redirect URI, since the pod cannot infer it from a request it hasn't had yet |
 | `OIDC_ISSUER` | Yes | — | Hydra's issuer URL |
 | `OIDC_CLIENT_ID` | Yes | — | |
