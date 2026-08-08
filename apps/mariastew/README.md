@@ -809,6 +809,73 @@ count of `<svg>`s only says the number changed, which every new call site
 does. `views::tests::nothing_is_drawn_with_a_unicode_glyph` fails the build if
 a character is used instead.
 
+## The app icon
+
+`icons/icon.svg` is the drawing and everything else is rendered from it by
+
+```sh
+mise run mariastew:app-icons
+```
+
+which needs `brew install librsvg`. The outputs are committed, so neither the
+container build nor a plain `cargo build` needs it — `main.rs` compiles them in
+with `include_bytes!`, the same way it does the stylesheet.
+
+A horseshoe magnet holding the stew between its poles, which is what the name
+and the job are: aria2 said out loud is "Maria Stew", and what it does is fetch
+things off strangers with magnet links. It is drawn as flat fills rather than
+in the Lucide line style above, because 16px is the size that decides an icon —
+it is the browser tab, and a 2-unit stroke on a 24 grid is a third of a pixel
+there. Nine of the ten it was chosen from are in the history of
+[#373](https://github.com/radiosilence/jaritanet/issues/373).
+
+Two shapes come out of the one drawing, and the difference is who rounds the
+corners. The favicon rounds its own, since a tab shows it exactly as given.
+`apple-touch-icon` and the manifest pair must not: iOS masks a home screen icon
+to a squircle and Android masks a `maskable` one to whatever the launcher's
+shape is, so a tile that arrives pre-rounded is rounded twice and shows the
+page's background in the gap. Those render full-bleed with the mark scaled into
+the safe zone the mask cannot reach — which is why `icon.svg` keeps its tile
+and its mark as separate elements, so `scripts/gen-app-icons.ts` can compose
+the variants from `#mark` rather than from a second drawing to keep in step.
+
+All of them, and the manifest, are served from outside the session layer along
+with the stylesheet: the sign-in page needs an icon too, and a manifest is
+fetched without credentials by default, so one behind the layer would answer an
+install prompt with a login redirect. `/favicon.ico` is registered at the root
+as well as under `/assets`, because that is the path a browser asks for on its
+own before it has parsed any `<link>`.
+
+## The theme
+
+One daisyUI theme, `mariastew`, defined in `styles/app.css`; daisyUI's own are
+switched off (`themes: false`), so the stylesheet carries the one palette it
+renders. It is the app icon read out loud — amber is the stew, steel is the
+magnet, red is its poles — so `btn-primary`, a download bar and a failed
+download are literally the three colours in `icons/icon.svg`, and `base-200` is
+the icon's own tile. `success` and `info` are the two that are not in the
+drawing: they have to be told apart from each other and from `warning` at a
+glance across a progress bar, which is a job for hue distance rather than for
+brand.
+
+It is dark only. This is a thing you open at night to start a download, and a
+second palette is a second set of contrast decisions to keep true for a
+preference nobody has expressed yet.
+
+Flat, and rounded only enough to notice — `--depth` and `--noise`, the gradient
+overlay and surface texture daisyUI 5 adds over a flat theme, are both off, and
+the radii step up with the size of the thing rather than making a badge a pill.
+That is also why the header carries a border instead of the shadow it used to:
+on a dark surface a small drop shadow draws a separation the eye cannot see.
+
+The page background is the icon's silhouette, once, very faint, `fixed` so it
+does not scroll. It is the silhouette and not the icon because flattening the
+drawing to one colour fills the gap between the poles and the U stops reading.
+With a full list it is a background in the literal sense — the rows on top of
+it are opaque, so it is seen around and between them and mostly not seen at
+all. Where it does the work is everything that is not a full list: the empty
+state, the sign-in page, a short queue, the space under the last row.
+
 ## Rebuilding the stylesheet
 
 The stylesheet is generated with Tailwind + DaisyUI but the *output*
