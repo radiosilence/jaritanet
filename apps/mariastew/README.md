@@ -11,7 +11,13 @@ patched over SSE ([Datastar](https://data-star.dev), vendored at
 
 ## What a row says it is doing
 
-A collapsed row answers "how is it going" — name, state, bar, destination.
+A collapsed row answers "how is it going" — name, state, bar, destination, and
+beside the destination the current rate and the time left. Those last two are
+there because a bar raises "will this be done tonight" and cannot settle it;
+behind a tap they were one tap too many. Both are absent rather than zeroed
+when nothing is moving, which is also why there is no countdown on a seeding
+row.
+
 Expanding it answers "what is aria2 actually doing", which needs rather more
 than a percentage:
 
@@ -24,10 +30,10 @@ than a percentage:
   "no seeders", which looks like a fault and is not one), or *checking files*
   (aria2 is hashing data that was already on disk, which reads as zero speed
   with peers connected and was otherwise indistinguishable from stalled).
-- **Readings, not just a bar:** time left, bytes given back and the share
-  ratio, peers against seeders, and the piece count and size — which is the
-  explanation for both lumpy progress and for a deselected file landing
-  anyway.
+- **Readings, not just a bar:** bytes done against total, up and down rates,
+  bytes given back and the share ratio, peers against seeders, and the piece
+  count and size — which is the explanation for both lumpy progress and for a
+  deselected file landing anyway.
 - **The file list, deselected files included.** What `filter::is_garbage`
   refused reached the disk and the pod's log and nowhere else, so "why did it
   not download that one" had no answer on the page.
@@ -111,6 +117,23 @@ the mapper is a separate host-network pod because UPnP discovery is an SSDP
 multicast the pod network does not carry — being on the LAN means leaving the
 NetworkPolicy, and the pod that writes to the media library is not the one to
 take out of its confinement for that.
+
+**TCP only, and the UDP half must stay unpublished.** aria2 sends its tracker
+announces and DHT queries from the same port it listens on. Give that port a
+UDP `hostPort` and the replies arrive addressed to it, so Cilium matches them
+against the hostPort service on the way into the pod and rewrites their source
+port; aria2 keys a reply to the endpoint it asked, sees a stranger, and drops
+it. Every announce then times out
+(`UDPT received CONNECT reply from <tracker>:<random> invalid transaction_id`)
+and every DHT lookup goes unanswered — a client with no way to find a peer, so
+magnets sit on "starting" forever while the swarm is healthy. Outbound DHT and
+uTP are unaffected, which is how any client behind a NAT operates anyway.
+
+DHT needs one more thing to be real: a bootstrap node (`--dht-entry-point`)
+and a routing-table file it can actually write. `--dht-file-path` defaults
+under `$HOME/.cache`, and HOME is unset here, so aria2 resolved it to
+`//.cache` and could neither load nor save — leaving every peer lookup to run
+against an empty table.
 
 Being reachable is not only about seeding. A peer nobody can dial connects
 only to those who accept its own connections, and clients rank unconnectable
@@ -202,7 +225,7 @@ startup rather than the request that first needs it.
 
 | Variable | Required | Default | What |
 |---|---|---|---|
-| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under |
+| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under. The name is also what the picker calls the place: a destination reads `tv/some-show`, never the mount above it |
 | `PUBLIC_URL` | Yes | — | Where this is reached from outside; must match the OIDC redirect URI, since the pod cannot infer it from a request it hasn't had yet |
 | `OIDC_ISSUER` | Yes | — | Hydra's issuer URL |
 | `OIDC_CLIENT_ID` | Yes | — | |
@@ -320,6 +343,39 @@ fixtures without a full compose cycle — use the `mise` tasks directly:
 `dev-data/movies` and reseed from scratch — the way back to a clean
 fixture-only state once a test download has piled up in there.
 
+#### Every download state at once
+
+```sh
+mise run mariastew:dev:mock
+```
+
+The fixture library populates the picker; this populates the *list*. A real
+aria2 shows whatever the swarm is doing, and the states most worth designing
+against — stalled, can't connect, no seeders, failed — are the ones a swarm
+produces on its own schedule or not at all. `scripts/mock-aria2.ts` answers
+the JSON-RPC calls `src/aria2.rs` makes (`src/aria2.rs` is the only thing that
+talks to aria2, so that is the whole surface) and serves one download per
+`Health`, plus a queued row and a magnet still resolving.
+
+It advances on each poll rather than serving a fixed list: the moving row
+gains bytes and the magnet resolves after a few seconds into the download
+`follow-torrent` would have spawned. A still list proves only the first paint
+— that a row morphs in place, that an expanded row stays expanded through the
+morph, and that a bar moves at all are things only a changing one can show.
+Pause, resume and remove mutate its state, so the buttons do something.
+
+It is not a simulator and is not trying to be: it holds a list and hands it
+out. Anything that depends on aria2's real behaviour — the metadata pass, the
+selection filter — has its own tests in `src/filter.rs` and
+`routes::tests::add_flow`.
+
+The task is `ARIA2_RPC_URL` plus `--scale aria2=0`, because compose has no way
+to say "this profile replaces that service". Port 6801, so the two can never
+race for a bind and the env var is the only thing deciding which one is
+talked to. For the plain `cargo run` loop, `mise run mariastew:mock` runs it
+alone and `ARIA2_RPC_URL=http://127.0.0.1:6801/jsonrpc cargo run` points at
+it.
+
 This mirrors "One image, run twice" above rather than inventing a second
 image: `docker-compose.yml` builds one image and runs it as both services,
 overriding the aria2 container's entrypoint to run `aria2c` with the same
@@ -352,15 +408,23 @@ device's emoji font at its own weight, colour and baseline rather than the
 text's, and `⌂` is missing from enough fonts to have arrived as a tofu box on
 the one control that had nothing else in it.
 
-Nothing is fetched or generated — eight icons weigh less than the request that
-would fetch them, and there is no JavaScript on this page to draw them with.
+Nothing is fetched or generated — they weigh less than the request that would
+fetch them, and there is no JavaScript on this page to draw them with.
 The shared presentation attributes live on `.icon` in `styles/app.css`, sized
 in `em` so an icon is the size of the text it sits beside; a macro takes a
 class for the cases that want otherwise.
 
+A `<summary>`'s own marker comes from the user agent, so it is a filled
+triangle in Chrome and something else everywhere else — the same problem
+arriving through a different door. `.disclosure` takes it off and turns the
+chevron inside instead; a disclosure written later gets that by using the same
+two class names.
+
 Adding one: take the `<path>` elements from
 `https://unpkg.com/lucide-static/icons/<name>.svg` into a new macro, then
-rebuild the stylesheet if the call site introduced a class.
+rebuild the stylesheet if the call site introduced a class. Every icon names
+itself with `data-icon`, which is what tests assert on — a count of `<svg>`s
+only says the number changed, which every new call site does.
 `views::tests::nothing_is_drawn_with_a_unicode_glyph` fails the build if a
 character is used instead.
 

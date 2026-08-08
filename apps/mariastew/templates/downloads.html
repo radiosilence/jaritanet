@@ -40,8 +40,24 @@
              is a full path and the tail is exactly what answers "which
              season folder did it land in", so hiding it with an ellipsis
              would recreate the problem that fix solved, just here instead
-             of there. #}
-        <p class="mt-1 text-xs break-words opacity-60">{% call icons::folder() %}{% endcall %} {{ row.dir }}</p>
+             of there. `min-w-0` is load-bearing now that it shares a flex
+             row: without it the path will not shrink to wrap, it overflows.
+
+             Sharing that row is the rate and the time left, which are the
+             answer to the question a bar raises and cannot settle — "is
+             this going to be done tonight". They were a tap away in the
+             readings panel, which is one tap too many for the two numbers
+             most likely to be the reason for opening the page at all.
+             Nested rather than combined because `eta` is `None` whenever
+             `down` is: there is no rate to divide the remaining bytes by.
+             Absent entirely when idle — a seeding or paused row has no
+             countdown, and the badge beside the name already says so. #}
+        <div class="mt-1 flex items-baseline justify-between gap-2 text-xs">
+          <p class="min-w-0 break-words opacity-60">{% call icons::folder() %}{% endcall %} {{ row.dir }}</p>
+          {% if let Some(down) = row.down %}
+          <span class="shrink-0 font-medium tabular-nums" aria-label="download rate">{% call icons::arrow_down() %}{% endcall %} {{ down }}{% if let Some(eta) = row.eta %} · {{ eta }} left{% endif %}</span>
+          {% endif %}
+        </div>
       </div>
     </summary>
 
@@ -63,11 +79,11 @@
         </div>
         <div class="flex justify-between gap-2">
           <dt class="opacity-60">down</dt>
-          <dd class="text-right">{{ row.down }}</dd>
+          <dd class="text-right">{% if let Some(down) = row.down %}{{ down }}{% else %}—{% endif %}</dd>
         </div>
         <div class="flex justify-between gap-2">
           <dt class="opacity-60">up</dt>
-          <dd class="text-right">{{ row.up }}</dd>
+          <dd class="text-right">{% if let Some(up) = row.up %}{{ up }}{% else %}—{% endif %}</dd>
         </div>
         <div class="flex justify-between gap-2">
           <dt class="opacity-60">peers</dt>
@@ -97,8 +113,10 @@
            "downloaded wrong" was previously only explicable from the pod's
            log, and this is where anyone would actually look. #}
       {% if !row.files.is_empty() %}
-      <details id="files-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
-        <summary class="min-h-11 cursor-pointer p-2 text-xs">
+      <details id="files-{{ row.gid }}" data-preserve-attr="open" class="disclosure rounded-box bg-base-200">
+        <summary class="flex min-h-11 cursor-pointer items-center gap-2 p-2 text-xs">
+          {% call icons::chevron_right() %}{% endcall %}
+          {% call icons::files() %}{% endcall %}
           Files <span class="opacity-60">— keeping {{ row.selected_count }} of {{ row.file_count }}{% if let Some(skipped) = row.skipped %}, {{ skipped }}{% endif %}</span>
         </summary>
         <ul class="flex flex-col gap-2 border-t border-base-300 p-2">
@@ -126,8 +144,10 @@
            for the same reason the rest of the row is — see the note at the
            top of this file. #}
       {% if !row.log.is_empty() %}
-      <details id="log-{{ row.gid }}" data-preserve-attr="open" class="rounded-box bg-base-200">
-        <summary class="min-h-11 cursor-pointer p-2 text-xs">
+      <details id="log-{{ row.gid }}" data-preserve-attr="open" class="disclosure rounded-box bg-base-200">
+        <summary class="flex min-h-11 cursor-pointer items-center gap-2 p-2 text-xs">
+          {% call icons::chevron_right() %}{% endcall %}
+          {% call icons::scroll_text() %}{% endcall %}
           Logs <span class="opacity-60">— {{ row.log.len() }} entries</span>
         </summary>
         <ol class="flex flex-col gap-1 border-t border-base-300 p-2 font-mono text-xs">
@@ -142,7 +162,14 @@
       {% endif %}
 
       {% if row.error.is_some() || row.error_code.is_some() %}
-      <div class="rounded-box bg-base-200 p-2 font-mono text-xs break-words text-error">
+      {# Marked, not only coloured: red alone is what a washed-out phone
+           screen in daylight does not deliver. The icon leads the message
+           rather than heading the block with a word — the badge above
+           already says "failed", and saying it twice in one row is not the
+           same as saying it once where colour is the only other clue. #}
+      <div class="flex gap-2 rounded-box bg-base-200 p-2 text-xs text-error">
+        {% call icons::triangle_alert() %}{% endcall %}
+        <div class="min-w-0 flex-1 font-mono break-words">
         {% if let Some(e) = row.error %}<p>{{ e }}</p>{% endif %}
         {# aria2 leaves errorMessage empty for plenty of failures and always
              sets the code, so this is the line that carries the reason as
@@ -150,23 +177,24 @@
         {% if let Some(code) = row.error_code %}<p>{{ code }}</p>{% endif %}
         <p class="mt-1 opacity-70">gid {{ row.gid }}</p>
         <p class="opacity-70">dir {{ row.dir }}</p>
+        </div>
       </div>
       {% endif %}
 
       <div class="flex gap-2">
         {% if row.paused %}
         <button type="button" class="btn btn-sm min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/resume')">{% call icons::play() %}{% endcall %} Resume</button>
         {% else %}
         <button type="button" class="btn btn-sm min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/pause')">{% call icons::pause() %}{% endcall %} Pause</button>
         {% endif %}
         {% if row.finished %}
         <button type="button" class="btn btn-sm btn-ghost min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">{% call icons::circle_stop() %}{% endcall %} Stop seeding</button>
         {% else %}
         <button type="button" class="btn btn-sm btn-error min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">{% call icons::trash() %}{% endcall %} Delete download</button>
         {% endif %}
       </div>
     </div>

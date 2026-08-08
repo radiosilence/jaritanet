@@ -15,7 +15,12 @@
 {% import "icons.html" as icons %}
 <div id="picker" class="flex flex-col gap-2" data-indicator="browsing"
   data-on:click="const t = evt.target.closest('[data-dir]'); if (t) @get('/browse?path=' + encodeURIComponent(t.dataset.dir))">
-  <div class="flex items-start gap-2 text-sm">
+  {# Centred, not top-aligned: the buttons are 44px touch targets and the
+       path is a 20px line, so aligning their tops leaves the home icon
+       sitting 12px below the text it belongs to. A path long enough to wrap past 44px
+       then centres the buttons against the whole block, which is the only
+       thing a 44px control can do next to a taller neighbour. #}
+  <div class="flex items-center gap-2 text-sm">
     {# Up stops at a root, because a root's real parent is outside every
          allowed destination and browsing there is refused — so from inside
          one there was no Up button and no other way back, and a destination
@@ -35,14 +40,20 @@
          truncated: this is the one line whose whole job is saying exactly
          where a download will land, so hiding any of it defeats the point.
          `break-words` is the fallback for one path segment on its own
-         wider than the dialog — a scene-release directory name can be. #}
-    <span class="font-mono opacity-70 break-words min-w-0 flex-1">{% if path.is_empty() %}/{% else %}{{ path }}{% endif %}</span>
+         wider than the dialog — a scene-release directory name can be.
+
+         `label`, not `path`: it starts at the root that was picked, so the
+         mount point above it does not spend the width that the tail — the
+         part that actually distinguishes one destination from another —
+         needs. The absolute path is still what the hidden inputs below
+         submit. #}
+    <span class="font-mono opacity-70 break-words min-w-0 flex-1">{% if label.is_empty() %}All destinations{% else %}{{ label }}{% endif %}</span>
     {# The listing is a `readdir` against spinning disks holding a media
          library, so seconds is its normal speed, not a fault. Without this
          a tap produced nothing observable until the new list appeared and
          the picker read as hung — the reason "the entire UI seizes up"
          was reported for what is really an honest wait. #}
-    <span class="loading loading-spinner loading-xs shrink-0 mt-1" data-show="$browsing"></span>
+    <span class="loading loading-spinner loading-xs shrink-0" data-show="$browsing"></span>
   </div>
 
   {# Bounded and internally scrolling: a root with a hundred-plus direct
@@ -100,8 +111,12 @@
   <div class="flex gap-2">
     <input type="hidden" name="parent" value="{{ path }}">
     <input name="name" placeholder="New folder name" class="input input-bordered input-sm flex-1 min-h-11">
-    <button type="button" class="btn btn-sm min-h-11"
-      data-on:click="@post('/mkdir', {contentType: 'form'})">Create</button>
+    {# Icon-only, like the home button above: this row is a text field and
+         its button on a phone, and the word took the width a folder name
+         needs to be typed in. #}
+    <button type="button" class="btn btn-sm min-h-11 min-w-11"
+      aria-label="Create folder" title="Create folder"
+      data-on:click="@post('/mkdir', {contentType: 'form'})">{% call icons::folder_plus(class="text-lg") %}{% endcall %}</button>
   </div>
 
   <input type="hidden" name="dir" value="{{ path }}">

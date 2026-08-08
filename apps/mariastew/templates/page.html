@@ -38,6 +38,7 @@
 
 {% if aria2_unreachable %}
 <div role="alert" class="alert alert-warning mx-4 mt-4">
+  {% call icons::triangle_alert() %}{% endcall %}
   <span>Download service is unreachable — showing an empty list.</span>
 </div>
 {% endif %}
@@ -83,6 +84,7 @@
      bottom edge it used to occupy is free. #}
 <div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]" data-show="JSON.stringify($add) && $add.status === 'ok'">
   <div role="alert" class="alert alert-success">
+    {% call icons::circle_check() %}{% endcall %}
     <span>Added — it will show up in the list shortly.</span>
   </div>
 </div>
@@ -111,8 +113,10 @@
   <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
     <input name="magnet" required placeholder="Paste a magnet link"
       class="input input-bordered input-lg min-h-14 w-full text-base" autofocus>
-    <details class="rounded-box border border-base-300">
+    <details class="disclosure rounded-box border border-base-300">
       <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
+        {% call icons::chevron_right() %}{% endcall %}
+        {% call icons::folder() %}{% endcall %}
         Destination <span class="opacity-50">— tap to choose</span>
       </summary>
       <div class="border-t border-base-300 p-3">
@@ -127,8 +131,14 @@
        needs nothing from the server beyond the message it already computed
        for the plain-text body today. Same JSON.stringify($add) prefix as
        the effect above and for the same reason. #}
-  <p class="px-4 text-sm text-error" data-show="JSON.stringify($add) && $add.status === 'error'"
-    data-text="JSON.stringify($add) && $add.message"></p>
+  {# The icon is a sibling of the message, not inside it: `data-text`
+       replaces the element's whole content, so anything nested in the same
+       element is gone the first time an error arrives. #}
+  <p class="flex items-start gap-1.5 px-4 text-sm text-error"
+    data-show="JSON.stringify($add) && $add.status === 'error'">
+    {% call icons::triangle_alert() %}{% endcall %}
+    <span data-text="JSON.stringify($add) && $add.message"></span>
+  </p>
 
   {# The one row that has to clear the home indicator: a bottom sheet ends at
        the physical bottom of the screen, so `p-4` alone put Cancel and Add

@@ -29,13 +29,12 @@ lan() { ip -4 route get 1.1.1.1 | awk '{for (i = 1; i < NF; i++) if ($i == "src"
 
 while :; do
   ip=$(lan)
-  for proto in TCP UDP; do
-    if upnpc -e aria2 -a "$ip" "$PORT" "$PORT" "$proto" "$LEASE" >/dev/null 2>&1; then
-      echo "mapped $proto $PORT -> $ip:$PORT for $LEASE""s"
-    else
-      echo "WARNING: could not map $proto $PORT — aria2 stays outbound-only"
-    fi
-  done
+  # TCP only. There is no UDP hostPort to forward to — see the ports below.
+  if upnpc -e aria2 -a "$ip" "$PORT" "$PORT" TCP "$LEASE" >/dev/null 2>&1; then
+    echo "mapped TCP $PORT -> $ip:$PORT for $LEASE""s"
+  else
+    echo "WARNING: could not map TCP $PORT — aria2 stays outbound-only"
+  fi
   # Half the lease, so a refusal has a full cycle to recover in before the
   # router drops the mapping.
   sleep $((LEASE / 2))
@@ -228,6 +227,16 @@ export function createMariastew(
                   `--listen-port=${conf.aria2.listenPort}`,
                   `--dht-listen-port=${conf.aria2.listenPort}`,
                   "--enable-dht=true",
+                  // Without one of these the routing table starts empty and
+                  // stays empty: every peer lookup runs against zero nodes, so
+                  // DHT contributes nothing and a magnet has only its trackers.
+                  // transmissionbt rather than the more familiar
+                  // router.bittorrent.com, which does not answer from here.
+                  "--dht-entry-point=dht.transmissionbt.com:6881",
+                  // Somewhere writable. The default is under `$HOME/.cache`,
+                  // and HOME is unset, so aria2 resolved it to `//.cache` and
+                  // failed to both read and write it.
+                  "--dht-file-path=/tmp/dht.dat",
                   "--bt-enable-lpd=true",
                   "--enable-peer-exchange=true",
                 ],
@@ -235,16 +244,21 @@ export function createMariastew(
                 // which is what any forward has to aim at — without it the
                 // port exists only inside the pod network and nothing
                 // upstream can be pointed anywhere useful.
+                //
+                // TCP only, deliberately. aria2 sends UDP — tracker announces
+                // and every DHT query — from the port it listens on, so a UDP
+                // hostPort on that number collides with its own replies:
+                // Cilium matches them against the hostPort service on the way
+                // in and rewrites their source port, and aria2 keys replies on
+                // (endpoint, transaction id) and discards the lot. That is a
+                // client with no tracker and no DHT, which is a magnet that
+                // never resolves. Losing the UDP forward costs unsolicited
+                // inbound DHT and uTP; both still work outbound, which is how
+                // every client behind a NAT lives.
                 ports: [
                   {
                     name: "bt-tcp",
                     protocol: "TCP",
-                    containerPort: conf.aria2.listenPort,
-                    hostPort: conf.aria2.listenPort,
-                  },
-                  {
-                    name: "bt-udp",
-                    protocol: "UDP",
                     containerPort: conf.aria2.listenPort,
                     hostPort: conf.aria2.listenPort,
                   },

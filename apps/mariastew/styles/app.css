@@ -23,6 +23,43 @@
   }
 }
 
+/* `<summary>`'s marker is the one glyph on this page no stylesheet ever
+   chose: the user agent supplies it, so it is a filled triangle in Chrome, a
+   smaller outlined one in Safari, and a different size again in Firefox —
+   the same "whatever the device decides it is" problem the unicode icons had,
+   arriving through a different door. `.disclosure` takes it off (both the
+   standard property and WebKit's separate pseudo-element, which `list-style`
+   alone does not reach) and the chevron inside turns instead.
+
+   The rotation is on the icon rather than a `[open]` variant per call site,
+   so a disclosure added later gets it by writing the same two class names. */
+@layer components {
+  .disclosure > summary {
+    list-style: none;
+  }
+
+  .disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .disclosure-chevron {
+    transition: transform 150ms ease;
+  }
+
+  .disclosure[open] > summary .disclosure-chevron {
+    transform: rotate(90deg);
+  }
+
+  /* Someone who has asked for less motion has asked for this too — it is
+     decoration on a state change that the chevron's final position already
+     communicates. */
+  @media (prefers-reduced-motion: reduce) {
+    .disclosure-chevron {
+      transition: none;
+    }
+  }
+}
+
 /* <dialog> already gets `display: none` while closed and `display: block`
    while open from the user agent stylesheet — see #add-dialog. Style the
    open state with `open:flex` rather than an unconditional `flex`: an
