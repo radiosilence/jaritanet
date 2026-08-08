@@ -114,7 +114,7 @@
          `{% for %}` and `{% endfor %}` shipped once per folder: 155KB of a
          205KB response, invisible in the browser and re-parsed on every
          morph. #}
-    <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm"
+    <ul class="flex w-full max-h-[40dvh] flex-col gap-1 overflow-y-auto overscroll-contain rounded-box bg-base-200 p-2 text-sm"
       data-class:invisible="$browsing">
       {# A `<button>`, not an `<a>`. These were anchors with no `href`, which
            is neither focusable nor announced as anything actionable — the
@@ -143,15 +143,18 @@
     </div>
   </div>
 
+  {# `form="mkdir-form"` on both: these sit inside `#add-form` and belong to
+       neither its validity nor its payload. See the note on `#mkdir-form` in
+       page.html for what that cost. #}
   <div class="flex gap-2">
-    <input type="hidden" name="parent" value="{{ path }}">
+    <input type="hidden" name="parent" value="{{ path }}" form="mkdir-form">
     {# Enter creates the folder, for the same reason it adds the magnet — see
          `ms.clickOnEnter`. A text field whose button is right beside it and
          whose Enter key does nothing is the one place a keyboard is guaranteed
          to be open. #}
-    <input name="name" placeholder="New folder name" enterkeyhint="done"
+    <input name="name" placeholder="New folder name" enterkeyhint="done" form="mkdir-form"
       data-on:keydown="ms.clickOnEnter(evt, $mkdirSubmit)"
-      class="input input-bordered input-sm flex-1 min-h-11">
+      class="input input-bordered input-sm flex-1 min-h-11 focus:outline-primary focus:-outline-offset-2">
     {# Icon-only, like the home button above: this row is a text field and
          its button on a phone, and the word took the width a folder name
          needs to be typed in. #}
@@ -163,7 +166,7 @@
     <button type="button" id="mkdir-submit" class="btn btn-sm min-h-11 min-w-11"
       aria-label="Create folder" title="Create folder"
       data-ref="mkdirSubmit" data-indicator="browsing"
-      data-on:click="@post('/mkdir', {contentType: 'form'})">{% call icons::folder_plus(class="text-lg") %}{% endcall %}</button>
+      data-on:click="@post('/mkdir', {contentType: 'form', selector: '#mkdir-form'})">{% call icons::folder_plus(class="text-lg") %}{% endcall %}</button>
   </div>
 
   <input type="hidden" name="dir" value="{{ path }}">

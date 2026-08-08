@@ -12,22 +12,29 @@
  */
 globalThis.ms = {
   /**
-   * Offer a magnet from the clipboard to a field that is still empty.
+   * Put the clipboard into a field, from that field's own Paste button.
    *
-   * Has to be called from the click that opens the dialog: every browser gates
-   * `readText()` on transient user activation and `showModal()` does not spend
-   * it. Whether a prompt appears is the browser's call — Safari draws its own
-   * Paste button, Chrome grants it silently on the gesture, an insecure origin
-   * has no `navigator.clipboard` at all — and none of those are an error, they
-   * leave a field to type into. Only a magnet is offered, since that is all
-   * `/add` accepts, and only into an empty field, because the prompt can
-   * outlast the moment someone gives up waiting and starts typing.
+   * `readText()` is gated on transient user activation everywhere and, on iOS,
+   * on a Paste bubble Safari draws itself and no page can suppress. That gate
+   * is why this hangs off a button beside the field rather than the tap that
+   * opens the sheet: Safari anchors its bubble to the touch that asked, so
+   * asking from the header put a Paste button at the top of the screen for a
+   * field at the bottom of it, and asked on every open whether or not there
+   * was anything anyone wanted pasted (#353).
+   *
+   * Whatever is on the clipboard goes in, magnet or not. Filtering to magnets
+   * made sense while the read was automatic, since nothing unasked-for should
+   * land in a field — but a button that answers an explicit tap by doing
+   * nothing reads as broken, where a wrong value is visible and `/add` says
+   * what is wrong with it.
+   *
+   * A refused prompt and a browser with no clipboard API are both no-ops
+   * rather than errors: either way there is a field to type into.
    */
-  pasteMagnet(field) {
+  pasteInto(field) {
     navigator.clipboard?.readText().then(
       (text) => {
-        const magnet = text.trim();
-        if (!field.value && magnet.startsWith("magnet:?")) field.value = magnet;
+        field.value = text.trim();
       },
       () => {},
     );
@@ -62,3 +69,50 @@ globalThis.ms = {
     return dir === undefined ? null : `/browse?path=${encodeURIComponent(dir)}`;
   },
 };
+
+/**
+ * Publish how much of the viewport the on-screen keyboard is covering, as
+ * `--keyboard-inset` on the root element.
+ *
+ * iOS Safari shrinks the visual viewport for its keyboard and leaves the
+ * layout viewport alone. Fixed positioning resolves against the layout one, so
+ * the bottom sheet opened underneath the keyboard and Safari scrolled the page
+ * chasing the focused field — the invisible dialog and the stray vertical
+ * scroll of #353, one cause. Nothing in CSS exposes the gap between the two
+ * viewports; this is the only place it can be measured.
+ *
+ * `offsetTop` is part of it: the visual viewport also pans, and what is
+ * covered is whatever sits below its bottom edge in layout coordinates.
+ *
+ * A browser that resizes its layout viewport for its own keyboard measures
+ * zero here, which is the fallback in the stylesheet too, so it is left alone.
+ * The guard is for the same reason `visualViewport` is read defensively
+ * anywhere: it is absent in older WebViews, and a missing keyboard offset is a
+ * sheet that behaves exactly as it did before this existed.
+ */
+const viewport = globalThis.visualViewport;
+if (viewport) {
+  // visualViewport scrolls fire on every pan, and the vast majority report the
+  // same number — skipping those keeps a scroll from invalidating style.
+  let published = -1;
+  const publish = () => {
+    const covered = Math.round(
+      Math.max(
+        0,
+        document.documentElement.clientHeight -
+          viewport.height -
+          viewport.offsetTop,
+      ),
+    );
+    if (covered === published) return;
+    published = covered;
+    document.documentElement.style.setProperty(
+      "--keyboard-inset",
+      `${covered}px`,
+    );
+  };
+
+  viewport.addEventListener("resize", publish);
+  viewport.addEventListener("scroll", publish);
+  publish();
+}
