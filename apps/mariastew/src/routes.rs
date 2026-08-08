@@ -203,20 +203,41 @@ fn magnet_infohash(magnet: &str) -> Option<&str> {
 /// magnet on its own side afterward, so it is safe to run synchronously and
 /// is what makes the already-registered case below a real 4xx rather than
 /// something only the background task ever sees.
+/// The outcome, in a body Datastar will actually read.
+///
+/// Datastar discards a non-200 response before it ever looks at what came
+/// back: its fetch wrapper returns early on `status !== 200`, ahead of the
+/// content-type sniffing that turns a JSON body into a signal patch. So a 400
+/// carrying a perfectly good explanation is, to the person who pressed the
+/// button, indistinguishable from the button doing nothing — which is exactly
+/// what it looked like.
+///
+/// The outcome therefore travels in the body and the status stays 200. What
+/// the status code no longer carries, the server log does: a rejected add is
+/// still a warning here, so this is a change to what the browser is told, not
+/// to what we can see.
+fn add_outcome(message: Option<&str>) -> Response {
+    let body = match message {
+        None => serde_json::json!({ "add": { "status": "ok" } }),
+        Some(m) => serde_json::json!({ "add": { "status": "error", "message": m } }),
+    };
+    (StatusCode::OK, axum::Json(body)).into_response()
+}
+
 pub async fn add(
     State(state): State<AppState>,
     CurrentSession(session): CurrentSession,
     Form(form): Form<AddForm>,
-) -> AppResult<Response> {
+) -> Response {
     // Rejected at the boundary rather than handed to aria2 to fail on later.
     // A file upload is a different interface for a case that does not come up
     // on a phone.
     if !is_magnet(&form.magnet) {
-        return Err(AppError::BadRequest("magnets only".to_string()));
+        return add_outcome(Some("That is not a magnet link."));
     }
-    let dir = state.config.resolve(&form.dir).ok_or_else(|| {
-        AppError::BadRequest("destination is not inside a configured root".to_string())
-    })?;
+    let Some(dir) = state.config.resolve(&form.dir) else {
+        return add_outcome(Some("Choose a destination inside the library."));
+    };
     let dir = dir.to_string_lossy().into_owned();
 
     // No `bt-metadata-only`: that option means "fetch the metadata and stop"
@@ -245,11 +266,12 @@ pub async fn add(
         // cancel a real download. The download list is already on the page —
         // that is where "which one is it" gets answered.
         Err(AppError::Upstream(msg)) if is_already_registered(&msg) => {
-            return Err(AppError::BadRequest(
-                "this magnet is already added or downloading".to_string(),
-            ));
+            return add_outcome(Some("That is already in the list."));
         }
-        Err(e) => return Err(e),
+        Err(e) => {
+            tracing::error!(error = %e, "add: aria2 refused the magnet");
+            return add_outcome(Some("The download service could not be reached."));
+        }
     };
 
     tokio::spawn(finish_add(
@@ -260,7 +282,7 @@ pub async fn add(
         metadata_gid,
     ));
 
-    Ok(StatusCode::ACCEPTED.into_response())
+    add_outcome(None)
 }
 
 /// Everything about adding a magnet that cannot happen inside the request
@@ -932,10 +954,12 @@ mod tests {
                 add(State(state), CurrentSession(session()), Form(add_form())),
             )
             .await
-            .expect("add must return promptly, not wait on the metadata poll")
-            .expect("add must accept a valid magnet and destination");
+            .expect("add must return promptly, not wait on the metadata poll");
 
-            assert_eq!(response.status(), StatusCode::ACCEPTED);
+            // 200, not 202: Datastar discards a non-200 before reading the
+            // body, so an accepted add has to say so in a response it will
+            // actually look at. See `add_outcome`.
+            assert_eq!(response.status(), StatusCode::OK);
         }
 
         /// The bug this whole task exists to fix: the file list used to be
@@ -971,9 +995,7 @@ mod tests {
             .await;
             let state = test_state(mock.url);
 
-            add(State(state), CurrentSession(session()), Form(add_form()))
-                .await
-                .unwrap();
+            add(State(state), CurrentSession(session()), Form(add_form())).await;
 
             wait_for_calls(&mock.calls, 6).await;
             assert_eq!(
@@ -1018,9 +1040,7 @@ mod tests {
             .await;
             let state = test_state(mock.url);
 
-            add(State(state), CurrentSession(session()), Form(add_form()))
-                .await
-                .unwrap();
+            add(State(state), CurrentSession(session()), Form(add_form())).await;
 
             wait_for_calls(&mock.calls, 5).await;
             assert_eq!(
@@ -1040,7 +1060,7 @@ mod tests {
         /// it must read as a 4xx the caller can act on, not the 502 an
         /// unrecognised upstream error gets.
         #[tokio::test]
-        async fn add_maps_an_already_registered_infohash_to_bad_request() {
+        async fn add_reports_an_already_registered_infohash_in_a_body_the_client_reads() {
             let mock = mock_server(
                 serde_json::json!({"error": {"code": 1, "message": "InfoHash abc is already registered."}}),
                 MetadataOutcome::NeverResolves,
@@ -1048,11 +1068,23 @@ mod tests {
             .await;
             let state = test_state(mock.url);
 
-            let result = add(State(state), CurrentSession(session()), Form(add_form())).await;
+            let response = add(State(state), CurrentSession(session()), Form(add_form())).await;
 
+            // The status has to stay 200 for the explanation to survive the
+            // trip: Datastar returns early on anything else and never reads
+            // the body, so a 4xx here would reach the person as silence.
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("a small json body");
+            let body: serde_json::Value =
+                serde_json::from_slice(&body).expect("add answers with json");
+            assert_eq!(body["add"]["status"], "error");
             assert!(
-                matches!(result, Err(AppError::BadRequest(_))),
-                "expected BadRequest, got {result:?}"
+                body["add"]["message"]
+                    .as_str()
+                    .is_some_and(|m| !m.is_empty()),
+                "the rejection has to say something, got {body}"
             );
         }
     }
