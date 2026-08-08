@@ -1,27 +1,8 @@
 #!/usr/bin/env -S node --experimental-strip-types
 /**
- * Populates docker-compose's bind-mounted roots (../dev-data/{tv,movies})
- * with directory names shaped like a real media library.
- *
- * One empty `downloads` folder cannot reproduce a layout bug — every picker
- * bug found so far only showed up because of what a real name does to the
- * layout: full-width CJK brackets, runs of consecutive spaces, a leading
- * `www.` site prefix, square brackets, commas, names past 70 characters. The
- * titles and release groups below are invented, but each carries one of those
- * shapes verbatim, and they stay present alongside generated filler so the
- * ~140-entry scroll cap is genuinely exercised rather than tested against
- * three tidy names.
- *
- * The filler is deterministic (seeded PRNG, not Math.random()) so a bug
- * report against "entry #83" points at the same name on every machine and
- * every re-run — a fresh random draw each time would make that unreproducible.
- *
- * Only creates directories: this is the same tree the app's own picker reads
- * with tokio::fs::read_dir, so a directory is all a fixture needs to be.
- * mkdir with recursive:true is a no-op on an existing path, which is what
- * makes re-running this safe without deleting anything --reset didn't ask
- * for — including whatever a docker-compose aria2 run has since downloaded
- * into these same directories.
+ * Creates adversarial directory names to test layout: CJK brackets, consecutive
+ * spaces, www. prefix, square brackets, commas, names >70 chars. Generated with
+ * seeded PRNG so "entry #83" is reproducible across runs.
  */
 import { mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -33,10 +14,6 @@ const DEV_DATA = join(
   "dev-data",
 );
 
-// Invented titles and groups carrying the adversarial shapes: nested
-// parentheses, dot separators, square brackets, commas, a bare title with no
-// metadata at all, full-width CJK brackets, a `www.` prefix with runs of
-// consecutive spaces, and names past 70 characters.
 const SHAPED_MOVIES = [
   "Nightfall Harbour (2017) (2160p BluRay x265 HEVC 10bit HDR AAC 7.1 Cormorant)",
   "Static.Tide.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1",
@@ -61,10 +38,7 @@ const SHAPED_MOVIES = [
   "Driftwood (2001) [1080p] [LOFT.AG]",
 ];
 
-// Two shows named for the same problem two different ways — #257 exists
-// because telling these apart at a glance, on a phone, is genuinely hard.
-// Left as leaf directories rather than given Season subfolders: the season
-// number is already baked into the name, which is its own real pattern.
+// Divergent spellings hard to tell apart (#257).
 const DIVERGENT_SPELLINGS = ["Show Name S02", "Show.Name.Season.2"];
 
 const SHOWS: Record<string, string[]> = {
@@ -82,8 +56,7 @@ const SHOWS: Record<string, string[]> = {
 
 const TARGET_MOVIE_COUNT = 140;
 
-// mulberry32 — small, dependency-free, and seeded so every run generates the
-// same filler names in the same order.
+// Seeded PRNG for deterministic filler names.
 function mulberry32(seed: number) {
   return () => {
     seed |= 0;

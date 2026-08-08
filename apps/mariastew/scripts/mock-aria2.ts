@@ -1,28 +1,8 @@
 #!/usr/bin/env -S node --experimental-strip-types
 /**
- * A fake aria2 JSON-RPC endpoint that serves one download per `Health`.
- *
- * The download list is the part of this UI that cannot be looked at on
- * demand. A stall, a dead magnet, an unconnectable swarm and a disk error are
- * exactly the states worth designing against, and every one of them is
- * something a real swarm hands over on its own schedule or not at all — so
- * the states that most need looking at are the ones least available while
- * looking. This serves all of them at once, immediately.
- *
- * mariastew reaches aria2 over JSON-RPC and nothing else (`src/aria2.rs`), so
- * answering `tellActive`/`tellWaiting`/`tellStopped` is the whole of what it
- * takes to drive the page. It is deliberately not a simulator: it holds a
- * list, hands it out, and lets the mutating calls change it.
- *
- * It advances on every poll rather than serving a fixed list. A still list
- * renders once and proves only the first paint — it cannot show that the SSE
- * patch morphs a row in place, that an expanded `<details>` survives the
- * morph, or that a bar moves at all. The moving row therefore gains bytes,
- * and the resolving one resolves after a few seconds into a real download the
- * way a magnet does.
- *
- * Numbers go out as strings and booleans as "true"/"false" because that is
- * aria2's wire shape, not an oversight — `RawDownload` parses them back.
+ * Mock aria2 RPC server serving one download per Health state (not a simulator).
+ * Serves all states together for testing UI that can't sample async conditions.
+ * Numbers/bools are strings (aria2's wire format); advances per poll so bars move.
  */
 import { createServer } from "node:http";
 
@@ -54,20 +34,10 @@ type Download = {
 
 const GiB = 1024 ** 3;
 
-/**
- * A counter, the way aria2 writes one: a decimal string with no fractional
- * part. Rust parses these into `u64` and falls back to 0 on anything it
- * cannot read, so a plain `String(1.2 * GiB)` — which JavaScript renders as
- * `1288490188.8` — arrives as a download of size zero, and the row reads
- * "starting" forever. Every number below goes through here.
- */
+// Round to integer string; JS decimals parse as 0 in Rust, showing "starting" forever.
 const n = (value: number) => String(Math.round(value));
 
-/**
- * One download. The file list is a single entry sized to match the totals,
- * which is all `selected_totals` needs — the filter's multi-file cases have
- * their own tests in `src/filter.rs` and are not what this is for.
- */
+// One download with single-file list (sufficient for selected_totals testing).
 function download(
   gid: string,
   name: string,
@@ -96,14 +66,8 @@ function download(
   };
 }
 
-/**
- * One per `Health`, plus the two rows that are a state of the list rather
- * than of a download: a queued one and a metadata pass.
- *
- * The names are invented but shaped like real release names, long ones
- * included — a row's layout is decided by its name far more than by its
- * numbers, and a tidy `test.iso` has never reproduced anything.
- */
+// One per Health plus list-state rows (queued, metadata). Names shaped like
+// real releases; layout driven by name, not numbers.
 function fixtures(): Download[] {
   return [
     // Resolving: a magnet with no metadata yet, so no size and no
@@ -198,19 +162,8 @@ const RESOLVE_AFTER_MS = 8_000;
 const started = Date.now();
 let advanced = started;
 
-/**
- * Called once per list poll, so what the page shows changes between SSE
- * patches.
- *
- * It advances on the clock rather than on a count of calls. How often the
- * server polls is a setting (`POLL_MS`), so a fixture moving a fixed step per
- * call would download ten times faster the moment someone turned the rate up
- * — and the thing being looked at while turning it up is exactly whether the
- * numbers move at a believable speed.
- *
- * Only two rows move: everything else is a state, and a state that drifted
- * would stop being the thing it was put there to show.
- */
+// Called per poll; advances on wall-clock time, not call count, so POLL_MS changes
+// don't alter perceived download speed. Only two rows move (others are fixed states).
 function advance() {
   const now = Date.now();
   const elapsed = (now - advanced) / 1000;
@@ -227,9 +180,7 @@ function advance() {
     moving.files[0].completedLength = n(done);
   }
 
-  // The magnet resolves into the download `follow-torrent` spawns, and the
-  // metadata gid moves to the stopped list — which is where `all_downloads`
-  // sweeps it, so the real row replaces it rather than joining it.
+  // Metadata resolves and moves to stopped list, where it's swept.
   const resolving = downloads.find((d) => d.gid === RESOLVING);
   if (
     resolving &&
@@ -300,11 +251,7 @@ function dispatch(method: string, params: unknown[]): unknown {
       }
       return gid;
     }
-    // The two removal calls apply to different downloads and each refuses the
-    // other's, which is the distinction #316 turned on: deleting on either was
-    // why a button that could only ever fail against the real aria2 worked
-    // perfectly here. `remove` stops one that is still running;
-    // `removeDownloadResult` discards one that has already stopped.
+    // `remove` for active, `removeDownloadResult` for stopped (they refuse each other).
     case "aria2.remove":
     case "aria2.forceRemove": {
       const d = found();
@@ -316,9 +263,7 @@ function dispatch(method: string, params: unknown[]): unknown {
     case "aria2.removeDownloadResult": {
       const d = found();
       if (!d || !isStopped(d)) throw new Error(`GID#${gid} is not found`);
-      // Refused once, because aria2 is not finished when `remove` returns and
-      // the client has to keep asking — which is also what makes the row's
-      // "clearing" state long enough to see here.
+      // Refuse once (aria2 not done when `remove` returns).
       if (!discardAsked.has(gid)) {
         discardAsked.add(gid);
         throw new Error(`GID#${gid} is not found`);
@@ -328,9 +273,7 @@ function dispatch(method: string, params: unknown[]): unknown {
       return gid;
     }
     case "aria2.addUri": {
-      // Answers the way a magnet does: a metadata gid that resolves later,
-      // which is the path `finish_add` polls. `changeOption` then applies a
-      // selection to whatever `followedBy` names.
+      // Returns metadata gid that resolves later (the path finish_add polls).
       const newGid = String(2000000000000000 + downloads.length);
       downloads.push(
         download(newGid, `[METADATA]${newGid.slice(-12)}`, {
@@ -358,8 +301,7 @@ createServer((req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ jsonrpc: "2.0", id: payload.id, result }));
     } catch (e) {
-      // aria2's own shape for a refusal, so the Rust side takes the same
-      // path it would in production rather than one only this can produce.
+      // aria2's error shape so Rust takes production path, not test-only one.
       res.writeHead(200, { "content-type": "application/json" });
       res.end(
         JSON.stringify({

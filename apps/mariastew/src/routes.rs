@@ -252,23 +252,14 @@ pub struct AddForm {
     pub dir: String,
 }
 
-/// A bare magnet check, not a URI parse — the form only ever needs to tell a
-/// magnet link from anything else someone pasted.
 fn is_magnet(s: &str) -> bool {
     s.starts_with("magnet:?")
 }
 
-/// aria2's own wording when an `addUri` names an infohash it already has
-/// registered — not a parse of any structured field, because the RPC error is
-/// a plain string and this is the only thing in it worth matching on.
 fn is_already_registered(message: &str) -> bool {
     message.contains("is already registered")
 }
 
-/// The `btih:` hash out of a magnet's `xt` parameter, for logging only —
-/// nothing here acts on it, aria2 already knows the download by its gid. Not
-/// a URI parser, in the same spirit as [`is_magnet`]: this only ever needs to
-/// find the one parameter a magnet is expected to carry.
 fn magnet_infohash(magnet: &str) -> Option<&str> {
     let after = magnet.split_once("btih:")?.1;
     Some(after.split('&').next().unwrap_or(after))

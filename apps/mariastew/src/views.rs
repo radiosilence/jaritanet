@@ -21,10 +21,8 @@ pub struct DirView {
     pub path: String,
 }
 
-/// One file inside a torrent, as the expanded row lists it. A deselected file
-/// is listed rather than hidden: "why is that one not downloading" is the
-/// question a missing row cannot answer, and the garbage filter's decisions
-/// were previously visible only in the pod's log.
+/// A deselected file is listed, not hidden — the filter's decisions were
+/// previously visible only in logs.
 pub struct FileView {
     pub name: String,
     pub size: String,
@@ -32,15 +30,9 @@ pub struct FileView {
     pub selected: bool,
 }
 
-/// A line of a download's history, at the time it happened.
-///
-/// Both forms of the timestamp, because the pod has no timezone and the
-/// browser does. `utc` is what the markup carries and what a page with no
-/// working JavaScript keeps; `at_ms` feeds a `data-text` expression that
-/// rewrites it in the reader's own local time. Only an integer is ever
-/// interpolated into that expression — the escaping lesson from the
-/// destination picker is that HTML escaping is no defence inside something
-/// the browser goes on to evaluate, so nothing evaluated may carry a string.
+/// A history line with both UTC and milliseconds. `utc` is for markup/no-JS;
+/// `at_ms` is for JavaScript local-time rewriting. Only integers are
+/// interpolated into evaluated expressions to avoid escaping issues.
 pub struct LogView {
     pub utc: String,
     pub at_ms: u64,
@@ -55,35 +47,23 @@ const MAX_FILES_SHOWN: usize = 24;
 pub struct Row {
     pub gid: String,
     pub name: String,
-    /// `None` while the magnet is still resolving, which renders as an
-    /// indeterminate bar rather than as zero.
+    /// None while resolving (renders as indeterminate bar, not 0%).
     pub percent: Option<f64>,
-    /// Rounded to a whole number for the `<progress>` `value` — the template
-    /// never prints the raw `f64` `percent` directly.
+    /// Rounded to a whole number for `<progress value>`.
     pub percent_display: Option<String>,
-    /// Kept for callers that need the raw reading; the row itself only shows
-    /// its two derived readings, `bar_class` and `state`.
     #[allow(dead_code)]
     pub health: Health,
     /// DaisyUI modifier for the bar — the fast way to read a row at arm's
     /// length. The icons carry the same meaning for a washed-out screen.
     pub bar_class: &'static str,
     pub state: &'static str,
-    /// Absent when nothing is moving — a rate of `0 B/s` reads as a
-    /// measurement, and an idle row has not measured anything. The collapsed
-    /// row shows `down` beside the destination and shows neither when it is
-    /// absent, so this has to be the absence rather than a dash.
+    /// Absent when idle — 0 B/s reads as measured stasis, not absence.
     pub down: Option<String>,
     pub up: Option<String>,
     pub size: String,
     pub done: String,
-    /// Time left at the current rate, absent whenever that rate would make one
-    /// up. See `Download::eta_secs` — it is `None` whenever `down` is, so the
-    /// collapsed row can nest the two rather than combine them.
+    /// Absent when idle (matches `down`).
     pub eta: Option<String>,
-    /// Given back to the swarm, and as a multiple of what was taken. The
-    /// ratio is absent until something has actually been downloaded to divide
-    /// by.
     pub uploaded: String,
     pub ratio: Option<String>,
     pub connections: u32,
@@ -93,19 +73,14 @@ pub struct Row {
     pub pieces: Option<String>,
     pub info_hash: Option<String>,
     pub error: Option<String>,
-    /// aria2's numeric reason, in words where there are words for it. Shown
-    /// beside `error` and, more to the point, instead of it when aria2 left
-    /// the message empty.
+    /// aria2's error code translated. Shown when the message is empty.
     pub error_code: Option<String>,
-    /// Only shown alongside `error`, in the disclosure that reveals why a
-    /// row failed — nobody needs the destination of a download that is
-    /// working.
+    /// Shown only in the error disclosure.
     pub dir: String,
     pub files: Vec<FileView>,
     pub file_count: usize,
     pub selected_count: usize,
-    /// What the garbage filter left out, once there is anything to say about
-    /// it: "2 skipped, 58.3 MiB".
+    /// "N skipped, X bytes" or none.
     pub skipped: Option<String>,
     pub log: Vec<LogView>,
     pub finished: bool,

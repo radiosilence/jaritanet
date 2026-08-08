@@ -31,39 +31,31 @@ use crate::routes::all_downloads;
 use crate::state::AppState;
 use crate::views;
 
-/// One row's markup and a hash of it, so a stream can tell whether the copy it
-/// last sent is still current without holding on to the string to compare.
+/// A row's markup hashed to detect changes without string retention.
 pub struct RenderedRow {
     pub gid: String,
     pub hash: u64,
     pub html: Arc<str>,
 }
 
-/// The list as markup: every row on its own, and the container holding all of
-/// them. Both, because morphing by id can neither add an element nor remove
-/// one — a download appearing or disappearing is the one change that needs the
-/// whole container, and every other change needs only a row.
+/// Rows and their container. Both sent because morph-by-id can't add/remove
+/// elements — only changes need to return full container.
 pub struct View {
     pub rows: Vec<RenderedRow>,
     pub full: Arc<str>,
 }
 
-/// What one poll saw.
 pub struct Snapshot {
     pub downloads: Arc<Vec<Download>>,
-    /// `None` when there was nobody to render for, and on the rare tick a
-    /// render fails. A viewer treats both the same way — wait for the next
-    /// one — because for a viewer they are the same thing.
+    /// None when no viewers or render fails.
     pub view: Option<View>,
 }
 
-/// The handle the rest of the process reads the queue through.
 #[derive(Clone)]
 pub struct Poll {
     tx: Arc<watch::Sender<Arc<Snapshot>>>,
     viewers: Arc<AtomicUsize>,
-    /// Fired when a viewer arrives, so the poller drops out of an idle sleep
-    /// rather than making them sit out the rest of it.
+    /// Wakes idle poller when a viewer connects.
     woken: Arc<Notify>,
 }
 
@@ -80,9 +72,7 @@ impl Poll {
         }
     }
 
-    /// Every snapshot from the next one on, without asking for a render. What
-    /// the notifier watches: it reads downloads, never markup, and its
-    /// interest is not what makes a page smooth.
+    /// Snapshots without rendering (for the notifier).
     pub fn subscribe(&self) -> watch::Receiver<Arc<Snapshot>> {
         self.tx.subscribe()
     }
@@ -93,10 +83,7 @@ impl Poll {
         self.viewers.load(Ordering::Relaxed) > 0
     }
 
-    /// Registering as a viewer is what makes the poller sample at the page's
-    /// rate and render what it finds; dropping the guard is what lets it fall
-    /// back to idle. So an open page is the entire input to how hard this
-    /// works, and closing the last one is noticed within a tick.
+    /// Registers a viewer — poller renders at page rate. Drop to fall back to idle.
     pub fn viewer(&self) -> Viewer {
         self.viewers.fetch_add(1, Ordering::Relaxed);
         self.woken.notify_one();
@@ -107,17 +94,13 @@ impl Poll {
     }
 }
 
-/// One open page. Dropping it is how the count comes back down, so it has to
-/// live inside the stream rather than beside it.
+/// One open page. Dropping it decrements the viewer count.
 pub struct Viewer {
     rx: watch::Receiver<Arc<Snapshot>>,
     viewers: Arc<AtomicUsize>,
 }
 
 impl Viewer {
-    /// The next snapshot, skipping any this one was too slow to collect —
-    /// which is why a stream diffs against what it last sent rather than
-    /// against the previous tick. `None` once the poller is gone.
     pub async fn next(&mut self) -> Option<Arc<Snapshot>> {
         self.rx.changed().await.ok()?;
         Some(self.rx.borrow_and_update().clone())
