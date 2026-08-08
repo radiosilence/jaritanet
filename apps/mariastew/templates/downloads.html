@@ -7,6 +7,7 @@
      row, and for the same reason: no JavaScript, and open/closed survives
      the SSE morph because patch-elements matches by id rather than
      replacing the subtree. #}
+{% import "icons.html" as icons %}
 <div id="downloads" class="flex flex-col gap-2 p-4">
 {% for row in rows %}
   <details id="dl-{{ row.gid }}" data-preserve-attr="open"
@@ -20,7 +21,7 @@
                at the same glance that used to require re-reading the whole
                list to notice it changed. #}
           {% if row.finished %}
-          <span class="badge badge-sm badge-success shrink-0">✓ {{ row.state }}</span>
+          <span class="badge badge-sm badge-success shrink-0">{% call icons::check() %}{% endcall %} {{ row.state }}</span>
           {% else %}
           <span class="badge badge-sm badge-outline shrink-0">{{ row.state }}</span>
           {% endif %}
@@ -38,18 +39,24 @@
              season folder did it land in", so hiding it with an ellipsis
              would recreate the problem that fix solved, just here instead
              of there. #}
-        <p class="mt-1 text-xs break-words opacity-60">→ {{ row.dir }}</p>
+        <p class="mt-1 text-xs break-words opacity-60">{% call icons::folder() %}{% endcall %} {{ row.dir }}</p>
       </div>
     </summary>
 
     <div class="flex flex-col gap-3 border-t border-base-300 p-3">
       <div class="flex justify-between text-xs opacity-70">
         <span>{{ row.done }} / {{ row.size }}</span>
-        <span>↓ {{ row.down }} ↑ {{ row.up }}</span>
+        {# Split, so each rate carries its own label: the arrows used to be
+             the only thing saying which was which, and an arrow read aloud
+             says nothing. #}
+        <span class="flex gap-3">
+          <span aria-label="download rate">{% call icons::arrow_down() %}{% endcall %} {{ row.down }}</span>
+          <span aria-label="upload rate">{% call icons::arrow_up() %}{% endcall %} {{ row.up }}</span>
+        </span>
       </div>
       <div class="flex items-center gap-3 text-xs opacity-70">
-        <span aria-label="connections">🔗 {{ row.connections }}</span>
-        <span aria-label="seeders">🌱 {{ row.seeders }}</span>
+        <span aria-label="connections">{% call icons::link() %}{% endcall %} {{ row.connections }}</span>
+        <span aria-label="seeders">{% call icons::sprout() %}{% endcall %} {{ row.seeders }}</span>
       </div>
 
       {% if let Some(e) = row.error %}

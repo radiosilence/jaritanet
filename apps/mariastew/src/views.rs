@@ -442,6 +442,67 @@ mod tests {
         assert!(!browse.contains("data-on-"));
     }
 
+    /// Icons are inline Lucide `<svg>`, never a character. A glyph is
+    /// whatever the device decides it is: 🌱 and 🔗 come from the emoji font
+    /// at its own weight, colour and baseline rather than the text's, and
+    /// `⌂` is absent from enough fonts to arrive as a tofu box — a button
+    /// with nothing legible in it.
+    ///
+    /// The assertion is the property, not the icon set: no pictographic
+    /// character may reach the markup, whichever one someone reaches for
+    /// next. Dashes and ellipses are punctuation and stay out of the ranges
+    /// below — `rate()` returns an em dash for an idle row.
+    #[test]
+    fn nothing_is_drawn_with_a_unicode_glyph() {
+        let glyph = |html: &str| {
+            html.chars().find(|c| {
+                matches!(c,
+                    '\u{2190}'..='\u{21FF}'      // arrows
+                    | '\u{2300}'..='\u{27BF}'    // technical, dingbats
+                    | '\u{2B00}'..='\u{2BFF}'    // more arrows
+                    | '\u{1F300}'..='\u{1FAFF}'  // emoji
+                )
+            })
+        };
+
+        let row = Row {
+            gid: "abc".into(),
+            name: "test.iso".into(),
+            percent: Some(100.0),
+            percent_display: Some("100".into()),
+            health: Health::Complete,
+            bar_class: "progress-success",
+            state: "ready",
+            down: rate(0),
+            up: rate(1024),
+            size: "1.00 GiB".into(),
+            done: "1.00 GiB".into(),
+            connections: 3,
+            seeders: 2,
+            error: None,
+            dir: "/mnt/kontent/movies".into(),
+            finished: true,
+            paused: false,
+        };
+
+        let downloads = Downloads { rows: vec![row] }.render().unwrap();
+        // The finished badge, the destination, both rates, connections and
+        // seeders — the six that used to be characters.
+        assert_eq!(downloads.matches("<svg class=\"icon").count(), 6);
+        assert_eq!(glyph(&downloads), None, "{downloads}");
+
+        let browse = Browse {
+            parent: Some("/mnt/kontent".into()),
+            path: "/mnt/kontent/tv".into(),
+            dirs: vec![],
+        }
+        .render()
+        .unwrap();
+        // Home and Up, the two only reachable below a root.
+        assert_eq!(browse.matches("<svg class=\"icon").count(), 2);
+        assert_eq!(glyph(&browse), None, "{browse}");
+    }
+
     /// A real release name — title and year first, encoding detail last —
     /// with no ellipsis to hide any of it: `line-clamp-2` wraps rather than
     /// truncates, because two folders in the same list can differ only in

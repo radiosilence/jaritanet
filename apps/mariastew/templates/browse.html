@@ -12,6 +12,7 @@
      patches: Datastar morphs by id rather than replacing, so the handler
      and its in-flight `$browsing` signal survive the swap they trigger.
      Anything below it is free to be replaced wholesale. #}
+{% import "icons.html" as icons %}
 <div id="picker" class="flex flex-col gap-2" data-indicator="browsing"
   data-on:click="const t = evt.target.closest('[data-dir]'); if (t) @get('/browse?path=' + encodeURIComponent(t.dataset.dir))">
   <div class="flex items-start gap-2 text-sm">
@@ -22,11 +23,12 @@
          to the empty path, which is the root list itself. #}
     {% if !path.is_empty() %}
     <button type="button" class="btn btn-sm btn-ghost min-h-11 min-w-11 shrink-0"
-      data-dir="" title="All destinations">⌂</button>
+      data-dir="" title="All destinations"
+      aria-label="All destinations">{% call icons::house(class="text-lg") %}{% endcall %}</button>
     {% endif %}
     {% if let Some(p) = parent %}
     <button type="button" class="btn btn-sm btn-ghost min-h-11 min-w-11 shrink-0"
-      data-dir="{{ p }}">↑ Up</button>
+      data-dir="{{ p }}">{% call icons::arrow_up() %}{% endcall %} Up</button>
     {% endif %}
     {# Always shown, even at the roots, so where a download lands is never
          a guess — see #257, "keep the current path visible". Wrapped, not

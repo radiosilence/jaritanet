@@ -1,6 +1,28 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+/* Lucide's own presentation attributes, hoisted off every icon in
+   templates/icons.html onto one class — what differs between icons is the
+   path, and repeating six attributes per glyph would bury it. Sized in `em`
+   so an icon is always the size of the text it sits beside, and nudged off
+   the baseline so it centres on it: these replaced unicode glyphs sitting
+   inline in a sentence, and an icon that sat a little high or a little large
+   would read as worse than the character it replaced. In `components` so a
+   utility class passed to a macro still wins. */
+@layer components {
+  .icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
 /* <dialog> already gets `display: none` while closed and `display: block`
    while open from the user agent stylesheet — see #add-dialog. Style the
    open state with `open:flex` rather than an unconditional `flex`: an

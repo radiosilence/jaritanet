@@ -1,0 +1,32 @@
+{# [Lucide](https://lucide.dev) (ISC), copied verbatim from `lucide-static`
+     v1.30.0 — one macro per icon, holding only the paths that differ. The
+     shared presentation attributes live on `.icon` in `styles/app.css`.
+
+     Inlined rather than fetched as a sprite or drawn by a script: seven
+     icons weigh less than the request that would fetch them, they need no
+     JavaScript to appear (nothing else on this page does either), and an
+     inline `<svg>` takes its colour from `currentColor` and its size from
+     the text around it — so the tick inside a success badge is the badge's
+     green without anything being told twice.
+
+     Every icon is `aria-hidden`: each one here either sits beside the text
+     that names it or inside an element carrying the `aria-label`, and an
+     icon that announces itself as well would say it twice.
+
+     Adding one: take the `<path>` elements from
+     https://unpkg.com/lucide-static/icons/<name>.svg — nothing else from
+     that file is needed. #}
+
+{% macro check(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{% endmacro %}
+
+{% macro folder(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>{% endmacro %}
+
+{% macro arrow_down(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>{% endmacro %}
+
+{% macro arrow_up(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>{% endmacro %}
+
+{% macro link(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>{% endmacro %}
+
+{% macro sprout(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"/><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"/><path d="M5 21h14"/></svg>{% endmacro %}
+
+{% macro house(class="") %}<svg class="icon {{ class }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>{% endmacro %}
