@@ -70,6 +70,20 @@ describe("pickLatestTag", () => {
       normaliseVersion(pickLatestTag(tags, "serve-from-env-v") ?? ""),
     ).toBe("0.2.0");
   });
+
+  // The releases API returned mariastew's history with 0.1.9 ahead of 0.1.19,
+  // and comparing the tags as whole strings agreed: "9" > "1". Reported as
+  // #345 — the workflow called 0.1.9 up to date while 0.1.19 was live.
+  it("sorts by version rather than trusting the order it is given", () => {
+    const outOfOrder = [
+      "mariastew-v0.1.9",
+      "mariastew-v0.1.8",
+      "mariastew-v0.1.19",
+      "mariastew-v0.1.10",
+      "mariastew-v0.1.0",
+    ];
+    expect(pickLatestTag(outOfOrder, "mariastew-v")).toBe("mariastew-v0.1.19");
+  });
 });
 
 describe("parseImageRef", () => {
