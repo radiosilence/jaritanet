@@ -47,6 +47,8 @@ describe("MariastewConfSchema", () => {
       listenPort: 51413,
       upnp: true,
       peerSpeedLimit: "50M",
+      statePath: "/var/lib/mariastew",
+      saveSessionInterval: 60,
       btMaxPeers: 0,
       maxConcurrentDownloads: 16,
       maxConnectionPerServer: 16,
@@ -54,5 +56,32 @@ describe("MariastewConfSchema", () => {
       maxOverallUploadLimit: "0",
       seedRatio: "0.0",
     });
+  });
+
+  it("keeps aria2's state off the media roots by default", () => {
+    const { aria2 } = MariastewConfSchema.parse({ image, roots });
+    for (const root of roots) {
+      expect(aria2.statePath.startsWith(root.hostPath)).toBe(false);
+    }
+  });
+
+  it("rejects a relative state path, which aria2 would resolve against its cwd", () => {
+    expect(() =>
+      MariastewConfSchema.parse({
+        image,
+        roots,
+        aria2: { statePath: "var/lib/mariastew" },
+      }),
+    ).toThrow();
+  });
+
+  it("refuses a save interval of zero, which means only on a clean exit", () => {
+    expect(() =>
+      MariastewConfSchema.parse({
+        image,
+        roots,
+        aria2: { saveSessionInterval: 0 },
+      }),
+    ).toThrow();
   });
 });
