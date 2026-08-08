@@ -3,7 +3,11 @@ import {
   createFastmailRecords,
   createServiceRecord,
 } from "@jaritanet/dns";
-import { createCilium, createK3sUpgrades } from "@jaritanet/hetzner";
+import {
+  createCilium,
+  createK3sUpgrades,
+  createTailnetRule,
+} from "@jaritanet/hetzner";
 import { createIngress, createRedirectMiddleware } from "@jaritanet/ingress";
 import {
   createExit,
@@ -235,6 +239,9 @@ export default async function () {
   // Deployment and stays Pending without one.
   if (gatewayConf?.k3s && cilium) {
     createK3sUpgrades(provider, gatewayConf.k3s, [cilium]);
+    // The pod network rides the tailnet between nodes, and Cilium's packet
+    // marks collide with tailscaled's routing rules — see createTailnetRule.
+    createTailnetRule(provider, [cilium]);
   }
 
   // Every resource below takes its namespace from this output rather than the
