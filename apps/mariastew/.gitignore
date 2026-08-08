@@ -1,0 +1,4 @@
+# docker-compose's bind mount for local aria2 downloads — real content, not
+# fixtures, so only the directory itself is tracked.
+dev-data/downloads/*
+!dev-data/downloads/.gitkeep
