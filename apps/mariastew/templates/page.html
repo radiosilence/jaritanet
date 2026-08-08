@@ -9,9 +9,11 @@
 </head>
 <body data-init="@get('/stream')" class="min-h-screen bg-base-200">
 
-<header class="navbar bg-base-100 shadow-sm px-4">
-  <h1 class="flex-1 text-lg font-semibold">mariastew</h1>
-  <button type="button" class="btn btn-primary btn-sm min-h-11"
+<!-- The header is the primary action, not a name plus an action — the person
+     already knows what they opened, and the name would only spend the
+     vertical space a phone in portrait can least afford. -->
+<header class="bg-base-100 shadow-sm p-4">
+  <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     data-on:click="document.getElementById('add-dialog').showModal()">Add download</button>
 </header>
 

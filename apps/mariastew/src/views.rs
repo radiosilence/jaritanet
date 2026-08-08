@@ -520,4 +520,30 @@ mod tests {
             "directory list has no height cap or does not scroll: {page}"
         );
     }
+
+    /// The header carries no app name — the person already knows what they
+    /// opened, and on a phone in portrait that text only costs the vertical
+    /// space the download button could use instead. `<title>` is unrelated:
+    /// that names the browser tab and stays.
+    #[test]
+    fn the_header_is_only_the_add_button_not_a_name_plus_one() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        let header_start = page.find("<header").expect("page has a header");
+        let header_end = page.find("</header>").expect("page has a header");
+        let header = &page[header_start..header_end];
+        assert!(
+            !header.contains("mariastew") && !header.contains("<h1"),
+            "the app name is still in the header: {header}"
+        );
+        assert!(
+            header.contains("btn-lg") && header.contains("Add download"),
+            "the header is not a single prominent primary action: {header}"
+        );
+    }
 }
