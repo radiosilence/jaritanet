@@ -127,6 +127,7 @@ impl Page {
         Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: self
                 .roots
                 .iter()
@@ -153,7 +154,13 @@ pub struct Downloads {
 pub struct Browse {
     /// Absent at a root, which is where browsing upward stops.
     pub parent: Option<String>,
+    /// The absolute path, which is what the hidden inputs submit and what
+    /// aria2 is eventually handed — never what is shown.
     pub path: String,
+    /// The same place said the way the picker says it (`Config::label`), which
+    /// is the only form that reaches the screen. Empty at the root list, where
+    /// no destination has been picked yet.
+    pub label: String,
     pub dirs: Vec<DirView>,
 }
 
@@ -209,6 +216,7 @@ mod tests {
         let html = Browse {
             parent: Some("/mnt/kontent".into()),
             path: "/mnt/kontent/tv".into(),
+            label: "tv".into(),
             dirs: vec![DirView {
                 name: "'+alert(1)+'".into(),
                 path: "/mnt/kontent/tv/'+alert(1)+'".into(),
@@ -431,6 +439,7 @@ mod tests {
         let browse = Browse {
             parent: Some("/mnt/tv".into()),
             path: "/mnt/tv/show".into(),
+            label: "tv/show".into(),
             dirs: vec![DirView {
                 name: "season 1".into(),
                 path: "/mnt/tv/show/season 1".into(),
@@ -453,6 +462,7 @@ mod tests {
         let browse = Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: vec![DirView {
                 name: long_name.into(),
                 path: format!("/mnt/kontent/movies/{long_name}"),
@@ -490,6 +500,7 @@ mod tests {
         let browse = Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: vec![
                 DirView {
                     name: part1.clone(),
@@ -515,17 +526,35 @@ mod tests {
     /// reason the directory rows do, and `min-w-0` is load-bearing: without
     /// it a flex item will not shrink to wrap at all, it will just overflow
     /// its row instead.
+    ///
+    /// It is the label that is shown, not the path (#303): the mount point
+    /// above the root is the same on every destination, so it distinguishes
+    /// nothing while costing the line the width the tail needs. The absolute
+    /// path is still in the markup — the hidden inputs submit it — so this
+    /// asserts it is not what gets *rendered*.
     #[test]
-    fn the_current_path_wraps_and_can_shrink_in_its_flex_row() {
-        let long_path = "/mnt/kontent/movies/Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+    fn the_current_path_is_shown_from_the_picked_root_and_wraps() {
+        let tail = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
         let browse = Browse {
             parent: Some("/mnt/kontent/movies".into()),
-            path: long_path.into(),
+            path: format!("/mnt/kontent/movies/{tail}"),
+            label: format!("movies/{tail}"),
             dirs: vec![],
         }
         .render()
         .unwrap();
-        assert!(browse.contains(long_path), "the full path must be shown");
+        assert!(
+            browse.contains(&format!(">movies/{tail}</span>")),
+            "the label, whole tail included, is not the line's text: {browse}"
+        );
+        assert!(
+            !browse.contains(&format!(">/mnt/kontent/movies/{tail}")),
+            "the mount point is back on the visible line: {browse}"
+        );
+        assert!(
+            browse.contains(&format!(r#"name="dir" value="/mnt/kontent/movies/{tail}""#)),
+            "the absolute path must still be what is submitted: {browse}"
+        );
         assert!(
             browse.contains("break-words") && browse.contains("min-w-0"),
             "the path cannot wrap or shrink inside its flex row: {browse}"
@@ -737,6 +766,7 @@ mod tests {
         let browse = Browse {
             parent: Some("/mnt/kontent/movies".into()),
             path: "/mnt/kontent/movies/downloads".into(),
+            label: "movies/downloads".into(),
             dirs: vec![],
         }
         .render()
@@ -759,6 +789,7 @@ mod tests {
         let browse = Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: vec![],
         }
         .render()
