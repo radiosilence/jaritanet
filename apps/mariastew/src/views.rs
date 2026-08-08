@@ -65,12 +65,17 @@ pub struct Row {
     /// length. The icons carry the same meaning for a washed-out screen.
     pub bar_class: &'static str,
     pub state: &'static str,
-    pub down: String,
-    pub up: String,
+    /// Absent when nothing is moving — a rate of `0 B/s` reads as a
+    /// measurement, and an idle row has not measured anything. The collapsed
+    /// row shows `down` beside the destination and shows neither when it is
+    /// absent, so this has to be the absence rather than a dash.
+    pub down: Option<String>,
+    pub up: Option<String>,
     pub size: String,
     pub done: String,
     /// Time left at the current rate, absent whenever that rate would make one
-    /// up. See `Download::eta_secs`.
+    /// up. See `Download::eta_secs` — it is `None` whenever `down` is, so the
+    /// collapsed row can nest the two rather than combine them.
     pub eta: Option<String>,
     /// Given back to the swarm, and as a multiple of what was taken. The
     /// ratio is absent until something has actually been downloaded to divide
@@ -302,13 +307,13 @@ pub fn bytes(n: u64) -> String {
     format!("{value:.digits$} {}", UNITS[unit])
 }
 
-/// A transfer rate, or a dash when nothing is moving — a rate of `0 B/s` reads
-/// as a measurement, and an idle row has not measured anything.
-pub fn rate(n: u64) -> String {
-    if n == 0 {
-        return "—".to_string();
-    }
-    format!("{}/s", bytes(n))
+/// A transfer rate, or nothing when nothing is moving — a rate of `0 B/s`
+/// reads as a measurement, and an idle row has not measured anything. Whether
+/// that absence is drawn as a dash or as nothing at all is the caller's
+/// decision: the expanded panel is a table of readings and wants the dash, the
+/// collapsed row wants the space back.
+pub fn rate(n: u64) -> Option<String> {
+    (n > 0).then(|| format!("{}/s", bytes(n)))
 }
 
 /// A span of time in the two largest units it needs. Nobody waiting on a film
@@ -445,13 +450,13 @@ mod tests {
     }
 
     #[test]
-    fn rate_at_zero_is_a_dash() {
-        assert_eq!(rate(0), "—");
+    fn rate_at_zero_is_nothing_at_all() {
+        assert_eq!(rate(0), None);
     }
 
     #[test]
     fn rate_is_bytes_per_second() {
-        assert_eq!(rate(1024), "1.00 KiB/s");
+        assert_eq!(rate(1024).as_deref(), Some("1.00 KiB/s"));
     }
 
     #[test]
@@ -996,6 +1001,61 @@ mod tests {
         });
         assert!(finished.contains("badge-success"));
         assert!(!render(&moving()).contains("badge-success"));
+    }
+
+    /// The collapsed half of a row, which is what these assert about — the
+    /// rate and the time left are also in the readings panel below it, so
+    /// searching the whole document would pass on markup that never promoted
+    /// anything.
+    fn summary(page: &str) -> String {
+        let start = page.find("<summary").expect("a row has a summary");
+        let end = page.find("</summary>").expect("a row has a summary");
+        page[start..end].to_string()
+    }
+
+    /// #308: the two numbers that answer "will this be done tonight" were a
+    /// tap away, behind the same disclosure as the piece size and the
+    /// infohash. They now sit on the destination's line without one.
+    #[test]
+    fn the_collapsed_row_shows_the_rate_and_the_time_left() {
+        // 512 MiB left at 1 MiB/s.
+        let summary = summary(&render(&moving()));
+        assert!(summary.contains("1.00 MiB/s"), "no rate: {summary}");
+        assert!(summary.contains("8m 32s left"), "no time left: {summary}");
+    }
+
+    /// Nothing is moving, so there is no rate to show and no rate to divide
+    /// the remaining bytes by — a "0 B/s · 0s left" on a finished row is two
+    /// measurements nobody took. The badge already says "ready".
+    #[test]
+    fn an_idle_row_shows_neither_and_keeps_the_dash_in_the_readings() {
+        let page = render(&Download {
+            completed_length: 1_073_741_824,
+            download_speed: 0,
+            ..moving()
+        });
+        let summary = summary(&page);
+        assert!(
+            !summary.contains("B/s") && !summary.contains("left"),
+            "an idle row still shows a rate or a countdown: {summary}"
+        );
+        assert!(page.contains("—"), "the readings lost their dash: {page}");
+    }
+
+    /// The destination shares its line now, and a flex child will not shrink
+    /// to wrap without `min-w-0` — it overflows the row instead, which is the
+    /// bug this markup exists to avoid (see the picker's own path, #257).
+    #[test]
+    fn the_destination_can_still_shrink_and_wrap_beside_the_rate() {
+        let summary = summary(&render(&Download {
+            dir: "/mnt/kontent/tv/Show.Name.S01.2160p.UHD.BluRay.REMUX.HEVC.DTS-HD.MA.5.1/S01"
+                .to_string(),
+            ..moving()
+        }));
+        assert!(
+            summary.contains("min-w-0") && summary.contains("break-words"),
+            "the destination cannot wrap or shrink in its flex row: {summary}"
+        );
     }
 
     /// The other half of "idk where it has put the file": every row shows

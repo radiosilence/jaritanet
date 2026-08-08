@@ -11,7 +11,13 @@ patched over SSE ([Datastar](https://data-star.dev), vendored at
 
 ## What a row says it is doing
 
-A collapsed row answers "how is it going" — name, state, bar, destination.
+A collapsed row answers "how is it going" — name, state, bar, destination, and
+beside the destination the current rate and the time left. Those last two are
+there because a bar raises "will this be done tonight" and cannot settle it;
+behind a tap they were one tap too many. Both are absent rather than zeroed
+when nothing is moving, which is also why there is no countdown on a seeding
+row.
+
 Expanding it answers "what is aria2 actually doing", which needs rather more
 than a percentage:
 
@@ -24,10 +30,10 @@ than a percentage:
   "no seeders", which looks like a fault and is not one), or *checking files*
   (aria2 is hashing data that was already on disk, which reads as zero speed
   with peers connected and was otherwise indistinguishable from stalled).
-- **Readings, not just a bar:** time left, bytes given back and the share
-  ratio, peers against seeders, and the piece count and size — which is the
-  explanation for both lumpy progress and for a deselected file landing
-  anyway.
+- **Readings, not just a bar:** bytes done against total, up and down rates,
+  bytes given back and the share ratio, peers against seeders, and the piece
+  count and size — which is the explanation for both lumpy progress and for a
+  deselected file landing anyway.
 - **The file list, deselected files included.** What `filter::is_garbage`
   refused reached the disk and the pod's log and nowhere else, so "why did it
   not download that one" had no answer on the page.
