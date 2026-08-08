@@ -497,3 +497,5 @@ config:
       clientSecret:
         secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
       allowed: radiosilence
+  jaritanet:tailnet.authKey:
+    secure: AAABAFmJv8UAh+loNQjkgcsyglnel1cN6Qhfj2OqktkeI06zN+86DDBorzu7nLwTT2S4a2DoNlg6PxVsKWJ+jbiktilkkcbjaWENph1geo5+ewQdlC2JJ5+JK5Usd0TE
