@@ -10,7 +10,15 @@ pre-commit:
       stage_fixed: true
     typecheck:
       run: mise run typecheck
+    # Every crate a staged file belongs to, derived from the paths rather than
+    # named. This was a hardcoded `cd apps/serve-from-env`, so the two crates
+    # added after it were never formatted or linted before a commit — which is
+    # how a `cargo fmt --check` failure got as far as CI, in a repo whose hook
+    # had been running `cargo fmt` all along.
     rust:
       glob: "apps/**/*.rs"
-      run: cd apps/serve-from-env && cargo fmt && cargo clippy --all-targets -- -D warnings
+      run: |
+        for crate in $(printf '%s\n' {staged_files} | cut -d/ -f1-2 | sort -u); do
+          (cd "$crate" && cargo fmt && cargo clippy --all-targets -- -D warnings) || exit 1
+        done
       stage_fixed: true
