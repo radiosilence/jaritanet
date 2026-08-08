@@ -169,10 +169,7 @@ impl Row {
 
         Row {
             gid: d.gid.clone(),
-            // A still-resolving magnet is named `[METADATA]<infohash>` by
-            // aria2. The marker is how the row is classified, not something
-            // to read — the state badge already says what it is doing.
-            name: d.name().trim_start_matches("[METADATA]").to_string(),
+            name: d.display_name().to_string(),
             percent,
             percent_display: percent.map(|p| format!("{p:.0}")),
             health,
@@ -1408,6 +1405,29 @@ mod tests {
         });
         assert!(finished.contains("badge-success"));
         assert!(!render(&moving()).contains("badge-success"));
+    }
+
+    /// #372: the metadata pass reaches `Complete` when the *torrent file*
+    /// arrives, so for a second the row went green, said "downloaded" beside
+    /// the torrent's name, and showed a full bar — and then the download
+    /// started. The marker comes off the name because it is not worth
+    /// reading; nothing else about the row is allowed to claim the torrent
+    /// arrived with it.
+    #[test]
+    fn a_resolved_metadata_pass_still_renders_as_a_torrent_that_has_not_started() {
+        let html = render(&Download {
+            status: Status::Complete,
+            bittorrent_name: Some("[METADATA]Show.S01E01".to_string()),
+            total_length: 34_000,
+            completed_length: 34_000,
+            ..moving()
+        });
+        assert!(html.contains("Show.S01E01") && !html.contains("[METADATA]"));
+        assert!(html.contains("finding peers"), "{html}");
+        assert!(!html.contains("badge-success") && !html.contains("progress-success"));
+        // The indeterminate bar and the "—" beside `done` are the same
+        // condition — see row.html.
+        assert!(!html.contains("value=\""), "the bar claimed a percentage");
     }
 
     /// A finished torrent is one press from being out of the list, and the
