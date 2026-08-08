@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Make the add sheet usable on iOS ([#353](https://github.com/radiosilence/jaritanet/issues/353), [#356](https://github.com/radiosilence/jaritanet/pull/356))
+- Ask for the clipboard from a Paste button beside the field, not on every open ([#353](https://github.com/radiosilence/jaritanet/issues/353), [#356](https://github.com/radiosilence/jaritanet/pull/356))
 - Use magnet icon for add button
 
 ## [0.1.19] - 2026-08-08

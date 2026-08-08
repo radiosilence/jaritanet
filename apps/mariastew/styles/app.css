@@ -86,14 +86,21 @@
    covering, and the sheet opened underneath it. `assets/app.js` measures the
    difference; every browser that resizes for its own keyboard measures zero,
    which is also the fallback, so this is a no-op there rather than a second
-   correction stacked on theirs. */
+   correction stacked on theirs.
+
+   The height is `min()` of two different limits rather than one minus the
+   other. 85dvh is a preference — a sheet should not become the whole screen
+   when it has no reason to. What is left above the keyboard is a fact, and
+   subtracting the keyboard from the preference charges for it twice: on a
+   660px viewport with 350px of keyboard that left 211px for a sheet with
+   294px of room to sit in. */
 @layer components {
   .sheet {
     position: fixed;
     inset: auto 0 var(--keyboard-inset, 0px) 0;
     width: auto;
     max-width: none;
-    max-height: calc(85dvh - var(--keyboard-inset, 0px));
+    max-height: min(85dvh, calc(100dvh - var(--keyboard-inset, 0px) - 1rem));
     margin: 0;
     padding: 0;
     border: 0;

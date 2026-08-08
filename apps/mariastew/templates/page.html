@@ -44,7 +44,7 @@
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     aria-label="Add download" title="Add download"
-    data-on:click="$addDialog.showModal(); ms.pasteMagnet($magnet)">{% call icons::magnet(class="text-3xl") %}{% endcall %}</button>
+    data-on:click="$addDialog.showModal()">{% call icons::magnet(class="text-3xl") %}{% endcall %}</button>
 </header>
 
 {# The confirmation the owner asked for: something to actually see once the
@@ -97,16 +97,39 @@
   data-on:close="if ($addStatus === 'error') $addStatus = ''; $addMessage = ''; $magnet.value = ''; @get('/browse')"
   class="sheet open:flex flex-col rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
-  <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-6">
+  {# `flex-auto`, not `flex-1`. The sheet has no height of its own — it hugs
+       what is in it up to a cap — and `flex-1` is `flex-basis: 0`, which in a
+       column with no definite height means this contributes nothing to the
+       height being worked out. Paired with the `min-h-0` that lets it scroll,
+       that is a form measured at zero and a footer sitting on the field: the
+       squashed sheet of #353, which survived the geometry fix because it was
+       never the geometry. `flex-auto` bases the same growing and shrinking on
+       the content instead. #}
+  <form id="add-form" class="flex min-h-0 flex-auto flex-col gap-4 overflow-y-auto overscroll-contain p-4 sm:p-6">
     {# A magnet is a URI and nothing else, so it gets the URI keyboard and none
          of the text-field helpers: iOS otherwise offered to AutoFill a contact
          into it, spending a bar of a viewport the keyboard had already
          halved, and autocapitalise/autocorrect can only corrupt what is typed
-         (#353). #}
-    <input name="magnet" data-ref="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
-      inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
-      data-on:keydown="ms.clickOnEnter(evt, $addSubmit)"
-      class="input input-bordered input-lg min-h-14 w-full text-base focus:outline-primary focus:-outline-offset-2" autofocus>
+         (#353).
+
+         No `autofocus`. It raised the keyboard on every open, which costs
+         half the sheet — and the field is filled by the button beside it, so
+         that is half a sheet spent on a keyboard the usual flow never types
+         into. Tapping the field still opens one. #}
+    <div class="flex gap-2">
+      <input name="magnet" data-ref="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
+        inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+        data-on:keydown="ms.clickOnEnter(evt, $addSubmit)"
+        class="input input-bordered input-lg min-h-14 min-w-0 flex-1 text-base focus:outline-primary focus:-outline-offset-2">
+      {# Where the clipboard is asked for, and the only place it is. Safari
+           anchors its Paste bubble to the touch that asked, so asking here
+           puts it against the field it fills — see `ms.pasteInto`. Icon-only
+           for the same reason the picker's controls are: the word would take
+           width the magnet needs. #}
+      <button type="button" class="btn btn-lg min-h-14 shrink-0"
+        aria-label="Paste from clipboard" title="Paste from clipboard"
+        data-on:click="ms.pasteInto($magnet)">{% call icons::clipboard(class="text-xl") %}{% endcall %}</button>
+    </div>
     <details class="disclosure rounded-box border border-base-300">
       <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
         {% call icons::chevron_right() %}{% endcall %}
