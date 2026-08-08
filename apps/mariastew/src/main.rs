@@ -27,15 +27,23 @@ use axum::routing::get;
 use crate::config::Config;
 use crate::state::AppState;
 
+/// `build.rs` finds the one `assets/app-<hash>.js` rolldown wrote and hands
+/// its name over as an env var — the hash is how a deploy's new script stops
+/// being served from a browser cache still holding the old one, and it is not
+/// something the source can spell on its own since rolldown chooses it.
+/// `views::Page::app_js_path` renders the same constant into the `<script>`
+/// tag that requests it.
+pub const APP_JS_PATH: &str = concat!("/assets/", env!("APP_JS_FILENAME"));
+
 /// Served from the binary rather than a volume: the stylesheet and the vendored
 /// bundle are build outputs, so a mount would be a second thing to keep in step
 /// with the image, and `app.js` travels with them because it is the same thing
 /// to the browser.
 const ASSETS: [(&str, &str, &str); 3] = [
     (
-        "/assets/app.js",
+        APP_JS_PATH,
         "text/javascript; charset=utf-8",
-        include_str!("../assets/app.js"),
+        include_str!(concat!("../assets/", env!("APP_JS_FILENAME"))),
     ),
     (
         "/assets/datastar.js",

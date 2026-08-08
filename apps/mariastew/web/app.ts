@@ -1,3 +1,11 @@
+declare global {
+  var ms: {
+    pasteInto(field: HTMLInputElement): void;
+    clickOnEnter(evt: KeyboardEvent, button: HTMLButtonElement): void;
+    browseUrl(evt: Event): string | null;
+  };
+}
+
 /**
  * The behaviours that do not belong in an attribute.
  *
@@ -65,7 +73,8 @@ globalThis.ms = {
    * as an expression, so a folder named with a quote cannot break out of it.
    */
   browseUrl(evt) {
-    const dir = evt.target.closest("[data-dir]")?.dataset.dir;
+    const dir = (evt.target as HTMLElement).closest<HTMLElement>("[data-dir]")
+      ?.dataset.dir;
     return dir === undefined ? null : `/browse?path=${encodeURIComponent(dir)}`;
   },
 };
