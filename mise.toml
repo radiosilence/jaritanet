@@ -66,6 +66,11 @@ run = "./node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --min
 description = "Validate every profile shape against the real sing-box binary (needs docker)"
 run = "./scripts/check-profiles.ts"
 
+[tasks."mariastew:dev"]
+description = "Run mariastew + aria2 locally against a debug build (needs docker)"
+dir = "apps/mariastew"
+run = "docker compose up --build"
+
 [tasks."update:apps"]
 description = "Report or apply upstream version bumps"
 run = "./packages/infra/src/update-apps.ts"
