@@ -434,6 +434,96 @@ mod tests {
         assert!(!browse.contains("data-on-"));
     }
 
+    /// A real release name — title and year first, encoding detail last —
+    /// with no ellipsis to hide any of it: `line-clamp-2` wraps rather than
+    /// truncates, because two folders in the same list can differ only in
+    /// that tail (a part number, a disc, a cut), which an end-ellipsis would
+    /// hide on exactly the two entries a picker most needs to tell apart.
+    #[test]
+    fn long_directory_names_wrap_instead_of_being_cut_off() {
+        let long_name = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+        let browse = Browse {
+            parent: None,
+            path: String::new(),
+            dirs: vec![DirView {
+                name: long_name.into(),
+                path: format!("/mnt/kontent/movies/{long_name}"),
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            browse.contains(long_name),
+            "the full name must still be in the markup — wrapped, not cut: {browse}"
+        );
+        assert!(
+            browse.contains("break-words"),
+            "the directory row is not set to wrap: {browse}"
+        );
+        // A fixed line-clamp was tried and rejected (see the comment in
+        // browse.html): a name long enough to need a third line clips it
+        // right where a PART1/PART2-style suffix usually lives, which
+        // defeats the one thing this row exists to guarantee. There is no
+        // safe fixed number of lines, so there is no clamp at all.
+        assert!(
+            !browse.contains("line-clamp"),
+            "a line-clamp on the directory row can hide the tail of a long enough name: {browse}"
+        );
+    }
+
+    /// The regression this whole design exists to prevent: two names alike
+    /// except for a tail long enough to fall on a would-be third line. Both
+    /// full names must be in the markup, not just their common prefix.
+    #[test]
+    fn two_directory_names_differing_only_near_the_end_are_both_fully_present() {
+        let common = "2046.2004.Criterion.Collection.2160p.UHD.BluRay.REMUX.HEVC.HDR.DTS-HD.MA.5.1";
+        let part1 = format!("{common}.PART1");
+        let part2 = format!("{common}.PART2");
+        let browse = Browse {
+            parent: None,
+            path: String::new(),
+            dirs: vec![
+                DirView {
+                    name: part1.clone(),
+                    path: format!("/mnt/kontent/movies/{part1}"),
+                },
+                DirView {
+                    name: part2.clone(),
+                    path: format!("/mnt/kontent/movies/{part2}"),
+                },
+            ],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            browse.contains(&part1) && browse.contains(&part2),
+            "both full names, PART1 and PART2 tail included, must be in the markup: {browse}"
+        );
+    }
+
+    /// The current path is the answer to "where will this land" (#257) — an
+    /// end-ellipsis on a full path tends to hide the last segment, which is
+    /// the one part of it that answers that question. It wraps for the same
+    /// reason the directory rows do, and `min-w-0` is load-bearing: without
+    /// it a flex item will not shrink to wrap at all, it will just overflow
+    /// its row instead.
+    #[test]
+    fn the_current_path_wraps_and_can_shrink_in_its_flex_row() {
+        let long_path = "/mnt/kontent/movies/Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+        let browse = Browse {
+            parent: Some("/mnt/kontent/movies".into()),
+            path: long_path.into(),
+            dirs: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(browse.contains(long_path), "the full path must be shown");
+        assert!(
+            browse.contains("break-words") && browse.contains("min-w-0"),
+            "the path cannot wrap or shrink inside its flex row: {browse}"
+        );
+    }
+
     /// The disclosure needs no JavaScript to work at all — a native
     /// `<details>`/`<summary>` — and must carry enough to actually diagnose
     /// the failure: the message, which download, and where it was headed.
@@ -466,6 +556,53 @@ mod tests {
         assert!(page.contains("No space left on device"));
         assert!(page.contains("abc123"));
         assert!(page.contains("/mnt/kontent/tv/Show/S01"));
+        // The full destination path in the error box wraps rather than
+        // truncates — this is the one place someone opened specifically to
+        // read everything, so hiding the tail of the path would defeat the
+        // reason the disclosure exists. `break-words` on the wrapper is
+        // what makes an unbroken path (no spaces) wrap instead of overflow.
+        assert!(page.contains("break-words"));
+    }
+
+    /// A collapsed row is deliberately different from the picker: it is
+    /// scanned repeatedly rather than chosen once, so a single truncated
+    /// line stays scannable and the full name is a tap away in the row's
+    /// own disclosure — unlike the picker, there is no second entry in this
+    /// list it needs to stay distinguishable from at a glance.
+    #[test]
+    fn a_long_torrent_name_still_truncates_to_one_line_in_the_collapsed_row() {
+        let long_name = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+        let page = Downloads {
+            rows: vec![Row {
+                gid: "abc".into(),
+                name: long_name.into(),
+                percent: Some(50.0),
+                percent_display: Some("50".into()),
+                health: Health::Moving,
+                bar_class: "progress-success",
+                state: "moving",
+                down: "1.00 MiB/s".into(),
+                up: "0 B/s".into(),
+                size: "1.00 GiB".into(),
+                done: "512 MiB".into(),
+                connections: 1,
+                seeders: 1,
+                error: None,
+                dir: "/mnt/kontent/movies".into(),
+                finished: false,
+                paused: false,
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains(long_name),
+            "the full name is still in the markup, just visually truncated"
+        );
+        assert!(
+            page.contains(r#"class="truncate text-sm font-medium""#),
+            "the collapsed row name is not set to truncate: {page}"
+        );
     }
 
     /// A row with no error shows no disclosure — nothing to tap into for a
@@ -577,134 +714,5 @@ mod tests {
             !page.contains("<details open"),
             "a details element opens by default instead of on tap: {page}"
         );
-    }
-
-    // SCRATCH — visual review only, delete before committing.
-    #[test]
-    fn print_full_page_for_screenshotting() {
-        let roots = vec![
-            RootView {
-                name: "tv".into(),
-                path: "/mnt/kontent/tv".into(),
-            },
-            RootView {
-                name: "movies".into(),
-                path: "/mnt/kontent/movies".into(),
-            },
-        ];
-        let rows = vec![
-            Row {
-                gid: "abc123def456".into(),
-                name: "A.Very.Long.Movie.Title.That.Should.Truncate.Not.Wrap.2024.2160p.WEB-DL.mkv"
-                    .into(),
-                percent: Some(63.0),
-                percent_display: Some("63".into()),
-                health: Health::Moving,
-                bar_class: "progress-success",
-                state: "moving",
-                down: "4.21 MiB/s".into(),
-                up: "312 KiB/s".into(),
-                size: "8.42 GiB".into(),
-                done: "5.31 GiB".into(),
-                connections: 6,
-                seeders: 14,
-                error: None,
-                dir: "/mnt/kontent/movies/A Very Long Movie Title".into(),
-                finished: false,
-                paused: false,
-            },
-            Row {
-                gid: "err000".into(),
-                name: "Errored.Torrent".into(),
-                percent: Some(4.0),
-                percent_display: Some("4".into()),
-                health: Health::Errored,
-                bar_class: "progress-error",
-                state: "errored",
-                down: "0 B/s".into(),
-                up: "0 B/s".into(),
-                size: "700 MiB".into(),
-                done: "28 MiB".into(),
-                connections: 0,
-                seeders: 0,
-                error: Some("No space left on device".into()),
-                dir: "/mnt/kontent/movies/Errored Torrent".into(),
-                finished: false,
-                paused: false,
-            },
-            Row {
-                gid: "fin777".into(),
-                name: "Finished.Movie.2023".into(),
-                percent: Some(100.0),
-                percent_display: Some("100".into()),
-                health: Health::Complete,
-                bar_class: "progress-success",
-                state: "complete",
-                down: "0 B/s".into(),
-                up: "89 KiB/s".into(),
-                size: "4.10 GiB".into(),
-                done: "4.10 GiB".into(),
-                connections: 2,
-                seeders: 9,
-                error: None,
-                dir: "/mnt/kontent/movies/Finished Movie".into(),
-                finished: true,
-                paused: false,
-            },
-            Row {
-                gid: "blk222".into(),
-                name: "Blocked.Show.S01E02".into(),
-                percent: Some(9.0),
-                percent_display: Some("9".into()),
-                health: Health::Blocked,
-                bar_class: "progress-error",
-                state: "blocked",
-                down: "0 B/s".into(),
-                up: "0 B/s".into(),
-                size: "1.20 GiB".into(),
-                done: "112 MiB".into(),
-                connections: 0,
-                seeders: 3,
-                error: None,
-                dir: "/mnt/kontent/tv/Blocked Show/S01".into(),
-                finished: false,
-                paused: false,
-            },
-        ];
-        let page = (Page {
-            roots,
-            rows,
-            aria2_unreachable: false,
-        })
-        .render()
-        .unwrap();
-        std::fs::write("/tmp/mariastew-page-preview.html", &page).unwrap();
-
-        let dirs: Vec<DirView> = (1..=140)
-            .map(|i| DirView {
-                name: format!("Movie Title {i} (20{:02})", 10 + i % 15),
-                path: format!("/mnt/kontent/movies/Movie Title {i}"),
-            })
-            .collect();
-        let drilled = (Browse {
-            parent: Some("/mnt/kontent".into()),
-            path: "/mnt/kontent/movies".into(),
-            dirs,
-        })
-        .render()
-        .unwrap();
-        let picker_start = page.find(r#"<div id="picker""#).unwrap();
-        let picker_end = page[picker_start..].find("</details>").unwrap() + picker_start;
-        let with_drilled_picker = format!(
-            "{}{}{}",
-            &page[..picker_start],
-            drilled,
-            &page[picker_end..]
-        );
-        std::fs::write(
-            "/tmp/mariastew-page-drilled-preview.html",
-            &with_drilled_picker,
-        )
-        .unwrap();
     }
 }
