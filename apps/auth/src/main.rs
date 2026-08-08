@@ -147,8 +147,10 @@ async fn main() -> Result<()> {
         .route("/assets/app.css", get(app_css))
         .route("/auth/login", get(routes::login))
         .route("/auth/github/callback", get(routes::github_callback))
-        .route("/auth/consent", get(routes::consent))
-        .route("/auth/consent", post(routes::consent_decision))
+        .route(
+            "/auth/consent",
+            get(routes::consent).post(routes::consent_decision),
+        )
         .route("/register", post(register::register))
         .layer(middleware::from_fn(security_headers))
         .layer(TraceLayer::new_for_http())
