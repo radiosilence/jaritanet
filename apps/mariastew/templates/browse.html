@@ -38,8 +38,14 @@
          truncated: this is the one line whose whole job is saying exactly
          where a download will land, so hiding any of it defeats the point.
          `break-words` is the fallback for one path segment on its own
-         wider than the dialog — a scene-release directory name can be. #}
-    <span class="font-mono opacity-70 break-words min-w-0 flex-1">{% if path.is_empty() %}/{% else %}{{ path }}{% endif %}</span>
+         wider than the dialog — a scene-release directory name can be.
+
+         `label`, not `path`: it starts at the root that was picked, so the
+         mount point above it does not spend the width that the tail — the
+         part that actually distinguishes one destination from another —
+         needs. The absolute path is still what the hidden inputs below
+         submit. #}
+    <span class="font-mono opacity-70 break-words min-w-0 flex-1">{% if label.is_empty() %}All destinations{% else %}{{ label }}{% endif %}</span>
     {# The listing is a `readdir` against spinning disks holding a media
          library, so seconds is its normal speed, not a fault. Without this
          a tap produced nothing observable until the new list appeared and

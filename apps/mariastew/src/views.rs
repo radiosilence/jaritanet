@@ -65,12 +65,17 @@ pub struct Row {
     /// length. The icons carry the same meaning for a washed-out screen.
     pub bar_class: &'static str,
     pub state: &'static str,
-    pub down: String,
-    pub up: String,
+    /// Absent when nothing is moving — a rate of `0 B/s` reads as a
+    /// measurement, and an idle row has not measured anything. The collapsed
+    /// row shows `down` beside the destination and shows neither when it is
+    /// absent, so this has to be the absence rather than a dash.
+    pub down: Option<String>,
+    pub up: Option<String>,
     pub size: String,
     pub done: String,
     /// Time left at the current rate, absent whenever that rate would make one
-    /// up. See `Download::eta_secs`.
+    /// up. See `Download::eta_secs` — it is `None` whenever `down` is, so the
+    /// collapsed row can nest the two rather than combine them.
     pub eta: Option<String>,
     /// Given back to the swarm, and as a multiple of what was taken. The
     /// ratio is absent until something has actually been downloaded to divide
@@ -249,6 +254,7 @@ impl Page {
         Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: self
                 .roots
                 .iter()
@@ -275,7 +281,13 @@ pub struct Downloads {
 pub struct Browse {
     /// Absent at a root, which is where browsing upward stops.
     pub parent: Option<String>,
+    /// The absolute path, which is what the hidden inputs submit and what
+    /// aria2 is eventually handed — never what is shown.
     pub path: String,
+    /// The same place said the way the picker says it (`Config::label`), which
+    /// is the only form that reaches the screen. Empty at the root list, where
+    /// no destination has been picked yet.
+    pub label: String,
     pub dirs: Vec<DirView>,
 }
 
@@ -302,13 +314,13 @@ pub fn bytes(n: u64) -> String {
     format!("{value:.digits$} {}", UNITS[unit])
 }
 
-/// A transfer rate, or a dash when nothing is moving — a rate of `0 B/s` reads
-/// as a measurement, and an idle row has not measured anything.
-pub fn rate(n: u64) -> String {
-    if n == 0 {
-        return "—".to_string();
-    }
-    format!("{}/s", bytes(n))
+/// A transfer rate, or nothing when nothing is moving — a rate of `0 B/s`
+/// reads as a measurement, and an idle row has not measured anything. Whether
+/// that absence is drawn as a dash or as nothing at all is the caller's
+/// decision: the expanded panel is a table of readings and wants the dash, the
+/// collapsed row wants the space back.
+pub fn rate(n: u64) -> Option<String> {
+    (n > 0).then(|| format!("{}/s", bytes(n)))
 }
 
 /// A span of time in the two largest units it needs. Nobody waiting on a film
@@ -400,6 +412,7 @@ mod tests {
         let html = Browse {
             parent: Some("/mnt/kontent".into()),
             path: "/mnt/kontent/tv".into(),
+            label: "tv".into(),
             dirs: vec![DirView {
                 name: "'+alert(1)+'".into(),
                 path: "/mnt/kontent/tv/'+alert(1)+'".into(),
@@ -445,13 +458,13 @@ mod tests {
     }
 
     #[test]
-    fn rate_at_zero_is_a_dash() {
-        assert_eq!(rate(0), "—");
+    fn rate_at_zero_is_nothing_at_all() {
+        assert_eq!(rate(0), None);
     }
 
     #[test]
     fn rate_is_bytes_per_second() {
-        assert_eq!(rate(1024), "1.00 KiB/s");
+        assert_eq!(rate(1024).as_deref(), Some("1.00 KiB/s"));
     }
 
     #[test]
@@ -623,6 +636,7 @@ mod tests {
         let browse = Browse {
             parent: Some("/mnt/tv".into()),
             path: "/mnt/tv/show".into(),
+            label: "tv/show".into(),
             dirs: vec![DirView {
                 name: "season 1".into(),
                 path: "/mnt/tv/show/season 1".into(),
@@ -645,6 +659,7 @@ mod tests {
         let browse = Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: vec![DirView {
                 name: long_name.into(),
                 path: format!("/mnt/kontent/movies/{long_name}"),
@@ -682,6 +697,7 @@ mod tests {
         let browse = Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: vec![
                 DirView {
                     name: part1.clone(),
@@ -707,17 +723,35 @@ mod tests {
     /// reason the directory rows do, and `min-w-0` is load-bearing: without
     /// it a flex item will not shrink to wrap at all, it will just overflow
     /// its row instead.
+    ///
+    /// It is the label that is shown, not the path (#303): the mount point
+    /// above the root is the same on every destination, so it distinguishes
+    /// nothing while costing the line the width the tail needs. The absolute
+    /// path is still in the markup — the hidden inputs submit it — so this
+    /// asserts it is not what gets *rendered*.
     #[test]
-    fn the_current_path_wraps_and_can_shrink_in_its_flex_row() {
-        let long_path = "/mnt/kontent/movies/Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+    fn the_current_path_is_shown_from_the_picked_root_and_wraps() {
+        let tail = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
         let browse = Browse {
             parent: Some("/mnt/kontent/movies".into()),
-            path: long_path.into(),
+            path: format!("/mnt/kontent/movies/{tail}"),
+            label: format!("movies/{tail}"),
             dirs: vec![],
         }
         .render()
         .unwrap();
-        assert!(browse.contains(long_path), "the full path must be shown");
+        assert!(
+            browse.contains(&format!(">movies/{tail}</span>")),
+            "the label, whole tail included, is not the line's text: {browse}"
+        );
+        assert!(
+            !browse.contains(&format!(">/mnt/kontent/movies/{tail}")),
+            "the mount point is back on the visible line: {browse}"
+        );
+        assert!(
+            browse.contains(&format!(r#"name="dir" value="/mnt/kontent/movies/{tail}""#)),
+            "the absolute path must still be what is submitted: {browse}"
+        );
         assert!(
             browse.contains("break-words") && browse.contains("min-w-0"),
             "the path cannot wrap or shrink inside its flex row: {browse}"
@@ -872,6 +906,7 @@ mod tests {
         let browse = Browse {
             parent: Some("/mnt/kontent/movies".into()),
             path: "/mnt/kontent/movies/downloads".into(),
+            label: "movies/downloads".into(),
             dirs: vec![],
         }
         .render()
@@ -894,6 +929,7 @@ mod tests {
         let browse = Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: vec![],
         }
         .render()
@@ -996,6 +1032,61 @@ mod tests {
         });
         assert!(finished.contains("badge-success"));
         assert!(!render(&moving()).contains("badge-success"));
+    }
+
+    /// The collapsed half of a row, which is what these assert about — the
+    /// rate and the time left are also in the readings panel below it, so
+    /// searching the whole document would pass on markup that never promoted
+    /// anything.
+    fn summary(page: &str) -> String {
+        let start = page.find("<summary").expect("a row has a summary");
+        let end = page.find("</summary>").expect("a row has a summary");
+        page[start..end].to_string()
+    }
+
+    /// #308: the two numbers that answer "will this be done tonight" were a
+    /// tap away, behind the same disclosure as the piece size and the
+    /// infohash. They now sit on the destination's line without one.
+    #[test]
+    fn the_collapsed_row_shows_the_rate_and_the_time_left() {
+        // 512 MiB left at 1 MiB/s.
+        let summary = summary(&render(&moving()));
+        assert!(summary.contains("1.00 MiB/s"), "no rate: {summary}");
+        assert!(summary.contains("8m 32s left"), "no time left: {summary}");
+    }
+
+    /// Nothing is moving, so there is no rate to show and no rate to divide
+    /// the remaining bytes by — a "0 B/s · 0s left" on a finished row is two
+    /// measurements nobody took. The badge already says "ready".
+    #[test]
+    fn an_idle_row_shows_neither_and_keeps_the_dash_in_the_readings() {
+        let page = render(&Download {
+            completed_length: 1_073_741_824,
+            download_speed: 0,
+            ..moving()
+        });
+        let summary = summary(&page);
+        assert!(
+            !summary.contains("B/s") && !summary.contains("left"),
+            "an idle row still shows a rate or a countdown: {summary}"
+        );
+        assert!(page.contains("—"), "the readings lost their dash: {page}");
+    }
+
+    /// The destination shares its line now, and a flex child will not shrink
+    /// to wrap without `min-w-0` — it overflows the row instead, which is the
+    /// bug this markup exists to avoid (see the picker's own path, #257).
+    #[test]
+    fn the_destination_can_still_shrink_and_wrap_beside_the_rate() {
+        let summary = summary(&render(&Download {
+            dir: "/mnt/kontent/tv/Show.Name.S01.2160p.UHD.BluRay.REMUX.HEVC.DTS-HD.MA.5.1/S01"
+                .to_string(),
+            ..moving()
+        }));
+        assert!(
+            summary.contains("min-w-0") && summary.contains("break-words"),
+            "the destination cannot wrap or shrink in its flex row: {summary}"
+        );
     }
 
     /// The other half of "idk where it has put the file": every row shows

@@ -11,7 +11,13 @@ patched over SSE ([Datastar](https://data-star.dev), vendored at
 
 ## What a row says it is doing
 
-A collapsed row answers "how is it going" — name, state, bar, destination.
+A collapsed row answers "how is it going" — name, state, bar, destination, and
+beside the destination the current rate and the time left. Those last two are
+there because a bar raises "will this be done tonight" and cannot settle it;
+behind a tap they were one tap too many. Both are absent rather than zeroed
+when nothing is moving, which is also why there is no countdown on a seeding
+row.
+
 Expanding it answers "what is aria2 actually doing", which needs rather more
 than a percentage:
 
@@ -24,10 +30,10 @@ than a percentage:
   "no seeders", which looks like a fault and is not one), or *checking files*
   (aria2 is hashing data that was already on disk, which reads as zero speed
   with peers connected and was otherwise indistinguishable from stalled).
-- **Readings, not just a bar:** time left, bytes given back and the share
-  ratio, peers against seeders, and the piece count and size — which is the
-  explanation for both lumpy progress and for a deselected file landing
-  anyway.
+- **Readings, not just a bar:** bytes done against total, up and down rates,
+  bytes given back and the share ratio, peers against seeders, and the piece
+  count and size — which is the explanation for both lumpy progress and for a
+  deselected file landing anyway.
 - **The file list, deselected files included.** What `filter::is_garbage`
   refused reached the disk and the pod's log and nowhere else, so "why did it
   not download that one" had no answer on the page.
@@ -219,7 +225,7 @@ startup rather than the request that first needs it.
 
 | Variable | Required | Default | What |
 |---|---|---|---|
-| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under |
+| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under. The name is also what the picker calls the place: a destination reads `tv/some-show`, never the mount above it |
 | `PUBLIC_URL` | Yes | — | Where this is reached from outside; must match the OIDC redirect URI, since the pod cannot infer it from a request it hasn't had yet |
 | `OIDC_ISSUER` | Yes | — | Hydra's issuer URL |
 | `OIDC_CLIENT_ID` | Yes | — | |
@@ -336,6 +342,39 @@ fixtures without a full compose cycle — use the `mise` tasks directly:
 `./scripts/seed-dev-fixtures.ts --reset`) to wipe `dev-data/tv` and
 `dev-data/movies` and reseed from scratch — the way back to a clean
 fixture-only state once a test download has piled up in there.
+
+#### Every download state at once
+
+```sh
+mise run mariastew:dev:mock
+```
+
+The fixture library populates the picker; this populates the *list*. A real
+aria2 shows whatever the swarm is doing, and the states most worth designing
+against — stalled, can't connect, no seeders, failed — are the ones a swarm
+produces on its own schedule or not at all. `scripts/mock-aria2.ts` answers
+the JSON-RPC calls `src/aria2.rs` makes (`src/aria2.rs` is the only thing that
+talks to aria2, so that is the whole surface) and serves one download per
+`Health`, plus a queued row and a magnet still resolving.
+
+It advances on each poll rather than serving a fixed list: the moving row
+gains bytes and the magnet resolves after a few seconds into the download
+`follow-torrent` would have spawned. A still list proves only the first paint
+— that a row morphs in place, that an expanded row stays expanded through the
+morph, and that a bar moves at all are things only a changing one can show.
+Pause, resume and remove mutate its state, so the buttons do something.
+
+It is not a simulator and is not trying to be: it holds a list and hands it
+out. Anything that depends on aria2's real behaviour — the metadata pass, the
+selection filter — has its own tests in `src/filter.rs` and
+`routes::tests::add_flow`.
+
+The task is `ARIA2_RPC_URL` plus `--scale aria2=0`, because compose has no way
+to say "this profile replaces that service". Port 6801, so the two can never
+race for a bind and the env var is the only thing deciding which one is
+talked to. For the plain `cargo run` loop, `mise run mariastew:mock` runs it
+alone and `ARIA2_RPC_URL=http://127.0.0.1:6801/jsonrpc cargo run` points at
+it.
 
 This mirrors "One image, run twice" above rather than inventing a second
 image: `docker-compose.yml` builds one image and runs it as both services,
