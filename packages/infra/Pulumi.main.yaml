@@ -419,12 +419,36 @@ config:
         secure: AAABALH0zY11nQLr6MZkyhv8bm35+Wpvwnxeq3YQBVjpRN6zuFzwHtrA
       image:
         repository: "ghcr.io/radiosilence/mariastew"
-        tag: 0.1.25
+        tag: 0.1.26
       roots:
         - name: tv
           hostPath: /mnt/kontent/tv
         - name: movies
           hostPath: /mnt/kontent/movies
+    # There was no history of anything: k3s ships metrics-server, so `kubectl
+    # top` answers with fifteen seconds of instantaneous CPU, no retention and
+    # no disk IO at all. #166/#168 were diagnosed by guessing at resource
+    # ceilings nobody had measured.
+    #
+    # The store and Grafana's own state are directories on the gateway, so both
+    # pin there — the home box is exactly where the dashboard must not live,
+    # since its uplink dropping is when the graphs are most wanted.
+    metrics:
+      kind: metrics
+      hostname:
+        secure: AAABAPrG5CFazA6hrLjmaKcEWD5ye0zMJwhhWlQdHb5ZYE60sU/xNXzJzyA=
+      storageNode: sympathy
+      vmsingle:
+        image: docker.io/victoriametrics/victoria-metrics:v1.149.0
+        # Order of 10k series across both nodes with cAdvisor included, at a 30s
+        # scrape, is single-digit GB a year on VictoriaMetrics' compression.
+        retention: 1y
+      vmagent:
+        image: docker.io/victoriametrics/vmagent:v1.149.0
+      nodeExporter:
+        image: quay.io/prometheus/node-exporter:v1.12.1
+      grafana:
+        image: docker.io/grafana/grafana:13.1.3
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"

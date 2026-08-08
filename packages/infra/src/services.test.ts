@@ -18,6 +18,7 @@ describe("relyingParties", () => {
       roots: [{ name: "tv", hostPath: "/tv" }],
     },
     "mcp-gateway": { kind: "mcp-gateway", hostname: "mcp.example", image },
+    metrics: { kind: "metrics", hostname: "dash.example" },
     navidrome: { kind: "web", hostname: "music.example", args: {} },
     samba: { kind: "samba", shares: [] },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,7 +36,27 @@ describe("relyingParties", () => {
         name: "mcp-gateway",
         redirectUri: "https://mcp.example/auth/callback",
       },
+      {
+        id: "metrics",
+        name: "metrics",
+        redirectUri: "https://dash.example/login/generic_oauth",
+      },
     ]);
+  });
+
+  /**
+   * Grafana's callback path is Grafana's, not ours. What stays derived is the
+   * host half — that is the part an open redirect would abuse, and no service
+   * gets to name it.
+   */
+  it("takes the callback path from the kind and the host from the service", () => {
+    const moved = relyingParties({
+      ...services,
+      metrics: { ...services.metrics, hostname: "elsewhere.example" },
+    });
+    expect(moved.find((p) => p.id === "metrics")?.redirectUri).toBe(
+      "https://elsewhere.example/login/generic_oauth",
+    );
   });
 
   /** A wildcard on a hostname is how one forgotten subdomain becomes a token thief. */

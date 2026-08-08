@@ -757,6 +757,36 @@ Delivery is owner-relayed: a bot can't cold-DM a handle, so on change the owner
 gets one Telegram message grouping users under Admins / Guests, each URL a
 tap-to-copy `<code>` block plus a `copy_text` inline-keyboard button.
 
+## Metrics collect locally and ship over the tailnet
+
+Collection is per node and shipping is central, which is the opposite way round
+from the obvious design and the only one that survives the home uplink.
+
+Each node runs a `vmagent` that scrapes only itself — node-exporter and the
+kubelet on the node's own address, Cilium and Hubble beside them, and the
+annotated pods scheduled there — then remote-writes to the single `vmsingle` on
+the gateway. A central scraper reaching across to lady would turn every
+residential-uplink blip into a hole in the graphs, because a missed scrape is
+simply lost; a local scrape with a buffered remote-write replays the gap when
+the link returns. The buffer is 512MB per agent, after which the oldest blocks
+go rather than the node's disk filling.
+
+The write leg rides the same tailnet path pod traffic already takes (see *The
+two data planes*), so it inherits both the MTU accounting and the `pref-5209`
+rule that keeps Cilium's identity marks out of tailscaled's bypass routing.
+
+The store and Grafana's own state are both directories on the gateway, pinned
+there rather than to the box holding the media: a dashboard on lady goes dark
+exactly when the home internet does, which is when it is most wanted.
+
+One caveat is worth knowing before reading a panel. node-exporter labels disk
+throughput with the kernel device name — `sdb`, `sdc` — assigned by enumeration
+order, so replugging the externals in a different order silently moves a series
+onto a different disk. Where a panel can key on `mountpoint` via
+`node_filesystem_*` it does, because `/mnt/kontent` is stable in a way `sdb` is
+not. Throughput has no mountpoint to key on, so those panels stay device-labelled
+and say so in the panel description.
+
 ## Break-glass SSH
 
 Each box's only key is the ED25519 pair Pulumi generates for it, which lives in

@@ -1412,6 +1412,252 @@
                 },
                 "required": ["image", "roots", "kind"],
                 "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "hostname": {
+                    "default": "",
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema6"
+                      },
+                      {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "const": ""
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "grafana": {
+                    "type": "object",
+                    "properties": {
+                      "image": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "hostPath": {
+                        "default": "/var/lib/jaritanet/grafana",
+                        "$ref": "#/$defs/__schema16"
+                      },
+                      "limits": {
+                        "default": {
+                          "cpu": "500m",
+                          "memory": "512Mi"
+                        },
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    },
+                    "required": ["image"],
+                    "additionalProperties": false
+                  },
+                  "nodeExporter": {
+                    "type": "object",
+                    "properties": {
+                      "image": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "limits": {
+                        "default": {
+                          "cpu": "200m",
+                          "memory": "128Mi"
+                        },
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    },
+                    "required": ["image"],
+                    "additionalProperties": false
+                  },
+                  "storageNode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "vmagent": {
+                    "type": "object",
+                    "properties": {
+                      "image": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "limits": {
+                        "default": {
+                          "cpu": "500m",
+                          "memory": "256Mi"
+                        },
+                        "$ref": "#/$defs/__schema2"
+                      },
+                      "scrapeInterval": {
+                        "default": "30s",
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d+[smhd]$"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["image"],
+                    "additionalProperties": false
+                  },
+                  "vmsingle": {
+                    "type": "object",
+                    "properties": {
+                      "image": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "hostPath": {
+                        "default": "/var/lib/jaritanet/victoria-metrics",
+                        "$ref": "#/$defs/__schema16"
+                      },
+                      "limits": {
+                        "default": {
+                          "cpu": "1",
+                          "memory": "1Gi"
+                        },
+                        "$ref": "#/$defs/__schema2"
+                      },
+                      "retention": {
+                        "default": "1y",
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d+[hdwy]$"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["image"],
+                    "additionalProperties": false
+                  },
+                  "kind": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "const": "metrics"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "secure": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["secure"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "grafana",
+                  "nodeExporter",
+                  "storageNode",
+                  "vmagent",
+                  "vmsingle",
+                  "kind"
+                ],
+                "additionalProperties": false
               }
             ]
           }
