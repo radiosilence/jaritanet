@@ -20,6 +20,27 @@ outcome other than "a magnet came back" leaves an empty field to type into. A
 field already typed into is never overwritten, since the prompt can outlive
 someone's patience with it.
 
+Enter adds, and Enter in the picker's name field creates the folder. Neither
+happened on its own: the button that adds is pinned in the footer outside the
+form, so there is no submit button in it for the browser's implicit submission
+to find, and the Go key on a phone keyboard — the key right under the thumb
+that has just pasted — did nothing at all.
+
+## When there is nothing to show
+
+`#downloads` is three things, not one, and which of them it is says something
+different. Rows, when there are rows. "Nothing downloading", with the one thing
+to do about it, when the queue is genuinely empty — an empty container and a
+list that failed to render looked identical, and the difference is the whole
+question someone is asking when they open the page and see nothing. And a
+warning in place of the list when aria2 could not be reached, since inviting a
+paste is advice that cannot work while the service that would accept it is
+down.
+
+The warning lives inside the container rather than beside the header because it
+is a claim about the list, and the container is what gets replaced when that
+claim stops being true — see the first-tick note under **Polling**.
+
 ## What a row says it is doing
 
 A collapsed row answers "how is it going" — name, state, bar, destination, and
@@ -314,6 +335,12 @@ changing place, since Datastar morphs by element id; that case sends the whole
 `#downloads` container instead, which is why `row.html` and `downloads.html`
 are the same markup rendered two ways.
 
+A stream's first tick always sends the container, whatever the membership. It
+already did for any list with a row in it — nothing had been sent yet, so
+everything had — and doing it for an empty one too is what retires the
+unreachable warning: a snapshot exists only after aria2 has answered, so one
+arriving is the proof the page rendered on stale news.
+
 With nobody watching it drops to `IDLE_POLL_MS` and renders nothing. That
 interval is the notifier's alone — it is looking for a download that finished
 or failed, and nothing about that is in a hurry — and the first page to open
@@ -480,8 +507,8 @@ only exists in a debug build — `cargo build --release`, what the Dockerfile
 runs, does not compile it in (see `auth::routes::router`), and a debug binary
 announces the fact with a `tracing::warn!` the moment it starts.
 
-`aria2` is optional locally. With none running, `/` still renders — with an
-empty download list and a banner saying so — rather than a 500; `/add`,
+`aria2` is optional locally. With none running, `/` still renders — the list
+replaced by a warning saying why it is not there — rather than a 500; `/add`,
 `/downloads/*`, and `/mkdir` still fail with a real error, since those are
 asking aria2 to do something. Point `ARIA2_RPC_URL` at a real instance to see
 downloads move.
@@ -613,8 +640,10 @@ arriving through a different door. `.disclosure` takes it off and turns the
 chevron inside instead; a disclosure written later gets that by using the same
 two class names.
 
-Adding one: take the `<path>` elements from
-`https://unpkg.com/lucide-static/icons/<name>.svg` into a new macro, then
+Adding one: take the shapes from
+`https://unpkg.com/lucide-static/icons/<name>.svg` into a new macro — the
+`<path>`/`<polyline>`/`<circle>` children and nothing else, since everything
+on the `<svg>` itself is on `.icon` already — then
 rebuild the stylesheet if the call site introduced a class. Every icon names
 itself with `data-icon`, which is what tests assert on — a count of `<svg>`s
 only says the number changed, which every new call site does.
