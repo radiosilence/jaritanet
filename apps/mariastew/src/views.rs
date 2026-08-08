@@ -314,4 +314,83 @@ mod tests {
             ("progress-info", "paused")
         );
     }
+
+    /// Datastar v1.0.2's generic `on` plugin splits the attribute suffix on
+    /// `:` to get the event name (`data-on:click`) — a dash (`data-on-click`)
+    /// resolves to a plugin named `on-click`, which does not exist, and the
+    /// attribute is dropped without an error. Every click handler on the page
+    /// silently did nothing until this was `:`. This test pins the syntax so
+    /// it cannot regress one attribute at a time.
+    #[test]
+    fn add_download_button_uses_colon_syntax_datastar_actually_matches() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains(r#"data-on:click="document.getElementById('add-dialog').showModal()""#),
+            "add-dialog button markup: {page}"
+        );
+        assert!(
+            !page.contains("data-on-"),
+            "a dash-form data-on- attribute survived and will be silently ignored: {page}"
+        );
+    }
+
+    #[test]
+    fn add_dialog_opens_as_a_native_modal_over_the_open_state() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains(r#"id="add-dialog""#) && page.contains("open:flex"),
+            "dialog is not styled to appear once the browser sets [open]: {page}"
+        );
+    }
+
+    #[test]
+    fn browse_and_download_row_actions_all_use_colon_syntax() {
+        let page = Downloads {
+            rows: vec![Row {
+                gid: "abc".into(),
+                name: "test.iso".into(),
+                percent: Some(50.0),
+                percent_display: Some("50".into()),
+                health: Health::Moving,
+                bar_class: "progress-success",
+                state: "moving",
+                down: "1.00 MiB/s".into(),
+                up: "0 B/s".into(),
+                size: "1.00 GiB".into(),
+                done: "512 MiB".into(),
+                connections: 1,
+                seeders: 1,
+                error: None,
+                finished: false,
+                paused: false,
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(page.contains(r#"data-on:click="@post('/downloads/abc/pause')""#));
+        assert!(!page.contains("data-on-"));
+
+        let browse = Browse {
+            parent: Some("/mnt/tv".into()),
+            path: "/mnt/tv/show".into(),
+            dirs: vec![DirView {
+                name: "season 1".into(),
+                path: "/mnt/tv/show/season 1".into(),
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(browse.contains("data-on:click"));
+        assert!(!browse.contains("data-on-"));
+    }
 }

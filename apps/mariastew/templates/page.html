@@ -12,7 +12,7 @@
 <header class="navbar bg-base-100 shadow-sm px-4">
   <h1 class="flex-1 text-lg font-semibold">mariastew</h1>
   <button type="button" class="btn btn-primary btn-sm"
-    data-on-click="document.getElementById('add-dialog').showModal()">Add download</button>
+    data-on:click="document.getElementById('add-dialog').showModal()">Add download</button>
 </header>
 
 <dialog id="add-dialog" class="open:flex flex-col gap-4 rounded-box bg-base-100 p-6 shadow-xl backdrop:bg-black/50 max-w-sm w-full">
@@ -21,7 +21,7 @@
     <input name="magnet" required placeholder="magnet:?xt=..." class="input input-bordered w-full">
     {{ self.picker()?|safe }}
     <button type="button" class="btn btn-primary"
-      data-on-click="@post('/add', {contentType: 'form'})">Add</button>
+      data-on:click="@post('/add', {contentType: 'form'})">Add</button>
   </form>
   <form method="dialog">
     <button class="btn btn-ghost btn-sm">Cancel</button>

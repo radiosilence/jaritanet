@@ -26,17 +26,17 @@
       <div class="flex gap-2">
         {% if row.paused %}
         <button type="button" class="btn btn-xs"
-          data-on-click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
         {% else %}
         <button type="button" class="btn btn-xs"
-          data-on-click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
         {% endif %}
         {% if row.finished %}
         <button type="button" class="btn btn-xs btn-ghost"
-          data-on-click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
         {% else %}
         <button type="button" class="btn btn-xs btn-error"
-          data-on-click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
         {% endif %}
       </div>
     </div>

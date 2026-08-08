@@ -2,14 +2,14 @@
   <div class="flex items-center gap-2 text-sm">
     {% if let Some(p) = parent %}
     <button type="button" class="btn btn-xs btn-ghost"
-      data-on-click="@get('{{ crate::views::browse_href(p) }}')">↑ Up</button>
+      data-on:click="@get('{{ crate::views::browse_href(p) }}')">↑ Up</button>
     {% endif %}
     <span class="font-mono truncate opacity-70">{{ path }}</span>
   </div>
 
   <ul class="menu menu-sm bg-base-200 rounded-box">
     {% for d in dirs %}
-    <li><a data-on-click="@get('{{ crate::views::browse_href(d.path.as_str()) }}')">{{ d.name }}</a></li>
+    <li><a data-on:click="@get('{{ crate::views::browse_href(d.path.as_str()) }}')">{{ d.name }}</a></li>
     {% endfor %}
   </ul>
 
@@ -17,7 +17,7 @@
     <input type="hidden" name="parent" value="{{ path }}">
     <input name="name" placeholder="New folder name" class="input input-bordered input-sm flex-1">
     <button type="button" class="btn btn-sm"
-      data-on-click="@post('/mkdir', {contentType: 'form'})">Create</button>
+      data-on:click="@post('/mkdir', {contentType: 'form'})">Create</button>
   </div>
 
   <input type="hidden" name="dir" value="{{ path }}">
