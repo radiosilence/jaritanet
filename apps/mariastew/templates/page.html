@@ -60,8 +60,17 @@
      so nothing else has to own its lifetime. A bare `setTimeout` cannot: it
      writes outside Datastar's batch and the write is never picked up, with no
      error anywhere. The clear is itself a patch, so this fires once more and
-     then stops — an idle page has no timer running. #}
+     then stops — an idle page has no timer running.
+
+     Hidden in the markup, not only by `data-show`. `data-show` is Datastar's,
+     and Datastar is a module: the browser has painted the page before it runs,
+     so the one element this template puts on screen unconditionally is a
+     success banner for an add nobody made — a green flash on every load.
+     `style`, not a `hidden` class: `data-show` reveals by clearing
+     `el.style.display`, which a class setting `display: none` would survive
+     and the toast would never appear again. #}
 <div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]"
+  style="display:none"
   data-show="$addStatus === 'ok'"
   data-on-signal-patch__delay.3s="if ($addStatus === 'ok') { $addStatus = ''; $addMessage = '' }">
   <div role="alert" class="alert alert-success">
@@ -97,7 +106,15 @@
   data-on:close="if ($addStatus === 'error') $addStatus = ''; $addMessage = ''; $magnet.value = ''; @get('/browse')"
   class="sheet open:flex flex-col rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
-  {# `flex-auto`, not `flex-1`. The sheet has no height of its own — it hugs
+  {# `autofocus` on the form, which takes `tabindex="-1"` to be focusable at
+       all. Dropping the attribute from the field did not stop the keyboard:
+       `showModal()` focuses the first focusable descendant when nothing claims
+       it, so the field was still what got focus, just by a longer route.
+       Somewhere has to take it — focus cannot be left outside a modal — and a
+       container is the one thing in here that opens no keyboard, while still
+       being what a screen reader should land on and read out from.
+
+       `flex-auto`, not `flex-1`. The sheet has no height of its own — it hugs
        what is in it up to a cap — and `flex-1` is `flex-basis: 0`, which in a
        column with no definite height means this contributes nothing to the
        height being worked out. Paired with the `min-h-0` that lets it scroll,
@@ -105,17 +122,18 @@
        squashed sheet of #353, which survived the geometry fix because it was
        never the geometry. `flex-auto` bases the same growing and shrinking on
        the content instead. #}
-  <form id="add-form" class="flex min-h-0 flex-auto flex-col gap-4 overflow-y-auto overscroll-contain p-4 sm:p-6">
+  <form id="add-form" tabindex="-1" autofocus
+    class="flex min-h-0 flex-auto flex-col gap-4 overflow-y-auto overscroll-contain p-4 sm:p-6 focus:outline-none">
     {# A magnet is a URI and nothing else, so it gets the URI keyboard and none
          of the text-field helpers: iOS otherwise offered to AutoFill a contact
          into it, spending a bar of a viewport the keyboard had already
          halved, and autocapitalise/autocorrect can only corrupt what is typed
          (#353).
 
-         No `autofocus`. It raised the keyboard on every open, which costs
-         half the sheet — and the field is filled by the button beside it, so
-         that is half a sheet spent on a keyboard the usual flow never types
-         into. Tapping the field still opens one. #}
+         Not what takes focus on open — see the form above. A keyboard on
+         every open costs half the sheet, and the field is filled by the
+         button beside it, so that was half a sheet spent on a keyboard the
+         usual flow never types into. Tapping the field still opens one. #}
     <div class="flex gap-2">
       <input name="magnet" data-ref="magnet" required placeholder="Paste a magnet link" enterkeyhint="go"
         inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
