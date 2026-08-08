@@ -7,14 +7,24 @@
 <link rel="stylesheet" href="/assets/app.css">
 <script type="module" src="/assets/datastar.js"></script>
 </head>
-<body data-init="@get('/stream')" class="min-h-screen bg-base-200">
+<!-- `$add` is the whole contract with the server for this form: one signal,
+     patched by POST /add's response (Content-Type: application/json is all
+     it takes — Datastar treats a JSON body as a signal patch on its own,
+     no SSE framing required, confirmed against the vendored bundle rather
+     than assumed). `{status: "ok"}` closes the dialog and confirms;
+     `{status: "error", message: "..."}` keeps it open and shows why.
+     `__ifmissing` seeds the shape once without ever stomping a patch that
+     arrived before this ran. -->
+<body data-init="@get('/stream')"
+  data-signals__ifmissing="{add: {status: null, message: null}}"
+  class="min-h-screen bg-base-200">
 
 <!-- The header is the primary action, not a name plus an action — the person
      already knows what they opened, and the name would only spend the
      vertical space a phone in portrait can least afford. -->
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
-    data-on:click="document.getElementById('add-dialog').showModal()">Add download</button>
+    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal()">Add download</button>
 </header>
 
 {% if aria2_unreachable %}
@@ -22,6 +32,46 @@
   <span>Download service is unreachable — showing an empty list.</span>
 </div>
 {% endif %}
+
+<!-- Reacts to $add rather than to the fetch itself, so it does not care
+     whether the response was a plain JSON body or an SSE patch — either
+     lands here the same way. Closes the dialog and clears the field the
+     moment $add says ok; the toast below confirms and dismisses itself.
+
+     `JSON.stringify($add);` on its own line is load-bearing, not decorative
+     — confirmed by direct testing, not assumed. A nested signal
+     (`$add.status`) read only through a chained property access
+     (`$add.status === 'ok'` as the very first thing evaluated) does not
+     reliably re-run this effect when the server patches `$add`; forcing a
+     full read of the parent object first does, on every test run, with or
+     without other statements around it. Do not remove this line — the
+     failure mode if you do is silent: no error, no console output, the
+     effect just never fires and the dialog never closes. -->
+<div data-effect="JSON.stringify($add); if ($add.status === 'ok') { document.getElementById('add-dialog').close(); document.querySelector('#add-form [name=magnet]').value = '' }"></div>
+
+<!-- The reset that clears the toast lives in its own on-interval instead of
+     a plain window.setTimeout — confirmed by direct testing, not assumed.
+     A raw timer callback that writes $add writes the signal outside
+     Datastar's own batch (`beginBatch`/`endBatch`, which every native
+     trigger — `on-interval` included — wraps its callback in), and that
+     write was never picked up by data-show: the toast stayed on screen
+     indefinitely with no error anywhere. `on-interval` wraps correctly, at
+     the cost of
+     firing every three seconds for the life of the page rather than once —
+     harmless, since resetting an already-null $add is a no-op — and the
+     toast disappears within one interval period of $add going ok, not at
+     exactly three seconds. -->
+<div data-on-interval__duration.3s="$add = {status: null, message: null}"></div>
+
+<!-- The confirmation the owner asked for: something to actually see once
+     the dialog goes, not just a row that shows up later. Same
+     JSON.stringify($add) prefix as the effect above, same reason — see
+     that comment. -->
+<div class="toast toast-top toast-center z-10" data-show="JSON.stringify($add) && $add.status === 'ok'">
+  <div role="alert" class="alert alert-success">
+    <span>Added — it will show up in the list shortly.</span>
+  </div>
+</div>
 
 <!-- A bottom sheet, not a centered dialog: pinned to the bottom edge
      (mt-auto/mb-0 on a UA stylesheet that otherwise centers a <dialog> with
@@ -48,6 +98,16 @@
       </div>
     </details>
   </form>
+
+  <!-- A 400 (magnets only, destination outside a root, magnet never
+       resolved) used to do nothing visible at all — indistinguishable from
+       the dialog just not working. Same $add contract as success, so it
+       needs nothing from the server beyond the message it already computed
+       for the plain-text body today. Same JSON.stringify($add) prefix as
+       the effect above and for the same reason. -->
+  <p class="px-4 text-sm text-error" data-show="JSON.stringify($add) && $add.status === 'error'"
+    data-text="JSON.stringify($add) && $add.message"></p>
+
   <div class="flex gap-2 border-t border-base-300 p-4">
     <form method="dialog" class="flex-1">
       <button class="btn btn-ghost min-h-12 w-full">Cancel</button>
@@ -55,9 +115,21 @@
     <!-- `selector` because this button lives outside #add-form — pinned in
          the footer rather than scrolling away with it — so Datastar is told
          explicitly which form to serialize instead of walking up from here
-         and finding none. -->
+         and finding none.
+
+         data-indicator sets $adding for exactly the request's duration —
+         confirmed against the vendored plugin, not assumed — which is what
+         drives both the disabled state (a second tap while the first is
+         still in flight is how the owner's retries piled up duplicate
+         "already registered" errors) and the label. $add is cleared before
+         firing so a stale error from a previous attempt does not linger
+         through a fresh one. -->
     <button type="button" class="btn btn-primary min-h-12 flex-[2]"
-      data-on:click="@post('/add', {contentType: 'form', selector: '#add-form'})">Add</button>
+      data-indicator="adding" data-attr:disabled="$adding"
+      data-on:click="$add = {status: null, message: null}; @post('/add', {contentType: 'form', selector: '#add-form'})">
+      <span data-show="$adding" class="loading loading-spinner loading-sm"></span>
+      <span data-text="$adding ? 'Adding…' : 'Add'"></span>
+    </button>
   </div>
 </dialog>
 

@@ -341,11 +341,17 @@ mod tests {
         .render()
         .unwrap();
         assert!(
-            page.contains(r#"data-on:click="document.getElementById('add-dialog').showModal()""#),
+            page.contains("document.getElementById('add-dialog').showModal()")
+                && page.contains(r#"data-on:click=""#),
             "add-dialog button markup: {page}"
         );
+        // The generic "on" plugin needs the colon (data-on:click) — see the
+        // doc comment above. Named plugins with no key of their own, like
+        // on-interval, are matched by their literal dash-joined name and are
+        // correctly `data-on-interval`; excluded here rather than making the
+        // check `!contains("data-on-")`, which they would otherwise fail.
         assert!(
-            !page.contains("data-on-"),
+            !page.contains("data-on-click") && !page.contains("data-on-submit"),
             "a dash-form data-on- attribute survived and will be silently ignored: {page}"
         );
     }
@@ -645,8 +651,14 @@ mod tests {
     /// again by accident.
     #[test]
     fn the_dialog_and_the_directory_list_are_both_height_bounded_and_scroll() {
+        // A non-empty root: an empty picker renders the empty-state message
+        // instead of the scrolling <ul>, which is a different behaviour
+        // this test isn't the one pinning (see the empty-state tests).
         let page = Page {
-            roots: vec![],
+            roots: vec![RootView {
+                name: "tv".into(),
+                path: "/mnt/kontent/tv".into(),
+            }],
             rows: vec![],
             aria2_unreachable: false,
         }
@@ -714,5 +726,193 @@ mod tests {
             !page.contains("<details open"),
             "a details element opens by default instead of on tap: {page}"
         );
+    }
+
+    /// The gap the owner actually hit: drilling into a real, empty folder
+    /// rendered nothing, indistinguishable from the picker being broken.
+    #[test]
+    fn an_empty_folder_says_so_instead_of_rendering_nothing() {
+        let browse = Browse {
+            parent: Some("/mnt/kontent/movies".into()),
+            path: "/mnt/kontent/movies/downloads".into(),
+            dirs: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(
+            browse.contains("This folder is empty"),
+            "no empty-state message for a real, empty directory: {browse}"
+        );
+        assert!(
+            !browse.contains("<ul class"),
+            "an empty list still rendered a <ul>: {browse}"
+        );
+    }
+
+    /// A root with nothing under it is a configuration problem, not a
+    /// browsing dead end — worth a different message from an ordinary empty
+    /// folder, since there's nothing to create your way out of it here.
+    #[test]
+    fn no_configured_roots_gets_its_own_empty_state() {
+        let browse = Browse {
+            parent: None,
+            path: String::new(),
+            dirs: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(browse.contains("No destinations are configured"));
+    }
+
+    /// Loading state and the corresponding disable: `data-indicator` and
+    /// `data-attr:disabled` are the two attributes that turn "the owner
+    /// tapped Add three times because nothing seemed to happen" into a
+    /// button that visibly can't be tapped again mid-flight.
+    #[test]
+    fn the_add_button_shows_a_loading_state_and_disables_itself_in_flight() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(page.contains(r#"data-indicator="adding""#));
+        assert!(page.contains(r#"data-attr:disabled="$adding""#));
+        assert!(page.contains("loading-spinner"));
+    }
+
+    /// The whole point: a 400 the owner will actually hit (magnets only,
+    /// destination outside a root) must show *something* in the dialog,
+    /// not silently do nothing — the exact bug already fixed once for the
+    /// button itself, back for a different reason.
+    #[test]
+    fn a_failed_add_shows_its_message_instead_of_doing_nothing() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        // The JSON.stringify($add) prefix is not decorative — see the
+        // comment on this element in page.html. A narrower assertion here
+        // (checking only for `$add.status === 'error'`) would pass with the
+        // prefix silently deleted, which is exactly the change that breaks
+        // this at runtime with no error anywhere.
+        assert!(page.contains(r#"data-show="JSON.stringify($add) && $add.status === 'error'""#));
+        assert!(page.contains(r#"data-text="JSON.stringify($add) && $add.message""#));
+    }
+
+    /// A successful add needs to be seen, not inferred later from a row
+    /// that quietly appeared: the dialog closes, the field clears, and a
+    /// toast says so — all driven by one signal the server sets once.
+    #[test]
+    fn a_successful_add_closes_the_dialog_and_confirms() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(page.contains("JSON.stringify($add); if ($add.status === 'ok')"));
+        assert!(page.contains("add-dialog').close()"));
+        assert!(page.contains(r#"[name=magnet]').value = ''"#));
+        assert!(page.contains(r#"data-show="JSON.stringify($add) && $add.status === 'ok'""#));
+        assert!(page.contains("Added"));
+    }
+
+    /// The toast's own dismiss timer: a plain `setTimeout` writing a signal
+    /// was tried and rejected — the write happens outside Datastar's own
+    /// batch, and data-show never picked it up, so the toast stayed on
+    /// screen forever with no error anywhere. `on-interval` wraps its
+    /// callback in that batch and is what actually clears it.
+    #[test]
+    fn the_toast_reset_uses_on_interval_not_a_bare_settimeout() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(page.contains("data-on-interval__duration.3s="));
+        // "setTimeout" still appears in the explanatory HTML comment above
+        // the interval element — checking for the actual call form, not the
+        // bare word, is what keeps this test honest about what regressed.
+        assert!(
+            !page.contains("setTimeout(() =>"),
+            "a bare setTimeout call writing a signal does not get picked up by data-show: {page}"
+        );
+    }
+
+    /// A finished row used to look exactly like every other row except for
+    /// a word in an outlined badge — easy to miss in a list being scanned
+    /// quickly. Filled and checked is the one state meant to pop.
+    #[test]
+    fn a_finished_row_gets_a_filled_badge_and_the_rest_do_not() {
+        let make_row = |finished: bool| Row {
+            gid: "abc".into(),
+            name: "Show.S01E01".into(),
+            percent: Some(100.0),
+            percent_display: Some("100".into()),
+            health: Health::Complete,
+            bar_class: "progress-success",
+            state: "complete",
+            down: "0 B/s".into(),
+            up: "0 B/s".into(),
+            size: "1.00 GiB".into(),
+            done: "1.00 GiB".into(),
+            connections: 0,
+            seeders: 0,
+            error: None,
+            dir: "/mnt/kontent/tv/Show/S01".into(),
+            finished,
+            paused: false,
+        };
+        let finished = (Downloads {
+            rows: vec![make_row(true)],
+        })
+        .render()
+        .unwrap();
+        assert!(finished.contains("badge-success"));
+
+        let moving = (Downloads {
+            rows: vec![make_row(false)],
+        })
+        .render()
+        .unwrap();
+        assert!(!moving.contains("badge-success"));
+    }
+
+    /// The other half of "idk where it has put the file": every row shows
+    /// its destination without a tap, not just the errored ones.
+    #[test]
+    fn every_row_shows_its_destination_directory() {
+        let page = (Downloads {
+            rows: vec![Row {
+                gid: "abc".into(),
+                name: "Show.S01E01".into(),
+                percent: Some(50.0),
+                percent_display: Some("50".into()),
+                health: Health::Moving,
+                bar_class: "progress-success",
+                state: "moving",
+                down: "1.00 MiB/s".into(),
+                up: "0 B/s".into(),
+                size: "1.00 GiB".into(),
+                done: "512 MiB".into(),
+                connections: 1,
+                seeders: 1,
+                error: None,
+                dir: "/mnt/kontent/tv/Show/S01".into(),
+                finished: false,
+                paused: false,
+            }],
+        })
+        .render()
+        .unwrap();
+        assert!(page.contains("/mnt/kontent/tv/Show/S01"));
     }
 }
