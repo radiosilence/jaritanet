@@ -61,8 +61,8 @@ pub enum Health {
     /// Peers connected, nothing arriving. May recover on its own.
     Choked,
     /// Seeders exist and none is connected — a local problem, and the one worth
-    /// acting on. Also the ordinary state of a sparse swarm here, because the
-    /// home network forwards no port and so accepts no incoming peer.
+    /// acting on. Ordinary in a sparse swarm whenever the peer port is not
+    /// forwarded, since an unreachable client can only ever dial out.
     Blocked,
     /// No seeders. Nothing to wait for; the fix is a different magnet.
     Dead,

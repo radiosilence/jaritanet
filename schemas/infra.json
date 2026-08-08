@@ -1194,6 +1194,34 @@
                     "default": {},
                     "type": "object",
                     "properties": {
+                      "listenPort": {
+                        "default": 51413,
+                        "type": "integer",
+                        "minimum": 1024,
+                        "maximum": 65535
+                      },
+                      "upnp": {
+                        "default": true,
+                        "type": "boolean"
+                      },
+                      "peerSpeedLimit": {
+                        "default": "50M",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "secure": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["secure"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
                       "btMaxPeers": {
                         "default": 0,
                         "type": "integer",
