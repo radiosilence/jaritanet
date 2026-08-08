@@ -1161,6 +1161,46 @@ mod tests {
         assert!(unfinished.contains("Delete download"), "{unfinished}");
     }
 
+    /// A row offers exactly two controls, and every existing assertion here
+    /// was about *which* — all of them pass just as well when a control
+    /// appears twice. It did: resolving a merge nested this whole block
+    /// inside its own `finished` branch, and a finished row shipped with two
+    /// Pause buttons above its Done. Counting is the only thing that sees
+    /// that, so this counts.
+    #[test]
+    fn a_row_offers_each_control_once() {
+        for (label, html) in [
+            (
+                "finished",
+                render(&Download {
+                    completed_length: 1_073_741_824,
+                    download_speed: 0,
+                    ..moving()
+                }),
+            ),
+            ("unfinished", render(&moving())),
+            (
+                "paused",
+                render(&Download {
+                    status: Status::Paused,
+                    ..moving()
+                }),
+            ),
+        ] {
+            assert_eq!(
+                html.matches("<button").count(),
+                2,
+                "a {label} row should offer two controls: {html}"
+            );
+            for control in ["/pause')", "/resume')", "/remove')"] {
+                assert!(
+                    html.matches(control).count() <= 1,
+                    "a {label} row repeats {control}: {html}"
+                );
+            }
+        }
+    }
+
     /// #316: the press had nothing to show for itself. aria2 takes a moment to
     /// let go and the list is redrawn from aria2 once a second, so a row being
     /// removed kept reading "ready" beside a button that could be pressed
