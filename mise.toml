@@ -14,7 +14,9 @@ _.path = ["node_modules/.bin"]
 
 [tasks.setup]
 description = "Toolchain, dependencies and git hooks, from a fresh clone"
-# `prepare` installs lefthook, so the hooks come with the dependencies.
+# `prepare` installs lefthook, so the hooks come with the dependencies. It
+# no-ops under `CI`: a runner has no commits to lint, and a half-written
+# `.git/hooks/pre-commit` is what broke the workflows that do commit.
 run = "aube install"
 
 [tasks.lint]

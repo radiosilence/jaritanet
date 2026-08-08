@@ -44,6 +44,11 @@ The project uses Lefthook for pre-commit validation:
 - Runs oxfmt formatting on staged files
 - Runs type checking before commit
 
+Installed by the root `prepare` script, which no-ops when `CI` is set. Hooks
+exist for a working tree a human is about to push; a runner has none, and the
+workflows that do commit (`update-apps`, `generate-schemas`) pass `-n` so a hook
+that somehow exists cannot abort a run that already did its work.
+
 ### Package Management
 
 - Uses [aube](https://aube.en.dev) as the package manager and script runner (pnpm-style isolated `node_modules`, reads `aube-lock.yaml`)
