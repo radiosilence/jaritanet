@@ -173,6 +173,7 @@ mod tests {
             index,
             path: path.to_string(),
             length: 100,
+            completed_length: 100,
             selected,
         }
     }

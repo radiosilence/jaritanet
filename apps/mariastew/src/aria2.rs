@@ -79,6 +79,7 @@ pub struct File {
     pub index: u32,
     pub path: String,
     pub length: u64,
+    pub completed_length: u64,
     /// `false` for a file `select-file` left out — aria2 still downloads
     /// whole pieces regardless, so a small deselected file sharing a piece
     /// boundary with a selected one can still land on disk. This is what
@@ -94,6 +95,7 @@ impl From<RawFile> for File {
             index: f.index.parse().unwrap_or(0),
             path: f.path,
             length: f.length.parse().unwrap_or(0),
+            completed_length: f.completed_length.parse().unwrap_or(0),
             selected: f.selected == "true",
         }
     }
@@ -136,15 +138,39 @@ impl Download {
         &self.gid
     }
 
+    /// Sum of `length` and `completed_length` across only the files aria2
+    /// was actually asked for. `None` when there is no selection to sum —
+    /// an unresolved magnet's empty file list, or (defensively) a download
+    /// with nothing selected at all.
+    ///
+    /// This exists because `total_length`/`completed_length` on the download
+    /// itself are not what they look like once `select-file` is in play:
+    /// aria2 does not shrink `total_length` to match a selection — confirmed
+    /// against a real daemon, it stays the whole torrent's size — so those
+    /// two only ever agree once every byte has arrived, selected or not.
+    /// Each file's own `length`/`completed_length` carry no such ambiguity.
+    fn selected_totals(&self) -> Option<(u64, u64)> {
+        let selected: Vec<&File> = self.files.iter().filter(|f| f.selected).collect();
+        if selected.is_empty() {
+            return None;
+        }
+        let total = selected.iter().map(|f| f.length).sum();
+        let done = selected.iter().map(|f| f.completed_length).sum();
+        Some((total, done))
+    }
+
     /// `None` until the magnet resolves, which a `<progress>` with no value
     /// renders as indeterminate. That is the honest rendering: with
     /// `total_length` at zero a percentage is a division by zero, and
     /// "resolving the magnet" is a different state from "downloading nothing".
     pub fn percent(&self) -> Option<f64> {
-        if self.total_length == 0 {
+        let (total, done) = self
+            .selected_totals()
+            .unwrap_or((self.total_length, self.completed_length));
+        if total == 0 {
             return None;
         }
-        Some(self.completed_length as f64 / self.total_length as f64 * 100.0)
+        Some(done as f64 / total as f64 * 100.0)
     }
 
     pub fn health(&self) -> Health {
@@ -175,11 +201,21 @@ impl Download {
     }
 
     /// Complete for the purpose of watching it. A finished torrent seeds
-    /// indefinitely and so never leaves aria2's active list, and a list where
-    /// nothing ever finishes is a list nobody can read.
+    /// indefinitely under this deployment's `--seed-ratio=0.0` and so never
+    /// reaches `Status::Complete` on its own — a list where nothing ever
+    /// finishes is a list nobody can read, which is why this cannot lean on
+    /// status alone. It also cannot lean on the aggregate byte counters for a
+    /// download with a selection: see [`Self::selected_totals`]. A torrent
+    /// with files selected is finished when every one of *those* is; nothing
+    /// else the deselected files still owe it matters.
     pub fn is_finished(&self) -> bool {
-        self.status == Status::Complete
-            || (self.total_length > 0 && self.completed_length >= self.total_length)
+        if self.status == Status::Complete {
+            return true;
+        }
+        let (total, done) = self
+            .selected_totals()
+            .unwrap_or((self.total_length, self.completed_length));
+        total > 0 && done >= total
     }
 }
 
@@ -225,6 +261,8 @@ struct RawFile {
     path: String,
     #[serde(default)]
     length: String,
+    #[serde(default, rename = "completedLength")]
+    completed_length: String,
     #[serde(default)]
     selected: String,
 }
@@ -561,6 +599,78 @@ mod tests {
         assert!(d.is_finished());
     }
 
+    fn file(index: u32, length: u64, completed_length: u64, selected: bool) -> File {
+        File {
+            index,
+            path: format!("/downloads/file{index}"),
+            length,
+            completed_length,
+            selected,
+        }
+    }
+
+    /// The bug live evidence exposed: aria2 does not shrink `total_length` to
+    /// a `select-file` selection, so `total_length`/`completed_length` stay
+    /// the whole torrent's numbers even once every selected file has fully
+    /// arrived. A 4K release with a finished film and two never-downloaded
+    /// deselected bytes-worth of junk would sit at "not finished" forever
+    /// under the old aggregate-only check.
+    #[test]
+    fn is_finished_when_every_selected_file_is_even_though_deselected_ones_are_not() {
+        let mut d = download(Status::Active);
+        d.total_length = 1100; // whole torrent: the 1000-byte film + 100 bytes of junk
+        d.completed_length = 1000; // only the film ever arrived
+        d.files = vec![
+            file(1, 1000, 1000, true), // selected, fully downloaded
+            file(2, 100, 0, false),    // deselected, never downloaded
+        ];
+        assert!(d.is_finished());
+    }
+
+    #[test]
+    fn is_not_finished_while_a_selected_file_is_still_incomplete() {
+        let mut d = download(Status::Active);
+        d.total_length = 1000;
+        d.completed_length = 500;
+        d.files = vec![file(1, 1000, 500, true)];
+        assert!(!d.is_finished());
+    }
+
+    /// A file `select-file` left out is irrelevant to "finished" no matter
+    /// how far along its own accidental piece-boundary spillover got —
+    /// see `notify::sweep_garbage` for what happens to it instead.
+    #[test]
+    fn a_fully_spilled_over_deselected_file_does_not_make_an_incomplete_selection_finished() {
+        let mut d = download(Status::Active);
+        d.total_length = 1100;
+        d.completed_length = 600;
+        d.files = vec![
+            file(1, 1000, 500, true), // selected, half done
+            file(2, 100, 100, false), // deselected, fully spilled over anyway
+        ];
+        assert!(!d.is_finished());
+    }
+
+    #[test]
+    fn percent_is_computed_from_selected_files_only() {
+        let mut d = download(Status::Active);
+        d.total_length = 1100;
+        d.completed_length = 500;
+        d.files = vec![
+            file(1, 1000, 500, true), // 50% of the only file that counts
+            file(2, 100, 100, false), // fully arrived, but not selected
+        ];
+        assert_eq!(d.percent(), Some(50.0));
+    }
+
+    #[test]
+    fn percent_falls_back_to_the_aggregate_when_nothing_is_selected_yet() {
+        let mut d = download(Status::Active);
+        d.total_length = 100;
+        d.completed_length = 25;
+        assert_eq!(d.percent(), Some(25.0));
+    }
+
     #[test]
     fn name_falls_back_to_the_first_files_basename_then_the_gid() {
         let mut d = download(Status::Active);
@@ -570,6 +680,7 @@ mod tests {
             index: 1,
             path: "/downloads/Show/S01E01.mkv".to_string(),
             length: 0,
+            completed_length: 0,
             selected: true,
         });
         assert_eq!(d.name(), "S01E01.mkv");
