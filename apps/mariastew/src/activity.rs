@@ -15,7 +15,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::SystemTime;
 
 /// Lines kept per download — the whole add sequence plus room for the state
 /// changes of a long one. Older lines fall off the front.
@@ -29,7 +29,11 @@ const MAX_LOGS: usize = 200;
 
 #[derive(Clone)]
 pub struct Entry {
-    pub at: Instant,
+    /// Wall clock, not `Instant`. A log is read as "what happened, and when",
+    /// and an elapsed count answers a different question — every line saying
+    /// "2m" tells you nothing about the order or the gaps, which are the two
+    /// things a log is for. See `views::LogView` for what renders it.
+    pub at: SystemTime,
     pub message: String,
 }
 
@@ -87,7 +91,7 @@ impl Activity {
             log.pop_front();
         }
         log.push_back(Entry {
-            at: Instant::now(),
+            at: SystemTime::now(),
             message,
         });
     }
