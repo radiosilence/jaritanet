@@ -219,7 +219,7 @@ startup rather than the request that first needs it.
 
 | Variable | Required | Default | What |
 |---|---|---|---|
-| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under |
+| `ROOTS` | Yes | — | `name:/path,name:/path` — each is both a pod mount and a root the picker may browse into or write under. The name is also what the picker calls the place: a destination reads `tv/some-show`, never the mount above it |
 | `PUBLIC_URL` | Yes | — | Where this is reached from outside; must match the OIDC redirect URI, since the pod cannot infer it from a request it hasn't had yet |
 | `OIDC_ISSUER` | Yes | — | Hydra's issuer URL |
 | `OIDC_CLIENT_ID` | Yes | — | |
