@@ -158,5 +158,14 @@
 {% include "downloads.html" %}
 </main>
 
+{# Below the list, which is the one place on this page that costs nothing:
+     the header is a single control by design and the bottom edge is where a
+     version is looked for. It clears the home indicator for the same reason
+     the dialog's footer does — it is the last element on the page, so on a
+     phone with a gesture bar it would otherwise sit under it. #}
+<footer class="pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs opacity-40">
+  v{{ self.version() }}
+</footer>
+
 </body>
 </html>
