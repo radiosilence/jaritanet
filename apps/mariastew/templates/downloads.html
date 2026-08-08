@@ -21,7 +21,7 @@
                should read as different from every state still in motion,
                at the same glance that used to require re-reading the whole
                list to notice it changed. #}
-          {% if row.finished %}
+          {% if row.finished && !row.clearing %}
           <span class="badge badge-sm badge-success shrink-0">✓ {{ row.state }}</span>
           {% else %}
           <span class="badge badge-sm badge-outline shrink-0">{{ row.state }}</span>
@@ -180,7 +180,18 @@
       </div>
       {% endif %}
 
+      {# Every control goes at once while aria2 is being asked to let go: a row
+           on its way out has nothing worth pressing, and a spinner in its place
+           is what says the press landed. The list is redrawn from aria2 once a
+           second, so a state held only in the browser would be morphed away
+           before it was read — the mark is server-side (`state::Clearing`) and
+           so is this. #}
       <div class="flex gap-2">
+        {% if row.clearing %}
+        <button type="button" class="btn btn-sm min-h-11 flex-1" disabled>
+          <span class="loading loading-spinner loading-xs"></span>Clearing…
+        </button>
+        {% else %}
         {% if row.paused %}
         <button type="button" class="btn btn-sm min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
@@ -188,12 +199,17 @@
         <button type="button" class="btn btn-sm min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
         {% endif %}
+        {# Done rather than "stop seeding", and affirmative rather than ghost:
+             on a finished row this is the ordinary end of a download and keeps
+             every file, which is the opposite of what the destructive button
+             beside it on an unfinished row does. #}
         {% if row.finished %}
-        <button type="button" class="btn btn-sm btn-ghost min-h-11 flex-1"
-          data-on:click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
+        <button type="button" class="btn btn-sm btn-success min-h-11 flex-1"
+          data-on:click="@post('/downloads/{{ row.gid }}/remove')">✓ Done</button>
         {% else %}
         <button type="button" class="btn btn-sm btn-error min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
+        {% endif %}
         {% endif %}
       </div>
     </div>

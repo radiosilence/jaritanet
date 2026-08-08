@@ -58,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
         config: Arc::new(config),
         sessions: auth::session::Sessions::new(),
         activity: activity::Activity::new(),
+        clearing: state::Clearing::default(),
         http,
     };
 

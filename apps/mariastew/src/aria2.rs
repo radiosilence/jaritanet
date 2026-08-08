@@ -341,6 +341,18 @@ impl Download {
             .unwrap_or((self.total_length, self.completed_length));
         total > 0 && done >= total
     }
+
+    /// aria2 has stopped it, which is a different question from whether it
+    /// finished — an errored download and a torrent that is no longer seeding
+    /// are both here. It decides which of the two removal calls applies:
+    /// `remove` refuses a download aria2 has already stopped, and
+    /// `removeDownloadResult` refuses one it has not. See `routes::clear`.
+    pub fn is_stopped(&self) -> bool {
+        matches!(
+            self.status,
+            Status::Complete | Status::Error | Status::Removed
+        )
+    }
 }
 
 #[cfg(test)]

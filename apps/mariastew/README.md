@@ -195,7 +195,31 @@ download it deletes the partial files along with the aria2 entry — a
 half-downloaded episode sitting in the library is the mess this avoids — and
 on a finished one it only stops seeding, leaving the files in place: that is
 stopping an upload, not undoing a download, and deleting the episode would be
-astonishing.
+astonishing. The finished button says **Done** rather than "stop seeding" —
+what it means to whoever presses it is that they are finished with the row,
+and it keeps every file, which is the opposite of what the destructive button
+in the same slot on an unfinished row does.
+
+Removal is asynchronous on both sides. aria2 has two calls for it and each
+refuses the other's downloads: `remove` stops one that is still running,
+`removeDownloadResult` discards one that has already stopped — and a download
+does not move between those the instant it is asked, so the second call is
+refused for a moment after the first succeeds. Starting with `remove` and
+giving up when it failed is what made the button look dead: an errored row and
+a torrent aria2 had stopped seeding are both already-stopped, so the call that
+would have worked was never reached, and the row stayed with a button that
+could only fail again. `routes::clear` now runs both in the order that applies
+and keeps asking until the gid is gone from the lists the page reads — the
+same question the row is asking — rather than trusting either call's return.
+
+That takes long enough to need saying so. The gid goes into `state::Clearing`
+before the request answers, which renders the row as "clearing" with its
+controls replaced by a spinner, on every open page rather than the one that
+was clicked. It has to be server-side: the list is redrawn from aria2 once a
+second, so a state held in the browser would be morphed away before it was
+read. The activity log is dropped only once aria2 has confirmed the removal;
+if it never does, the mark lifts, the controls come back and the row says so,
+because the download really is still there.
 
 ## Auth
 
@@ -225,7 +249,7 @@ files, and `/auth/*` are the only routes outside that layer (`src/main.rs`).
 | `/add` | POST | `magnet` + `dir` form fields — validates and starts the magnet resolving, then returns `202` immediately; the poll, the filter, and applying the selection run detached (see `routes::finish_add`), and their outcome shows up through `/stream` like any other download |
 | `/downloads/{gid}/pause` | POST | |
 | `/downloads/{gid}/resume` | POST | |
-| `/downloads/{gid}/remove` | POST | See "Seeding, and why cancel has two meanings" above |
+| `/downloads/{gid}/remove` | POST | Marks the row `clearing` and returns `204` immediately; the removal itself runs detached (`routes::clear`) and its outcome shows up through `/stream`. See "Seeding, and why cancel has two meanings" above |
 | `/browse` | GET | `path` query param — lists subdirectories of a configured root, for the destination picker |
 | `/mkdir` | POST | `parent` + `name` form fields — makes a directory and returns the picker rooted there |
 | `/healthz` | GET | Kubelet probe, no auth |
@@ -382,7 +406,10 @@ gains bytes and the magnet resolves after a few seconds into the download
 `follow-torrent` would have spawned. A still list proves only the first paint
 — that a row morphs in place, that an expanded row stays expanded through the
 morph, and that a bar moves at all are things only a changing one can show.
-Pause, resume and remove mutate its state, so the buttons do something.
+Pause, resume and remove mutate its state, so the buttons do something — and
+the removal calls refuse each other's downloads the way aria2's do, plus one
+refusal before the discard takes. Accepting either on anything is what let
+#316 pass here while being unpressable in production.
 
 It is not a simulator and is not trying to be: it holds a list and hands it
 out. Anything that depends on aria2's real behaviour — the metadata pass, the
