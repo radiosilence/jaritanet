@@ -1019,7 +1019,9 @@ mod tests {
             "nothing for the picker's controls to belong to: {page}"
         );
         assert!(
-            page.contains(r#"name="name" placeholder="New folder name" enterkeyhint="done" form="mkdir-form""#),
+            page.contains(
+                r#"name="name" placeholder="New folder name" enterkeyhint="done" form="mkdir-form""#
+            ),
             "the folder name field still belongs to the add form: {page}"
         );
         // Both of the picker's controls, and only those two — the path they

@@ -1767,7 +1767,12 @@ mod tests {
             let in_flight = tokio::spawn({
                 let state = state.clone();
                 async move {
-                    remove(State(state), CurrentSession(session()), Path("g1".to_string())).await
+                    remove(
+                        State(state),
+                        CurrentSession(session()),
+                        Path("g1".to_string()),
+                    )
+                    .await
                 }
             });
 
