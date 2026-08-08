@@ -9,6 +9,17 @@ memory, so a deploy signs everyone out. The frontend is server-rendered HTML
 patched over SSE ([Datastar](https://data-star.dev), vendored at
 `assets/datastar.js`), not a client-side app.
 
+## Adding one
+
+Tapping Add reads the clipboard and fills the field if what is there is a
+magnet. It happens in the click handler because `readText()` needs the user
+gesture and `showModal()` does not spend it; what the browser does with that
+request is the browser's own business — Safari draws a Paste button, Chrome
+grants it silently, an insecure origin has no clipboard API — and every
+outcome other than "a magnet came back" leaves an empty field to type into. A
+field already typed into is never overwritten, since the prompt can outlive
+someone's patience with it.
+
 ## What a row says it is doing
 
 A collapsed row answers "how is it going" — name, state, bar, destination, and
