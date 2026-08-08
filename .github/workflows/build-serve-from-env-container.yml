@@ -11,10 +11,14 @@ on:
     paths:
       - "apps/serve-from-env/**"
       - ".github/workflows/build-serve-from-env-container.yml"
+      # Declares the toolchain `check` runs on.
+      - mise.toml
   pull_request:
     paths:
       - "apps/serve-from-env/**"
       - ".github/workflows/build-serve-from-env-container.yml"
+      # Declares the toolchain `check` runs on.
+      - mise.toml
   workflow_dispatch:
 
 jobs:
@@ -54,9 +58,36 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
           echo "version $version, release $release"
 
+  # Gates the publish, so no image is built from code that does not pass. On the
+  # floating `rust = "1"` from mise.toml, where a compiler bump breaking is the
+  # point; the Dockerfile pins its own for what ships.
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Environment
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      # After mise, which is what puts this cargo on PATH.
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: apps/serve-from-env
+          # A pull request restores main's cache but writes none of its own: a
+          # branch's cache is invisible to every other branch and still evicts
+          # from the repository's 10GB, which is how main ends up cold.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check and Test
+        working-directory: apps/serve-from-env
+        run: cargo fmt --check && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked
+
   publish:
     name: Build and Publish
-    needs: [version]
+    needs: [version, check]
     # Builds each architecture on a native runner. `version` publishes the semver
     # tags, which metadata-action cannot derive here because the build runs on a
     # branch push with no tag to read.
