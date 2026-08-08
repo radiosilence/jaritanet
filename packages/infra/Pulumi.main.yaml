@@ -240,7 +240,7 @@ config:
           memory: 192Mi
         image:
           repository: "ghcr.io/radiosilence/blit"
-          tag: sha-3855f05
+          tag: sha-e7ec682
           pullPolicy: "Always"
         httpPort: 3000
     # What lady serves off the media drive. Shares are anonymous — `map to
