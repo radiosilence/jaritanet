@@ -46,6 +46,53 @@ impl Clearing {
     }
 }
 
+/// Downloads this process is part-way through adding.
+///
+/// An unfinished add is identified by what aria2 holds — paused, with no
+/// `select-file` — and that description fits a *live* add just as exactly as
+/// an abandoned one, for the whole second or two it takes. Without this the
+/// reconciler in `resume` would adopt the add already running beside it, and
+/// the two would race to pause, narrow and start the same download.
+///
+/// Held rather than inferred because there is nothing to infer from: aria2
+/// cannot say which of two processes asked, and the answer is only ever
+/// interesting to the one that did.
+#[derive(Clone, Default)]
+pub struct Adding(Arc<Mutex<HashSet<String>>>);
+
+impl Adding {
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashSet<String>> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Claims `gid` until the returned guard drops, which is what makes the
+    /// error paths safe: a finish that fails half way still has to let the
+    /// reconciler have another go, and there is no `?` that can skip a drop.
+    pub fn claim(&self, gid: &str) -> Claim {
+        self.lock().insert(gid.to_string());
+        Claim {
+            set: self.clone(),
+            gid: gid.to_string(),
+        }
+    }
+
+    pub fn contains(&self, gid: &str) -> bool {
+        self.lock().contains(gid)
+    }
+}
+
+/// One claimed gid, released on drop. See [`Adding::claim`].
+pub struct Claim {
+    set: Adding,
+    gid: String,
+}
+
+impl Drop for Claim {
+    fn drop(&mut self) {
+        self.set.lock().remove(&self.gid);
+    }
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
@@ -59,6 +106,8 @@ pub struct AppState {
     pub activity: Activity,
     /// Removals in flight — see [`Clearing`].
     pub clearing: Clearing,
+    /// Adds in flight — see [`Adding`].
+    pub adding: Adding,
     /// Hydra and Telegram. One client, so the connection pool and the TLS
     /// session cache are shared.
     pub http: reqwest::Client,
