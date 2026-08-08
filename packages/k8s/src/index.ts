@@ -15,4 +15,4 @@ export {
 export { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 export { ServiceArgsSchema } from "./service.schemas.ts";
 export { createService } from "./service.ts";
-export { cpuRequests, sha256hex } from "./util.ts";
+export { resourceRequests, sha256hex } from "./util.ts";
