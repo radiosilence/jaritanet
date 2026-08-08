@@ -30,10 +30,20 @@
      adding downloads does not need saying twice. It keeps its accessible
      name in `aria-label` — the icon is `aria-hidden`, so without it the
      button would announce as nothing at all. #}
+{# The clipboard read happens here, in the click handler, because that is the
+     only place it can: every browser gates `readText()` on transient user
+     activation, and `showModal()` does not spend it. Whether a prompt appears
+     is the browser's call — Safari draws its own Paste button, Chrome grants
+     it silently on the gesture, an insecure origin has no `navigator.clipboard`
+     at all — so both arms are handled and none of them are an error: a refusal
+     or a clipboard holding something else just leaves an empty field to type
+     into. Only a magnet is pasted, since that is the only thing `/add` accepts,
+     and only into a field still empty, because the prompt can outlast the
+     moment someone gives up waiting and starts typing. #}
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     aria-label="Add download" title="Add download"
-    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal()">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
+    data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal(); navigator.clipboard?.readText().then((text) => { const field = document.querySelector('#add-form [name=magnet]'); if (!field.value && text.trim().startsWith('magnet:?')) field.value = text.trim() }, () => {})">{% call icons::plus(class="text-3xl") %}{% endcall %}</button>
 </header>
 
 {% if aria2_unreachable %}

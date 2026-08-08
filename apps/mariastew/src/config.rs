@@ -6,8 +6,28 @@
 //! nobody wants notifying.
 
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+
+/// How often aria2 is asked what it is doing while a page is open. One tick is
+/// one RPC and one render for the whole process regardless of how many pages
+/// there are (see `poll`), and only rows that changed go down a stream, so
+/// what this really buys is aria2's own CPU: it serialises the file list of
+/// every download it knows about on every call, and that is the part no amount
+/// of diffing removes.
+///
+/// Ten a second reads as continuous — a rate and a byte count move faster than
+/// anyone can follow, which is the whole complaint against once a second — and
+/// leaves the headroom to go further. Turn it up here rather than guessing:
+/// the ceiling is whichever of aria2's CPU or the browser's morph gives first,
+/// and which one that is depends on how many downloads are in the list.
+const DEFAULT_POLL_MS: u64 = 100;
+
+/// The rate with nobody watching, which is the notifier's alone — it is
+/// looking for a download that finished or failed, and nothing about that is
+/// in a hurry. Every page closed is a process doing this and nothing else.
+const DEFAULT_IDLE_POLL_MS: u64 = 5_000;
 
 /// A directory the picker browses and the process may write to.
 ///
@@ -40,6 +60,8 @@ pub struct Config {
     pub public_url: String,
     pub oidc: Oidc,
     pub telegram: Option<Telegram>,
+    pub poll_interval: Duration,
+    pub idle_poll_interval: Duration,
 }
 
 fn var(key: &str) -> Result<String> {
@@ -48,6 +70,29 @@ fn var(key: &str) -> Result<String> {
 
 fn var_or(key: &str, default: &str) -> String {
     std::env::var(key).unwrap_or_else(|_| default.to_string())
+}
+
+/// A duration in milliseconds, refused rather than defaulted when it is set to
+/// something that is not one: this is the knob the poll rate is tuned with, and
+/// a typo silently reverting to the default is how a tuning session concludes
+/// that nothing it tried made any difference.
+fn millis_or(key: &str, default: u64) -> Result<Duration> {
+    parse_millis(key, std::env::var(key).ok().as_deref(), default)
+}
+
+/// Split from [`millis_or`] so the refusals are testable without setting a
+/// process-wide environment variable out from under every other test.
+fn parse_millis(key: &str, raw: Option<&str>, default: u64) -> Result<Duration> {
+    let ms = match raw {
+        Some(raw) => raw
+            .parse()
+            .with_context(|| format!("{key} must be a whole number of milliseconds"))?,
+        None => default,
+    };
+    if ms == 0 {
+        bail!("{key} must be greater than zero");
+    }
+    Ok(Duration::from_millis(ms))
 }
 
 impl Config {
@@ -83,6 +128,8 @@ impl Config {
                 client_secret: var("OIDC_CLIENT_SECRET")?,
             },
             telegram,
+            poll_interval: millis_or("POLL_MS", DEFAULT_POLL_MS)?,
+            idle_poll_interval: millis_or("IDLE_POLL_MS", DEFAULT_IDLE_POLL_MS)?,
         })
     }
 
@@ -196,20 +243,15 @@ fn parse_roots(raw: &str) -> Result<Vec<Root>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn conf(roots: &[(&str, &str)]) -> Config {
+impl Config {
+    /// A blank config for tests to fill in the one or two fields they are
+    /// about. Every field has to be named somewhere; naming them in four test
+    /// modules is how adding one becomes four unrelated edits.
+    pub(crate) fn fixture() -> Self {
         Config {
             bind_addr: String::new(),
             aria2_rpc_url: String::new(),
-            roots: roots
-                .iter()
-                .map(|(n, p)| Root {
-                    name: n.to_string(),
-                    path: PathBuf::from(p),
-                })
-                .collect(),
+            roots: Vec::new(),
             public_url: String::new(),
             oidc: Oidc {
                 issuer: String::new(),
@@ -217,6 +259,26 @@ mod tests {
                 client_secret: String::new(),
             },
             telegram: None,
+            poll_interval: Duration::from_millis(DEFAULT_POLL_MS),
+            idle_poll_interval: Duration::from_millis(DEFAULT_IDLE_POLL_MS),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn conf(roots: &[(&str, &str)]) -> Config {
+        Config {
+            roots: roots
+                .iter()
+                .map(|(n, p)| Root {
+                    name: n.to_string(),
+                    path: PathBuf::from(p),
+                })
+                .collect(),
+            ..Config::fixture()
         }
     }
 
@@ -260,8 +322,8 @@ mod tests {
         );
         assert_eq!(c.label(Path::new("/mnt/kontent/tv")), "tv");
         assert_eq!(
-            c.label(Path::new("/mnt/kontent/movies/2046/disc 1")),
-            "movies/2046/disc 1"
+            c.label(Path::new("/mnt/kontent/movies/Harbourlight/disc 1")),
+            "movies/Harbourlight/disc 1"
         );
     }
 
@@ -297,5 +359,24 @@ mod tests {
     fn resolve_refuses_a_prefix_neighbour() {
         let c = conf(&[("tv", "/mnt/kontent/tv")]);
         assert_eq!(c.resolve("/mnt/kontent/tv-old/secrets"), None);
+    }
+
+    /// The knob the poll rate is tuned with. A typo silently reverting to the
+    /// default is how a tuning session concludes that nothing it tried made
+    /// any difference — and zero is a busy loop against aria2, which is the
+    /// one setting there is no reason to allow.
+    #[test]
+    fn a_poll_interval_is_taken_or_refused_but_never_quietly_defaulted() {
+        assert_eq!(
+            parse_millis("POLL_MS", Some("33"), 100).unwrap(),
+            Duration::from_millis(33)
+        );
+        assert_eq!(
+            parse_millis("POLL_MS", None, 100).unwrap(),
+            Duration::from_millis(100)
+        );
+        assert!(parse_millis("POLL_MS", Some("33ms"), 100).is_err());
+        assert!(parse_millis("POLL_MS", Some(""), 100).is_err());
+        assert!(parse_millis("POLL_MS", Some("0"), 100).is_err());
     }
 }

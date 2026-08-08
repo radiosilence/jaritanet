@@ -1268,6 +1268,16 @@
                           }
                         ]
                       },
+                      "statePath": {
+                        "default": "/var/lib/mariastew",
+                        "$ref": "#/$defs/__schema16"
+                      },
+                      "saveSessionInterval": {
+                        "default": 60,
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
                       "btMaxPeers": {
                         "default": 0,
                         "type": "integer",
