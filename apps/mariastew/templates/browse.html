@@ -1,19 +1,40 @@
-<div id="picker" class="flex flex-col gap-2">
+{# One delegated handler for the whole picker rather than a `@get` per row.
+     Two reasons, and the second is the one that mattered. A hundred-plus
+     folders meant a hundred-plus expressions for Datastar to compile on
+     every morph, and the same number of URLs inlined into the HTML — a
+     real library sent 205KB of which the overwhelming majority was
+     repeated per-row markup. And a path reaching the browser as a plain
+     attribute value is never parsed as an expression, so a folder named
+     with a quote cannot break out into the handler the way it could when
+     each URL was interpolated into one.
+
+     It lives on `#picker` because that is the element the response
+     patches: Datastar morphs by id rather than replacing, so the handler
+     and its in-flight `$browsing` signal survive the swap they trigger.
+     Anything below it is free to be replaced wholesale. #}
+<div id="picker" class="flex flex-col gap-2" data-indicator="browsing"
+  data-on:click="const t = evt.target.closest('[data-dir]'); if (t) @get('/browse?path=' + encodeURIComponent(t.dataset.dir))">
   <div class="flex items-start gap-2 text-sm">
     {% if let Some(p) = parent %}
     <button type="button" class="btn btn-sm btn-ghost min-h-11 min-w-11 shrink-0"
-      data-on:click="@get('{{ crate::views::browse_href(p) }}')">↑ Up</button>
+      data-dir="{{ p }}">↑ Up</button>
     {% endif %}
-    <!-- Always shown, even at the roots, so where a download lands is never
+    {# Always shown, even at the roots, so where a download lands is never
          a guess — see #257, "keep the current path visible". Wrapped, not
          truncated: this is the one line whose whole job is saying exactly
          where a download will land, so hiding any of it defeats the point.
          `break-words` is the fallback for one path segment on its own
-         wider than the dialog — a scene-release directory name can be. -->
+         wider than the dialog — a scene-release directory name can be. #}
     <span class="font-mono opacity-70 break-words min-w-0 flex-1">{% if path.is_empty() %}/{% else %}{{ path }}{% endif %}</span>
+    {# The listing is a `readdir` against spinning disks holding a media
+         library, so seconds is its normal speed, not a fault. Without this
+         a tap produced nothing observable until the new list appeared and
+         the picker read as hung — the reason "the entire UI seizes up"
+         was reported for what is really an honest wait. #}
+    <span class="loading loading-spinner loading-xs shrink-0 mt-1" data-show="$browsing"></span>
   </div>
 
-  <!-- Bounded and internally scrolling: a root with a hundred-plus direct
+  {# Bounded and internally scrolling: a root with a hundred-plus direct
        children (a real movie library, one folder per film) is one level of
        browsing, not a bug, and it must not push the rest of the dialog —
        the magnet field above, the Add/Cancel row below — off screen.
@@ -25,11 +46,11 @@
        must wrap a name to the width it is given. `.menu`'s own item rule
        out-specifies a plain utility class, so overriding `display` on the
        link one property at a time turns into a losing fight with the
-       component; a plain list styled by hand does not have that fight. -->
+       component; a plain list styled by hand does not have that fight. #}
   {% if dirs.is_empty() %}
-  <!-- A blank <ul> and a folder with nothing in it looked identical — the
+  {# A blank <ul> and a folder with nothing in it looked identical — the
        owner drilled into `downloads` and, seeing nothing, had no way to
-       tell "empty" from "broken". Said outright instead. -->
+       tell "empty" from "broken". Said outright instead. #}
   <div class="rounded-box bg-base-200 p-4 text-center text-sm opacity-60">
     {% if parent.is_some() %}
     This folder is empty.
@@ -38,23 +59,29 @@
     {% endif %}
   </div>
   {% else %}
-  <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm">
+  {# Each name is wrapped with no line cap, not truncated with an ellipsis
+       and not clamped to a fixed number of lines either. A real release name
+       puts the title and year first and encoding detail last
+       (`Chungking.Express.1994.Criterion.1080p.BluRay.x265...`), so an
+       end-ellipsis usually only hides junk — except when two folders differ
+       near the end (a part number, a disc, a cut), which is exactly the case
+       a picker has to get right. A 2-line clamp was tried first and
+       rejected: a name long enough to need three lines clips its third line
+       right where a PART1/PART2-style suffix usually lives, which is the one
+       case this whole choice exists to protect. Unbounded wrap costs list
+       height on the rare very long name; the list already scrolls to absorb
+       that, so nothing is ever hidden regardless of how long a name gets.
+
+       This note sits above the loop, not inside it. Askama renders an HTML
+       comment as output, so a paragraph like this one written between
+       `{% for %}` and `{% endfor %}` shipped once per folder: 155KB of a
+       205KB response, invisible in the browser and re-parsed on every
+       morph. #}
+  <ul class="flex w-full max-h-[40vh] flex-col gap-1 overflow-y-auto rounded-box bg-base-200 p-2 text-sm"
+    data-class:opacity-50="$browsing" data-class:pointer-events-none="$browsing">
     {% for d in dirs %}
-    <!-- Wrapped with no line cap, not truncated with an ellipsis and not
-         clamped to a fixed number of lines either. A real release name puts
-         the title and year first and encoding detail last
-         (`Chungking.Express.1994.Criterion.1080p.BluRay.x265...`), so an
-         end-ellipsis usually only hides junk — except when two folders
-         differ near the end (a part number, a disc, a cut), which is
-         exactly the case a picker has to get right. A 2-line clamp was
-         tried first and rejected: a name long enough to need three lines
-         clips its third line right where a PART1/PART2-style suffix
-         usually lives, which is the one case this whole choice exists to
-         protect. Unbounded wrap costs list height on the rare very long
-         name; the list already scrolls to absorb that, so nothing is ever
-         hidden regardless of how long a name gets. -->
     <li><a class="block min-h-11 break-words rounded-field px-3 py-2 hover:bg-base-300"
-      data-on:click="@get('{{ crate::views::browse_href(d.path.as_str()) }}')">{{ d.name }}</a></li>
+      data-dir="{{ d.path }}">{{ d.name }}</a></li>
     {% endfor %}
   </ul>
   {% endif %}

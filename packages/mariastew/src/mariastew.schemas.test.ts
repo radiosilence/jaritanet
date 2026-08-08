@@ -43,6 +43,8 @@ describe("MariastewConfSchema", () => {
   it("defaults the aria2 tuning that the deployment relies on", () => {
     const { aria2 } = MariastewConfSchema.parse({ image, roots });
     expect(aria2).toEqual({
+      listenPort: 51413,
+      peerSpeedLimit: "50M",
       btMaxPeers: 0,
       maxConcurrentDownloads: 16,
       maxConnectionPerServer: 16,

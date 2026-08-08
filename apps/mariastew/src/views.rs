@@ -20,28 +20,6 @@ pub struct DirView {
     pub path: String,
 }
 
-/// The browse URL for a path, percent-encoded here rather than in the markup.
-///
-/// A directory name is attacker-supplied — this service creates directories on
-/// request — and the link that opens one is a Datastar expression, so the name
-/// would otherwise land inside a JavaScript string literal. HTML escaping does
-/// not help there: the browser decodes `&#x27;` back to a quote before the
-/// expression is ever parsed, so a folder named `'+alert(1)+'` would run.
-/// Percent-encoding turns every quote into `%27`, which cannot close anything,
-/// and leaves the template with a plain URL and no concatenation in it.
-pub fn browse_href(path: &str) -> String {
-    let mut out = String::from("/browse?path=");
-    for b in path.as_bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                out.push(*b as char)
-            }
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
-    }
-    out
-}
-
 pub struct Row {
     pub gid: String,
     pub name: String,
@@ -76,15 +54,21 @@ pub struct Row {
 
 /// DaisyUI modifier and the word for it, together — colour alone is never
 /// the only way to read a row (see `Row::bar_class`).
+///
+/// The words are the ones a person would use about a download, not the ones
+/// the enum uses about a swarm. `Health::Moving` naming itself "moving" on
+/// screen was the giveaway: it is precise about traffic and meaningless to
+/// whoever is waiting for a film. Each state now says either what is
+/// happening or what is wrong, in the terms of the thing being waited for.
 fn bar_class_and_state(health: Health) -> (&'static str, &'static str) {
     match health {
-        Health::Moving => ("progress-success", "moving"),
-        Health::Complete => ("progress-success", "complete"),
-        Health::Choked => ("progress-warning", "choked"),
-        Health::Blocked => ("progress-error", "blocked"),
-        Health::Errored => ("progress-error", "errored"),
-        Health::Dead => ("progress-error", "dead"),
-        Health::Resolving => ("progress-info", "resolving"),
+        Health::Moving => ("progress-success", "downloading"),
+        Health::Complete => ("progress-success", "ready"),
+        Health::Choked => ("progress-warning", "stalled"),
+        Health::Blocked => ("progress-error", "can't connect"),
+        Health::Errored => ("progress-error", "failed"),
+        Health::Dead => ("progress-error", "no seeders"),
+        Health::Resolving => ("progress-info", "starting"),
         Health::Paused => ("progress-info", "paused"),
     }
 }
@@ -94,6 +78,7 @@ impl From<&Download> for Row {
         let percent = d.percent();
         let health = d.health();
         let (bar_class, state) = bar_class_and_state(health);
+        let (size, done) = d.display_totals();
         Row {
             gid: d.gid.clone(),
             name: d.name().to_string(),
@@ -104,8 +89,10 @@ impl From<&Download> for Row {
             state,
             down: rate(d.download_speed),
             up: rate(d.upload_speed),
-            size: bytes(d.total_length),
-            done: bytes(d.completed_length),
+            // Same totals the bar is drawn from, so "80.0 KiB / 6.42 GiB"
+            // beside a full bar cannot happen again.
+            size: bytes(size),
+            done: bytes(done),
             connections: d.connections,
             seeders: d.num_seeders,
             error: d.error_message.clone(),
@@ -204,31 +191,44 @@ pub fn rate(n: u64) -> String {
 mod tests {
     use super::*;
 
-    /// The breakout this encoding exists to stop: a directory the user can
-    /// create, whose name closes the JavaScript string it would otherwise be
-    /// pasted into.
+    /// The breakout the picker has to keep stopping: a directory the owner
+    /// can create, named so that it closes whatever it is pasted into.
+    ///
+    /// It used to be pasted into a per-row Datastar expression, where HTML
+    /// escaping was no defence — the browser turns `&#x27;` back into a quote
+    /// before the expression is parsed — so the name was percent-encoded into
+    /// a URL instead. With one delegated handler the name travels as an
+    /// ordinary attribute value that nothing evaluates, and Askama's escaping
+    /// is the whole defence. This asserts the property rather than either
+    /// mechanism: the hostile name must not appear raw, and no `data-on:`
+    /// attribute may carry it.
     #[test]
-    fn browse_href_percent_encodes_quotes_so_a_name_cannot_close_a_js_string() {
-        let href = browse_href("/mnt/kontent/tv/'+alert(1)+'");
-        assert!(!href.contains('\''), "a quote survived: {href}");
-        assert!(!href.contains('('), "a paren survived: {href}");
-        assert!(href.contains("%27"));
-    }
+    fn a_directory_name_cannot_break_out_of_the_picker_markup() {
+        let html = Browse {
+            parent: Some("/mnt/kontent".into()),
+            path: "/mnt/kontent/tv".into(),
+            dirs: vec![DirView {
+                name: "'+alert(1)+'".into(),
+                path: "/mnt/kontent/tv/'+alert(1)+'".into(),
+            }],
+        }
+        .render()
+        .expect("browse template renders");
 
-    #[test]
-    fn browse_href_leaves_unreserved_characters_alone_and_encodes_separators() {
-        assert_eq!(
-            browse_href("/mnt/kontent/tv/Show-Name_2.0~x"),
-            "/browse?path=%2Fmnt%2Fkontent%2Ftv%2FShow-Name_2.0~x"
+        assert!(
+            !html.contains("'+alert(1)+'"),
+            "the raw name reached the document: {html}"
         );
-    }
-
-    #[test]
-    fn browse_href_encodes_spaces_and_non_ascii() {
-        let href = browse_href("/mnt/tv/Naïve Show S02");
-        assert!(!href.contains(' '));
-        assert!(href.contains("%20"));
-        assert!(href.is_ascii());
+        assert!(
+            html.contains("&#x27;+alert(1)+&#x27;") || html.contains("&#39;+alert(1)+&#39;"),
+            "the name should still render, with its quotes escaped: {html}"
+        );
+        for line in html.lines().filter(|l| l.contains("data-on:")) {
+            assert!(
+                !line.contains("alert(1)"),
+                "a name reached an evaluated attribute: {line}"
+            );
+        }
     }
 
     #[test]
@@ -265,7 +265,7 @@ mod tests {
     fn state_moving() {
         assert_eq!(
             bar_class_and_state(Health::Moving),
-            ("progress-success", "moving")
+            ("progress-success", "downloading")
         );
     }
 
@@ -273,7 +273,7 @@ mod tests {
     fn state_complete() {
         assert_eq!(
             bar_class_and_state(Health::Complete),
-            ("progress-success", "complete")
+            ("progress-success", "ready")
         );
     }
 
@@ -281,7 +281,7 @@ mod tests {
     fn state_choked() {
         assert_eq!(
             bar_class_and_state(Health::Choked),
-            ("progress-warning", "choked")
+            ("progress-warning", "stalled")
         );
     }
 
@@ -289,7 +289,7 @@ mod tests {
     fn state_blocked() {
         assert_eq!(
             bar_class_and_state(Health::Blocked),
-            ("progress-error", "blocked")
+            ("progress-error", "can't connect")
         );
     }
 
@@ -297,7 +297,7 @@ mod tests {
     fn state_errored() {
         assert_eq!(
             bar_class_and_state(Health::Errored),
-            ("progress-error", "errored")
+            ("progress-error", "failed")
         );
     }
 
@@ -305,7 +305,7 @@ mod tests {
     fn state_dead() {
         assert_eq!(
             bar_class_and_state(Health::Dead),
-            ("progress-error", "dead")
+            ("progress-error", "no seeders")
         );
     }
 
@@ -313,7 +313,7 @@ mod tests {
     fn state_resolving() {
         assert_eq!(
             bar_class_and_state(Health::Resolving),
-            ("progress-info", "resolving")
+            ("progress-info", "starting")
         );
     }
 
@@ -408,7 +408,7 @@ mod tests {
                 percent_display: Some("50".into()),
                 health: Health::Moving,
                 bar_class: "progress-success",
-                state: "moving",
+                state: "downloading",
                 down: "1.00 MiB/s".into(),
                 up: "0 B/s".into(),
                 size: "1.00 GiB".into(),
@@ -543,7 +543,7 @@ mod tests {
                 percent_display: Some("12".into()),
                 health: Health::Errored,
                 bar_class: "progress-error",
-                state: "errored",
+                state: "failed",
                 down: "0 B/s".into(),
                 up: "0 B/s".into(),
                 size: "1.00 GiB".into(),
@@ -586,7 +586,7 @@ mod tests {
                 percent_display: Some("50".into()),
                 health: Health::Moving,
                 bar_class: "progress-success",
-                state: "moving",
+                state: "downloading",
                 down: "1.00 MiB/s".into(),
                 up: "0 B/s".into(),
                 size: "1.00 GiB".into(),
@@ -623,7 +623,7 @@ mod tests {
                 percent_display: Some("50".into()),
                 health: Health::Moving,
                 bar_class: "progress-success",
-                state: "moving",
+                state: "downloading",
                 down: "1.00 MiB/s".into(),
                 up: "0 B/s".into(),
                 size: "1.00 GiB".into(),
@@ -859,7 +859,7 @@ mod tests {
             percent_display: Some("100".into()),
             health: Health::Complete,
             bar_class: "progress-success",
-            state: "complete",
+            state: "ready",
             down: "0 B/s".into(),
             up: "0 B/s".into(),
             size: "1.00 GiB".into(),
@@ -898,7 +898,7 @@ mod tests {
                 percent_display: Some("50".into()),
                 health: Health::Moving,
                 bar_class: "progress-success",
-                state: "moving",
+                state: "downloading",
                 down: "1.00 MiB/s".into(),
                 up: "0 B/s".into(),
                 size: "1.00 GiB".into(),

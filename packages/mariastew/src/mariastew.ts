@@ -259,9 +259,32 @@ export function createMariastew(
                   `--max-overall-download-limit=${conf.aria2.maxOverallDownloadLimit}`,
                   `--max-overall-upload-limit=${conf.aria2.maxOverallUploadLimit}`,
                   `--bt-max-peers=${conf.aria2.btMaxPeers}`,
+                  `--bt-request-peer-speed-limit=${conf.aria2.peerSpeedLimit}`,
+                  // One number for both, so a single forwarded port covers
+                  // peers and the DHT rather than needing two.
+                  `--listen-port=${conf.aria2.listenPort}`,
+                  `--dht-listen-port=${conf.aria2.listenPort}`,
                   "--enable-dht=true",
                   "--bt-enable-lpd=true",
                   "--enable-peer-exchange=true",
+                ],
+                // `hostPort` publishes the peer port on the node it runs on,
+                // which is what any forward has to aim at — without it the
+                // port exists only inside the pod network and nothing
+                // upstream can be pointed anywhere useful.
+                ports: [
+                  {
+                    name: "bt-tcp",
+                    protocol: "TCP",
+                    containerPort: conf.aria2.listenPort,
+                    hostPort: conf.aria2.listenPort,
+                  },
+                  {
+                    name: "bt-udp",
+                    protocol: "UDP",
+                    containerPort: conf.aria2.listenPort,
+                    hostPort: conf.aria2.listenPort,
+                  },
                 ],
                 securityContext: { allowPrivilegeEscalation: false },
                 volumeMounts: mounts,

@@ -7,21 +7,21 @@
 <link rel="stylesheet" href="/assets/app.css">
 <script type="module" src="/assets/datastar.js"></script>
 </head>
-<!-- `$add` is the whole contract with the server for this form: one signal,
+{# `$add` is the whole contract with the server for this form: one signal,
      patched by POST /add's response (Content-Type: application/json is all
      it takes — Datastar treats a JSON body as a signal patch on its own,
      no SSE framing required, confirmed against the vendored bundle rather
      than assumed). `{status: "ok"}` closes the dialog and confirms;
      `{status: "error", message: "..."}` keeps it open and shows why.
      `__ifmissing` seeds the shape once without ever stomping a patch that
-     arrived before this ran. -->
+     arrived before this ran. #}
 <body data-init="@get('/stream')"
   data-signals__ifmissing="{add: {status: null, message: null}}"
   class="min-h-screen bg-base-200">
 
-<!-- The header is the primary action, not a name plus an action — the person
+{# The header is the primary action, not a name plus an action — the person
      already knows what they opened, and the name would only spend the
-     vertical space a phone in portrait can least afford. -->
+     vertical space a phone in portrait can least afford. #}
 <header class="bg-base-100 shadow-sm p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     data-on:click="$add = {status: null, message: null}; document.getElementById('add-dialog').showModal()">Add download</button>
@@ -33,7 +33,7 @@
 </div>
 {% endif %}
 
-<!-- Reacts to $add rather than to the fetch itself, so it does not care
+{# Reacts to $add rather than to the fetch itself, so it does not care
      whether the response was a plain JSON body or an SSE patch — either
      lands here the same way. Closes the dialog and clears the field the
      moment $add says ok; the toast below confirms and dismisses itself.
@@ -46,10 +46,10 @@
      full read of the parent object first does, on every test run, with or
      without other statements around it. Do not remove this line — the
      failure mode if you do is silent: no error, no console output, the
-     effect just never fires and the dialog never closes. -->
+     effect just never fires and the dialog never closes. #}
 <div data-effect="JSON.stringify($add); if ($add.status === 'ok') { document.getElementById('add-dialog').close(); document.querySelector('#add-form [name=magnet]').value = '' }"></div>
 
-<!-- The reset that clears the toast lives in its own on-interval instead of
+{# The reset that clears the toast lives in its own on-interval instead of
      a plain window.setTimeout — confirmed by direct testing, not assumed.
      A raw timer callback that writes $add writes the signal outside
      Datastar's own batch (`beginBatch`/`endBatch`, which every native
@@ -60,20 +60,20 @@
      firing every three seconds for the life of the page rather than once —
      harmless, since resetting an already-null $add is a no-op — and the
      toast disappears within one interval period of $add going ok, not at
-     exactly three seconds. -->
+     exactly three seconds. #}
 <div data-on-interval__duration.3s="$add = {status: null, message: null}"></div>
 
-<!-- The confirmation the owner asked for: something to actually see once
+{# The confirmation the owner asked for: something to actually see once
      the dialog goes, not just a row that shows up later. Same
      JSON.stringify($add) prefix as the effect above, same reason — see
-     that comment. -->
+     that comment. #}
 <div class="toast toast-top toast-center z-10" data-show="JSON.stringify($add) && $add.status === 'ok'">
   <div role="alert" class="alert alert-success">
     <span>Added — it will show up in the list shortly.</span>
   </div>
 </div>
 
-<!-- A bottom sheet, not a centered dialog: pinned to the bottom edge
+{# A bottom sheet, not a centered dialog: pinned to the bottom edge
      (mt-auto/mb-0 on a UA stylesheet that otherwise centers a <dialog> with
      margin:auto), which is where a thumb already is and where the rest of
      this UI's controls live. `closedby="any"` is a tap-outside dismiss with
@@ -82,7 +82,7 @@
      so it starts collapsed behind its own disclosure rather than dumping a
      directory tree in front of someone who has not pasted anything yet.
      `dvh` rather than `vh` because mobile Safari's collapsing toolbar makes
-     `vh` wrong the moment the address bar shows or hides. -->
+     `vh` wrong the moment the address bar shows or hides. #}
 <dialog id="add-dialog" closedby="any"
   class="open:flex flex-col mx-0 mt-auto mb-0 w-full sm:mx-auto sm:mb-auto sm:max-w-sm max-h-[85dvh] rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
@@ -99,12 +99,12 @@
     </details>
   </form>
 
-  <!-- A 400 (magnets only, destination outside a root, magnet never
+  {# A 400 (magnets only, destination outside a root, magnet never
        resolved) used to do nothing visible at all — indistinguishable from
        the dialog just not working. Same $add contract as success, so it
        needs nothing from the server beyond the message it already computed
        for the plain-text body today. Same JSON.stringify($add) prefix as
-       the effect above and for the same reason. -->
+       the effect above and for the same reason. #}
   <p class="px-4 text-sm text-error" data-show="JSON.stringify($add) && $add.status === 'error'"
     data-text="JSON.stringify($add) && $add.message"></p>
 
@@ -112,7 +112,7 @@
     <form method="dialog" class="flex-1">
       <button class="btn btn-ghost min-h-12 w-full">Cancel</button>
     </form>
-    <!-- `selector` because this button lives outside #add-form — pinned in
+    {# `selector` because this button lives outside #add-form — pinned in
          the footer rather than scrolling away with it — so Datastar is told
          explicitly which form to serialize instead of walking up from here
          and finding none.
@@ -123,7 +123,7 @@
          still in flight is how the owner's retries piled up duplicate
          "already registered" errors) and the label. $add is cleared before
          firing so a stale error from a previous attempt does not linger
-         through a fresh one. -->
+         through a fresh one. #}
     <button type="button" class="btn btn-primary min-h-12 flex-[2]"
       data-indicator="adding" data-attr:disabled="$adding"
       data-on:click="$add = {status: null, message: null}; @post('/add', {contentType: 'form', selector: '#add-form'})">

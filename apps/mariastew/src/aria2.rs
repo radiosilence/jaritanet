@@ -149,8 +149,18 @@ impl Download {
     /// against a real daemon, it stays the whole torrent's size — so those
     /// two only ever agree once every byte has arrived, selected or not.
     /// Each file's own `length`/`completed_length` carry no such ambiguity.
-    fn selected_totals(&self) -> Option<(u64, u64)> {
-        let selected: Vec<&File> = self.files.iter().filter(|f| f.selected).collect();
+    /// While a magnet is still resolving, the only entry aria2 reports is a
+    /// `[METADATA]` pseudo-file standing for the torrent file itself: a few
+    /// hundred bytes, selected, and complete the moment it arrives. Counted
+    /// as a selection it reads as 100% of a few hundred bytes, which is why
+    /// a barely-started 6.42 GiB download drew a full green bar next to
+    /// "80.0 KiB / 6.42 GiB". It describes the lookup, not the download.
+    pub fn selected_totals(&self) -> Option<(u64, u64)> {
+        let selected: Vec<&File> = self
+            .files
+            .iter()
+            .filter(|f| f.selected && !f.path.contains("[METADATA]"))
+            .collect();
         if selected.is_empty() {
             return None;
         }
@@ -159,14 +169,23 @@ impl Download {
         Some((total, done))
     }
 
+    /// What the row should print for size and progress, from one source, so
+    /// the bar and the bytes beside it can never disagree. Falls back to the
+    /// download-level counters, which is right before the file list arrives
+    /// and wrong afterwards — aria2 never shrinks `total_length` to a
+    /// selection, so the fallback overstates a partial selection until
+    /// `selected_totals` can answer.
+    pub fn display_totals(&self) -> (u64, u64) {
+        self.selected_totals()
+            .unwrap_or((self.total_length, self.completed_length))
+    }
+
     /// `None` until the magnet resolves, which a `<progress>` with no value
     /// renders as indeterminate. That is the honest rendering: with
     /// `total_length` at zero a percentage is a division by zero, and
     /// "resolving the magnet" is a different state from "downloading nothing".
     pub fn percent(&self) -> Option<f64> {
-        let (total, done) = self
-            .selected_totals()
-            .unwrap_or((self.total_length, self.completed_length));
+        let (total, done) = self.display_totals();
         if total == 0 {
             return None;
         }
