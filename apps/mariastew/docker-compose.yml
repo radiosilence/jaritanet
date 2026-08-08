@@ -1,11 +1,31 @@
-# One-command local dev loop: `mise run mariastew:seed` (or --reset) to
-# populate ../dev-data/{tv,movies} with names shaped like the owner's real
-# library, then `docker compose up --build`, then
-# http://localhost:8080/auth/dev-login. `mise run mariastew:dev` does both.
-# See README's "Local development" for what dev-login does and does not
-# need, and Dockerfile.dev for why this builds a debug binary rather than
-# reusing the production Dockerfile.
+# One-command local dev loop: `docker compose up --build`, then
+# http://localhost:8080/auth/dev-login. The `seed` service below populates
+# the picker before mariastew starts, so there is no separate step and no
+# way to end up looking at an empty library that only looks like a working
+# one. See README's "Local development" for what dev-login does and does
+# not need, and Dockerfile.dev for why this builds a debug binary rather
+# than reusing the production Dockerfile.
 services:
+  # Guarantees `docker compose up` alone gives a populated, realistic
+  # library — an empty picker that looks like a working picker is worse
+  # than an error, and "run this other command first" is how that happens.
+  # Runs the same scripts/seed-dev-fixtures.ts as `mise run mariastew:seed`
+  # (mounted read-only, single source of truth) against the same bind
+  # mounts mariastew and aria2 use below, and exits; mariastew waits for it
+  # to succeed before starting. Idempotent, so this costs nothing on a
+  # second `up` and never touches a download already sitting in dev-data.
+  # A plain node image rather than baking node into Dockerfile.dev: this
+  # only ever runs on the host, never ships, and pinning it to the same
+  # major version mise installs (see mise.toml) is enough to keep it in
+  # step.
+  seed:
+    image: node:24-alpine
+    working_dir: /app
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./dev-data:/app/dev-data
+    command: ["node", "--experimental-strip-types", "scripts/seed-dev-fixtures.ts"]
+
   # Owns the shared network namespace and the published port, mirroring the
   # pod: one image, two containers, aria2's RPC reachable only from
   # 127.0.0.1 inside it. aria2 below joins this network rather than getting
@@ -15,6 +35,9 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     image: mariastew-dev
+    depends_on:
+      seed:
+        condition: service_completed_successfully
     ports:
       - "8080:8080"
     environment:
