@@ -135,6 +135,16 @@ registration cannot be closed — Claude registers its own client — so a
 registered client is assumed hostile. What makes that safe is that a client is
 useless without a token and a token issues only to a login in `auth.github.allowed`.
 
+**Every relying party gets an address, and both halves have to agree.** The
+scope is `read:user user:email` and the claim comes from the primary *verified*
+entry in `/user/emails` — `read:user` alone returns the public profile address,
+which is usually null. `email` is in the client registration's default scopes as
+well, because Hydra grants only what a client is registered for: a service asking
+for a scope its registration lacks is refused with `invalid_scope`, which Grafana
+reports as the provider denying the request, naming neither the scope nor the
+claim. Grafana is what forced this — it refuses a login carrying no address at
+all — but a bare `sub` was showing `github:12345` everywhere else too.
+
 **The session is Hydra's.** Logins are accepted with `remember`, carrying the
 upstream login in the session context, so signing in to a second service skips
 GitHub entirely and restarting the provider logs nobody out. That is also why it
