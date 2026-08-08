@@ -21,6 +21,7 @@ import {
 } from "@jaritanet/vpn";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import * as random from "@pulumi/random";
 import type * as z from "zod";
 import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
@@ -29,6 +30,7 @@ import { createGateway } from "./gateway.ts";
 import {
   createServices,
   publishRoutes,
+  relyingParties,
   type Route,
   type ServiceContext,
 } from "./services.ts";
@@ -369,6 +371,24 @@ export default async function () {
     ...edgeNodes,
   ];
 
+  // One secret per relying party, generated here so the provider that registers
+  // the client and the service that authenticates with it are handed the same
+  // value. Named `<client>-oidc` because that is the name mariastew's own
+  // generator used, so lifting it out here rewires who owns the credential
+  // without rotating it — the resource is unchanged and nobody is logged out.
+  //
+  // NB: random.* resources use the default provider — passing the k8s provider
+  // makes Pulumi look for `random:...` types on it and fail with "unrecognized
+  // resource type".
+  const parties = relyingParties(conf.services);
+  const oidcClientSecrets = Object.fromEntries(
+    parties.map((p) => [
+      p.id,
+      new random.RandomPassword(`${p.id}-oidc`, { length: 48, special: false })
+        .result,
+    ]),
+  );
+
   const serviceContext: ServiceContext = {
     provider,
     namespace: nsName,
@@ -382,6 +402,7 @@ export default async function () {
     users,
     telegram: conf.telegram,
     authHostname: conf.auth?.hostname,
+    oidcClientSecrets,
   };
 
   const serviceRoutes = createServices(serviceContext, conf.services);
@@ -405,7 +426,12 @@ export default async function () {
       // name in the same namespace, so this is derived from that deployment
       // rather than configured twice.
       hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
-      clients: [],
+      clients: parties.map((p) => ({
+        id: p.id,
+        name: p.name,
+        redirectUri: p.redirectUri,
+        secret: oidcClientSecrets[p.id],
+      })),
     });
     authRoute.push({
       service: "auth",

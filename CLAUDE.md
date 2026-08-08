@@ -66,7 +66,7 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`@jaritanet/auth`** — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
-- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
+- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra, whose client is registered for it by `@jaritanet/auth` rather than by itself. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
 - **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `conf.ts` parses the whole config surface, secrets included, in one pass
 
 Packages are `private` and imported as TypeScript source — Node resolves a
@@ -132,6 +132,22 @@ upstream login in the session context, so signing in to a second service skips
 GitHub entirely and restarting the provider logs nobody out. That is also why it
 holds no session store: a Redis with no volume, carrying one ten-minute CSRF
 nonce per login in flight, is the whole of its state.
+
+**Registration is derived, not declared.** A service says only *that* it needs
+auth — `oidc: { clientId, issuer }` — and `relyingParties()` in
+`infra/src/services.ts` turns that into a client whose redirect URI comes from
+the hostname the service already publishes and whose secret the stack generates.
+That is a security control rather than tidiness: the redirect allowlist is what
+stands between the provider and an open redirect, so a generated list cannot
+hold a typo, cannot keep an entry for a service that moved, and gives no service
+a way to widen its own permissions. Exact matches only — a wildcard on a
+hostname is how one forgotten subdomain becomes a token thief.
+
+Each secret is generated once in `main.ts` and handed to both halves, so the
+provider registering the client and the service authenticating with it cannot
+disagree. That replaced mariastew's `mariastew-register-client` Job, which had
+the service minting its own credential and posting it to Hydra's admin API —
+each relying party knowing how identity works is the thing being removed.
 
 ### Key Components
 

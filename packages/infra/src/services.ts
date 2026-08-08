@@ -55,6 +55,13 @@ export type ServiceContext = {
    * → nothing that depends on being able to authenticate is deployed.
    */
   authHostname?: string;
+  /**
+   * Each relying party's client secret, keyed by client id, generated once by
+   * the stack and handed to both halves — the provider registers the client
+   * with it, the service authenticates with it. Neither mints its own, which
+   * is what stops the two from disagreeing.
+   */
+  oidcClientSecrets: Record<string, pulumi.Output<string>>;
   /** Rotates the profile slug along with every other VPN credential. */
   credentialRotation: string;
   exits: Exit[];
@@ -83,6 +90,35 @@ export type Route = {
   paths?: string[];
   priority?: number;
 };
+
+/**
+ * The services that need to sign people in, and where each is sent back to.
+ *
+ * Derived rather than declared, and that is the security control rather than
+ * tidiness: the redirect allowlist is what stands between the provider and an
+ * open redirect, so a list generated from the hostname a service already
+ * publishes cannot hold a typo, cannot keep an entry for a service that moved,
+ * and gives no service a way to widen its own permissions.
+ *
+ * A `switch` for the same reason `createOne` is one — the callback path is the
+ * service's own, not something every kind shares — and it stays a switch of one
+ * until a second kind needs it.
+ */
+export function relyingParties(
+  services: Record<string, z.infer<typeof ServiceConfSchema>>,
+) {
+  return Object.entries(services).flatMap(([name, service]) =>
+    service.kind === "mariastew" && service.oidc?.issuer && service.hostname
+      ? [
+          {
+            id: service.oidc.clientId,
+            name,
+            redirectUri: `https://${service.hostname}/auth/callback`,
+          },
+        ]
+      : [],
+  );
+}
 
 function createOne(
   ctx: ServiceContext,
@@ -180,11 +216,7 @@ function createOne(
       if (!service.oidc?.issuer || !service.hostname) return [];
       createMariastew(provider, namespace, service, {
         nodeLabel: service.nodeLabel,
-        // Hydra is stood up by the mcp-gateway kind and reached at a bare
-        // service name in the same namespace, so this is derived from that
-        // deployment rather than configured twice. Cluster-internal only —
-        // the admin API is never fronted by a route.
-        hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
+        oidcClientSecret: ctx.oidcClientSecrets[service.oidc.clientId],
         telegram: ctx.telegram
           ? {
               botToken: pulumi.secret(ctx.telegram.botToken),

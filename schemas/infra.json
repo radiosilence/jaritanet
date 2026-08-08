@@ -1415,23 +1415,6 @@
                           }
                         ]
                       },
-                      "clientSecret": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "secure": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["secure"],
-                            "additionalProperties": false
-                          }
-                        ]
-                      },
                       "issuer": {
                         "anyOf": [
                           {

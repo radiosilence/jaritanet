@@ -63,14 +63,16 @@ export const MariastewConfSchema = z.object({
   image: ImageSchema,
   limits: LimitsSchema.default({ cpu: "2000m", memory: "1Gi" }),
   /**
-   * Registered at Hydra by this module rather than by hand, so the client and
-   * the redirect URI cannot drift from the hostname they belong to. The secret
-   * is generated when it is not given.
+   * Where to send the browser, and under what name. That is the whole of what
+   * a relying party knows about identity: the registration — the secret and
+   * the redirect URI — belongs to the provider, which derives the URI from the
+   * hostname below and generates the secret itself. A service that could type
+   * its own redirect URI would be a service that could widen its own
+   * permissions.
    */
   oidc: z
     .object({
       clientId: z.string().default("mariastew"),
-      clientSecret: z.string().optional(),
       issuer: z.string(),
     })
     .optional(),
