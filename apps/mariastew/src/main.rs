@@ -5,6 +5,7 @@
 //! this side, so there is no database, no reconciliation, and a restarted pod
 //! simply re-reads reality.
 
+mod activity;
 mod aria2;
 mod auth;
 mod config;
@@ -56,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
         aria2: aria2::Aria2::new(config.aria2_rpc_url.clone(), http.clone()),
         config: Arc::new(config),
         sessions: auth::session::Sessions::new(),
+        activity: activity::Activity::new(),
         http,
     };
 
