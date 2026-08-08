@@ -124,7 +124,7 @@ jobs:
     # Builds each architecture on a native runner. `version` publishes the semver
     # tags, which metadata-action cannot derive here because the build runs on a
     # branch push with no tag to read.
-    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@ba88a6fd90ee99c9a8a7681cd8712dff55ab83a2 # context-artifact-input (blit-workflows#3, unmerged)
+    uses: radiosilence/blit-workflows/.github/workflows/build-publish-container.yml@644a5b0b8398f5e038a4639991fdddc623afe5eb # context-artifact
     with:
       working-directory: "./apps/mariastew"
       image: "mariastew"
