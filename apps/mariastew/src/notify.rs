@@ -256,6 +256,7 @@ mod tests {
             aria2: Aria2::new(String::new(), reqwest::Client::new()),
             sessions: Sessions::new(),
             activity: crate::activity::Activity::new(),
+            clearing: crate::state::Clearing::default(),
             http: reqwest::Client::new(),
         }
     }

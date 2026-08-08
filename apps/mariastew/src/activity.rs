@@ -7,7 +7,7 @@
 //! selection, and giving up were visible only in the pod's log, so a row
 //! sitting on "starting" looked identical whether it was waiting on a sparse
 //! swarm or had failed twenty minutes ago. This is the record that tells
-//! those apart, and it is the only state on this side of aria2.
+//! those apart.
 //!
 //! Bounded, and lost on restart, deliberately. It explains how a download got
 //! where it is; *where it is* still comes from aria2, so a restarted pod
