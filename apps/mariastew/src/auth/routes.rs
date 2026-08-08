@@ -177,6 +177,7 @@ mod tests {
                 },
                 telegram: None,
             }),
+            activity: crate::activity::Activity::new(),
             aria2: Aria2::new(String::new(), reqwest::Client::new()),
             sessions: crate::auth::session::Sessions::new(),
             http: reqwest::Client::new(),
