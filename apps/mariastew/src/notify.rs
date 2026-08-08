@@ -23,8 +23,6 @@ use crate::filter;
 use crate::state::AppState;
 use crate::views;
 
-/// What the last poll saw of a download, which is what makes this tick a
-/// transition detector rather than a repeated announcement.
 struct Seen {
     announced: bool,
     health: Health,
@@ -255,8 +253,7 @@ async fn remove_if_garbage(state: &AppState, d: &Download, path: &Path) {
     let _ = tokio::fs::remove_file(format!("{path}.aria2")).await;
 }
 
-/// Escape what Telegram's HTML parse mode treats as markup. `&` first, or the
-/// entities this just wrote for `<` and `>` get escaped a second time.
+/// Escape for Telegram HTML. `&` first to avoid double-escaping entities.
 pub fn esc(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -281,7 +278,6 @@ async fn send(state: &AppState, text: &str) {
     }
 }
 
-/// Name, and where it landed — the second half is what makes it watchable.
 pub async fn finished(state: &AppState, name: &str, dir: &str) {
     let text = format!("<b>{}</b>\nfinished — {}", esc(name), esc(dir));
     send(state, &text).await;
