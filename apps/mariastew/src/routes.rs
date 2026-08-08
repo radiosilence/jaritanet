@@ -47,7 +47,19 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
     let mut downloads = state.aria2.tell_active().await?;
     downloads.extend(state.aria2.tell_waiting(0, 100).await?);
     downloads.extend(state.aria2.tell_stopped(0, 100).await?);
+    // `add`'s metadata-only pass exists to learn a magnet's file list before
+    // the real download starts (see `free_infohash`) and is gone by the time
+    // this runs in the ordinary case — `add` removes it once it has what it
+    // needs. aria2 names one `[METADATA]<torrent name>` for as long as it
+    // exists, which is how a stray one is told apart from a real download:
+    // it is never something the user asked to watch, so if one lingers
+    // because a previous `add` died mid-flight, it still must not appear.
+    downloads.retain(|d| !is_metadata_row(d));
     Ok(downloads)
+}
+
+fn is_metadata_row(d: &Download) -> bool {
+    d.name().starts_with("[METADATA]")
 }
 
 /// The `data:` payload for a `datastar-patch-elements` event: every line of
@@ -240,6 +252,8 @@ pub async fn add(
         "starting download"
     );
 
+    free_infohash(&state, &metadata_gid).await?;
+
     state
         .aria2
         .add_uri(
@@ -248,13 +262,35 @@ pub async fn add(
         )
         .await?;
 
-    // Best-effort: without this the metadata-only pass sits in the stopped
-    // list as a corpse. The real download is already under way either way.
-    if let Err(e) = state.aria2.remove_download_result(&metadata_gid).await {
-        tracing::warn!(gid = %metadata_gid, error = %e, "failed to clear metadata pass result");
-    }
-
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// Stop and purge the metadata-only pass so its infohash is free again.
+///
+/// aria2 refuses to register a second download under an infohash that is
+/// still active — the metadata pass above is that download, and it is still
+/// registered right up until this runs. Without this, the real `addUri` a
+/// few lines below fails every single time with "InfoHash ... is already
+/// registered", the metadata's 30KB placeholder is all that ever lands, and
+/// nothing the user asked for downloads. `remove` already falls back to
+/// `forceRemove` for a download that will not stop cleanly, which is exactly
+/// the case here — it is told to stop the instant it has told us what it
+/// resolved to, not once it is ready to.
+///
+/// Both calls are attempted and tolerated individually: depending on how far
+/// the metadata pass got on its own, one may already be a no-op. Only if
+/// both fail is there no evidence the infohash was actually released, and
+/// that is the one case this returns an error for — proceeding to the real
+/// `addUri` anyway would be issuing a request already known to be rejected.
+async fn free_infohash(state: &AppState, metadata_gid: &str) -> AppResult<()> {
+    let removed = state.aria2.remove(metadata_gid).await;
+    let purged = state.aria2.remove_download_result(metadata_gid).await;
+    match (removed, purged) {
+        (Err(remove_err), Err(_)) => Err(AppError::Upstream(format!(
+            "could not free the metadata pass ({metadata_gid}) before starting the real download: {remove_err}"
+        ))),
+        _ => Ok(()),
+    }
 }
 
 pub async fn pause(State(state): State<AppState>, Path(gid): Path<String>) -> AppResult<Response> {
@@ -505,19 +541,23 @@ mod tests {
         }
     }
 
+    /// A closed ephemeral port refuses the connection immediately and
+    /// deterministically, unlike a hardcoded port number that might belong to
+    /// something else on whatever machine runs this — used everywhere below
+    /// that wants an aria2 call to fail without a mock server.
+    async fn unreachable_url() -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+        format!("http://{addr}/jsonrpc")
+    }
+
     /// The failure this exists to survive: an aria2 sidecar that is down —
     /// restarting, or simply never started locally. `page` must still answer
     /// with the real page, not a 500, so there is something to look at.
     #[tokio::test]
     async fn page_degrades_to_an_empty_list_and_a_banner_when_aria2_is_unreachable() {
-        // Bind then drop: a closed ephemeral port refuses the connection
-        // immediately and deterministically, unlike a hardcoded port number
-        // that might belong to something else on whatever machine runs this.
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        drop(listener);
-
-        let html = page(State(state(format!("http://{addr}/jsonrpc"))))
+        let html = page(State(state(unreachable_url().await)))
             .await
             .expect("page must not 500 when aria2 is unreachable")
             .0;
@@ -529,6 +569,51 @@ mod tests {
             !html.contains("dl-"),
             "a download row rendered despite aria2 being unreachable: {html}"
         );
+    }
+
+    /// The bug this whole function exists to fix: the real `addUri` used to
+    /// run while the metadata pass was still registered under the same
+    /// infohash, and aria2 rejected it every time with "already registered"
+    /// — nothing anyone asked to download ever actually downloaded. This
+    /// pins the guard that replaced it: if neither call that is supposed to
+    /// free the infohash succeeds, `add` must stop rather than issue an
+    /// `addUri` already known to fail the same way.
+    #[tokio::test]
+    async fn free_infohash_errors_when_neither_call_can_reach_aria2() {
+        let app_state = state(unreachable_url().await);
+        let result = free_infohash(&app_state, "some-gid").await;
+        assert!(
+            result.is_err(),
+            "must not report the infohash free as fine when aria2 could not be reached at all"
+        );
+    }
+
+    /// aria2 marks the metadata-only pass with this literal prefix for as
+    /// long as it exists — the signal `all_downloads` filters on so it never
+    /// reaches the list as if it were something the user asked to watch.
+    #[test]
+    fn metadata_only_rows_are_recognised_by_name_and_real_ones_are_not() {
+        let metadata = Download {
+            gid: "m1".to_string(),
+            status: Status::Complete,
+            total_length: 0,
+            completed_length: 0,
+            download_speed: 0,
+            upload_speed: 0,
+            connections: 0,
+            num_seeders: 0,
+            error_message: None,
+            dir: String::new(),
+            files: Vec::new(),
+            bittorrent_name: Some("[METADATA]Some.Show.S01".to_string()),
+        };
+        assert!(is_metadata_row(&metadata));
+
+        let real = Download {
+            bittorrent_name: Some("Some.Show.S01".to_string()),
+            ..metadata
+        };
+        assert!(!is_metadata_row(&real));
     }
 
     #[test]
