@@ -461,7 +461,7 @@ config:
   jaritanet:adminSshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIOKFd98fp579BSC4svd/E8h1Bs5aeu9Iv5qix40+WmI jc@blit.cc
   jaritanet:tailnet:
     authKey:
-      secure: AAABAFdTxr5vrl04OjZGpzGrBywrhs6it+Dk/4ehhFth1gje1gho8PoXoYSt77fAQuWcfStdTtnP3yv7nVxNCqQOJMw9kL7pEJY08cPWAsWEr//mfbnSC/2Ap4IMsAw=
+      secure: AAABAPUJk8cSP4BCle0UNlTgQPHpZp80WGEMqbZp+4fx3Wh1ORkqWChwDukbz5Gd3DIsbT2L+F4awkbtp+R9xg6Elg1Ko8qHXYRVTM+My+YOv+Eus99hVHbE7usnjav7
     magicdnsSuffix: zonkey-jazz.ts.net
     oauth:
       clientId: kwGpaNTK9Y11CNTRL
@@ -497,5 +497,3 @@ config:
       clientSecret:
         secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
       allowed: radiosilence
-  jaritanet:tailnet.authKey:
-    secure: AAABAFmJv8UAh+loNQjkgcsyglnel1cN6Qhfj2OqktkeI06zN+86DDBorzu7nLwTT2S4a2DoNlg6PxVsKWJ+jbiktilkkcbjaWENph1geo5+ewQdlC2JJ5+JK5Usd0TE
