@@ -325,8 +325,9 @@ export function createMetrics(
                   "-remoteWrite.tmpDataPath=/buffer",
                   // What the home box gets to hold while its uplink is down.
                   // Beyond it the oldest blocks are dropped rather than the
-                  // node's disk filling.
-                  "-remoteWrite.maxDiskUsagePerURL=512MB",
+                  // node's disk filling. MiB rather than MB: 512MB is below
+                  // vmagent's own minimum and is rounded up with a warning.
+                  "-remoteWrite.maxDiskUsagePerURL=512MiB",
                   "-httpListenAddr=:8429",
                 ],
                 env: [
