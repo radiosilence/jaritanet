@@ -23,26 +23,36 @@
         <span aria-label="connections">🔗 {{ row.connections }}</span>
         <span aria-label="seeders">🌱 {{ row.seeders }}</span>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-3">
         {% if row.paused %}
-        <button type="button" class="btn btn-xs"
+        <button type="button" class="btn btn-sm min-h-11"
           data-on:click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
         {% else %}
-        <button type="button" class="btn btn-xs"
+        <button type="button" class="btn btn-sm min-h-11"
           data-on:click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
         {% endif %}
         {% if row.finished %}
-        <button type="button" class="btn btn-xs btn-ghost"
+        <button type="button" class="btn btn-sm btn-ghost min-h-11"
           data-on:click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
         {% else %}
-        <button type="button" class="btn btn-xs btn-error"
+        <button type="button" class="btn btn-sm btn-error min-h-11"
           data-on:click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
         {% endif %}
       </div>
     </div>
 
     {% if let Some(e) = row.error %}
-    <p class="text-error text-xs mt-1">{{ e }}</p>
+    <!-- A native disclosure: no Datastar wiring, and its open/closed state
+         survives the morph because the row keeps this element's identity —
+         patch-elements matches by id, not by replacing the subtree. -->
+    <details class="mt-1">
+      <summary class="text-error text-xs min-h-11 flex items-center cursor-pointer">Error — tap for details</summary>
+      <div class="text-xs mt-1 rounded-box bg-base-200 p-2 font-mono break-words">
+        <p>{{ e }}</p>
+        <p class="opacity-70 mt-1">gid {{ row.gid }}</p>
+        <p class="opacity-70">dir {{ row.dir }}</p>
+      </div>
+    </details>
     {% endif %}
   </div>
 {% endfor %}

@@ -11,7 +11,7 @@
 
 <header class="navbar bg-base-100 shadow-sm px-4">
   <h1 class="flex-1 text-lg font-semibold">mariastew</h1>
-  <button type="button" class="btn btn-primary btn-sm"
+  <button type="button" class="btn btn-primary btn-sm min-h-11"
     data-on:click="document.getElementById('add-dialog').showModal()">Add download</button>
 </header>
 
@@ -21,17 +21,31 @@
 </div>
 {% endif %}
 
-<dialog id="add-dialog" class="open:flex flex-col gap-4 rounded-box bg-base-100 p-6 shadow-xl backdrop:bg-black/50 max-w-sm w-full">
-  <h2 class="text-lg font-semibold">Add a download</h2>
-  <form id="add-form" class="flex flex-col gap-3">
-    <input name="magnet" required placeholder="magnet:?xt=..." class="input input-bordered w-full">
+<!-- Bounded to the viewport and split into three regions so nothing about
+     reaching them depends on how long the directory list under the current
+     root happens to be (see browse.html): a pinned header carries the paste
+     field — the first, primary action, always visible the moment this
+     opens; only the middle region scrolls; Add and Cancel are pinned at the
+     bottom, in a phone's thumb zone, never below a long list. `dvh` rather
+     than `vh` because mobile Safari's collapsing toolbar makes `vh` wrong
+     the moment the address bar shows or hides. -->
+<dialog id="add-dialog" class="open:flex flex-col max-h-[90dvh] w-full max-w-sm rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
+  <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-6">
+    <h2 class="text-lg font-semibold">Add a download</h2>
+    <input name="magnet" required placeholder="magnet:?xt=..." class="input input-bordered w-full min-h-11" autofocus>
     {{ self.picker()?|safe }}
-    <button type="button" class="btn btn-primary"
-      data-on:click="@post('/add', {contentType: 'form'})">Add</button>
   </form>
-  <form method="dialog">
-    <button class="btn btn-ghost btn-sm">Cancel</button>
-  </form>
+  <div class="flex justify-end gap-2 border-t border-base-300 p-4">
+    <form method="dialog">
+      <button class="btn btn-ghost min-h-11">Cancel</button>
+    </form>
+    <!-- `selector` because this button lives outside #add-form — pinned in
+         the footer rather than scrolling away with it — so Datastar is told
+         explicitly which form to serialize instead of walking up from here
+         and finding none. -->
+    <button type="button" class="btn btn-primary min-h-11"
+      data-on:click="@post('/add', {contentType: 'form', selector: '#add-form'})">Add</button>
+  </div>
 </dialog>
 
 <main class="p-4 max-w-2xl mx-auto">

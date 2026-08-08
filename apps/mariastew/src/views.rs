@@ -66,6 +66,10 @@ pub struct Row {
     pub connections: u32,
     pub seeders: u32,
     pub error: Option<String>,
+    /// Only shown alongside `error`, in the disclosure that reveals why a
+    /// row failed — nobody needs the destination of a download that is
+    /// working.
+    pub dir: String,
     pub finished: bool,
     pub paused: bool,
 }
@@ -105,6 +109,7 @@ impl From<&Download> for Row {
             connections: d.connections,
             seeders: d.num_seeders,
             error: d.error_message.clone(),
+            dir: d.dir.clone(),
             finished: d.is_finished(),
             paused: d.status == Status::Paused,
         }
@@ -405,6 +410,7 @@ mod tests {
                 connections: 1,
                 seeders: 1,
                 error: None,
+                dir: "/mnt/kontent/movies".into(),
                 finished: false,
                 paused: false,
             }],
@@ -426,5 +432,92 @@ mod tests {
         .unwrap();
         assert!(browse.contains("data-on:click"));
         assert!(!browse.contains("data-on-"));
+    }
+
+    /// The disclosure needs no JavaScript to work at all — a native
+    /// `<details>`/`<summary>` — and must carry enough to actually diagnose
+    /// the failure: the message, which download, and where it was headed.
+    #[test]
+    fn an_errored_row_discloses_the_message_gid_and_destination() {
+        let page = Downloads {
+            rows: vec![Row {
+                gid: "abc123".into(),
+                name: "Show.S01E01".into(),
+                percent: Some(12.0),
+                percent_display: Some("12".into()),
+                health: Health::Errored,
+                bar_class: "progress-error",
+                state: "errored",
+                down: "0 B/s".into(),
+                up: "0 B/s".into(),
+                size: "1.00 GiB".into(),
+                done: "128 MiB".into(),
+                connections: 0,
+                seeders: 0,
+                error: Some("No space left on device".into()),
+                dir: "/mnt/kontent/tv/Show/S01".into(),
+                finished: false,
+                paused: false,
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(page.contains("<details") && page.contains("<summary"));
+        assert!(page.contains("No space left on device"));
+        assert!(page.contains("abc123"));
+        assert!(page.contains("/mnt/kontent/tv/Show/S01"));
+    }
+
+    /// A row with no error shows no disclosure — nothing to tap into for a
+    /// download that is working.
+    #[test]
+    fn a_healthy_row_has_no_error_disclosure() {
+        let page = Downloads {
+            rows: vec![Row {
+                gid: "abc123".into(),
+                name: "Show.S01E01".into(),
+                percent: Some(50.0),
+                percent_display: Some("50".into()),
+                health: Health::Moving,
+                bar_class: "progress-success",
+                state: "moving",
+                down: "1.00 MiB/s".into(),
+                up: "0 B/s".into(),
+                size: "1.00 GiB".into(),
+                done: "512 MiB".into(),
+                connections: 1,
+                seeders: 1,
+                error: None,
+                dir: "/mnt/kontent/tv/Show/S01".into(),
+                finished: false,
+                paused: false,
+            }],
+        }
+        .render()
+        .unwrap();
+        assert!(!page.contains("<details"));
+    }
+
+    /// The failure mode this exists to prevent: a root with a hundred-plus
+    /// direct children pushing the paste field and the Add/Cancel row off
+    /// screen. Every bound has to be there, or a long list is unbounded
+    /// again by accident.
+    #[test]
+    fn the_dialog_and_the_directory_list_are_both_height_bounded_and_scroll() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains("max-h-[90dvh]"),
+            "dialog has no overall height cap: {page}"
+        );
+        assert!(
+            page.contains("max-h-[40vh]") && page.contains("overflow-y-auto"),
+            "directory list has no height cap or does not scroll: {page}"
+        );
     }
 }
