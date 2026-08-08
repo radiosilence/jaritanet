@@ -1,7 +1,10 @@
-# One-command local dev loop: `docker compose up --build`, then
-# http://localhost:8080/auth/dev-login. See README's "Local development" for
-# what dev-login does and does not need, and Dockerfile.dev for why this
-# builds a debug binary rather than reusing the production Dockerfile.
+# One-command local dev loop: `mise run mariastew:seed` (or --reset) to
+# populate ../dev-data/{tv,movies} with names shaped like the owner's real
+# library, then `docker compose up --build`, then
+# http://localhost:8080/auth/dev-login. `mise run mariastew:dev` does both.
+# See README's "Local development" for what dev-login does and does not
+# need, and Dockerfile.dev for why this builds a debug binary rather than
+# reusing the production Dockerfile.
 services:
   # Owns the shared network namespace and the published port, mirroring the
   # pod: one image, two containers, aria2's RPC reachable only from
@@ -15,7 +18,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ROOTS: "downloads:/downloads"
+      # tv before movies, matching production's shape (see config.rs's own
+      # tests) rather than a single flat root.
+      ROOTS: "tv:/tv,movies:/movies"
       PUBLIC_URL: "http://localhost:8080"
       ARIA2_RPC_URL: "http://127.0.0.1:6800/jsonrpc"
       # Never actually reached: /auth/dev-login mints a session without
@@ -25,12 +30,15 @@ services:
       OIDC_CLIENT_SECRET: "dev"
       RUST_LOG: "info,mariastew=debug"
     volumes:
-      - ./dev-data/downloads:/downloads
+      - ./dev-data/tv:/tv
+      - ./dev-data/movies:/movies
 
   # Same image, run as aria2c instead of mariastew — see "One image, run
   # twice" in the README. `--rpc-listen-all=false` binds the RPC port to
   # loopback only, which is why this has to share mariastew's network
-  # namespace rather than talk to it over a compose bridge network.
+  # namespace rather than talk to it over a compose bridge network. Both
+  # roots are mounted here too, same as production (`mounts` in
+  # packages/mariastew/src/mariastew.ts) — a download can land in either.
   aria2:
     image: mariastew-dev
     depends_on:
@@ -41,7 +49,7 @@ services:
       - --enable-rpc
       - --rpc-listen-all=false
       - --rpc-listen-port=6800
-      - --dir=/downloads
+      - --dir=/tv
       - --continue=true
       - --check-integrity=true
       # Nothing is preallocated, so a file the filter rejected never touches
@@ -52,4 +60,5 @@ services:
       - --bt-enable-lpd=true
       - --enable-peer-exchange=true
     volumes:
-      - ./dev-data/downloads:/downloads
+      - ./dev-data/tv:/tv
+      - ./dev-data/movies:/movies

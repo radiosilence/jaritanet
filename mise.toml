@@ -66,9 +66,20 @@ run = "./node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --min
 description = "Validate every profile shape against the real sing-box binary (needs docker)"
 run = "./scripts/check-profiles.ts"
 
+[tasks."mariastew:seed"]
+description = "Populate the local tv/movies roots with names shaped like the real library"
+dir = "apps/mariastew"
+run = "./scripts/seed-dev-fixtures.ts"
+
+[tasks."mariastew:seed:reset"]
+description = "Wipe the local tv/movies roots and reseed from scratch"
+dir = "apps/mariastew"
+run = "./scripts/seed-dev-fixtures.ts --reset"
+
 [tasks."mariastew:dev"]
 description = "Run mariastew + aria2 locally against a debug build (needs docker)"
 dir = "apps/mariastew"
+depends = ["mariastew:seed"]
 run = "docker compose up --build"
 
 [tasks."update:apps"]

@@ -185,19 +185,46 @@ downloads move.
 
 ### docker compose, if you want aria2 too
 
-`docker compose up --build` (or `mise run mariastew:dev` from the repo root)
-brings up the full flow — mariastew and a real aria2c — with one command:
+`mise run mariastew:dev` from the repo root seeds the fixture library (below)
+and brings up the full flow — mariastew and a real aria2c — with one command.
+Equivalently, by hand:
 
 ```sh
 cd apps/mariastew
+./scripts/seed-dev-fixtures.ts
 docker compose up --build
 ```
 
-Then visit `http://localhost:8080/auth/dev-login`. Downloads land in
-`apps/mariastew/dev-data/downloads/` on the host, bind-mounted into both
-containers at `/downloads`, and `ROOTS` is preset to point at it. `docker
-compose down` stops and removes both containers and the network; the
-downloads directory is yours and is left alone.
+Then visit `http://localhost:8080/auth/dev-login`. `ROOTS` is preset to
+`tv:/tv,movies:/movies`, both bind-mounted from `apps/mariastew/dev-data/`
+into both containers at the same path — real downloads land there
+alongside the fixtures. `docker compose down` stops and removes both
+containers and the network; `dev-data/` is yours and is left alone.
+
+#### Fixture library
+
+An empty picker cannot reproduce a layout bug — every one found so far only
+showed up because of what a real name does to the layout. `mise run
+mariastew:seed` (`scripts/seed-dev-fixtures.ts`) populates `dev-data/movies`
+with ~140 entries: a fixed set of real names from the owner's library, kept
+verbatim (full-width CJK brackets, runs of consecutive spaces, a leading
+`www.` prefix, square brackets, commas, names past 70 characters), padded
+out with deterministically generated filler so the picker's scroll cap is
+exercised against a realistic count rather than three tidy names. It also
+seeds `dev-data/tv` with a few shows carrying `Season 01`/`Season 02`
+children, plus `Show Name S02` and `Show.Name.Season.2` as two
+top-level entries — the same show named two different real ways, which is
+the exact case the destination picker exists to tell apart (#257).
+
+The filler is generated from a seeded PRNG, not `Math.random()`, so it is
+the same list on every machine and every run — a bug report against "the
+17th entry" stays reproducible. Re-running the seed script is a no-op for
+anything that already exists (`mkdir` with `recursive: true`), so it is
+safe to run again without disturbing whatever aria2 has since downloaded
+into the same directories. `mise run mariastew:seed:reset` (or
+`./scripts/seed-dev-fixtures.ts --reset`) wipes `dev-data/tv` and
+`dev-data/movies` first — the way back to a clean fixture-only state once a
+test download has piled up in there.
 
 This mirrors "One image, run twice" above rather than inventing a second
 image: `docker-compose.yml` builds one image and runs it as both services,
