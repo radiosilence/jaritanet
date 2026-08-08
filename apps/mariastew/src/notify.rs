@@ -18,14 +18,22 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::aria2::{Download, Status};
+use crate::aria2::{Download, Health, Status};
 use crate::filter;
 use crate::routes::all_downloads;
 use crate::state::AppState;
+use crate::views;
 
 /// How often to poll aria2 for a finished or failed download. The whole point
 /// of this is not having to keep a page open, so nothing here is in a hurry.
 const WATCH_INTERVAL: Duration = Duration::from_secs(5);
+
+/// What the last poll saw of a download, which is what makes this tick a
+/// transition detector rather than a repeated announcement.
+struct Seen {
+    announced: bool,
+    health: Health,
+}
 
 /// Watch aria2 and announce transitions, independently of anyone looking.
 ///
@@ -37,9 +45,14 @@ const WATCH_INTERVAL: Duration = Duration::from_secs(5);
 /// on a restart everything already finished is still in the queue seeding, and
 /// re-announcing all of it is the one behaviour that would make the messages
 /// worth muting.
+///
+/// Health changes are written to the activity log from here rather than from
+/// the stream, for the same reason the Telegram messages are: a transition
+/// that happened while nobody had the page open is exactly the one worth
+/// having a record of afterwards.
 pub fn spawn_watcher(state: AppState) {
     tokio::spawn(async move {
-        let mut announced: HashMap<String, bool> = HashMap::new();
+        let mut seen: HashMap<String, Seen> = HashMap::new();
         let mut seeded = false;
 
         loop {
@@ -55,31 +68,59 @@ pub fn spawn_watcher(state: AppState) {
 
             if !seeded {
                 for d in &downloads {
-                    announced.insert(d.gid.clone(), d.status == Status::Error || d.is_finished());
+                    seen.insert(
+                        d.gid.clone(),
+                        Seen {
+                            announced: d.status == Status::Error || d.is_finished(),
+                            health: d.health(),
+                        },
+                    );
                 }
                 seeded = true;
                 continue;
             }
 
             for d in &downloads {
-                let already = announced.get(&d.gid).copied().unwrap_or(false);
+                let previous = seen.get(&d.gid);
+                let already = previous.is_some_and(|s| s.announced);
+                let health = d.health();
+
+                // Only a change, and only for a download already being
+                // watched: a first sighting is not a transition, and writing
+                // one would put a spurious line at the head of every log.
+                if let Some(previous) = previous
+                    && previous.health != health
+                {
+                    state.activity.record(&d.gid, views::state_word(health));
+                }
+
                 let terminal = d.status == Status::Error || d.is_finished();
                 if terminal && !already {
                     if d.status == Status::Error {
                         let error = d.error_message.as_deref().unwrap_or("unknown error");
+                        state.activity.record(&d.gid, format!("failed — {error}"));
                         failed(&state, d.name(), error).await;
                     } else {
                         sweep_garbage(&state, d).await;
+                        state
+                            .activity
+                            .record(&d.gid, format!("finished — {}", d.dir));
                         finished(&state, d.name(), &d.dir).await;
                     }
                 }
-                announced.insert(d.gid.clone(), terminal);
+                seen.insert(
+                    d.gid.clone(),
+                    Seen {
+                        announced: terminal,
+                        health,
+                    },
+                );
             }
 
             // `tellStopped` is a bounded window, so a download eventually
             // falls out of it — forget it too, rather than growing forever.
             let live: HashMap<&str, ()> = downloads.iter().map(|d| (d.gid.as_str(), ())).collect();
-            announced.retain(|gid, _| live.contains_key(gid.as_str()));
+            seen.retain(|gid, _| live.contains_key(gid.as_str()));
         }
     });
 }
@@ -117,6 +158,13 @@ async fn sweep_garbage(state: &AppState, d: &Download) {
             gid = %d.gid,
             path = %f.path,
             "removed deselected garbage left by a piece boundary"
+        );
+        // A file that appears in the destination and then disappears is
+        // otherwise unexplained — this is the only thing that deletes from
+        // the library without anyone asking it to.
+        state.activity.record(
+            &d.gid,
+            format!("deleted junk left by a piece boundary — {}", f.path),
         );
         let _ = tokio::fs::remove_file(format!("{}.aria2", f.path)).await;
     }
@@ -180,19 +228,11 @@ mod tests {
 
     fn download(files: Vec<File>) -> Download {
         Download {
-            gid: "gid1".to_string(),
             status: Status::Complete,
             total_length: 100,
             completed_length: 100,
-            download_speed: 0,
-            upload_speed: 0,
-            connections: 0,
-            num_seeders: 0,
-            error_message: None,
-            dir: String::new(),
             files,
-            bittorrent_name: None,
-            followed_by: Vec::new(),
+            ..Download::fixture()
         }
     }
 
@@ -215,6 +255,7 @@ mod tests {
             }),
             aria2: Aria2::new(String::new(), reqwest::Client::new()),
             sessions: Sessions::new(),
+            activity: crate::activity::Activity::new(),
             http: reqwest::Client::new(),
         }
     }

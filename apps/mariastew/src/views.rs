@@ -4,9 +4,12 @@
 //! once here — the numbers formatted, the health resolved — so the markup makes
 //! no decisions and there is one place to test the ones that matter.
 
+use std::time::Instant;
+
 use askama::Template;
 
-use crate::aria2::{Download, Health, Status};
+use crate::activity::Entry;
+use crate::aria2::{self, Download, Health, Status};
 
 /// A destination the picker offers, which is also a mount the pod has.
 pub struct RootView {
@@ -19,6 +22,31 @@ pub struct DirView {
     pub name: String,
     pub path: String,
 }
+
+/// One file inside a torrent, as the expanded row lists it. A deselected file
+/// is listed rather than hidden: "why is that one not downloading" is the
+/// question a missing row cannot answer, and the garbage filter's decisions
+/// were previously visible only in the pod's log.
+pub struct FileView {
+    pub name: String,
+    pub size: String,
+    pub percent_display: Option<String>,
+    pub selected: bool,
+}
+
+/// A line of a download's history, with how long ago it happened. Elapsed
+/// rather than a clock time: the question being asked of a log while watching
+/// a download is "how long has it been sat there", and the pod has no
+/// timezone to render a wall clock in anyway.
+pub struct LogView {
+    pub ago: String,
+    pub message: String,
+}
+
+/// Files listed before the rest are folded into a count. A season pack is
+/// twenty entries and reads fine; a discography is five hundred and would be
+/// the largest thing on the page, re-sent every second to say nothing.
+const MAX_FILES_SHOWN: usize = 24;
 
 pub struct Row {
     pub gid: String,
@@ -41,13 +69,36 @@ pub struct Row {
     pub up: String,
     pub size: String,
     pub done: String,
+    /// Time left at the current rate, absent whenever that rate would make one
+    /// up. See `Download::eta_secs`.
+    pub eta: Option<String>,
+    /// Given back to the swarm, and as a multiple of what was taken. The
+    /// ratio is absent until something has actually been downloaded to divide
+    /// by.
+    pub uploaded: String,
+    pub ratio: Option<String>,
     pub connections: u32,
     pub seeders: u32,
+    /// How aria2 is cutting the torrent up, which is the explanation for both
+    /// lumpy progress and for a deselected file landing anyway.
+    pub pieces: Option<String>,
+    pub info_hash: Option<String>,
     pub error: Option<String>,
+    /// aria2's numeric reason, in words where there are words for it. Shown
+    /// beside `error` and, more to the point, instead of it when aria2 left
+    /// the message empty.
+    pub error_code: Option<String>,
     /// Only shown alongside `error`, in the disclosure that reveals why a
     /// row failed — nobody needs the destination of a download that is
     /// working.
     pub dir: String,
+    pub files: Vec<FileView>,
+    pub file_count: usize,
+    pub selected_count: usize,
+    /// What the garbage filter left out, once there is anything to say about
+    /// it: "2 skipped, 58.3 MiB".
+    pub skipped: Option<String>,
+    pub log: Vec<LogView>,
     pub finished: bool,
     pub paused: bool,
 }
@@ -60,6 +111,13 @@ pub struct Row {
 /// screen was the giveaway: it is precise about traffic and meaningless to
 /// whoever is waiting for a film. Each state now says either what is
 /// happening or what is wrong, in the terms of the thing being waited for.
+///
+/// `Health::Resolving` used to answer for everything between pasting a magnet
+/// and the first byte, which is where a download spends the time someone
+/// actually spends wondering about it — "starting" said the same thing to a
+/// dead magnet, a busy one, a queued one, and a resumed one being hash-checked.
+/// Each of those has a different answer to "should I wait or fix it", so each
+/// says which it is.
 fn bar_class_and_state(health: Health) -> (&'static str, &'static str) {
     match health {
         Health::Moving => ("progress-success", "downloading"),
@@ -68,22 +126,47 @@ fn bar_class_and_state(health: Health) -> (&'static str, &'static str) {
         Health::Blocked => ("progress-error", "can't connect"),
         Health::Errored => ("progress-error", "failed"),
         Health::Dead => ("progress-error", "no seeders"),
-        Health::Resolving => ("progress-info", "starting"),
+        Health::Queued => ("progress-info", "queued"),
+        Health::FindingPeers => ("progress-info", "finding peers"),
+        Health::FetchingMetadata => ("progress-info", "fetching metadata"),
+        Health::Verifying => ("progress-info", "checking files"),
         Health::Paused => ("progress-info", "paused"),
     }
 }
 
-impl From<&Download> for Row {
-    fn from(d: &Download) -> Self {
+/// The word a row shows for a state, for anything that needs to name one
+/// outside a row — the activity log, which records a state change in the same
+/// words the badge is about to show, rather than a second vocabulary for the
+/// same set of facts.
+pub fn state_word(health: Health) -> &'static str {
+    bar_class_and_state(health).1
+}
+
+/// The last path segment, which is the only part of a file worth a row of its
+/// own — every file in a torrent shares the rest of it with its siblings.
+fn basename(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
+impl Row {
+    pub fn new(d: &Download, log: Vec<Entry>) -> Self {
         let percent = d.percent();
         let health = d.health();
         let (bar_class, state) = bar_class_and_state(health);
         let (size, done) = d.display_totals();
+        let now = Instant::now();
+
+        let (skipped_count, skipped_bytes) = d
+            .files
+            .iter()
+            .filter(|f| !f.selected)
+            .fold((0usize, 0u64), |(n, b), f| (n + 1, b + f.length));
+
         Row {
             gid: d.gid.clone(),
             // A still-resolving magnet is named `[METADATA]<infohash>` by
             // aria2. The marker is how the row is classified, not something
-            // to read — the state badge already says "starting".
+            // to read — the state badge already says what it is doing.
             name: d.name().trim_start_matches("[METADATA]").to_string(),
             percent,
             percent_display: percent.map(|p| format!("{p:.0}")),
@@ -95,10 +178,49 @@ impl From<&Download> for Row {
             // The same totals the bar is drawn from — see `display_totals`.
             size: bytes(size),
             done: bytes(done),
+            eta: d.eta_secs().map(duration),
+            uploaded: bytes(d.upload_length),
+            ratio: d.ratio().map(|r| format!("{r:.2}")),
             connections: d.connections,
             seeders: d.num_seeders,
-            error: d.error_message.clone(),
+            pieces: (d.num_pieces > 0)
+                .then(|| format!("{} pieces × {}", d.num_pieces, bytes(d.piece_length))),
+            info_hash: d.info_hash.clone(),
+            error: d.error_message.clone().filter(|m| !m.is_empty()),
+            error_code: d
+                .error_code
+                .map(|code| match aria2::error_code_meaning(code) {
+                    Some(meaning) => format!("aria2 code {code} — {meaning}"),
+                    None => format!("aria2 code {code}"),
+                }),
             dir: d.dir.clone(),
+            files: d
+                .files
+                .iter()
+                .take(MAX_FILES_SHOWN)
+                .map(|f| FileView {
+                    name: basename(&f.path).to_string(),
+                    size: bytes(f.length),
+                    // A deselected file's own bar would only ever report
+                    // piece-boundary spillover, which is not progress towards
+                    // anything — the row says "skipped" instead.
+                    percent_display: (f.selected && f.length > 0).then(|| {
+                        format!("{:.0}", f.completed_length as f64 / f.length as f64 * 100.0)
+                    }),
+                    selected: f.selected,
+                })
+                .collect(),
+            file_count: d.files.len(),
+            selected_count: d.files.len() - skipped_count,
+            skipped: (skipped_count > 0)
+                .then(|| format!("{skipped_count} skipped, {}", bytes(skipped_bytes))),
+            log: log
+                .into_iter()
+                .map(|e| LogView {
+                    ago: ago(now.saturating_duration_since(e.at)),
+                    message: e.message,
+                })
+                .collect(),
             finished: d.is_finished(),
             paused: d.status == Status::Paused,
         }
@@ -189,9 +311,78 @@ pub fn rate(n: u64) -> String {
     format!("{}/s", bytes(n))
 }
 
+/// A span of time in the two largest units it needs. Nobody waiting on a film
+/// wants the seconds off a four-hour estimate, and nobody waiting on the last
+/// thirty seconds wants them rounded away.
+pub fn duration(secs: u64) -> String {
+    if secs >= 3600 {
+        format!("{}h {}m", secs / 3600, secs % 3600 / 60)
+    } else if secs >= 60 {
+        format!("{}m {}s", secs / 60, secs % 60)
+    } else {
+        format!("{secs}s")
+    }
+}
+
+/// How long ago, in one unit. This sits in a narrow gutter beside every log
+/// line, and the question it answers — has this been stuck for a while — is
+/// about magnitude, not precision.
+pub fn ago(elapsed: std::time::Duration) -> String {
+    let secs = elapsed.as_secs();
+    if secs < 60 {
+        format!("{secs}s")
+    } else if secs < 3600 {
+        format!("{}m", secs / 60)
+    } else {
+        format!("{}h", secs / 3600)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::aria2::File;
+
+    /// A torrent halfway through, which is what most of these render and vary
+    /// one field of. Built through `Row::new` rather than as a `Row` literal
+    /// so a test cannot pin a combination the conversion would never produce
+    /// — a literal was free to claim `Health::Moving` beside a state of
+    /// "failed", and several did.
+    fn moving() -> Download {
+        Download {
+            gid: "abc".to_string(),
+            total_length: 1_073_741_824,
+            completed_length: 536_870_912,
+            download_speed: 1_048_576,
+            connections: 1,
+            num_seeders: 1,
+            bittorrent_name: Some("Show.S01E01".to_string()),
+            ..Download::fixture()
+        }
+    }
+
+    fn render(d: &Download) -> String {
+        render_with_log(d, Vec::new())
+    }
+
+    fn render_with_log(d: &Download, log: Vec<Entry>) -> String {
+        (Downloads {
+            rows: vec![Row::new(d, log)],
+        })
+        .render()
+        .expect("downloads template renders")
+    }
+
+    fn file(index: u32, path: &str, length: u64, completed_length: u64, selected: bool) -> File {
+        File {
+            index,
+            path: path.to_string(),
+            length,
+            completed_length,
+            selected,
+        }
+    }
 
     /// The breakout the picker has to keep stopping: a directory the owner
     /// can create, named so that it closes whatever it is pasted into.
@@ -311,12 +502,35 @@ mod tests {
         );
     }
 
+    /// "starting" used to answer for all four of these. Each has a different
+    /// answer to "should I wait or fix this", which is the whole reason the
+    /// state is a word rather than just a colour.
     #[test]
-    fn state_resolving() {
+    fn the_states_that_replaced_starting_each_say_which_one_they_are() {
         assert_eq!(
-            bar_class_and_state(Health::Resolving),
-            ("progress-info", "starting")
+            bar_class_and_state(Health::FindingPeers),
+            ("progress-info", "finding peers")
         );
+        assert_eq!(
+            bar_class_and_state(Health::FetchingMetadata),
+            ("progress-info", "fetching metadata")
+        );
+        assert_eq!(
+            bar_class_and_state(Health::Queued),
+            ("progress-info", "queued")
+        );
+        assert_eq!(
+            bar_class_and_state(Health::Verifying),
+            ("progress-info", "checking files")
+        );
+    }
+
+    /// The log records a transition in the same words the badge is about to
+    /// show it in — one vocabulary for one set of facts.
+    #[test]
+    fn the_word_the_log_uses_for_a_state_is_the_word_the_badge_uses() {
+        assert_eq!(state_word(Health::FindingPeers), "finding peers");
+        assert_eq!(state_word(Health::Moving), "downloading");
     }
 
     #[test]
@@ -402,29 +616,7 @@ mod tests {
 
     #[test]
     fn browse_and_download_row_actions_all_use_colon_syntax() {
-        let page = Downloads {
-            rows: vec![Row {
-                gid: "abc".into(),
-                name: "test.iso".into(),
-                percent: Some(50.0),
-                percent_display: Some("50".into()),
-                health: Health::Moving,
-                bar_class: "progress-success",
-                state: "downloading",
-                down: "1.00 MiB/s".into(),
-                up: "0 B/s".into(),
-                size: "1.00 GiB".into(),
-                done: "512 MiB".into(),
-                connections: 1,
-                seeders: 1,
-                error: None,
-                dir: "/mnt/kontent/movies".into(),
-                finished: false,
-                paused: false,
-            }],
-        }
-        .render()
-        .unwrap();
+        let page = render(&moving());
         assert!(page.contains(r#"data-on:click="@post('/downloads/abc/pause')""#));
         assert!(!page.contains("data-on-"));
 
@@ -465,30 +657,16 @@ mod tests {
             })
         };
 
-        let row = Row {
-            gid: "abc".into(),
-            name: "test.iso".into(),
-            percent: Some(100.0),
-            percent_display: Some("100".into()),
-            health: Health::Complete,
-            bar_class: "progress-success",
-            state: "ready",
-            down: rate(0),
-            up: rate(1024),
-            size: "1.00 GiB".into(),
-            done: "1.00 GiB".into(),
-            connections: 3,
-            seeders: 2,
-            error: None,
-            dir: "/mnt/kontent/movies".into(),
-            finished: true,
-            paused: false,
-        };
-
-        let downloads = Downloads { rows: vec![row] }.render().unwrap();
-        // The finished badge, the destination, both rates, connections and
-        // seeders — the six that used to be characters.
-        assert_eq!(downloads.matches("<svg class=\"icon").count(), 6);
+        // Finished, so the one row rendered here is also the only one that
+        // carries the tick.
+        let downloads = render(&Download {
+            completed_length: 1_073_741_824,
+            ..moving()
+        });
+        // The finished badge and the destination. The readings that used to
+        // be an arrow apiece are a `<dl>` of named pairs now, and a `dt`
+        // saying "down" leaves an arrow beside it nothing to add.
+        assert_eq!(downloads.matches("<svg class=\"icon").count(), 2);
         assert_eq!(glyph(&downloads), None, "{downloads}");
 
         let browse = Browse {
@@ -609,29 +787,13 @@ mod tests {
     /// the failure: the message, which download, and where it was headed.
     #[test]
     fn an_errored_row_discloses_the_message_gid_and_destination() {
-        let page = Downloads {
-            rows: vec![Row {
-                gid: "abc123".into(),
-                name: "Show.S01E01".into(),
-                percent: Some(12.0),
-                percent_display: Some("12".into()),
-                health: Health::Errored,
-                bar_class: "progress-error",
-                state: "failed",
-                down: "0 B/s".into(),
-                up: "0 B/s".into(),
-                size: "1.00 GiB".into(),
-                done: "128 MiB".into(),
-                connections: 0,
-                seeders: 0,
-                error: Some("No space left on device".into()),
-                dir: "/mnt/kontent/tv/Show/S01".into(),
-                finished: false,
-                paused: false,
-            }],
-        }
-        .render()
-        .unwrap();
+        let page = render(&Download {
+            gid: "abc123".to_string(),
+            status: Status::Error,
+            error_message: Some("No space left on device".to_string()),
+            dir: "/mnt/kontent/tv/Show/S01".to_string(),
+            ..moving()
+        });
         assert!(page.contains("<details") && page.contains("<summary"));
         assert!(page.contains("No space left on device"));
         assert!(page.contains("abc123"));
@@ -652,29 +814,10 @@ mod tests {
     #[test]
     fn a_long_torrent_name_still_truncates_to_one_line_in_the_collapsed_row() {
         let long_name = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
-        let page = Downloads {
-            rows: vec![Row {
-                gid: "abc".into(),
-                name: long_name.into(),
-                percent: Some(50.0),
-                percent_display: Some("50".into()),
-                health: Health::Moving,
-                bar_class: "progress-success",
-                state: "downloading",
-                down: "1.00 MiB/s".into(),
-                up: "0 B/s".into(),
-                size: "1.00 GiB".into(),
-                done: "512 MiB".into(),
-                connections: 1,
-                seeders: 1,
-                error: None,
-                dir: "/mnt/kontent/movies".into(),
-                finished: false,
-                paused: false,
-            }],
-        }
-        .render()
-        .unwrap();
+        let page = render(&Download {
+            bittorrent_name: Some(long_name.to_string()),
+            ..moving()
+        });
         assert!(
             page.contains(long_name),
             "the full name is still in the markup, just visually truncated"
@@ -689,29 +832,7 @@ mod tests {
     /// download that is working.
     #[test]
     fn a_healthy_row_has_no_error_disclosure() {
-        let page = Downloads {
-            rows: vec![Row {
-                gid: "abc123".into(),
-                name: "Show.S01E01".into(),
-                percent: Some(50.0),
-                percent_display: Some("50".into()),
-                health: Health::Moving,
-                bar_class: "progress-success",
-                state: "downloading",
-                down: "1.00 MiB/s".into(),
-                up: "0 B/s".into(),
-                size: "1.00 GiB".into(),
-                done: "512 MiB".into(),
-                connections: 1,
-                seeders: 1,
-                error: None,
-                dir: "/mnt/kontent/tv/Show/S01".into(),
-                finished: false,
-                paused: false,
-            }],
-        }
-        .render()
-        .unwrap();
+        let page = render(&moving());
         // Every row is a <details> now (see the module doc on downloads.html)
         // — collapsed for a healthy one — so absence of the tag itself is no
         // longer the signal. The error block itself, styled `text-error`
@@ -931,67 +1052,189 @@ mod tests {
     /// quickly. Filled and checked is the one state meant to pop.
     #[test]
     fn a_finished_row_gets_a_filled_badge_and_the_rest_do_not() {
-        let make_row = |finished: bool| Row {
-            gid: "abc".into(),
-            name: "Show.S01E01".into(),
-            percent: Some(100.0),
-            percent_display: Some("100".into()),
-            health: Health::Complete,
-            bar_class: "progress-success",
-            state: "ready",
-            down: "0 B/s".into(),
-            up: "0 B/s".into(),
-            size: "1.00 GiB".into(),
-            done: "1.00 GiB".into(),
-            connections: 0,
-            seeders: 0,
-            error: None,
-            dir: "/mnt/kontent/tv/Show/S01".into(),
-            finished,
-            paused: false,
-        };
-        let finished = (Downloads {
-            rows: vec![make_row(true)],
-        })
-        .render()
-        .unwrap();
+        let finished = render(&Download {
+            completed_length: 1_073_741_824,
+            download_speed: 0,
+            ..moving()
+        });
         assert!(finished.contains("badge-success"));
-
-        let moving = (Downloads {
-            rows: vec![make_row(false)],
-        })
-        .render()
-        .unwrap();
-        assert!(!moving.contains("badge-success"));
+        assert!(!render(&moving()).contains("badge-success"));
     }
 
     /// The other half of "idk where it has put the file": every row shows
     /// its destination without a tap, not just the errored ones.
     #[test]
     fn every_row_shows_its_destination_directory() {
-        let page = (Downloads {
-            rows: vec![Row {
-                gid: "abc".into(),
-                name: "Show.S01E01".into(),
-                percent: Some(50.0),
-                percent_display: Some("50".into()),
-                health: Health::Moving,
-                bar_class: "progress-success",
-                state: "downloading",
-                down: "1.00 MiB/s".into(),
-                up: "0 B/s".into(),
-                size: "1.00 GiB".into(),
-                done: "512 MiB".into(),
-                connections: 1,
-                seeders: 1,
-                error: None,
-                dir: "/mnt/kontent/tv/Show/S01".into(),
-                finished: false,
-                paused: false,
-            }],
-        })
-        .render()
-        .unwrap();
+        let page = render(&Download {
+            dir: "/mnt/kontent/tv/Show/S01".to_string(),
+            ..moving()
+        });
         assert!(page.contains("/mnt/kontent/tv/Show/S01"));
+    }
+
+    /// The ticket's first half (#298): a row that had nothing to say about
+    /// itself beyond a percentage. These are the readings that answer "how
+    /// long", "is it giving anything back", and "how is aria2 cutting this
+    /// up" — none of which reached the page before.
+    #[test]
+    fn the_expanded_row_carries_the_readings_a_percentage_cannot() {
+        let page = render(&Download {
+            upload_length: 268_435_456,
+            piece_length: 4_194_304,
+            num_pieces: 256,
+            info_hash: Some("d1e2f3a4b5c6".to_string()),
+            ..moving()
+        });
+        // 512 MiB left at 1 MiB/s.
+        assert!(page.contains("8m 32s"), "no eta: {page}");
+        assert!(page.contains("256 MiB"), "nothing uploaded shown: {page}");
+        assert!(page.contains("0.50"), "no share ratio: {page}");
+        assert!(
+            page.contains("256 pieces × 4.00 MiB"),
+            "no piece shape: {page}"
+        );
+        assert!(page.contains("d1e2f3a4b5c6"), "no infohash: {page}");
+    }
+
+    /// aria2 fills `errorMessage` in for some failures and leaves it empty
+    /// for plenty of others, and a row that failed with nothing written on it
+    /// was the ordinary shape of "it broke and nothing says why". The code is
+    /// always there.
+    #[test]
+    fn a_failure_with_no_message_still_explains_itself_from_the_code() {
+        let page = render(&Download {
+            status: Status::Error,
+            error_message: None,
+            error_code: Some(9),
+            ..moving()
+        });
+        assert!(page.contains("text-error"), "no error block: {page}");
+        assert!(page.contains("not enough disk space"), "{page}");
+    }
+
+    /// An empty `errorMessage` is not a message. Rendering it left an empty
+    /// line above the code, which reads as the explanation having gone
+    /// missing rather than never having been there.
+    #[test]
+    fn an_empty_error_message_is_treated_as_no_message() {
+        let page = render(&Download {
+            status: Status::Error,
+            error_message: Some(String::new()),
+            error_code: Some(9),
+            ..moving()
+        });
+        assert!(page.contains("aria2 code 9 — not enough disk space"));
+        assert!(
+            !page.contains("<p></p>"),
+            "an empty message rendered: {page}"
+        );
+    }
+
+    /// What the garbage filter threw away reached the disk and the pod's log
+    /// and nowhere else, so "why did it not download that one" had no answer
+    /// on the page. A deselected file is listed, marked, and counted.
+    #[test]
+    fn the_file_list_shows_what_was_kept_and_what_the_filter_refused() {
+        let page = render(&Download {
+            files: vec![
+                file(1, "/mnt/kontent/movies/Pulp/RARBG.nfo", 473, 0, false),
+                file(
+                    2,
+                    "/mnt/kontent/movies/Pulp/Pulp.Fiction.mp4",
+                    1000,
+                    500,
+                    true,
+                ),
+                file(
+                    3,
+                    "/mnt/kontent/movies/Pulp/Other/YTS.jpg",
+                    53_226,
+                    0,
+                    false,
+                ),
+            ],
+            ..moving()
+        });
+        assert!(page.contains("keeping 1 of 3"), "{page}");
+        assert!(page.contains("2 skipped"), "{page}");
+        assert!(
+            page.contains("RARBG.nfo") && page.contains("YTS.jpg"),
+            "{page}"
+        );
+        assert!(page.contains("Pulp.Fiction.mp4"), "{page}");
+        assert!(page.contains("skipped"), "{page}");
+    }
+
+    /// A file list is unbounded — a discography is hundreds of entries, and
+    /// this markup is re-sent down the stream once a second.
+    #[test]
+    fn a_very_long_file_list_is_capped_and_says_how_many_it_left_out() {
+        let files = (1..=40)
+            .map(|i| {
+                file(
+                    i,
+                    &format!("/mnt/kontent/movies/track{i}.flac"),
+                    100,
+                    0,
+                    true,
+                )
+            })
+            .collect();
+        let page = render(&Download { files, ..moving() });
+        assert!(page.contains("track24.flac"));
+        assert!(!page.contains("track25.flac"));
+        assert!(page.contains("and 16 more"), "{page}");
+    }
+
+    /// The ticket's second half (#298): a panel, per torrent, of what
+    /// actually happened to it. Every line here was previously only in the
+    /// pod's log.
+    #[test]
+    fn the_log_panel_lists_a_downloads_history_newest_last() {
+        let now = Instant::now();
+        let page = render_with_log(
+            &moving(),
+            vec![
+                Entry {
+                    at: now - std::time::Duration::from_secs(120),
+                    message: "added — destination /mnt/kontent/movies".to_string(),
+                },
+                Entry {
+                    at: now - std::time::Duration::from_secs(3),
+                    message: "keeping 1 of 3 files, skipping 2 (52.0 KiB)".to_string(),
+                },
+            ],
+        );
+        assert!(page.contains("Logs"), "no logs disclosure: {page}");
+        assert!(page.contains("added — destination /mnt/kontent/movies"));
+        assert!(
+            page.contains("2m"),
+            "no elapsed time on the older line: {page}"
+        );
+        let first = page.find("added —").unwrap();
+        let second = page.find("keeping 1 of 3").unwrap();
+        assert!(first < second, "the log is not in the order it happened");
+    }
+
+    /// A download already in aria2 when this pod started has no history here
+    /// — an empty panel labelled "Logs" would read as the history having been
+    /// lost rather than never having been recorded.
+    #[test]
+    fn a_download_with_no_history_shows_no_log_panel_at_all() {
+        assert!(!render(&moving()).contains("Logs"));
+    }
+
+    #[test]
+    fn duration_uses_the_two_largest_units_it_needs() {
+        assert_eq!(duration(45), "45s");
+        assert_eq!(duration(125), "2m 5s");
+        assert_eq!(duration(7_320), "2h 2m");
+    }
+
+    #[test]
+    fn ago_uses_one_unit() {
+        assert_eq!(ago(std::time::Duration::from_secs(9)), "9s");
+        assert_eq!(ago(std::time::Duration::from_secs(90)), "1m");
+        assert_eq!(ago(std::time::Duration::from_secs(7_200)), "2h");
     }
 }
