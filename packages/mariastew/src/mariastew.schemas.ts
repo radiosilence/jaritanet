@@ -35,6 +35,42 @@ export const MariastewRootSchema = z.strictObject({
  * that combination means seeks. It stops mattering once the media is on an SSD.
  */
 export const Aria2ConfSchema = z.strictObject({
+  /**
+   * The BitTorrent peer port, fixed rather than ephemeral.
+   *
+   * aria2 picks a port out of a range by default, which is fine for a client
+   * that only ever dials out and useless for one that wants to be dialled.
+   * Nothing can forward a port that changes on restart, so pinning it is the
+   * prerequisite for every way of becoming reachable — a router forward, a
+   * DNAT on the gateway, or IPv6 — and it costs nothing while none of them is
+   * in place. The same number serves TCP peers and the UDP DHT.
+   *
+   * Being unreachable is not only a seeding problem. A peer nobody can dial
+   * connects only to those who accept its own connections, and many clients
+   * rank unconnectable peers last when choking, so it depresses download
+   * speed as well — the usual explanation for a well-seeded torrent crawling.
+   */
+  listenPort: z.number().int().min(1024).max(65535).default(51413),
+  /**
+   * Ask the router to forward `listenPort` over UPnP IGD, and keep asking.
+   *
+   * aria2 1.37 has no UPnP or NAT-PMP of its own — `--bt-external-ip` is the
+   * whole of its NAT support — so something else has to place the mapping.
+   * That something has to sit on the LAN, because discovery is an SSDP
+   * multicast the pod network does not carry, which is what the separate
+   * host-network mapper alongside this deployment is for.
+   *
+   * Set false where the router has UPnP disabled or a forward is configured
+   * by hand; the mapper simply is not created, and aria2 stays outbound-only
+   * rather than failing.
+   */
+  upnp: z.boolean().default(true),
+  /**
+   * The speed aria2 tries to sustain per torrent before it stops opening new
+   * connections. The default is 50K, which was chosen for dial-up-era links
+   * and makes aria2 stop recruiting peers almost immediately.
+   */
+  peerSpeedLimit: z.string().default("50M"),
   btMaxPeers: z.number().int().nonnegative().default(0),
   maxConcurrentDownloads: z.number().int().positive().default(16),
   maxConnectionPerServer: z.number().int().positive().default(16),
