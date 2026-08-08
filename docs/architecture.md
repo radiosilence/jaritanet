@@ -869,6 +869,21 @@ Live tradeoffs worth knowing, not necessarily bugs:
   change. Anything that talks to anything should be assumed broken until shown
   otherwise.
 
+- **Cilium's packet marks collide with tailscaled's routing rules, and the
+  collision selects victims by identity arithmetic.** Cilium stamps the
+  sender's security identity into skb mark bits 16–31 on overlay traffic;
+  Tailscale claims mark `0x80000/0xff0000` as "bypass table 52" and routes
+  matches via the main table — out the public interface. So a pod whose
+  identity is ≡ 8 (mod 256) has its cross-node VXLAN packets silently exit
+  eth0 toward CGNAT space: one pod unreachable between nodes while its
+  neighbours answer, appearing and disappearing as identity allocation
+  happens to land on a colliding value. CoreDNS drew identity 21000 (0x5208)
+  and cluster DNS died for every pod on the agent node. Neither side has a
+  knob, so `createTailnetRule` (a DaemonSet) holds an `ip rule` at pref 5209
+  — one before the bypass rules — sending 100.64.0.0/10 to the tailnet table
+  regardless of mark. If cross-node traffic to *one specific pod* ever
+  blackholes again, check that rule is present before anything else.
+
 - **hy2 uses adaptive congestion control (BBR) everywhere; Brutal is not
   offered.** Setting bandwidth hints switches Hysteria2 to Brutal, which paces
   to a fixed rate and ignores loss — it stomps through lossy censored *fat*
