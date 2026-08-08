@@ -11,10 +11,14 @@ on:
     paths:
       - "apps/mariastew/**"
       - ".github/workflows/build-mariastew-container.yml"
+      # Declares the toolchain `check` runs on.
+      - mise.toml
   pull_request:
     paths:
       - "apps/mariastew/**"
       - ".github/workflows/build-mariastew-container.yml"
+      # Declares the toolchain `check` runs on.
+      - mise.toml
   workflow_dispatch:
 
 jobs:
@@ -54,6 +58,38 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
           echo "version $version, release $release"
 
+  # Gates everything below it, so nothing is compiled for release — let alone
+  # published — from code that does not pass. On the floating `rust = "1"` from
+  # mise.toml rather than the toolchain `binary` pins: a compiler bump breaking
+  # is the point here, and precisely not the point there.
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Environment
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      # After mise, which is what puts this cargo on PATH.
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: apps/mariastew
+          # No key, so this keeps the cache the job had in ci-cd.yml. It shares
+          # nothing with `binary`'s anyway — that one is keyed per musl target,
+          # and a release cross-build has no artefact in common with a
+          # host-target debug one.
+          # A pull request restores main's cache but writes none of its own: a
+          # branch's cache is invisible to every other branch and still evicts
+          # from the repository's 10GB, which is how main ends up cold.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check and Test
+        working-directory: apps/mariastew
+        run: cargo fmt --check && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked
+
   # Compiled here rather than inside `docker build`, because a cargo build in a
   # Dockerfile is one atomic layer: bumping a single crate recompiles all ~200
   # of them, 168s against the 15s our own code costs. rust-cache restores
@@ -62,6 +98,7 @@ jobs:
   # emulated and musl is the host's own target rather than a cross.
   binary:
     name: Compile ${{ matrix.arch }}
+    needs: [check]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
