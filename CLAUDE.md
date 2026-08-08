@@ -57,9 +57,11 @@ The project uses Lefthook for pre-commit validation:
 
 Components live in their own packages and know nothing about this deployment;
 `packages/infra` is the only thing that knows what jaritanet is. Nothing imports
-`infra`, and nothing imports sideways except from `@jaritanet/k8s`.
+`infra`, and the only sideways imports are `@jaritanet/k8s` and
+`@jaritanet/remote`, both of which are leaves.
 
 - **`@jaritanet/k8s`** — Deployment/Service/PV/PVC templates and the primitives the others share (`ImageSchema`, `LimitsSchema`, `cpuRequests`, `sha256hex`)
+- **`@jaritanet/remote`** — `remotePreamble`, the shell every `command.remote.Command` opens with: wait for cloud-init, then set a dpkg lock timeout apt honours on its own so the vendor installers inherit it. It has no dependencies and belongs to no cloud, which is what lets the `-systemd` transports and the k3s install share one copy without either depending on the other
 - **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Each has a DaemonSet form and a `-systemd` form; the latter takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, the tailnet-rule DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing (see docs/architecture.md), and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@jaritanet/k8s": "workspace:*",
+    "@jaritanet/remote": "workspace:*",
     "@pulumi/command": "1.2.1",
     "@pulumi/kubernetes": "4.30.0",
     "@pulumi/pulumi": "3.239.0",

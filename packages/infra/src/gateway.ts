@@ -5,6 +5,7 @@ import {
   createNetworkTuning,
   inboundRule,
 } from "@jaritanet/hetzner";
+import { remotePreamble } from "@jaritanet/remote";
 import {
   createHysteriaSystemd,
   createTailscaleSystemd,
@@ -153,23 +154,7 @@ export function createGateway(
       "gateway-unbound",
       {
         connection,
-        create: `set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
+        create: `${remotePreamble}
 export DEBIAN_FRONTEND=noninteractive
 apt-get update && apt-get install -y unbound ca-certificates
 cat > /etc/unbound/unbound.conf.d/jaritanet.conf << 'EOF'

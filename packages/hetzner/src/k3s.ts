@@ -1,3 +1,4 @@
+import { remotePreamble } from "@jaritanet/remote";
 import * as command from "@pulumi/command";
 import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
@@ -92,23 +93,7 @@ fi`,
     `${p}k3s-install`,
     {
       connection,
-      create: pulumi.interpolate`set -euo pipefail
-# Pulumi SSHes in the moment the server answers, which is long before the box
-# is actually usable. Two separate waits are needed:
-#   1. cloud-init, or directories these scripts write into do not exist yet;
-#   2. the dpkg lock, because Ubuntu runs unattended-upgrades *after* cloud-init
-#      finishes and holds it for minutes — every apt call here exits 100 until
-#      it lets go, and the vendor install scripts give no way to pass a timeout.
-# Both are idempotent and return immediately once the box has settled.
-cloud-init status --wait >/dev/null 2>&1 || true
-# Ubuntu runs unattended-upgrades once cloud-init finishes and holds the dpkg
-# lock for minutes; every apt call exits 100 until it lets go. Telling apt
-# itself to wait is the only approach that also covers the vendor install
-# scripts (xray, hysteria), which shell out to apt with no flags we can pass.
-# A polling loop here cannot help those, and fuser is not even installed on
-# the minimal cloud image anyway.
-mkdir -p /etc/apt/apt.conf.d
-printf 'DPkg::Lock::Timeout "600";\n' > /etc/apt/apt.conf.d/99-lock-timeout
+      create: pulumi.interpolate`${remotePreamble}
 # Cluster DNS upstream. Without this k3s points kubelet — and so coredns —
 # at the host's /etc/resolv.conf, which on Ubuntu is systemd-resolved's stub
 # at 127.0.0.53. coredns runs in a pod network namespace, where that address
