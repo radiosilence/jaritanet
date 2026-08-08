@@ -59,7 +59,9 @@ export const Aria2ConfSchema = z.strictObject({
    * Nothing can forward a port that changes on restart, so pinning it is the
    * prerequisite for every way of becoming reachable — a router forward, a
    * DNAT on the gateway, or IPv6 — and it costs nothing while none of them is
-   * in place. The same number serves TCP peers and the UDP DHT.
+   * in place. The same number serves TCP peers and the UDP DHT, but only the
+   * TCP half is published on the node — see the `ports` comment for why a UDP
+   * hostPort on this number silently disables trackers and DHT.
    *
    * Being unreachable is not only a seeding problem. A peer nobody can dial
    * connects only to those who accept its own connections, and many clients
