@@ -1,22 +1,28 @@
 <div id="picker" class="flex flex-col gap-2">
   <div class="flex items-center gap-2 text-sm">
     {% if let Some(p) = parent %}
-    <button type="button" class="btn btn-xs btn-ghost"
+    <button type="button" class="btn btn-sm btn-ghost min-h-11 min-w-11"
       data-on:click="@get('{{ crate::views::browse_href(p) }}')">↑ Up</button>
     {% endif %}
-    <span class="font-mono truncate opacity-70">{{ path }}</span>
+    <!-- Always shown, even at the roots, so where a download lands is never
+         a guess — see #257, "keep the current path visible". -->
+    <span class="font-mono truncate opacity-70">{% if path.is_empty() %}/{% else %}{{ path }}{% endif %}</span>
   </div>
 
-  <ul class="menu menu-sm bg-base-200 rounded-box">
+  <!-- Bounded and internally scrolling: a root with a hundred-plus direct
+       children (a real movie library, one folder per film) is one level of
+       browsing, not a bug, and it must not push the rest of the dialog —
+       the magnet field above, the Add/Cancel row below — off screen. -->
+  <ul class="menu menu-sm bg-base-200 rounded-box max-h-[40vh] flex-nowrap overflow-y-auto">
     {% for d in dirs %}
-    <li><a data-on:click="@get('{{ crate::views::browse_href(d.path.as_str()) }}')">{{ d.name }}</a></li>
+    <li><a class="min-h-11" data-on:click="@get('{{ crate::views::browse_href(d.path.as_str()) }}')">{{ d.name }}</a></li>
     {% endfor %}
   </ul>
 
   <div class="flex gap-2">
     <input type="hidden" name="parent" value="{{ path }}">
-    <input name="name" placeholder="New folder name" class="input input-bordered input-sm flex-1">
-    <button type="button" class="btn btn-sm"
+    <input name="name" placeholder="New folder name" class="input input-bordered input-sm flex-1 min-h-11">
+    <button type="button" class="btn btn-sm min-h-11"
       data-on:click="@post('/mkdir', {contentType: 'form'})">Create</button>
   </div>
 

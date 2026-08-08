@@ -160,6 +160,29 @@ Releasing is a `Cargo.toml` version bump: CI sees a version with no matching
 `update-apps.yml`/`versions.ts` move the pin in `Pulumi.main.yaml` on its
 next run, after confirming the image actually published.
 
+## Local development
+
+```sh
+mkdir -p /tmp/mariastew/tv
+BIND_ADDR=127.0.0.1:8080 ROOTS="tv:/tmp/mariastew/tv" PUBLIC_URL=https://x.example.com \
+OIDC_ISSUER=https://auth.example.com OIDC_CLIENT_ID=x OIDC_CLIENT_SECRET=y \
+cargo run
+```
+
+`OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` are still required at boot
+(`Config::from_env`) but nothing has to actually be able to reach that issuer:
+visit `http://127.0.0.1:8080/auth/dev-login` instead of `/auth/login` and it
+mints a session directly, skipping the OIDC round trip entirely. This route
+only exists in a debug build — `cargo build --release`, what the Dockerfile
+runs, does not compile it in (see `auth::routes::router`), and a debug binary
+announces the fact with a `tracing::warn!` the moment it starts.
+
+`aria2` is optional locally. With none running, `/` still renders — with an
+empty download list and a banner saying so — rather than a 500; `/add`,
+`/downloads/*`, and `/mkdir` still fail with a real error, since those are
+asking aria2 to do something. Point `ARIA2_RPC_URL` at a real instance to see
+downloads move.
+
 ## Rebuilding the stylesheet
 
 The stylesheet is generated with Tailwind + DaisyUI but the *output*

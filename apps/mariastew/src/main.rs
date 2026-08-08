@@ -38,6 +38,16 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
+    // The compile-time gate on `/auth/dev-login` (see `auth::routes::router`)
+    // means this only fires in a binary that was never meant to be deployed —
+    // `cargo build --release` cannot produce one. Loud, at the top of the
+    // logs, so a debug binary running anywhere announces it before anything
+    // else does.
+    #[cfg(debug_assertions)]
+    tracing::warn!(
+        "DEBUG BUILD: /auth/dev-login is compiled in and skips sign-in entirely — this build must never run in production"
+    );
+
     let config = Config::from_env()?;
     let bind_addr = config.bind_addr.clone();
     let http = reqwest::Client::builder().build()?;

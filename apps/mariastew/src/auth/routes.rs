@@ -19,10 +19,40 @@ pub const SESSION_TTL_SECS: i64 = 7 * 24 * 3600;
 pub const FLOW_TTL_SECS: i64 = 600;
 
 pub fn router() -> Router<AppState> {
-    Router::new()
+    let router = Router::new()
         .route("/auth/login", get(login))
         .route("/auth/callback", get(callback))
-        .route("/auth/logout", get(logout))
+        .route("/auth/logout", get(logout));
+    #[cfg(debug_assertions)]
+    let router = router.route("/auth/dev-login", get(dev_login));
+    router
+}
+
+/// Mints a session for a fixed "dev" subject and skips the OIDC round trip
+/// entirely — nothing here reaches Hydra. Mounted alongside `login` and
+/// `callback`, outside the auth layer, for the same reason they are: a login
+/// route cannot itself require a session.
+///
+/// Gated on `#[cfg(debug_assertions)]` rather than a runtime flag or an env
+/// var. A flag is a value that can end up set in production by accident — a
+/// copied `.env`, a stray Helm value — and would need code here to check it
+/// on every request. A compile-time gate cannot: `cargo build --release`,
+/// what the Dockerfile runs, does not set `debug_assertions`, so this
+/// function and the route that reaches it are simply not present in the
+/// binary. There is nothing to bypass because there is nothing there.
+#[cfg(debug_assertions)]
+async fn dev_login(State(state): State<AppState>) -> Response {
+    let session_id = state
+        .sessions
+        .create(
+            "dev",
+            std::time::Duration::from_secs(SESSION_TTL_SECS as u64),
+        )
+        .await;
+    redirect(
+        "/",
+        &[set_cookie(SESSION_COOKIE, &session_id, SESSION_TTL_SECS)],
+    )
 }
 
 /// Build a redirect response, appending each cookie as its own `Set-Cookie`
@@ -121,4 +151,71 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Respon
         state.sessions.delete(id).await;
     }
     redirect("/", &[clear_cookie(SESSION_COOKIE)])
+}
+
+// `dev_login` only exists in a debug build, so its tests can't exist in a
+// release one either — `cargo test --release` would otherwise fail to find
+// the function these call.
+#[cfg(debug_assertions)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::aria2::Aria2;
+    use crate::config::{Config, Oidc};
+
+    fn state() -> AppState {
+        AppState {
+            config: std::sync::Arc::new(Config {
+                bind_addr: String::new(),
+                aria2_rpc_url: String::new(),
+                roots: vec![],
+                public_url: String::new(),
+                oidc: Oidc {
+                    issuer: String::new(),
+                    client_id: String::new(),
+                    client_secret: String::new(),
+                },
+                telegram: None,
+            }),
+            aria2: Aria2::new(String::new(), reqwest::Client::new()),
+            sessions: crate::auth::session::Sessions::new(),
+            http: reqwest::Client::new(),
+        }
+    }
+
+    /// The one behaviour this route exists for: a request with no OIDC round
+    /// trip at all still ends up with a real session the store can look back
+    /// up, the same shape `callback` produces minus Hydra.
+    #[tokio::test]
+    async fn dev_login_mints_a_session_the_store_can_retrieve() {
+        let app_state = state();
+        let response = dev_login(State(app_state.clone())).await;
+
+        let cookie = response
+            .headers()
+            .get(header::SET_COOKIE)
+            .expect("dev_login must set the session cookie")
+            .to_str()
+            .unwrap();
+        let session_id = cookie
+            .split(';')
+            .next()
+            .unwrap()
+            .strip_prefix(&format!("{SESSION_COOKIE}="))
+            .expect("cookie must be the session cookie");
+
+        let session = app_state
+            .sessions
+            .get(session_id)
+            .await
+            .expect("the id the cookie carries must resolve to a real session");
+        assert_eq!(session.sub, "dev");
+    }
+
+    #[tokio::test]
+    async fn dev_login_redirects_to_the_page() {
+        let response = dev_login(State(state())).await;
+        assert_eq!(response.status(), StatusCode::FOUND);
+        assert_eq!(response.headers().get(header::LOCATION).unwrap(), "/");
+    }
 }
