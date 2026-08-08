@@ -675,6 +675,83 @@ mod tests {
         assert!(!browse.contains("data-on-"));
     }
 
+    /// Icons are inline Lucide `<svg>`, never a character. A glyph is
+    /// whatever the device decides it is: 🌱 and 🔗 come from the emoji font
+    /// at its own weight, colour and baseline rather than the text's, and
+    /// `⌂` is absent from enough fonts to arrive as a tofu box — a button
+    /// with nothing legible in it.
+    ///
+    /// The assertion is the property, not the icon set: no pictographic
+    /// character may reach the markup, whichever one someone reaches for
+    /// next. Dashes and ellipses are punctuation and stay out of the ranges
+    /// below — `rate()` returns an em dash for an idle row.
+    #[test]
+    fn nothing_is_drawn_with_a_unicode_glyph() {
+        let glyph = |html: &str| {
+            html.chars().find(|c| {
+                matches!(c,
+                    '\u{2190}'..='\u{21FF}'      // arrows
+                    | '\u{2300}'..='\u{27BF}'    // technical, dingbats
+                    | '\u{2B00}'..='\u{2BFF}'    // more arrows
+                    | '\u{1F300}'..='\u{1FAFF}'  // emoji
+                )
+            })
+        };
+
+        // Finished, so the one row rendered here is also the only one that
+        // carries the tick.
+        // Named rather than counted: every call site added later changes a
+        // count, and none of them says whether the tick is still on the
+        // finished badge.
+        let downloads = render(&Download {
+            completed_length: 1_073_741_824,
+            ..moving()
+        });
+        for icon in ["check", "folder", "pause"] {
+            assert!(
+                downloads.contains(&format!("data-icon=\"{icon}\"")),
+                "the finished row lost its {icon}: {downloads}"
+            );
+        }
+        assert_eq!(glyph(&downloads), None, "{downloads}");
+
+        let browse = Browse {
+            parent: Some("/mnt/kontent".into()),
+            path: "/mnt/kontent/tv".into(),
+            label: "tv".into(),
+            dirs: vec![],
+        }
+        .render()
+        .unwrap();
+        // Home and Up, the two reachable only below a root, plus the
+        // create-folder button that has nothing but its icon.
+        for icon in ["house", "arrow-up", "folder-plus"] {
+            assert!(
+                browse.contains(&format!("data-icon=\"{icon}\"")),
+                "the picker lost its {icon}: {browse}"
+            );
+        }
+        assert_eq!(glyph(&browse), None, "{browse}");
+
+        // The whole page, which is also the only place the add button and
+        // its icon-only label appear. Rendered unreachable so the warning
+        // banner — the other icon that only exists here — is in it too.
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: true,
+        }
+        .render()
+        .unwrap();
+        for icon in ["plus", "triangle-alert", "circle-check"] {
+            assert!(
+                page.contains(&format!("data-icon=\"{icon}\"")),
+                "the page lost its {icon}: {page}"
+            );
+        }
+        assert_eq!(glyph(&page), None, "{page}");
+    }
+
     /// A real release name — title and year first, encoding detail last —
     /// with no ellipsis to hide any of it: `line-clamp-2` wraps rather than
     /// truncates, because two folders in the same list can differ only in
@@ -876,6 +953,11 @@ mod tests {
     /// opened, and on a phone in portrait that text only costs the vertical
     /// space the download button could use instead. `<title>` is unrelated:
     /// that names the browser tab and stays.
+    ///
+    /// The button's own label went too, so the name it is asserted on here is
+    /// `aria-label` rather than text. That is the part worth holding: its
+    /// icon is `aria-hidden`, so an `aria-label` dropped from this element
+    /// leaves the only control on the page announcing as nothing.
     #[test]
     fn the_header_is_only_the_add_button_not_a_name_plus_one() {
         let page = Page {
@@ -893,7 +975,7 @@ mod tests {
             "the app name is still in the header: {header}"
         );
         assert!(
-            header.contains("btn-lg") && header.contains("Add download"),
+            header.contains("btn-lg") && header.contains(r#"aria-label="Add download""#),
             "the header is not a single prominent primary action: {header}"
         );
     }
