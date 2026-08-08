@@ -424,7 +424,7 @@ const RESOLVE_TIMEOUT: Duration = Duration::from_secs(600);
 /// (see `add` for why it had to go — it also stops `followedBy` from ever
 /// appearing), the child starts downloading everything the instant it
 /// exists. That is what the pause/change/unpause sequence below is for.
-async fn finish_add_inner(
+pub(crate) async fn finish_add_inner(
     state: &AppState,
     sub: &str,
     dir: &str,
@@ -530,11 +530,38 @@ async fn finish_add_inner(
         .await?;
 
     if paused {
-        state.aria2.unpause(&child_gid).await?;
+        unpause_settled(state, &child_gid).await?;
     }
     state.activity.record(&child_gid, "downloading");
 
     Ok(())
+}
+
+/// How long to keep offering aria2 the chance to accept the unpause above.
+/// Generous, because the only thing waiting on it is a download that is
+/// already stopped, and giving up early is the failure this bounds.
+const UNPAUSE_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// Undoes the pause above, allowing for aria2 not being ready to yet.
+///
+/// A pause is a request rather than an act: the group keeps running until it
+/// has closed what it had open, and until it reaches the reserved queue aria2
+/// answers `GID#… cannot be unpaused now`. The pause a few lines up is what
+/// puts it in that window, so the two race on every add — reproducibly, on a
+/// real swarm — and losing costs the entire download: a paused group with no
+/// task left to start it sits there with nothing to say why.
+async fn unpause_settled(state: &AppState, gid: &str) -> AppResult<()> {
+    let deadline = tokio::time::Instant::now() + UNPAUSE_TIMEOUT;
+    loop {
+        match state.aria2.unpause(gid).await {
+            Ok(()) => return Ok(()),
+            Err(e) if tokio::time::Instant::now() >= deadline => return Err(e),
+            Err(e) => {
+                tracing::debug!(%gid, error = %e, "add: aria2 will not unpause yet, retrying");
+                tokio::time::sleep(Duration::from_millis(250)).await;
+            }
+        }
+    }
 }
 
 pub async fn pause(State(state): State<AppState>, Path(gid): Path<String>) -> AppResult<Response> {
@@ -1054,6 +1081,10 @@ mod tests {
             /// Lets a test exercise the case where the child will not pause —
             /// `finish_add_inner` treats that as tolerable and best-effort.
             pause_should_succeed: bool,
+            /// How many `unpause` calls are refused before one is accepted,
+            /// standing in for the window a real pause takes to settle. See
+            /// [`unpause_settled`].
+            unpause_refusals: Arc<Mutex<u32>>,
         }
 
         fn download_result(gid: &str, status: &str, files: serde_json::Value) -> serde_json::Value {
@@ -1096,7 +1127,18 @@ mod tests {
                         serde_json::json!({"error": {"code": 1, "message": "not pausable"}})
                     }
                 }
-                "aria2.unpause" => serde_json::json!({"result": "OK"}),
+                "aria2.unpause" => {
+                    let mut refusals = mock.unpause_refusals.lock().unwrap();
+                    if *refusals > 0 {
+                        *refusals -= 1;
+                        serde_json::json!({"error": {
+                            "code": 1,
+                            "message": "GID#child-gid cannot be unpaused now",
+                        }})
+                    } else {
+                        serde_json::json!({"result": "OK"})
+                    }
+                }
                 "aria2.tellStatus" => {
                     let gid = body["params"][0].as_str().unwrap_or_default();
                     match (&mock.metadata_outcome, gid) {
@@ -1144,13 +1186,17 @@ mod tests {
             metadata_add_result: serde_json::Value,
             metadata_outcome: MetadataOutcome,
         ) -> Mock {
-            mock_server_with_pause(metadata_add_result, metadata_outcome, true).await
+            mock_server_with(metadata_add_result, metadata_outcome, true, 0).await
         }
 
-        async fn mock_server_with_pause(
+        /// The two ways aria2 declines to be driven across the metadata
+        /// boundary: a group it will not pause, and one it will not unpause
+        /// *yet*.
+        async fn mock_server_with(
             metadata_add_result: serde_json::Value,
             metadata_outcome: MetadataOutcome,
             pause_should_succeed: bool,
+            unpause_refusals: u32,
         ) -> Mock {
             let calls = Arc::new(Mutex::new(Vec::new()));
             let change_option_calls = Arc::new(Mutex::new(Vec::new()));
@@ -1160,6 +1206,7 @@ mod tests {
                 metadata_add_result: Arc::new(metadata_add_result),
                 metadata_outcome,
                 pause_should_succeed,
+                unpause_refusals: Arc::new(Mutex::new(unpause_refusals)),
             };
             let app = axum::Router::new().route("/", post(rpc)).with_state(mock);
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1354,13 +1401,14 @@ mod tests {
             let child_files = serde_json::json!([
                 {"index": "1", "path": "/mnt/kontent/movies/movie.mkv", "length": "100", "selected": "true"},
             ]);
-            let mock = mock_server_with_pause(
+            let mock = mock_server_with(
                 serde_json::json!({"result": "metadata-gid"}),
                 MetadataOutcome::ResolvesWithChild {
                     child_gid: "child-gid".to_string(),
                     child_files,
                 },
                 false,
+                0,
             )
             .await;
             let state = test_state(mock.url);
@@ -1378,6 +1426,43 @@ mod tests {
                     "aria2.changeOption",
                 ],
                 "a failed pause must not be followed by an unpause"
+            );
+        }
+
+        /// A pause that *did* take is the dangerous one. aria2 refuses to
+        /// unpause a group until it has finished stopping, and the pause four
+        /// lines earlier is what puts it in that state — so a single attempt
+        /// loses a race it started, and the download is left stopped with
+        /// nothing to start it again. Asking once more is the whole fix.
+        #[tokio::test]
+        async fn an_unpause_aria2_is_not_ready_for_is_asked_again() {
+            let child_files = serde_json::json!([
+                {"index": "1", "path": "/mnt/kontent/movies/movie.mkv", "length": "100", "selected": "true"},
+            ]);
+            let mock = mock_server_with(
+                serde_json::json!({"result": "metadata-gid"}),
+                MetadataOutcome::ResolvesWithChild {
+                    child_gid: "child-gid".to_string(),
+                    child_files,
+                },
+                true,
+                2,
+            )
+            .await;
+            let state = test_state(mock.url);
+
+            add(State(state), CurrentSession(session()), Form(add_form())).await;
+
+            wait_for_calls(&mock.calls, 8).await;
+            assert_eq!(
+                mock.calls
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .filter(|m| *m == "aria2.unpause")
+                    .count(),
+                3,
+                "the add gave up on its own pause"
             );
         }
 

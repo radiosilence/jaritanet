@@ -279,6 +279,28 @@ export function createMariastew(
                   // the gid is gone from every list aria2 keeps, and a result
                   // aria2 no longer holds is not one it can save.
                   "--force-save=true",
+                  // What the session records is the *magnet*, not the torrent
+                  // it resolved to, so a restore handed the infohash back to
+                  // the swarm and waited — for metadata already held, to
+                  // resume bytes already on the disk. A swarm that answered
+                  // slowly made every deploy slow and one that never answered
+                  // left the row on "finding peers" over a finished download,
+                  // indefinitely, which reads as the queue having been lost
+                  // rather than stopped.
+                  //
+                  // These write the resolved torrent out and read it back
+                  // before asking anyone, so a restart is a disk read rather
+                  // than a negotiation. Restoring with the network unplugged
+                  // loads the metadata and finishes verification in two
+                  // seconds, which is the property being bought.
+                  //
+                  // aria2 names the file `<infohash>.torrent` and puts it
+                  // beside the data, with no option to put it anywhere else,
+                  // so ~60KB per torrent lands in the library next to what it
+                  // describes. `notify::sweep_garbage` walks a download's own
+                  // entries and never a sibling, so it survives to be read.
+                  "--bt-save-metadata=true",
+                  "--bt-load-saved-metadata=true",
                   // Nothing is preallocated, so a file the metadata pass chose
                   // not to download never appears on disk at all — which is
                   // what makes downloading straight into the library safe.

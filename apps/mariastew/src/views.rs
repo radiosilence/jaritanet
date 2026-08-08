@@ -156,7 +156,10 @@ impl Row {
         } else {
             bar_class_and_state(health)
         };
-        let (size, done) = d.display_totals();
+        // The bar's own numbers, so "230 MB of 754 MB" beside a bar at 30%
+        // is the hash check's progress and not two readings of different
+        // things — see `progress_totals`.
+        let (size, done) = d.progress_totals();
 
         let (skipped_count, skipped_bytes) = d
             .files
@@ -177,7 +180,7 @@ impl Row {
             state,
             down: rate(d.download_speed),
             up: rate(d.upload_speed),
-            // The same totals the bar is drawn from — see `display_totals`.
+            // The same totals the bar is drawn from — see `progress_totals`.
             size: bytes(size),
             done: bytes(done),
             eta: d.eta_secs().map(duration),

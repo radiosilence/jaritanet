@@ -2,8 +2,9 @@
 //!
 //! A small service in front of aria2. aria2 does the downloading and holds all
 //! the state; this renders it and takes instructions. Nothing is persisted on
-//! this side, so there is no database, no reconciliation, and a restarted pod
-//! simply re-reads reality.
+//! this side, so there is no database and a restarted pod simply re-reads
+//! reality — except for the one thing aria2 cannot restore on its own, an add
+//! that was still in flight when the pod went away (see `resume`).
 
 mod activity;
 mod aria2;
@@ -13,6 +14,7 @@ mod error;
 mod filter;
 mod notify;
 mod poll;
+mod resume;
 mod routes;
 mod state;
 mod views;
@@ -90,9 +92,11 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // The poller before the watcher: the watcher reads its snapshots and would
-    // otherwise sit on an empty channel until the first tick anyway.
+    // otherwise sit on an empty channel until the first tick anyway. `resume`
+    // reads the same channel, and only its first snapshot.
     poll::spawn(state.clone());
     notify::spawn_watcher(state.clone());
+    resume::spawn(state.clone());
 
     // Only what is genuinely public sits outside the auth layer: the probe the
     // kubelet calls, the login round-trip that cannot require a session to
