@@ -1,7 +1,10 @@
 /* eslint-disable no-console -- a CLI script: console is its output channel */
 // Posts every user's sing-box profile URL to Telegram in one owner-relayed
 // message. Run by the singbox-notify local command, which only fires when a
-// profile actually changed (its trigger is the combined profile hash). No-ops
+// profile actually changed (its trigger is the combined profile hash). It is
+// piped to node over stdin rather than named as a file, so it has no path of
+// its own and must stay self-contained — a relative import has nothing to
+// resolve against. No-ops
 // without Telegram creds. Owner-relayed: a bot can't cold-DM a handle, so the
 // owner forwards each URL. Each URL is a tap-to-copy <code> block plus a
 // copy_text inline-keyboard button (Bot API 7.11+) for one-tap clipboard.

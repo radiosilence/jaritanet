@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
@@ -386,20 +387,25 @@ export function notifyProfileUrls(
       ),
     );
 
-  // Resolved from this file rather than the Pulumi working directory: the
-  // script ships with this package, and a relative path would only ever find it
-  // from whichever stack happened to be running.
-  const script = join(
-    import.meta.dirname,
-    "..",
-    "scripts",
-    "notify-singbox.ts",
+  // The script is piped in rather than named on the command line. Naming it
+  // puts an absolute path in the resource's inputs, and every input is a
+  // trigger — so a deploy from a worktree rewrote the path, re-ran the command,
+  // and Telegrammed every user a rotation that had not happened. Where the
+  // program is checked out is not part of what is being deployed; the script
+  // itself is.
+  //
+  // Still read relative to this file rather than the Pulumi working directory,
+  // because the script ships with this package.
+  const script = readFileSync(
+    join(import.meta.dirname, "..", "scripts", "notify-singbox.ts"),
+    "utf8",
   );
 
   return new command.local.Command(
     "singbox-notify",
     {
-      create: `node --experimental-strip-types ${script}`,
+      create: "node --input-type=module-typescript",
+      stdin: script,
       environment: {
         VPN_NOTIFY_USERS: payload,
         TELEGRAM_BOT_TOKEN: telegram.botToken,

@@ -23,6 +23,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type * as z from "zod";
+import { warnUnlessCleanMain } from "./checkout.ts";
 import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { createEdge, EDGE_TAILNET_TAG } from "./edge.ts";
@@ -37,6 +38,8 @@ import {
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
 export default async function () {
+  warnUnlessCleanMain();
+
   const { namespace } = conf;
   let dnsTarget: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
