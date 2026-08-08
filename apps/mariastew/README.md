@@ -96,11 +96,23 @@ a delay before it exists.
 aria2 also downloads whole pieces regardless of selection, so a small
 deselected file sharing a piece boundary with a selected one can land anyway
 even once selection is correct. `notify::sweep_garbage` runs from the same
-completion watch that sends the Telegram message, deletes whatever is both
-deselected and `filter::is_garbage`, and never touches a selected file or one
-that is merely small. This is the "line of code rather than a design change"
-a stray zero-byte file was always expected to need — and now also the
-backstop for whatever the pause above does not catch in time.
+completion watch that sends the Telegram message, and walks the download's own
+tree — the entries the torrent put directly under `dir`, never `dir` itself,
+which is a library root — deleting whatever `filter::is_garbage` flags and the
+directories that leaves empty.
+
+It judges the disk rather than aria2's selection because selection is not the
+only thing that lets garbage through: a download aria2 already knew about when
+the service started never had one applied, so every file reads as selected, and
+a `.DS_Store` some other machine wrote is in no torrent's manifest at all. The
+sweep also runs once over everything already finished at startup, since a
+download that completed while the pod was down never had one. It is idempotent,
+so the ones that did cost a directory walk that finds nothing.
+
+`clean-dls` in the dotfiles — the script `filter.rs` is ported from — ends by
+handing the tree to `prune`, which deletes any directory under a size
+threshold. That stays a decision for someone watching it happen; only
+directories this sweep itself emptied go.
 
 ## One image, run twice
 
