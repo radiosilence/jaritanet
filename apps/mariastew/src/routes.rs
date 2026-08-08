@@ -78,8 +78,19 @@ fn patch_elements(html: &str) -> Event {
 }
 
 pub async fn page(State(state): State<AppState>) -> AppResult<Html<String>> {
-    let downloads = all_downloads(&state).await?;
-    let rows: Vec<Row> = downloads.iter().map(Row::from).collect();
+    // A restarted aria2 sidecar should not blank the whole page: the picker
+    // and everything else on it are still useful without a download list, and
+    // `stream` will repopulate `#downloads` on its own the moment aria2
+    // answers again. Only `add`/`pause`/`resume`/`remove` still propagate the
+    // real error — those are asking aria2 to do something, and a silent
+    // success there would be the wrong kind of tolerant.
+    let (rows, aria2_unreachable) = match all_downloads(&state).await {
+        Ok(downloads) => (downloads.iter().map(Row::from).collect(), false),
+        Err(e) => {
+            tracing::warn!(error = %e, "page: aria2 unreachable, rendering with an empty list");
+            (Vec::new(), true)
+        }
+    };
     let roots = state
         .config
         .roots
@@ -89,7 +100,11 @@ pub async fn page(State(state): State<AppState>) -> AppResult<Html<String>> {
             path: r.path.to_string_lossy().into_owned(),
         })
         .collect();
-    let page = views::Page { roots, rows };
+    let page = views::Page {
+        roots,
+        rows,
+        aria2_unreachable,
+    };
     let html = page.render().map_err(|e| AppError::Internal(e.into()))?;
     Ok(Html(html))
 }
@@ -463,7 +478,58 @@ pub async fn mkdir(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
+    use crate::aria2::Aria2;
+    use crate::auth::session::Sessions;
+    use crate::config::{Config, Oidc};
+
+    fn state(aria2_rpc_url: String) -> AppState {
+        AppState {
+            config: Arc::new(Config {
+                bind_addr: String::new(),
+                aria2_rpc_url: aria2_rpc_url.clone(),
+                roots: vec![],
+                public_url: String::new(),
+                oidc: Oidc {
+                    issuer: String::new(),
+                    client_id: String::new(),
+                    client_secret: String::new(),
+                },
+                telegram: None,
+            }),
+            aria2: Aria2::new(aria2_rpc_url, reqwest::Client::new()),
+            sessions: Sessions::new(),
+            http: reqwest::Client::new(),
+        }
+    }
+
+    /// The failure this exists to survive: an aria2 sidecar that is down —
+    /// restarting, or simply never started locally. `page` must still answer
+    /// with the real page, not a 500, so there is something to look at.
+    #[tokio::test]
+    async fn page_degrades_to_an_empty_list_and_a_banner_when_aria2_is_unreachable() {
+        // Bind then drop: a closed ephemeral port refuses the connection
+        // immediately and deterministically, unlike a hardcoded port number
+        // that might belong to something else on whatever machine runs this.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+
+        let html = page(State(state(format!("http://{addr}/jsonrpc"))))
+            .await
+            .expect("page must not 500 when aria2 is unreachable")
+            .0;
+        assert!(
+            html.contains("unreachable"),
+            "no banner in the rendered page: {html}"
+        );
+        assert!(
+            !html.contains("dl-"),
+            "a download row rendered despite aria2 being unreachable: {html}"
+        );
+    }
 
     #[test]
     fn patch_elements_data_prefixes_a_single_line() {

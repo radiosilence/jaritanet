@@ -116,6 +116,11 @@ impl From<&Download> for Row {
 pub struct Page {
     pub roots: Vec<RootView>,
     pub rows: Vec<Row>,
+    /// Set when the aria2 poll behind this render failed. The page still
+    /// renders — with an empty `rows` and a visible banner — rather than a
+    /// blank 500, because a restarted sidecar should not take the UI down
+    /// with it.
+    pub aria2_unreachable: bool,
 }
 
 impl Page {
@@ -326,6 +331,7 @@ mod tests {
         let page = Page {
             roots: vec![],
             rows: vec![],
+            aria2_unreachable: false,
         }
         .render()
         .unwrap();
@@ -344,12 +350,40 @@ mod tests {
         let page = Page {
             roots: vec![],
             rows: vec![],
+            aria2_unreachable: false,
         }
         .render()
         .unwrap();
         assert!(
             page.contains(r#"id="add-dialog""#) && page.contains("open:flex"),
             "dialog is not styled to appear once the browser sets [open]: {page}"
+        );
+    }
+
+    #[test]
+    fn aria2_unreachable_shows_a_banner_and_no_downloads_section_is_silently_wrong() {
+        let with_banner = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: true,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            with_banner.contains("alert-warning"),
+            "no banner when aria2 is unreachable: {with_banner}"
+        );
+
+        let without_banner = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            !without_banner.contains("alert-warning"),
+            "banner shown when aria2 is fine: {without_banner}"
         );
     }
 

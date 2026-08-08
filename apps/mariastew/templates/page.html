@@ -15,6 +15,12 @@
     data-on:click="document.getElementById('add-dialog').showModal()">Add download</button>
 </header>
 
+{% if aria2_unreachable %}
+<div role="alert" class="alert alert-warning mx-4 mt-4">
+  <span>Download service is unreachable — showing an empty list.</span>
+</div>
+{% endif %}
+
 <dialog id="add-dialog" class="open:flex flex-col gap-4 rounded-box bg-base-100 p-6 shadow-xl backdrop:bg-black/50 max-w-sm w-full">
   <h2 class="text-lg font-semibold">Add a download</h2>
   <form id="add-form" class="flex flex-col gap-3">
