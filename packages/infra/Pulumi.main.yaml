@@ -497,3 +497,9 @@ config:
       secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
   jaritanet:vpnUsers:
     secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc
+  jaritanet:auth:
+    github:
+      clientId: Ov23lig1BPAzKe4qmT4F
+      clientSecret:
+        secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
+      allowed: radiosilence
