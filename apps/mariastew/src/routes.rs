@@ -588,6 +588,7 @@ pub async fn browse(
         views::Browse {
             parent: None,
             path: String::new(),
+            label: String::new(),
             dirs: state
                 .config
                 .roots
@@ -652,8 +653,12 @@ pub async fn browse(
             None => None,
         };
 
+        // Labelled from `dir` rather than from `q.path`: the two differ only
+        // when the request came in through a symlink, and the canonical one is
+        // the place the download actually lands.
         views::Browse {
             parent,
+            label: state.config.label(&dir),
             path: q.path.clone(),
             dirs,
         }
