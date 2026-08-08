@@ -62,3 +62,50 @@ globalThis.ms = {
     return dir === undefined ? null : `/browse?path=${encodeURIComponent(dir)}`;
   },
 };
+
+/**
+ * Publish how much of the viewport the on-screen keyboard is covering, as
+ * `--keyboard-inset` on the root element.
+ *
+ * iOS Safari shrinks the visual viewport for its keyboard and leaves the
+ * layout viewport alone. Fixed positioning resolves against the layout one, so
+ * the bottom sheet opened underneath the keyboard and Safari scrolled the page
+ * chasing the focused field — the invisible dialog and the stray vertical
+ * scroll of #353, one cause. Nothing in CSS exposes the gap between the two
+ * viewports; this is the only place it can be measured.
+ *
+ * `offsetTop` is part of it: the visual viewport also pans, and what is
+ * covered is whatever sits below its bottom edge in layout coordinates.
+ *
+ * A browser that resizes its layout viewport for its own keyboard measures
+ * zero here, which is the fallback in the stylesheet too, so it is left alone.
+ * The guard is for the same reason `visualViewport` is read defensively
+ * anywhere: it is absent in older WebViews, and a missing keyboard offset is a
+ * sheet that behaves exactly as it did before this existed.
+ */
+const viewport = globalThis.visualViewport;
+if (viewport) {
+  // visualViewport scrolls fire on every pan, and the vast majority report the
+  // same number — skipping those keeps a scroll from invalidating style.
+  let published = -1;
+  const publish = () => {
+    const covered = Math.round(
+      Math.max(
+        0,
+        document.documentElement.clientHeight -
+          viewport.height -
+          viewport.offsetTop,
+      ),
+    );
+    if (covered === published) return;
+    published = covered;
+    document.documentElement.style.setProperty(
+      "--keyboard-inset",
+      `${covered}px`,
+    );
+  };
+
+  viewport.addEventListener("resize", publish);
+  viewport.addEventListener("scroll", publish);
+  publish();
+}

@@ -1006,12 +1006,15 @@ mod tests {
         }
         .render()
         .unwrap();
+        // The dialog's own cap is `.sheet` in styles/app.css rather than a
+        // utility here — see #353 — so the class is all a rendered template
+        // can be asked about. What it opts into is not visible from Rust.
         assert!(
-            page.contains("max-h-[85dvh]"),
-            "dialog has no overall height cap: {page}"
+            page.contains(r#"class="sheet "#),
+            "dialog does not use the sheet geometry, so it has no height cap: {page}"
         );
         assert!(
-            page.contains("max-h-[40vh]") && page.contains("overflow-y-auto"),
+            page.contains("max-h-[40dvh]") && page.contains("overflow-y-auto"),
             "directory list has no height cap or does not scroll: {page}"
         );
     }

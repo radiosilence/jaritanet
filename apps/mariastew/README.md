@@ -46,6 +46,25 @@ form, so there is no submit button in it for the browser's implicit submission
 to find, and the Go key on a phone keyboard — the key right under the thumb
 that has just pasted — did nothing at all.
 
+## Where the sheet sits
+
+`.sheet` in `styles/app.css` owns the dialog's insets, width and height cap,
+because a `<dialog>` already has all four from the user agent — `width:
+fit-content`, `margin: auto`, `max-width: calc(100% - 6px - 2em)` — and a
+margin utility only argues with those, where an author rule wins outright. The
+utilities that used to sit on the element asked for the full width, got 38px
+less than it, and put every pixel of the shortfall on one side.
+
+The keyboard is the other half. iOS Safari shrinks the *visual* viewport for
+it and leaves the layout viewport alone, and fixed positioning resolves
+against the layout one — so a sheet at `bottom: 0` opens underneath the
+keyboard, and Safari then scrolls the page chasing the focused field. Nothing
+in CSS describes that gap; `app.js` measures it against `visualViewport` and
+publishes `--keyboard-inset`, which the sheet subtracts from both its bottom
+inset and its height. A browser that resizes its layout viewport for its own
+keyboard measures zero, which is also the fallback, so this corrects only the
+browsers that need correcting.
+
 ## When there is nothing to show
 
 `#downloads` is three things, not one, and which of them it is says something
