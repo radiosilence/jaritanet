@@ -100,9 +100,9 @@ function download(
  * One per `Health`, plus the two rows that are a state of the list rather
  * than of a download: a queued one and a metadata pass.
  *
- * The names are real release names, long ones included — a row's layout is
- * decided by its name far more than by its numbers, and a tidy `test.iso`
- * has never reproduced anything.
+ * The names are invented but shaped like real release names, long ones
+ * included — a row's layout is decided by its name far more than by its
+ * numbers, and a tidy `test.iso` has never reproduced anything.
  */
 function fixtures(): Download[] {
   return [
@@ -131,7 +131,7 @@ function fixtures(): Download[] {
     // which is why it is not an error.
     download(
       "1000000000000003",
-      "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1",
+      "Static.Tide.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1",
       {
         totalLength: n(9 * GiB),
         completedLength: n(1.2 * GiB),
@@ -143,7 +143,7 @@ function fixtures(): Download[] {
     // the peer port is not forwarded — see `upnp` in the README.
     download(
       "1000000000000004",
-      "Paris.Texas.1984.2160p.UHD.BluRay.x265-SOMEONE",
+      "Marrow.Ridge.1984.2160p.UHD.BluRay.x265-SOMEONE",
       {
         totalLength: n(14 * GiB),
         completedLength: n(400 * 1024 * 1024),
@@ -165,7 +165,7 @@ function fixtures(): Download[] {
     // what `--seed-ratio=0.0` means and why this stays in the active list.
     download(
       "1000000000000007",
-      "Stalker.1979.Criterion.1080p.BluRay.x264-CINEFILE",
+      "Quiet.Fault.1979.Criterion.1080p.BluRay.x264-CINEFILE",
       {
         totalLength: n(8 * GiB),
         completedLength: n(8 * GiB),
