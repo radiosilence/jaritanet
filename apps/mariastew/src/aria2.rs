@@ -10,10 +10,21 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde::Deserialize;
 
 use crate::error::{AppError, AppResult};
+
+/// How long any one call gets before it is a failure rather than a wait.
+///
+/// Every mutation the page can ask for is held open until aria2 answers it, so
+/// an unbounded call is a button that spins forever — and there is nothing here
+/// that aria2 answers slowly. A `tellStatus` or a `forceRemove` is a hash
+/// lookup over a loopback socket in the same pod; anything near this ceiling is
+/// a sidecar that has stopped answering, which is worth saying rather than
+/// waiting out.
+const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 pub struct Aria2 {
@@ -523,6 +534,7 @@ impl Aria2 {
         let response = self
             .http
             .post(self.url.as_str())
+            .timeout(RPC_TIMEOUT)
             .json(&body)
             .send()
             .await
@@ -583,12 +595,17 @@ impl Aria2 {
         Ok(())
     }
 
-    /// Stop it, forcibly if it will not stop cleanly — the reason to press the
-    /// button is usually that something is misbehaving.
+    /// Stop it now. `forceRemove`, not `remove`: the graceful one announces the
+    /// stop to every tracker and waits for the peers to go before the download
+    /// leaves the active list, and the press that reaches here is someone who
+    /// has already decided — held open while it happens. Trying `remove` first
+    /// and falling back bought the polite version at the cost of that wait plus
+    /// a failed call on every download aria2 had already stopped.
+    ///
+    /// aria2 refuses this for a download that is already stopped, which is what
+    /// `remove_download_result` is for.
     pub async fn remove(&self, gid: &str) -> AppResult<()> {
-        if self.call("remove", serde_json::json!([gid])).await.is_err() {
-            self.call("forceRemove", serde_json::json!([gid])).await?;
-        }
+        self.call("forceRemove", serde_json::json!([gid])).await?;
         Ok(())
     }
 

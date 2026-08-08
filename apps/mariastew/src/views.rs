@@ -87,7 +87,7 @@ pub struct Row {
     pub paused: bool,
     /// Removal asked for and not yet confirmed — see `state::Clearing`. It
     /// replaces `state` above rather than sitting beside it: a row on its way
-    /// out is not "ready", whatever aria2 still says about the swarm.
+    /// out is not "downloaded", whatever aria2 still says about the swarm.
     pub clearing: bool,
 }
 
@@ -99,6 +99,10 @@ pub struct Row {
 /// screen was the giveaway: it is precise about traffic and meaningless to
 /// whoever is waiting for a film. Each state now says either what is
 /// happening or what is wrong, in the terms of the thing being waited for.
+///
+/// `Complete` says "downloaded" rather than "ready" for that reason. "Ready"
+/// names a state of the app — something prepared, waiting to be started — when
+/// what it is reporting is that the file has arrived.
 ///
 /// "starting" used to answer for everything between pasting a magnet and the
 /// first byte, which is where a download spends the time someone actually
@@ -112,7 +116,7 @@ pub struct Row {
 fn bar_class_and_state(health: Health) -> (&'static str, &'static str) {
     match health {
         Health::Moving => ("progress-success", "downloading"),
-        Health::Complete => ("progress-success", "ready"),
+        Health::Complete => ("progress-success", "downloaded"),
         Health::Choked => ("progress-warning", "stalled"),
         Health::Blocked => ("progress-error", "can't connect"),
         Health::Errored => ("progress-error", "failed"),
@@ -145,7 +149,8 @@ impl Row {
         // Not a `Health`: nothing has been asked of the swarm and aria2's
         // reading has not changed, so this is a fact about a request in flight
         // rather than about the download. It still outranks the reading —
-        // "ready" beside a spinner is the confusion the mark exists to remove.
+        // "downloaded" beside a spinner is the confusion the mark exists to
+        // remove.
         let (bar_class, state) = if clearing {
             ("progress-info", "clearing")
         } else {
@@ -512,7 +517,7 @@ mod tests {
     fn state_complete() {
         assert_eq!(
             bar_class_and_state(Health::Complete),
-            ("progress-success", "ready")
+            ("progress-success", "downloaded")
         );
     }
 
@@ -1351,22 +1356,54 @@ mod tests {
         assert!(!render(&moving()).contains("badge-success"));
     }
 
-    /// A finished torrent is one press from being done with, and the press
-    /// keeps every file — so the button says so and is coloured like the badge
-    /// beside it, rather than reading as the quiet sibling of the destructive
-    /// one it shares a slot with.
+    /// A finished torrent is one press from being out of the list, and the
+    /// press keeps every file — so the button says so and is coloured like the
+    /// badge beside it, rather than reading as the quiet sibling of the
+    /// destructive one it shares a slot with. #354: "Done" said neither which
+    /// of those two it was nor that it did anything to the list at all.
     #[test]
-    fn a_finished_row_offers_done_and_an_unfinished_one_offers_the_destructive_button() {
+    fn a_finished_row_offers_clear_and_an_unfinished_one_offers_the_destructive_button() {
         let finished = render(&Download {
             completed_length: 1_073_741_824,
             download_speed: 0,
             ..moving()
         });
-        assert!(finished.contains("Done"), "{finished}");
+        assert!(finished.contains("Clear"), "{finished}");
         assert!(!finished.contains("btn-error"));
 
         let unfinished = render(&moving());
-        assert!(unfinished.contains("Delete download"), "{unfinished}");
+        assert!(unfinished.contains("Cancel &amp; delete"), "{unfinished}");
+    }
+
+    /// #354: every control that changes something on the server says the press
+    /// landed, without waiting for a snapshot to come back and say it. The
+    /// signal is per row and per slot — one shared name would have a press on
+    /// one row spinning a button on another.
+    #[test]
+    fn each_control_spins_for_its_own_request() {
+        for html in [
+            render(&Download {
+                completed_length: 1_073_741_824,
+                download_speed: 0,
+                ..moving()
+            }),
+            render(&moving()),
+            render(&Download {
+                status: Status::Paused,
+                ..moving()
+            }),
+        ] {
+            for signal in ["pausingabc", "removingabc"] {
+                assert!(
+                    html.contains(&format!(r#"data-indicator="{signal}""#)),
+                    "no indicator for {signal}: {html}"
+                );
+                assert!(
+                    html.contains(&format!(r#"data-attr:disabled="${signal}""#)),
+                    "{signal} does not disable its own button: {html}"
+                );
+            }
+        }
     }
 
     /// A row offers exactly two controls, and every existing assertion here
@@ -1411,7 +1448,7 @@ mod tests {
 
     /// #316: the press had nothing to show for itself. aria2 takes a moment to
     /// let go and the list is redrawn from aria2 once a second, so a row being
-    /// removed kept reading "ready" beside a button that could be pressed
+    /// removed kept reading "downloaded" beside a button that could be pressed
     /// again — which is what "it does nothing" was. Every control goes and the
     /// state says what is happening.
     #[test]
@@ -1457,7 +1494,7 @@ mod tests {
 
     /// Nothing is moving, so there is no rate to show and no rate to divide
     /// the remaining bytes by — a "0 B/s · 0s left" on a finished row is two
-    /// measurements nobody took. The badge already says "ready".
+    /// measurements nobody took. The badge already says "downloaded".
     #[test]
     fn an_idle_row_shows_neither_and_keeps_the_dash_in_the_readings() {
         let page = render(&Download {
