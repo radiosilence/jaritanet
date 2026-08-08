@@ -195,12 +195,16 @@ Builds and publishes each container on changes to its own directory, one job per
 architecture on a runner of that architecture (via `blit-workflows`) rather than
 emulating arm64 under QEMU.
 
-Each Rust one opens with a `check` job — fmt, clippy, `cargo test` — that the
-compile and the publish depend on, so an image is never built from code that
-does not pass. It lives here rather than in `ci-cd.yml` because that is what
-makes it fire on the crate's own path filter: as a matrix job in the infra
-pipeline it recompiled all three crates for a change that touched no Rust, and
-gated nothing. The toolchains differ on purpose — `check` takes the floating
+Each Rust one carries a `check` job — fmt, clippy, `cargo test` — which the
+publish depends on, so no image is built from code that does not pass. It gates
+the publish and not the compile: the compile is the long pole, so it starts at
+once and the check runs beside it, where putting it in front would add the
+check to the critical path of every green run to save a compile on a red one.
+
+It lives here rather than in `ci-cd.yml` because that is what makes it fire on
+the crate's own path filter — as a matrix job in the infra pipeline it
+recompiled all three crates for a change that touched no Rust, and gated
+nothing. The toolchains differ on purpose: `check` takes the floating
 `rust = "1"` from `mise.toml`, where a compiler bump breaking is the point,
 while the compile pins the version that ships.
 

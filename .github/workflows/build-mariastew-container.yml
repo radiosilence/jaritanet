@@ -58,10 +58,12 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
           echo "version $version, release $release"
 
-  # Gates everything below it, so nothing is compiled for release — let alone
-  # published — from code that does not pass. On the floating `rust = "1"` from
-  # mise.toml rather than the toolchain `binary` pins: a compiler bump breaking
-  # is the point here, and precisely not the point there.
+  # Gates the publish, not the compile. `binary` is the long pole, so it starts
+  # at once and this runs alongside it; putting it in front would add the check
+  # to the critical path of every green run to save a compile on a red one. On
+  # the floating `rust = "1"` from mise.toml rather than the toolchain `binary`
+  # pins: a compiler bump breaking is the point here, and precisely not the
+  # point there.
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -98,7 +100,6 @@ jobs:
   # emulated and musl is the host's own target rather than a cross.
   binary:
     name: Compile ${{ matrix.arch }}
-    needs: [check]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -157,7 +158,7 @@ jobs:
 
   publish:
     name: Build and Publish
-    needs: [version, binary]
+    needs: [version, binary, check]
     # Builds each architecture on a native runner. `version` publishes the semver
     # tags, which metadata-action cannot derive here because the build runs on a
     # branch push with no tag to read.
