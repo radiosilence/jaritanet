@@ -824,7 +824,7 @@ mod tests {
         }
         .render()
         .unwrap();
-        for icon in ["plus", "triangle-alert", "circle-check"] {
+        for icon in ["plus", "triangle-alert"] {
             assert!(
                 page.contains(&format!("data-icon=\"{icon}\"")),
                 "the page lost its {icon}: {page}"
@@ -1295,11 +1295,12 @@ mod tests {
         assert!(page.contains(r#"data-text="$addMessage""#));
     }
 
-    /// A successful add needs to be seen, not inferred later from a row
-    /// that quietly appeared: the dialog closes, the field clears, and a
-    /// toast says so — all driven by one signal the server sets once.
+    /// The dialog going away is the confirmation, and the row behind it is the
+    /// receipt — a magnet's metadata pass is on screen from the moment it is
+    /// accepted (#362), so a banner saying it "will show up shortly" was
+    /// covering the thing it described.
     #[test]
-    fn a_successful_add_closes_the_dialog_and_confirms() {
+    fn a_successful_add_closes_the_dialog_and_shows_no_banner() {
         let page = Page {
             roots: vec![],
             rows: vec![],
@@ -1309,16 +1310,18 @@ mod tests {
         .unwrap();
         assert!(page.contains(r#"data-effect="if ($addStatus === 'ok') el.close()""#));
         assert!(page.contains(r#"$magnet.value = ''"#));
-        assert!(page.contains(r#"data-show="$addStatus === 'ok'""#));
-        assert!(page.contains("Added"));
+        assert!(
+            !page.contains("toast"),
+            "the toast is back, and with it something that has to own its own dismissal: {page}"
+        );
     }
 
-    /// The toast clears the signal it reads, from a trigger Datastar owns. A
-    /// plain `setTimeout` writing a signal was tried and rejected: the write
-    /// happens outside Datastar's batch, `data-show` never picks it up, and the
-    /// toast stays on screen forever with no error anywhere.
+    /// Closing clears the signal whatever it held. Leaving a success set for
+    /// something else to read is what made an add unconfirmable in the first
+    /// place: `data-effect` closes on `ok`, so an `ok` that outlives the dialog
+    /// shuts the next one the moment any signal moves.
     #[test]
-    fn the_toast_clears_itself_from_a_trigger_datastar_owns() {
+    fn closing_the_dialog_clears_the_status_it_closed_on() {
         let page = Page {
             roots: vec![],
             rows: vec![],
@@ -1326,15 +1329,7 @@ mod tests {
         }
         .render()
         .unwrap();
-        assert!(page.contains("data-on-signal-patch__delay.3s="));
-        // Guarded on the value it clears, so the clear's own patch fires this
-        // once more and finds nothing to do. Unguarded, it writes every three
-        // seconds for the life of the page.
-        assert!(page.contains("if ($addStatus === 'ok') { $addStatus = ''"));
-        assert!(
-            !page.contains("setTimeout(() =>"),
-            "a bare setTimeout call writing a signal does not get picked up by data-show: {page}"
-        );
+        assert!(page.contains(r#"data-on:close="$addStatus = ''; $addMessage = ''"#));
     }
 
     /// Two flat signals, never one `$add` object. A nested signal is tracked

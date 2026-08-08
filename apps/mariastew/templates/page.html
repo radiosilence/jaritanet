@@ -47,38 +47,6 @@
     data-on:click="$addDialog.showModal()">{% call icons::magnet(class="text-3xl") %}{% endcall %}</button>
 </header>
 
-{# The confirmation the owner asked for: something to actually see once the
-     dialog goes, not just a row that shows up later.
-
-     Bottom, not top: the header is a single full-width Add button and a top
-     toast lands squarely on it — so the confirmation covered the control that
-     produced it, at the one moment someone might want to add a second magnet.
-     The dialog is already closed by the time this shows, so the bottom edge it
-     used to occupy is free.
-
-     It clears the signal it reads, three seconds after the patch that set it,
-     so nothing else has to own its lifetime. A bare `setTimeout` cannot: it
-     writes outside Datastar's batch and the write is never picked up, with no
-     error anywhere. The clear is itself a patch, so this fires once more and
-     then stops — an idle page has no timer running.
-
-     Hidden in the markup, not only by `data-show`. `data-show` is Datastar's,
-     and Datastar is a module: the browser has painted the page before it runs,
-     so the one element this template puts on screen unconditionally is a
-     success banner for an add nobody made — a green flash on every load.
-     `style`, not a `hidden` class: `data-show` reveals by clearing
-     `el.style.display`, which a class setting `display: none` would survive
-     and the toast would never appear again. #}
-<div class="toast toast-bottom toast-center z-10 mb-[env(safe-area-inset-bottom)]"
-  style="display:none"
-  data-show="$addStatus === 'ok'"
-  data-on-signal-patch__delay.3s="if ($addStatus === 'ok') { $addStatus = ''; $addMessage = '' }">
-  <div role="alert" class="alert alert-success">
-    {% call icons::circle_check() %}{% endcall %}
-    <span>Added — it will show up in the list shortly.</span>
-  </div>
-</div>
-
 {# A bottom sheet, not a centered dialog: pinned to the bottom edge, which is
      where a thumb already is and where the rest of this UI's controls live.
      `closedby="any"` is a tap-outside dismiss with
@@ -99,11 +67,16 @@
      way out was reloading the page. Closing is the moment an attempt is
      abandoned, and it is the one event every dismissal raises: Cancel's
      `method="dialog"`, `closedby="any"`, and Escape alike. Re-fetching the
-     picker with no path returns it to the roots. Only an error is cleared — the
-     success that closed this is what the toast is still showing. #}
+     picker with no path returns it to the roots.
+
+     `$addStatus` is cleared whatever it held. A success used to be left set for
+     the toast to keep reading, which made the toast the only thing that ever
+     cleared it — an `ok` that outlives this dialog is one the next `data-effect`
+     run closes it on. Nothing outside reads it now, so it dies with the
+     attempt. #}
 <dialog id="add-dialog" closedby="any" data-ref="addDialog"
   data-effect="if ($addStatus === 'ok') el.close()"
-  data-on:close="if ($addStatus === 'error') $addStatus = ''; $addMessage = ''; $magnet.value = ''; @get('/browse')"
+  data-on:close="$addStatus = ''; $addMessage = ''; $magnet.value = ''; @get('/browse')"
   class="sheet open:flex flex-col rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
   <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
   {# `autofocus` on the form, which takes `tabindex="-1"` to be focusable at
