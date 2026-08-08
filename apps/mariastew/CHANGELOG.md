@@ -5,6 +5,13 @@ All notable changes to mariastew are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] - 2026-08-08
+
+### Changed
+
+- "Done" is "Clear" and "Delete download" is "Cancel & delete" — both now say what they do to the list, and a completed download reads "downloaded" rather than "ready" ([#354](https://github.com/radiosilence/jaritanet/issues/354))
+- Every control that changes something on the server spins and disables itself for its own request, rather than waiting for the next snapshot to show the press landed ([#354](https://github.com/radiosilence/jaritanet/issues/354))
+
 ## [0.1.19] - 2026-08-08
 
 ### Added
