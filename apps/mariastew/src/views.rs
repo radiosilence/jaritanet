@@ -49,7 +49,7 @@ pub struct LogView {
 
 /// Files listed before the rest are folded into a count. A season pack is
 /// twenty entries and reads fine; a discography is five hundred and would be
-/// the largest thing on the page, re-sent every second to say nothing.
+/// the largest thing on the page, re-sent at the poll rate to say nothing.
 const MAX_FILES_SHOWN: usize = 24;
 
 pub struct Row {
@@ -293,12 +293,22 @@ impl Page {
     }
 }
 
-/// The list on its own, pushed down the stream. Its root element carries the
-/// same id as the one in the page, which is how Datastar morphs it in place.
+/// The list on its own. Its root element carries the same id as the one in the
+/// page, which is how Datastar morphs it in place — and why it is only sent
+/// when a download appears or disappears, since morphing by id can do neither.
 #[derive(Template)]
 #[template(path = "downloads.html")]
 pub struct Downloads {
     pub rows: Vec<Row>,
+}
+
+/// One row, which is what the stream sends for every change that is not a
+/// download arriving or leaving. Same markup, same id, rendered from the same
+/// file the list renders each of its rows from.
+#[derive(Template)]
+#[template(path = "row.html")]
+pub struct RowMarkup<'a> {
+    pub row: &'a Row,
 }
 
 #[derive(Template)]
@@ -759,7 +769,7 @@ mod tests {
     /// hide on exactly the two entries a picker most needs to tell apart.
     #[test]
     fn long_directory_names_wrap_instead_of_being_cut_off() {
-        let long_name = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+        let long_name = "Static.Tide.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
         let browse = Browse {
             parent: None,
             path: String::new(),
@@ -795,7 +805,8 @@ mod tests {
     /// full names must be in the markup, not just their common prefix.
     #[test]
     fn two_directory_names_differing_only_near_the_end_are_both_fully_present() {
-        let common = "2046.2004.Criterion.Collection.2160p.UHD.BluRay.REMUX.HEVC.HDR.DTS-HD.MA.5.1";
+        let common =
+            "Harbourlight.2004.Criterion.Collection.2160p.UHD.BluRay.REMUX.HEVC.HDR.DTS-HD.MA.5.1";
         let part1 = format!("{common}.PART1");
         let part2 = format!("{common}.PART2");
         let browse = Browse {
@@ -835,7 +846,7 @@ mod tests {
     /// asserts it is not what gets *rendered*.
     #[test]
     fn the_current_path_is_shown_from_the_picked_root_and_wraps() {
-        let tail = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+        let tail = "Static.Tide.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
         let browse = Browse {
             parent: Some("/mnt/kontent/movies".into()),
             path: format!("/mnt/kontent/movies/{tail}"),
@@ -893,7 +904,7 @@ mod tests {
     /// list it needs to stay distinguishable from at a glance.
     #[test]
     fn a_long_torrent_name_still_truncates_to_one_line_in_the_collapsed_row() {
-        let long_name = "Chungking.Express.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
+        let long_name = "Static.Tide.1994.Criterion.1080p.BluRay.x265.HEVC.10bit.AAC.5.1";
         let page = render(&Download {
             bittorrent_name: Some(long_name.to_string()),
             ..moving()
@@ -1357,17 +1368,23 @@ mod tests {
     fn the_file_list_shows_what_was_kept_and_what_the_filter_refused() {
         let page = render(&Download {
             files: vec![
-                file(1, "/mnt/kontent/movies/Pulp/RARBG.nfo", 473, 0, false),
+                file(
+                    1,
+                    "/mnt/kontent/movies/Nightfall/PACKGRP.nfo",
+                    473,
+                    0,
+                    false,
+                ),
                 file(
                     2,
-                    "/mnt/kontent/movies/Pulp/Pulp.Fiction.mp4",
+                    "/mnt/kontent/movies/Nightfall/Nightfall.Harbour.mp4",
                     1000,
                     500,
                     true,
                 ),
                 file(
                     3,
-                    "/mnt/kontent/movies/Pulp/Other/YTS.jpg",
+                    "/mnt/kontent/movies/Nightfall/Other/COVERART.jpg",
                     53_226,
                     0,
                     false,
@@ -1378,15 +1395,16 @@ mod tests {
         assert!(page.contains("keeping 1 of 3"), "{page}");
         assert!(page.contains("2 skipped"), "{page}");
         assert!(
-            page.contains("RARBG.nfo") && page.contains("YTS.jpg"),
+            page.contains("PACKGRP.nfo") && page.contains("COVERART.jpg"),
             "{page}"
         );
-        assert!(page.contains("Pulp.Fiction.mp4"), "{page}");
+        assert!(page.contains("Nightfall.Harbour.mp4"), "{page}");
         assert!(page.contains("skipped"), "{page}");
     }
 
     /// A file list is unbounded — a discography is hundreds of entries, and
-    /// this markup is re-sent down the stream once a second.
+    /// this markup is re-sent down the stream every time anything else in its
+    /// row moves.
     #[test]
     fn a_very_long_file_list_is_capped_and_says_how_many_it_left_out() {
         let files = (1..=40)
