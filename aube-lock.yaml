@@ -58,6 +58,27 @@ importers:
         specifier: 4.3.3
         version: 4.3.3
 
+  packages/auth:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
+      '@pulumi/random':
+        specifier: 4.20.0
+        version: 4.20.0(typescript@6.0.3)
+      typescript:
+        specifier: '>= 3.8.3 < 7'
+        version: 6.0.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
   packages/dns:
     dependencies:
       '@jaritanet/k8s':
@@ -117,6 +138,9 @@ importers:
 
   packages/infra:
     dependencies:
+      '@jaritanet/auth':
+        specifier: workspace:*
+        version: 0.0.0
       '@jaritanet/dns':
         specifier: workspace:*
         version: 0.0.0

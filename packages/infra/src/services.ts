@@ -48,6 +48,20 @@ export type ServiceContext = {
   dnsTarget?: pulumi.Output<string>;
   /** IngressRoute is a CRD the Traefik chart brings; routes wait on it. */
   traefik?: pulumi.Resource;
+  /**
+   * Where the authorization server stands and the identity provider answers.
+   * Read once at the top level and handed to everything that needs it, so two
+   * readers cannot disagree about it — the shape `vpnEntryLabel` uses. Absent
+   * → nothing that depends on being able to authenticate is deployed.
+   */
+  authHostname?: string;
+  /**
+   * Each relying party's client secret, keyed by client id, generated once by
+   * the stack and handed to both halves — the provider registers the client
+   * with it, the service authenticates with it. Neither mints its own, which
+   * is what stops the two from disagreeing.
+   */
+  oidcClientSecrets: Record<string, pulumi.Output<string>>;
   /** Rotates the profile slug along with every other VPN credential. */
   credentialRotation: string;
   exits: Exit[];
@@ -66,7 +80,45 @@ export type ServiceContext = {
  * Service `<prefix>-service` and `createIngressRoute` derives the same backend
  * from the same prefix, so a route names the pair rather than either half.
  */
-type Route = { service: string; hostname: string };
+export type Route = {
+  service: string;
+  hostname: string;
+  /**
+   * Only for the hostname two workloads share. Absent means the whole host,
+   * which is what everything else wants — see `routeMatch`.
+   */
+  paths?: string[];
+  priority?: number;
+};
+
+/**
+ * The services that need to sign people in, and where each is sent back to.
+ *
+ * Derived rather than declared, and that is the security control rather than
+ * tidiness: the redirect allowlist is what stands between the provider and an
+ * open redirect, so a list generated from the hostname a service already
+ * publishes cannot hold a typo, cannot keep an entry for a service that moved,
+ * and gives no service a way to widen its own permissions.
+ *
+ * A `switch` for the same reason `createOne` is one — the callback path is the
+ * service's own, not something every kind shares — and it stays a switch of one
+ * until a second kind needs it.
+ */
+export function relyingParties(
+  services: Record<string, z.infer<typeof ServiceConfSchema>>,
+) {
+  return Object.entries(services).flatMap(([name, service]) =>
+    service.kind === "mariastew" && service.oidc?.issuer && service.hostname
+      ? [
+          {
+            id: service.oidc.clientId,
+            name,
+            redirectUri: `https://${service.hostname}/auth/callback`,
+          },
+        ]
+      : [],
+  );
+}
 
 function createOne(
   ctx: ServiceContext,
@@ -99,18 +151,20 @@ function createOne(
     case "mcp-gateway": {
       // No OAuth app, no gateway: it exists to authenticate people, and one
       // that cannot would front every backend unauthenticated.
-      if (!service.github || !service.hostname || !service.authHostname)
-        return [];
+      if (!service.github || !service.hostname || !ctx.authHostname) return [];
       createMcpGateway(provider, namespace, service, {
         githubClientId: service.github.clientId,
         githubClientSecret: pulumi.secret(service.github.clientSecret),
         githubAllowed: service.github.allowed,
+        authHostname: ctx.authHostname,
       });
-      // Two public hostnames: the gateway and Hydra's public API. Admin stays
-      // in-cluster, with no route at all.
+      // Two public hostnames: the gateway and Hydra's public API, the latter
+      // shared with the identity provider and split by path — so this claims
+      // the bare host and the provider claims the specific paths within it.
+      // Admin stays in-cluster, with no route at all.
       return [
         { service: "mcp-gateway", hostname: service.hostname },
-        { service: "mcp-gateway-hydra", hostname: service.authHostname },
+        { service: "mcp-gateway-hydra", hostname: ctx.authHostname },
       ];
     }
 
@@ -162,11 +216,7 @@ function createOne(
       if (!service.oidc?.issuer || !service.hostname) return [];
       createMariastew(provider, namespace, service, {
         nodeLabel: service.nodeLabel,
-        // Hydra is stood up by the mcp-gateway kind and reached at a bare
-        // service name in the same namespace, so this is derived from that
-        // deployment rather than configured twice. Cluster-internal only —
-        // the admin API is never fronted by a route.
-        hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
+        oidcClientSecret: ctx.oidcClientSecrets[service.oidc.clientId],
         telegram: ctx.telegram
           ? {
               botToken: pulumi.secret(ctx.telegram.botToken),
@@ -190,33 +240,55 @@ export function createServices(
   ctx: ServiceContext,
   services: Record<string, z.infer<typeof ServiceConfSchema>>,
 ) {
-  const published: Record<string, { hostname: string; service: string }> = {};
+  return Object.entries(services).flatMap(([name, service]) =>
+    createOne(ctx, name, service),
+  );
+}
 
-  for (const [name, service] of Object.entries(services)) {
-    for (const route of createOne(ctx, name, service)) {
-      // Zones are two labels here, which is what makes this work. A zone with
-      // three (`example.co.uk`) would be looked up as `co.uk`, find nothing and
-      // silently skip the record — createServiceRecord splits the same way when
-      // it derives the record's own name, so fixing one half alone would only
-      // move the disagreement.
-      const zone = ctx.zones.find(
-        (z) => z.name === route.hostname.split(".").slice(-2).join("."),
-      );
-      if (ctx.dnsTarget && zone) {
-        createServiceRecord(ctx.dnsTarget, zone, route.hostname);
-      }
-      createIngressRoute(
-        ctx.provider,
-        route.service,
-        route.hostname,
-        ctx.namespace,
-        ctx.traefik,
-      );
-      published[route.service] = {
-        hostname: route.hostname,
-        service: `${route.service}-service`,
-      };
+/**
+ * Give a set of routes an A record and an IngressRoute, and report them.
+ *
+ * Takes every route the stack has in one call rather than one call per source:
+ * a hostname can be answered by two workloads — the identity provider shares
+ * Hydra's, split by path — and an A record is per hostname where an
+ * IngressRoute is per route. Two calls made the record twice, and Pulumi
+ * refused the duplicate URN.
+ *
+ * Separate from `createServices` because the identity provider is not a
+ * service — it is the thing that authenticates for them, the way Traefik is the
+ * thing that publishes them — but it still has an address, and publishing it by
+ * hand would be the fifth copy of "split the hostname, find the zone, make an A
+ * record, make an IngressRoute" that this function exists to have replaced.
+ */
+export function publishRoutes(ctx: ServiceContext, routes: Route[]) {
+  const published: Record<string, { hostname: string; service: string }> = {};
+  const recorded = new Set<string>();
+
+  for (const route of routes) {
+    // Zones are two labels here, which is what makes this work. A zone with
+    // three (`example.co.uk`) would be looked up as `co.uk`, find nothing and
+    // silently skip the record — createServiceRecord splits the same way when
+    // it derives the record's own name, so fixing one half alone would only
+    // move the disagreement.
+    const zone = ctx.zones.find(
+      (z) => z.name === route.hostname.split(".").slice(-2).join("."),
+    );
+    if (ctx.dnsTarget && zone && !recorded.has(route.hostname)) {
+      recorded.add(route.hostname);
+      createServiceRecord(ctx.dnsTarget, zone, route.hostname);
     }
+    createIngressRoute(
+      ctx.provider,
+      route.service,
+      route.hostname,
+      ctx.namespace,
+      ctx.traefik,
+      { paths: route.paths, priority: route.priority },
+    );
+    published[route.service] = {
+      hostname: route.hostname,
+      service: `${route.service}-service`,
+    };
   }
 
   return published;

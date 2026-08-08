@@ -1,7 +1,6 @@
 import { cpuRequests } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { MariastewConfSchema } from "./mariastew.schemas.ts";
 
@@ -11,18 +10,6 @@ const secretRef = (key: string) => ({
   valueFrom: { secretKeyRef: { name: SECRETS_NAME, key } },
 });
 
-/**
- * Register the OAuth2 client at Hydra, idempotently.
- *
- * `PUT` updates a client that exists and answers 404 for one that does not, so
- * the create is the fallback rather than the first move — which is what makes
- * re-running this safe on every deploy.
- *
- * The retries stand in for an ordering edge that cannot be expressed: Hydra is
- * built by a different service's constructor, so there is no resource here to
- * depend on. Retrying until it answers is the same guarantee arrived at from
- * the other side.
- */
 /**
  * Places the peer-port forward on the router, then keeps replacing it.
  *
@@ -54,15 +41,6 @@ while :; do
   sleep $((LEASE / 2))
 done`;
 
-const REGISTER_CLIENT = `set -eu
-body=$(printf '{"client_id":"%s","client_name":"mariastew","client_secret":"%s","grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scope":"openid offline_access","redirect_uris":["%s"],"token_endpoint_auth_method":"client_secret_post"}' "$CLIENT_ID" "$SECRET" "$REDIRECT")
-code=$(curl -s --retry 30 --retry-all-errors --retry-delay 5 -o /tmp/out -w '%{http_code}' -X PUT -H 'content-type: application/json' -d "$body" "$ADMIN/admin/clients/$CLIENT_ID")
-if [ "$code" = "404" ]; then
-  curl -sf --retry 30 --retry-all-errors --retry-delay 5 -X POST -H 'content-type: application/json' -d "$body" "$ADMIN/admin/clients" >/dev/null
-elif [ "$code" -ge 300 ]; then
-  cat /tmp/out >&2; exit 1
-fi`;
-
 /**
  * mariastew: a torrent web UI, and the aria2 it fronts.
  *
@@ -82,7 +60,13 @@ export function createMariastew(
   conf: z.infer<typeof MariastewConfSchema>,
   opts: {
     nodeLabel: string;
-    hydraAdminUrl: string;
+    /**
+     * Issued by the identity provider, which registers this client with Hydra
+     * on its own behalf. Handed over rather than generated here: a service
+     * minting its own credential and registering itself is the thing that made
+     * every relying party need to know how identity works.
+     */
+    oidcClientSecret: pulumi.Input<string>;
     telegram?: { botToken: pulumi.Input<string>; chatId: pulumi.Input<string> };
   },
 ) {
@@ -92,16 +76,7 @@ export function createMariastew(
     throw new Error("createMariastew needs `oidc`: see the caller's guard");
   }
 
-  // NB: random.* resources use the default provider — passing the k8s provider
-  // makes Pulumi look for `random:...` types on it and fail with "unrecognized
-  // resource type".
-  const generated = new random.RandomPassword("mariastew-oidc", {
-    length: 48,
-    special: false,
-  });
-  const clientSecret: pulumi.Output<string> = oidc.clientSecret
-    ? pulumi.secret(oidc.clientSecret)
-    : generated.result;
+  const clientSecret = pulumi.output(opts.oidcClientSecret);
 
   const secret = new k8s.core.v1.Secret(
     "mariastew-secrets",
@@ -123,50 +98,6 @@ export function createMariastew(
     name,
     mountPath: hostPath,
   }));
-
-  new k8s.batch.v1.Job(
-    "mariastew-register-client",
-    {
-      metadata: {
-        // Suffixed with the secret, because Jobs are immutable and a rotated
-        // secret has to produce a new one rather than silently leaving Hydra on
-        // the old credential. Lowercased — Kubernetes names are RFC 1123.
-        name: pulumi.interpolate`mariastew-register-${clientSecret.apply((s) => s.slice(0, 6).toLowerCase())}`,
-        namespace,
-      },
-      spec: {
-        backoffLimit: 10,
-        template: {
-          metadata: {
-            // Deliberately NOT `app: mariastew`. The NetworkPolicy below
-            // confines that label to DNS and the public internet, and this is
-            // the one pod that legitimately needs a cluster-internal address.
-            labels: { app: "mariastew-register" },
-          },
-          spec: {
-            restartPolicy: "OnFailure",
-            containers: [
-              {
-                name: "register",
-                image: "curlimages/curl:8.11.1",
-                command: ["sh", "-c", REGISTER_CLIENT],
-                env: [
-                  { name: "ADMIN", value: opts.hydraAdminUrl },
-                  { name: "CLIENT_ID", value: oidc.clientId },
-                  {
-                    name: "REDIRECT",
-                    value: `https://${conf.hostname}/auth/callback`,
-                  },
-                  { name: "SECRET", ...secretRef("oidc-client-secret") },
-                ],
-              },
-            ],
-          },
-        },
-      },
-    },
-    { dependsOn: [secret], provider },
-  );
 
   new k8s.apps.v1.Deployment(
     "mariastew",
@@ -332,7 +263,9 @@ export function createMariastew(
         },
       },
     },
-    { deleteBeforeReplace: true, provider },
+    // The pod reads its OIDC credential out of that Secret by reference, which
+    // Pulumi cannot see, so the ordering is stated.
+    { dependsOn: [secret], deleteBeforeReplace: true, provider },
   );
 
   /**

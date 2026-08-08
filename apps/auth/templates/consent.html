@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Authorise {{ client }}{% endblock %}
+
+{% block content %}
+{#- Everything interpolated here except `login` is chosen by whoever registered
+    the client, which anyone may do. Askama escapes by default; nothing on this
+    page may use `|safe`. -#}
+<section class="card">
+  <h1>Authorise {{ client }}</h1>
+  <p class="who">Signed in as <strong>{{ login }}</strong></p>
+
+  <p>
+    This application registered itself, so it is not one of ours. It is asking
+    for:
+  </p>
+
+  <ul class="scopes">
+    {% for scope in scopes %}
+    <li>{{ scope }}</li>
+    {% else %}
+    <li class="muted">no scopes</li>
+    {% endfor %}
+  </ul>
+
+  {% if !audience.is_empty() %}
+  <p>On behalf of:</p>
+  <ul class="scopes">
+    {% for aud in audience %}
+    <li>{{ aud }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" action="/auth/consent">
+    <input type="hidden" name="challenge" value="{{ challenge }}" />
+    <div class="actions">
+      <button type="submit" class="deny">Deny</button>
+      <button type="submit" name="approve" value="1" class="allow">Allow</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
