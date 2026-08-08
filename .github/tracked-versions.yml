@@ -56,6 +56,13 @@
   value: "{version}"
   image: "ghcr.io/radiosilence/mariastew:{version}"
 
+- app: auth
+  repo: radiosilence/jaritanet
+  tagPrefix: auth-v
+  path: [config, "jaritanet:auth", image, tag]
+  value: "{version}"
+  image: "ghcr.io/radiosilence/auth:{version}"
+
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway
   path: [config, "jaritanet:services", mcp-gateway, image, tag]

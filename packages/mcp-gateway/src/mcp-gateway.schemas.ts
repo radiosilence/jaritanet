@@ -85,7 +85,6 @@ export const McpGatewayConfSchema = z.object({
   // Blank in the (public) repo; injected at CI time from secrets, so the source
   // reveals no hostnames. An empty hostname skips the stack (see infra main.ts).
   hostname: z.string().default(""),
-  authHostname: z.string().default(""),
   image: ImageSchema,
   hydraTag: z.string().default("v2.2.0"),
   replicas: z.number().default(2),

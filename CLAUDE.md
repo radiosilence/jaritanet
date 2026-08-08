@@ -64,8 +64,9 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, the tailnet-rule DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing (see docs/architecture.md), and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
+- **`@jaritanet/auth`** — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
-- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
+- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra, whose client is registered for it by `@jaritanet/auth` rather than by itself. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
 - **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `conf.ts` parses the whole config surface, secrets included, in one pass
 
 Packages are `private` and imported as TypeScript source — Node resolves a
@@ -82,7 +83,7 @@ Everything still deploys in one `pulumi up` from `packages/infra/`.
 
 All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. A component's schema lives with the component; `infra/src/conf.schemas.ts` re-exports them alongside the composed shapes (`GatewayConfSchema`, `EdgeConfSchema`) so the stack's config surface is described in one place, and regenerates via the gen-schemas script.
 
-**What is top-level and what is a service.** If it is a workload, it goes in `services` and declares a `kind`; what stays above is the part that is not one — accounts and DNS facts (`cloudflare`, `zones`, `tailnet`, `fastmail`, `bluesky`, `telegram`), machines (`gateway`, `edges`, `exits`), and `traefik`, which cannot be a service because it is the thing that publishes them. That rule is what replaced the `mcpGateway`, `home` and `profiles` top-level blocks, each of which carried its own copy of "find the zone, make an A record, make an IngressRoute"; publishing now happens once, in `infra/src/services.ts`, driven by whatever routes a kind returns. `telegram` moved up from a single service's config once it gained a second consumer (the sing-box profile server and mariastew both notify through it) — a value read by more than one workload is an account, not a setting that belongs to either.
+**What is top-level and what is a service.** If it is a workload, it goes in `services` and declares a `kind`; what stays above is the part that is not one — accounts and DNS facts (`cloudflare`, `zones`, `tailnet`, `fastmail`, `bluesky`, `telegram`), machines (`gateway`, `edges`, `exits`), `traefik`, which cannot be a service because it is the thing that publishes them, and `auth`, which cannot be one because it is the thing that authenticates for them — every service depends on it and it depends on none of them. That rule is what replaced the `mcpGateway`, `home` and `profiles` top-level blocks, each of which carried its own copy of "find the zone, make an A record, make an IngressRoute"; publishing now happens once, in `infra/src/services.ts`, driven by whatever routes a kind returns. `telegram` moved up from a single service's config once it gained a second consumer (the sing-box profile server and mariastew both notify through it) — a value read by more than one workload is an account, not a setting that belongs to either.
 
 A `kind` exists only for behaviour config cannot express — rendering `smb.conf`, standing up Hydra and Postgres, hashing a routing table into a pod annotation. Anything that is just a container with disks is `kind: web` and needs no module: navidrome is 2Ti of media, a pinned uid and two volumes, and has never had one. That is why composition stops at a tagged union rather than growing into a hierarchy, and why the answer to "should X be a module" is usually no.
 
@@ -98,6 +99,55 @@ External traffic follows this path:
 `https://hostname` -> gateway VPS -> Xray `:443` -> Traefik hostPort (TLS + routing) -> service
 
 Without a gateway, Traefik serves directly via hostPort 443 and DNS points at the server's detected external IP.
+
+### Identity
+
+Ory Hydra is the authorization server and is headless: it delegates "who is this
+person" and "do they consent" to whatever `URLS_LOGIN` and `URLS_CONSENT` point
+at. Those pointed into mcp-gateway, which made mcp-gateway the login screen for
+every client of that Hydra — invisible while it was the only one, and visible
+the moment a second arrived. An unhealthy replica returning 502 on
+`hydra get_consent` was intermittent login failures on `mariastew`, which has
+nothing else to do with it.
+
+`@jaritanet/auth` is now that provider and only that. It never learns which
+application is being signed in to — Hydra carries that in the challenge and
+redirects the browser to whichever client began the flow — so one instance
+serves every relying party and adding one requires nothing at GitHub.
+
+**One hostname, split by path.** Hydra keeps `/oauth2/*`, `/.well-known/*` and
+`/userinfo` on the bare `Host()` rule; auth claims `/auth/*`, `/register`,
+`/healthz`, `/` and `/assets/*` at a higher priority. `URLS_SELF_ISSUER` already
+stood there, so which hostname issues tokens did not change — only which service
+answers the challenges. Hydra itself is still deployed by the mcp-gateway kind,
+because moving it would move the database holding every registered client.
+
+**The allowlist is the gate, and an empty one refuses to boot.** Dynamic client
+registration cannot be closed — Claude registers its own client — so a
+registered client is assumed hostile. What makes that safe is that a client is
+useless without a token and a token issues only to a login in `auth.github.allowed`.
+
+**The session is Hydra's.** Logins are accepted with `remember`, carrying the
+upstream login in the session context, so signing in to a second service skips
+GitHub entirely and restarting the provider logs nobody out. That is also why it
+holds no session store: a Redis with no volume, carrying one ten-minute CSRF
+nonce per login in flight, is the whole of its state.
+
+**Registration is derived, not declared.** A service says only *that* it needs
+auth — `oidc: { clientId, issuer }` — and `relyingParties()` in
+`infra/src/services.ts` turns that into a client whose redirect URI comes from
+the hostname the service already publishes and whose secret the stack generates.
+That is a security control rather than tidiness: the redirect allowlist is what
+stands between the provider and an open redirect, so a generated list cannot
+hold a typo, cannot keep an entry for a service that moved, and gives no service
+a way to widen its own permissions. Exact matches only — a wildcard on a
+hostname is how one forgotten subdomain becomes a token thief.
+
+Each secret is generated once in `main.ts` and handed to both halves, so the
+provider registering the client and the service authenticating with it cannot
+disagree. That replaced mariastew's `mariastew-register-client` Job, which had
+the service minting its own credential and posting it to Hydra's admin API —
+each relying party knowing how identity works is the thing being removed.
 
 ### Key Components
 
@@ -139,7 +189,7 @@ A missing image fails the run only when it is the *pinned* one — that is a liv
 
 Rewrites go through the YAML document API and mutate the existing scalar, so a bump changes exactly one line and leaves comments and quoting alone.
 
-### Container Builds (`build-files-container.yml`, `build-serve-from-env-container.yml`)
+### Container Builds (`build-*-container.yml`)
 
 Builds and publishes each container on changes to its own directory, one job per
 architecture on a runner of that architecture (via `blit-workflows`) rather than
@@ -147,12 +197,12 @@ emulating arm64 under QEMU. The Rust one is also checked by the `containers` job
 in `ci-cd.yml` (fmt, clippy, `cargo test`).
 
 Our containers are versioned and released from here, so the updater can track
-them like any upstream. The version lives in `apps/serve-from-env/Cargo.toml`
-and `apps/files/VERSION`; changing it is the release. CI publishes the
-image, cuts `serve-from-env-v<version>` / `files-v<version>`, and the updater
-moves the pin. Tags are output, not input — nothing reads one to decide what to
-build. Both containers releasing from one repo is why tracked entries need
-`tagPrefix`: "the latest release" is otherwise repo-wide.
+them like any upstream. The version lives in each app's `Cargo.toml`, or
+`apps/files/VERSION`; changing it is the release. CI publishes the image, cuts
+`<app>-v<version>`, and the updater moves the pin. Tags are output, not input —
+nothing reads one to decide what to build. Several containers releasing from one
+repo is why tracked entries need `tagPrefix`: "the latest release" is otherwise
+repo-wide.
 
 ## Container Services
 
@@ -162,6 +212,7 @@ build. Both containers releasing from one repo is why tracked entries need
   profiles, whose paths are secret and whose bodies Pulumi already holds as
   strings — so there is no volume to mount and no file to go stale.
 - `apps/mariastew/` - Torrent web UI fronting aria2; see `apps/mariastew/README.md`
+- `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`
 
 ## Utility Scripts
 

@@ -21,6 +21,7 @@ const config = new pulumi.Config();
  */
 const { data, error } = ConfSchema.safeParse({
   adminSshKey: config.get("adminSshKey"),
+  auth: config.getObject("auth"),
   bluesky: config.requireObject("bluesky"),
   cloudflare: config.requireObject("cloudflare"),
   edges: config.getObject("edges"),
