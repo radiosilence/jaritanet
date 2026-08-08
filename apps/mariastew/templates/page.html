@@ -160,6 +160,19 @@
     </details>
   </form>
 
+  {# The picker's folder-name field and its `parent` belong to this, not to
+       `#add-form` they are nested inside — `form=` on each of them says so,
+       which is the one thing that overrides where an input sits in the DOM.
+
+       Without it, creating a folder was impossible until a magnet had been
+       pasted: Datastar walks up from the button to the nearest form, and
+       refuses to send one that fails `checkValidity()`, so `required` on the
+       magnet field two elements above was rejecting a request that never
+       carried it. A control validating a form it has nothing to do with is
+       the bug; giving it the form it does have to do with is the fix. It also
+       stops a create-folder posting the magnet, which the handler ignored. #}
+  <form id="mkdir-form" hidden></form>
+
   {# A 400 (magnets only, destination outside a root, magnet never resolved)
        used to do nothing visible at all — indistinguishable from the dialog
        just not working. Same contract as success, so it needs nothing from the

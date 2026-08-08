@@ -992,6 +992,50 @@ mod tests {
         assert!(!page.contains("text-error"));
     }
 
+    /// Creating a folder must not depend on the magnet field, which it has
+    /// nothing to do with and sits inside the form of.
+    ///
+    /// Datastar walks up from the button to the nearest form and refuses to
+    /// send one that fails `checkValidity()`, so `required` on the magnet made
+    /// the create-folder button do nothing at all until something had been
+    /// pasted — no error, no request. `form=` is what decouples them, and it
+    /// is invisible in a way a rendered page cannot otherwise be asked about:
+    /// drop either half and the button silently goes back to validating the
+    /// wrong form.
+    #[test]
+    fn creating_a_folder_does_not_go_through_the_add_form() {
+        let page = Page {
+            roots: vec![RootView {
+                name: "tv".into(),
+                path: "/mnt/kontent/tv".into(),
+            }],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        assert!(
+            page.contains(r#"<form id="mkdir-form""#),
+            "nothing for the picker's controls to belong to: {page}"
+        );
+        assert!(
+            page.contains(r#"name="name" placeholder="New folder name" enterkeyhint="done" form="mkdir-form""#),
+            "the folder name field still belongs to the add form: {page}"
+        );
+        // Both of the picker's controls, and only those two — the path they
+        // carry is whatever folder is open, so counting the reassociation is
+        // what pins it rather than the value of any one of them.
+        assert_eq!(
+            page.matches(r#" form="mkdir-form""#).count(),
+            2,
+            "the folder name and its parent must both leave the add form: {page}"
+        );
+        assert!(
+            page.contains(r##"selector: '#mkdir-form'"##),
+            "the create-folder request does not name the form it posts: {page}"
+        );
+    }
+
     /// The failure mode this exists to prevent: a root with a hundred-plus
     /// direct children pushing the paste field and the Add/Cancel row off
     /// screen. Every bound has to be there, or a long list is unbounded
