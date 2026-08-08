@@ -325,8 +325,48 @@ A magnet added through `addUri` is saved as the magnet, and the options changed
 on the resolved download go with it — aria2 serialises whatever is set on the
 group — so a restored torrent keeps the `dir` it was heading for and the
 `select-file` the filter narrowed it to, rather than starting over and pulling
-down the scene garbage that was deselected. Restoring re-fetches metadata from
-the infohash, which is what the persisted DHT table now makes quick.
+down the scene garbage that was deselected.
+
+### Restoring the magnet is not restoring the torrent
+
+What the session holds is the magnet, so restoring one used to hand the
+infohash back to the swarm and wait — for metadata already held, to resume
+bytes already on the disk. A well-seeded torrent answered in seconds and a
+sparse one never did, which is a resume whose reliability is a property of
+other people. The failure looked like nothing at all: the row said "finding
+peers" over a finished download and kept saying it.
+
+`--bt-save-metadata` writes the resolved torrent out, and
+`--bt-load-saved-metadata` reads it back before asking anyone, so a restart is
+a disk read rather than a negotiation — restoring with the network unplugged
+loads the metadata and finishes verification in two seconds. aria2 names the
+file `<infohash>.torrent` and puts it beside the data, with no option to put it
+elsewhere, so ~60KB per torrent sits in the library next to what it describes.
+`notify::sweep_garbage` walks a download's own entries and never a sibling, so
+it survives to be read.
+
+Anything added before this existed has no saved torrent and falls back to the
+swarm, which is the old behaviour rather than a new failure.
+
+### An add is two steps, and a restart can land between them
+
+`routes::finish_add` runs detached from the request that started it: aria2
+resolves the metadata, and this waits for the download that comes out of it,
+narrows it to the files worth keeping, and starts it. A pod replaced inside
+that gap loses the second step alone — aria2's session restores the first.
+
+What came back was worse than nothing. The narrowing happens under a pause,
+aria2 serialises `pause=true` alongside the magnet, and a restored paused
+magnet does not even ask for metadata. The download sat there permanently,
+with the selection never applied and nothing left that would ever apply it.
+
+`resume` adopts them. A metadata download still in aria2's queues when this
+process starts is by definition an add nobody is finishing — a resolved
+magnet's own gid moves to the stopped list, which the download list already
+sweeps — so each one is released and run through the same finish the request
+would have. Only at startup: a metadata row on screen carries a pause button
+like any other, and overruling someone who pressed it a second ago is a
+different bug.
 
 Nothing the interface cleared comes back. `routes::clear` follows `remove` with
 `removeDownloadResult` and keeps asking until the gid is gone from every list

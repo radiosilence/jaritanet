@@ -5,6 +5,14 @@ All notable changes to mariastew are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.22] - 2026-08-08
+
+### Fixed
+
+- A restored download resumes from the torrent on disk rather than asking the swarm for metadata it already has, so a deploy no longer leaves rows on "finding peers" over data that is already complete ([#359](https://github.com/radiosilence/jaritanet/issues/359))
+- An add interrupted by a restart is picked up and finished on startup. It came back paused — that is how aria2 serialises one — with nothing left to start it or to narrow it to the files worth keeping ([#359](https://github.com/radiosilence/jaritanet/issues/359))
+- An add no longer loses the race with its own pause. aria2 refuses to unpause a group until it has finished stopping, and a single attempt left the download stopped for good ([#359](https://github.com/radiosilence/jaritanet/issues/359))
+
 ## [0.1.21] - 2026-08-08
 
 ### Changed
