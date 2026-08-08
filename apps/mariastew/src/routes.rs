@@ -17,13 +17,15 @@ use crate::aria2::{Download, Status};
 use crate::auth::extract::CurrentSession;
 use crate::error::{AppError, AppResult};
 use crate::filter;
+use crate::poll::RenderedRow;
 use crate::state::AppState;
 use crate::views::{self, DirView, RootView, Row};
 
-/// How often the stream samples aria2. Byte-level progress has no notification
-/// to wait for, and once a second is plenty for a handful of downloads watched
-/// by one person.
-pub const TICK_SECS: u64 = 1;
+/// How often a stream re-checks that its session still exists. Deliberately
+/// not the poll rate: this is a revocation check on a page that may be open for
+/// hours, and it takes the write lock on the session map every time it runs —
+/// a cost worth paying once a second and not ten times.
+const SESSION_RECHECK: Duration = Duration::from_secs(1);
 
 /// Everything behind the auth layer. Mounted by `main`, which wraps it — see
 /// `auth::extract::require_session` for why that is a layer and not a
@@ -41,8 +43,8 @@ pub fn router() -> Router<AppState> {
 }
 
 /// Every download aria2 knows about, running before queued before finished or
-/// errored — the order `page` renders them in, and what `stream` re-fetches
-/// every tick and the notify watcher polls to catch a transition.
+/// errored — the order `page` renders them in, and the order every snapshot
+/// the poller publishes carries.
 pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> {
     let mut downloads = state.aria2.tell_active().await?;
     downloads.extend(state.aria2.tell_waiting(0, 100).await?);
@@ -82,7 +84,7 @@ pub(crate) async fn all_downloads(state: &AppState) -> AppResult<Vec<Download>> 
 /// per row rather than once for the list because it is keyed by gid and a
 /// download that has none — anything already in aria2 before this pod
 /// started — simply renders without the panel.
-fn rows(state: &AppState, downloads: &[Download]) -> Vec<Row> {
+pub(crate) fn rows(state: &AppState, downloads: &[Download]) -> Vec<Row> {
     downloads
         .iter()
         .map(|d| {
@@ -114,8 +116,9 @@ fn patch_elements_data(html: &str) -> String {
 /// its slowest-changing part: speed, peers and the health colour all move
 /// together, so there is no surrounding HTML being re-sent around a lone
 /// changing value — the case signals exist to avoid. The client morphs by
-/// element id, so only rows that actually changed move; there is no diffing on
-/// the server and no client-side state to keep in step with it.
+/// element id, so a row arrives at whatever element already carries its gid
+/// and there is no client-side state to keep in step with it. Which rows are
+/// worth sending is decided server-side, in [`unsent`].
 fn patch_elements(html: &str) -> Event {
     Event::default()
         .event("datastar-patch-elements")
@@ -154,46 +157,79 @@ pub async fn page(State(state): State<AppState>) -> AppResult<Html<String>> {
     Ok(Html(html))
 }
 
-/// One long-lived stream per page. The loop re-reads the session as it ticks:
-/// a page left open holds this connection for hours, and nothing else would
-/// ever notice the session being revoked underneath it.
+/// Which of a snapshot's rows a connection has not already sent, recording
+/// what it is about to. `None` means the downloads themselves moved — one
+/// arrived, one left, or one changed place in the order — which is the case a
+/// morph by id cannot express and the caller answers with the whole container.
+///
+/// `sent` is what went down *this* connection rather than what the previous
+/// snapshot held, which is the whole reason this takes it as an argument: a
+/// client too slow to collect every tick skips some, and a row that changed in
+/// one it never saw still has to reach it.
+fn unsent<'a>(
+    sent: &mut Vec<(String, u64)>,
+    rows: &'a [RenderedRow],
+) -> Option<Vec<&'a RenderedRow>> {
+    let same_downloads =
+        sent.len() == rows.len() && sent.iter().zip(rows).all(|((gid, _), row)| *gid == row.gid);
+    let changed = same_downloads.then(|| {
+        sent.iter()
+            .zip(rows)
+            .filter(|((_, hash), row)| *hash != row.hash)
+            .map(|(_, row)| row)
+            .collect()
+    });
+    *sent = rows.iter().map(|r| (r.gid.clone(), r.hash)).collect();
+    changed
+}
+
+/// One long-lived stream per page, fed by the process-wide poller rather than
+/// by a poll of its own — which is what lets the rate be a rate anyone would
+/// call smooth, since a second tab no longer doubles what aria2 is asked.
+///
+/// It sends rows, not the list. Every snapshot arrives with each row already
+/// rendered and hashed, and this compares those hashes against what it last
+/// sent *down this connection* rather than against the previous snapshot: a
+/// client too slow to collect every tick skips some, and a row that changed in
+/// one it missed still has to reach it.
+///
+/// The exception is a download appearing or disappearing. Datastar morphs by
+/// id, which can neither add an element nor remove one, so a change in
+/// membership is the one case that sends the whole container.
 pub async fn stream(
     State(state): State<AppState>,
     CurrentSession(session): CurrentSession,
 ) -> Response {
     let session_id = session.id;
+    // Held inside the stream: dropping it is what tells the poller this page
+    // is gone, and it goes when the response does.
+    let mut viewer = state.poll.viewer();
     let s = async_stream::stream! {
-        let mut interval = tokio::time::interval(Duration::from_secs(TICK_SECS));
-        loop {
-            interval.tick().await;
+        let mut sent: Vec<(String, u64)> = Vec::new();
+        let mut checked = std::time::Instant::now() - SESSION_RECHECK;
 
+        while let Some(snapshot) = viewer.next().await {
             // A page left open holds this connection for hours; a session
             // revoked in the meantime is never re-checked by anything else,
             // so logging out would otherwise leave a live feed of the queue
             // attached to a browser no longer permitted to see it.
-            if state.sessions.get(&session_id).await.is_none() {
-                break;
+            if checked.elapsed() >= SESSION_RECHECK {
+                checked = std::time::Instant::now();
+                if state.sessions.get(&session_id).await.is_none() {
+                    break;
+                }
             }
 
-            let downloads = match all_downloads(&state).await {
-                Ok(d) => d,
-                Err(e) => {
-                    tracing::warn!(error = %e, "stream: aria2 poll failed, retrying next tick");
-                    continue;
-                }
+            let Some(view) = &snapshot.view else {
+                continue;
             };
-            let html = match (views::Downloads {
-                rows: rows(&state, &downloads),
-            })
-            .render()
-            {
-                Ok(h) => h,
-                Err(e) => {
-                    tracing::error!(error = %e, "stream: template render failed, retrying next tick");
-                    continue;
-                }
-            };
-            yield Ok::<_, Infallible>(patch_elements(&html));
+
+            match unsent(&mut sent, &view.rows) {
+                Some(rows) => for row in rows {
+                    yield Ok::<_, Infallible>(patch_elements(&row.html));
+                },
+                None => yield Ok::<_, Infallible>(patch_elements(&view.full)),
+            }
         }
     };
 
@@ -792,25 +828,18 @@ mod tests {
     use super::*;
     use crate::aria2::Aria2;
     use crate::auth::session::Sessions;
-    use crate::config::{Config, Oidc};
+    use crate::config::Config;
 
     fn state(aria2_rpc_url: String) -> AppState {
         AppState {
             config: Arc::new(Config {
-                bind_addr: String::new(),
                 aria2_rpc_url: aria2_rpc_url.clone(),
-                roots: vec![],
-                public_url: String::new(),
-                oidc: Oidc {
-                    issuer: String::new(),
-                    client_id: String::new(),
-                    client_secret: String::new(),
-                },
-                telegram: None,
+                ..Config::fixture()
             }),
             aria2: Aria2::new(aria2_rpc_url, reqwest::Client::new()),
             sessions: Sessions::new(),
             activity: crate::activity::Activity::new(),
+            poll: crate::poll::Poll::new(),
             clearing: crate::state::Clearing::default(),
             http: reqwest::Client::new(),
         }
@@ -844,6 +873,71 @@ mod tests {
             !html.contains("dl-"),
             "a download row rendered despite aria2 being unreachable: {html}"
         );
+    }
+
+    fn rendered(rows: &[(&str, u64)]) -> Vec<RenderedRow> {
+        rows.iter()
+            .map(|(gid, hash)| RenderedRow {
+                gid: gid.to_string(),
+                hash: *hash,
+                html: format!("<details id=\"dl-{gid}\">{hash}</details>").into(),
+            })
+            .collect()
+    }
+
+    fn gids(rows: &[&RenderedRow]) -> Vec<String> {
+        rows.iter().map(|r| r.gid.clone()).collect()
+    }
+
+    /// The saving. A seeding torrent's markup is the same markup every tick,
+    /// and at ten ticks a second re-sending it is the whole bill.
+    #[test]
+    fn a_row_that_did_not_change_is_not_sent_again() {
+        let mut sent = Vec::new();
+        let rows = rendered(&[("a", 1), ("b", 2)]);
+
+        assert!(unsent(&mut sent, &rows).is_none(), "the first tick has no");
+        assert!(unsent(&mut sent, &rows).unwrap().is_empty());
+
+        let rows = rendered(&[("a", 1), ("b", 9)]);
+        assert_eq!(gids(&unsent(&mut sent, &rows).unwrap()), ["b"]);
+        assert!(unsent(&mut sent, &rows).unwrap().is_empty());
+    }
+
+    /// A client too slow to collect every tick skips some, and `watch` keeps
+    /// only the latest — so a row that changed in a tick nobody read still has
+    /// to arrive. This is why the comparison is against what went down this
+    /// connection rather than against the previous snapshot.
+    #[test]
+    fn a_change_made_during_a_skipped_tick_still_reaches_the_client() {
+        let mut sent = Vec::new();
+        unsent(&mut sent, &rendered(&[("a", 1), ("b", 2)]));
+
+        // Tick two changed `a`, and this client never saw it. Tick three
+        // changed `b` as well.
+        let three = rendered(&[("a", 5), ("b", 6)]);
+        assert_eq!(gids(&unsent(&mut sent, &three).unwrap()), ["a", "b"]);
+    }
+
+    /// Morphing by id can neither add an element nor remove one, so a download
+    /// arriving or leaving is the one change a row patch cannot express.
+    #[test]
+    fn a_download_arriving_or_leaving_asks_for_the_whole_container() {
+        let mut sent = Vec::new();
+        unsent(&mut sent, &rendered(&[("a", 1), ("b", 2)]));
+
+        assert!(unsent(&mut sent, &rendered(&[("a", 1), ("b", 2), ("c", 3)])).is_none());
+        assert!(unsent(&mut sent, &rendered(&[("a", 1), ("c", 3)])).is_none());
+    }
+
+    /// Same downloads, different order — an active one stopping moves it down
+    /// the list (see `all_downloads`). A morph by id leaves them where they
+    /// were, so this needs the container too.
+    #[test]
+    fn a_reordering_asks_for_the_whole_container() {
+        let mut sent = Vec::new();
+        unsent(&mut sent, &rendered(&[("a", 1), ("b", 2)]));
+        assert!(unsent(&mut sent, &rendered(&[("b", 2), ("a", 1)])).is_none());
     }
 
     #[test]
@@ -1025,19 +1119,12 @@ mod tests {
         fn test_state(aria2_url: String) -> AppState {
             let mut s = state(aria2_url.clone());
             s.config = Arc::new(Config {
-                bind_addr: String::new(),
                 aria2_rpc_url: aria2_url,
                 roots: vec![Root {
                     name: "movies".to_string(),
                     path: std::path::PathBuf::from("/mnt/kontent/movies"),
                 }],
-                public_url: String::new(),
-                oidc: Oidc {
-                    issuer: String::new(),
-                    client_id: String::new(),
-                    client_secret: String::new(),
-                },
-                telegram: None,
+                ..Config::fixture()
             });
             s
         }

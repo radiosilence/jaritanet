@@ -73,9 +73,8 @@ resolved left a row reading "starting" indefinitely with the explanation
 sitting in `kubectl logs`.
 
 It is live for free: the panel is part of the row markup the SSE stream
-already patches once a second (`patch_elements`), so an open panel refreshes
-in place with no second connection per torrent and nothing to leak when it is
-closed.
+already patches (`patch_elements`), so an open panel refreshes in place with
+no second connection per torrent and nothing to leak when it is closed.
 
 A log follows the torrent rather than the gid. A magnet resolves under one gid
 and `follow-torrent` spawns the real download under another; the first
@@ -260,6 +259,39 @@ as 1000, so a directory created on demand is one aria2 cannot write —
 `scripts/make-seed-drive` makes it and chowns it, alongside the other local
 volumes on that node. A node missing it leaves the pod `Pending` with a reason,
 which is the failure worth having.
+## Polling
+
+aria2 has no notification for byte-level progress, so a moving bar means
+asking. Everything about how often it can be asked follows from asking exactly
+once (`src/poll.rs`): one task samples aria2 and renders what it finds, and
+every open page and the Telegram watcher read its snapshots through a
+`tokio::sync::watch`. Adding a viewer adds a hash comparison, not an RPC, so
+the rate is a property of the process rather than of how many phones happen to
+have the page open.
+
+That is what makes it tunable at all. It used to be one interval, one set of
+three RPC calls and one render *per open stream* — so once a second was the
+honest ceiling, and a second tab doubled it. `POLL_MS` is now 100 by default;
+turn it up rather than guessing, because the ceiling is whichever of aria2's
+CPU or the browser's morph gives first and which one that is depends on how
+many downloads are in the list. aria2 serialises the file list of every
+download it knows about on every call, and that is the part no amount of
+diffing removes.
+
+What reaches a page is diffed. Every row is hashed as it is rendered, and a
+stream sends only the rows whose hash moved since the copy *it* last sent — not
+since the previous snapshot, because a client too slow to collect every tick
+skips some and a row that changed in one it missed still has to arrive
+(`routes::unsent`). A seeding torrent is bytes on the wire exactly once. The
+one change a row patch cannot express is a download appearing, disappearing or
+changing place, since Datastar morphs by element id; that case sends the whole
+`#downloads` container instead, which is why `row.html` and `downloads.html`
+are the same markup rendered two ways.
+
+With nobody watching it drops to `IDLE_POLL_MS` and renders nothing. That
+interval is the notifier's alone — it is looking for a download that finished
+or failed, and nothing about that is in a hurry — and the first page to open
+wakes the poller immediately rather than sitting out the rest of the sleep.
 
 ## Seeding, and why cancel has two meanings
 
@@ -324,7 +356,7 @@ files, and `/auth/*` are the only routes outside that layer (`src/main.rs`).
 | Route | Method | What |
 |---|---|---|
 | `/` | GET | The page: current roots and the download list |
-| `/stream` | GET | SSE stream, one tick per second (`routes::TICK_SECS`), patching the download list in place |
+| `/stream` | GET | SSE stream, patching rows in place at the poll rate. See "Polling" below |
 | `/add` | POST | `magnet` + `dir` form fields — validates and starts the magnet resolving, then returns `202` immediately; the poll, the filter, and applying the selection run detached (see `routes::finish_add`), and their outcome shows up through `/stream` like any other download |
 | `/downloads/{gid}/pause` | POST | |
 | `/downloads/{gid}/resume` | POST | |
@@ -355,6 +387,8 @@ startup rather than the request that first needs it.
 | `OIDC_CLIENT_SECRET` | Yes | — | |
 | `BIND_ADDR` | No | `0.0.0.0:8080` | |
 | `ARIA2_RPC_URL` | No | `http://127.0.0.1:6800/jsonrpc` | |
+| `POLL_MS` | No | `100` | How often aria2 is sampled while a page is open. See "Polling" below |
+| `IDLE_POLL_MS` | No | `5000` | The same, with nobody watching |
 | `TELEGRAM_BOT_TOKEN` | No | — | Must be set together with `TELEGRAM_CHAT_ID` or startup fails — a bot token with no chat id would otherwise fail on the first send, hours after the deploy that introduced it |
 | `TELEGRAM_CHAT_ID` | No | — | See above. Both absent means no notifications, treated as normal |
 
