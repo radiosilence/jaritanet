@@ -89,14 +89,17 @@
    row. That is what the opacity is set against; loud enough to read across
    open space is already too loud for the gaps between rows.
 
-   `opacity` on the group rather than `fill-opacity` on each shape. The poles
-   overlap the legs they sit on — invisible in the icon, where they are a
-   different colour, and a seam straight across both legs here, where a second
-   translucent fill lands on the first. Group opacity composites the shapes
-   first and fades the result once. */
+   The poles are cut away from the legs by a gap rather than sitting on them
+   as they do in the icon. One flat colour merges the two into a plain U and
+   loses the ends entirely, which are the part that says magnet; a gap says
+   the same thing the colour change says, using the only ink this has.
+
+   `opacity` on the group and not `fill-opacity` on each shape, so the three
+   are composited before they are faded — otherwise anywhere two of them meet
+   is a second translucent fill on top of the first, and reads as a seam. */
 @layer base {
   body {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%23f59e0b' opacity='.06'%3E%3Cpath d='M9 16.5h14v16a9 9 0 0 0 18 0v-16h14v16a23 23 0 0 1-46 0z'/%3E%3Cpath d='M12 8.5h8a3 3 0 0 1 3 3v6H9v-6a3 3 0 0 1 3-3z'/%3E%3Cpath d='M44 8.5h8a3 3 0 0 1 3 3v6H41v-6a3 3 0 0 1 3-3z'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%23f59e0b' opacity='.06'%3E%3Cpath d='M9 16.5h14v16a9 9 0 0 0 18 0v-16h14v16a23 23 0 0 1-46 0z'/%3E%3Cpath d='M12 8.5h8a3 3 0 0 1 3 3V15H9v-3.5a3 3 0 0 1 3-3z'/%3E%3Cpath d='M44 8.5h8a3 3 0 0 1 3 3V15H41v-3.5a3 3 0 0 1 3-3z'/%3E%3C/g%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: center;
     background-size: min(96vmin, 620px);

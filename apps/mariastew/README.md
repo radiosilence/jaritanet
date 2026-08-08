@@ -830,14 +830,20 @@ there. Nine of the ten it was chosen from are in the history of
 [#373](https://github.com/radiosilence/jaritanet/issues/373).
 
 Two shapes come out of the one drawing, and the difference is who rounds the
-corners. The favicon rounds its own, since a tab shows it exactly as given.
-`apple-touch-icon` and the manifest pair must not: iOS masks a home screen icon
-to a squircle and Android masks a `maskable` one to whatever the launcher's
-shape is, so a tile that arrives pre-rounded is rounded twice and shows the
-page's background in the gap. Those render full-bleed with the mark scaled into
-the safe zone the mask cannot reach — which is why `icon.svg` keeps its tile
-and its mark as separate elements, so `scripts/gen-app-icons.ts` can compose
-the variants from `#mark` rather than from a second drawing to keep in step.
+corners. Anything shown as given keeps the tile's own: the favicon, and the
+manifest's `purpose: any` pair, which is what an install prompt, a task
+switcher and a file browser put on screen. Only what is definitely going to be
+masked renders full-bleed — the `maskable` pair, which Android cuts to
+whatever the launcher's shape is, and `apple-touch-icon`, which iOS always cuts
+to a squircle. A pre-rounded tile handed to a mask is rounded twice and shows
+the page's background in the gap.
+
+That is why there are two of each size rather than one declared `any
+maskable`: a single full-bleed icon doing both jobs is a bare square
+everywhere it is not masked. And it is why `icon.svg` keeps its tile and its
+mark as separate elements, so `scripts/gen-app-icons.ts` can compose the
+full-bleed variants from `#mark` rather than from a second drawing to keep in
+step.
 
 All of them, and the manifest, are served from outside the session layer along
 with the stylesheet: the sign-in page needs an icon too, and a manifest is
@@ -870,7 +876,10 @@ on a dark surface a small drop shadow draws a separation the eye cannot see.
 
 The page background is the icon's silhouette, once, very faint, `fixed` so it
 does not scroll. It is the silhouette and not the icon because flattening the
-drawing to one colour fills the gap between the poles and the U stops reading.
+drawing to one colour fills the gap between the poles and the U stops reading;
+for the same reason the poles are cut away from the legs by a gap rather than
+sitting on them, since a gap says what the colour change said using the only
+ink one flat colour has.
 With a full list it is a background in the literal sense — the rows on top of
 it are opaque, so it is seen around and between them and mostly not seen at
 all. Where it does the work is everything that is not a full list: the empty

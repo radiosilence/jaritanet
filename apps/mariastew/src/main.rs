@@ -51,7 +51,7 @@ pub const APP_JS_PATH: &str = concat!("/assets/", env!("APP_JS_FILENAME"));
 /// browser asks for on its own, before it has parsed any `<link>` — and the
 /// only router that would otherwise answer it is behind the session layer, so
 /// an unauthenticated tab would get a login redirect where it wanted an image.
-const ASSETS: [(&str, &str, &[u8]); 10] = [
+const ASSETS: [(&str, &str, &[u8]); 12] = [
     (
         APP_JS_PATH,
         "text/javascript; charset=utf-8",
@@ -101,6 +101,16 @@ const ASSETS: [(&str, &str, &[u8]); 10] = [
         "/assets/icon-512.png",
         "image/png",
         include_bytes!("../assets/icon-512.png"),
+    ),
+    (
+        "/assets/icon-192-maskable.png",
+        "image/png",
+        include_bytes!("../assets/icon-192-maskable.png"),
+    ),
+    (
+        "/assets/icon-512-maskable.png",
+        "image/png",
+        include_bytes!("../assets/icon-512-maskable.png"),
     ),
 ];
 

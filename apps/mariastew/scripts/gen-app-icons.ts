@@ -7,17 +7,23 @@
  * `main.rs` `include_bytes!`s them the same way it does the stylesheet.
  *
  * Two shapes come out of the one drawing, and the difference is who rounds the
- * corners. The favicon rounds its own, because a browser tab shows it exactly
- * as given. Everything destined for a home screen must not: iOS masks
- * `apple-touch-icon` to a squircle of its own, and Android masks a `maskable`
- * icon to whatever the launcher's shape is that year — a pre-rounded tile gets
- * rounded twice and shows the page's background in the gap. So those render
- * full-bleed, with the mark scaled down to sit inside the safe zone the mask
- * is guaranteed not to reach.
+ * corners.
  *
- * Which is why `icon.svg` keeps its tile and its mark in separate elements:
- * the variants are composed from `#mark` alone rather than from a second
- * drawing that would have to be kept in step with the first.
+ * Anything shown as given keeps the tile's own rounded corner: the favicon,
+ * and the manifest's `purpose: any` pair, which is what an install prompt, a
+ * task switcher and a file browser put on screen. Only what is definitely
+ * going to be masked renders full-bleed — the `maskable` pair, which Android
+ * cuts to whatever the launcher's shape is that year, and `apple-touch-icon`,
+ * which iOS always cuts to a squircle. A pre-rounded tile handed to a mask is
+ * rounded twice and shows the page's background in the gap.
+ *
+ * That split is the reason there are two of each size rather than one doing
+ * both jobs: a single full-bleed icon declared `any maskable` is a bare square
+ * everywhere it is not masked.
+ *
+ * And it is why `icon.svg` keeps its tile and its mark in separate elements —
+ * the full-bleed variants are composed from `#mark` alone rather than from a
+ * second drawing that would have to be kept in step with the first.
  */
 
 import { execFileSync } from "node:child_process";
@@ -103,7 +109,12 @@ writeFileSync(join(assets, "icon.svg"), svg);
 
 render(fullBleed(APPLE_INSET), 180, join(assets, "apple-touch-icon.png"));
 for (const size of [192, 512]) {
-  render(fullBleed(MASKABLE_SAFE), size, join(assets, `icon-${size}.png`));
+  render(svg, size, join(assets, `icon-${size}.png`));
+  render(
+    fullBleed(MASKABLE_SAFE),
+    size,
+    join(assets, `icon-${size}-maskable.png`),
+  );
 }
 
 const frames = ICO_SIZES.map((size) => {
@@ -116,5 +127,5 @@ writeFileSync(join(assets, "favicon.ico"), ico(frames, ICO_SIZES));
 rmSync(scratch, { recursive: true, force: true });
 
 console.log(
-  `icon.svg, favicon.ico (${ICO_SIZES.join("/")}), apple-touch-icon.png, icon-192.png, icon-512.png`,
+  `icon.svg, favicon.ico (${ICO_SIZES.join("/")}), apple-touch-icon.png, icon-{192,512}.png, icon-{192,512}-maskable.png`,
 );
