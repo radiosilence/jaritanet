@@ -84,6 +84,19 @@ description = "Run mariastew + aria2 locally against a debug build (needs docker
 dir = "apps/mariastew"
 run = "docker compose up --build"
 
+[tasks."mariastew:dev:mock"]
+description = "Run mariastew against the mock aria2 — every download state at once (needs docker)"
+dir = "apps/mariastew"
+# `--scale aria2=0` because the real one is not wanted here at all, and the
+# env var is what decides which RPC mariastew talks to. Compose has no way to
+# express "this profile replaces that service", so both halves are stated.
+run = "ARIA2_RPC_URL=http://127.0.0.1:6801/jsonrpc docker compose --profile mock up --build --scale aria2=0"
+
+[tasks."mariastew:mock"]
+description = "Run the mock aria2 alone, for the plain `cargo run` loop"
+dir = "apps/mariastew"
+run = "./scripts/mock-aria2.ts"
+
 [tasks."update:apps"]
 description = "Report or apply upstream version bumps"
 run = "./packages/infra/src/update-apps.ts"
