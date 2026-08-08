@@ -88,6 +88,7 @@ async fn main() -> anyhow::Result<()> {
         activity: activity::Activity::new(),
         poll: poll::Poll::new(),
         clearing: state::Clearing::default(),
+        adding: state::Adding::default(),
         http,
     };
 

@@ -301,6 +301,19 @@ export function createMariastew(
                   // entries and never a sibling, so it survives to be read.
                   "--bt-save-metadata=true",
                   "--bt-load-saved-metadata=true",
+                  // The download a magnet resolves into is created stopped, so
+                  // `finish_add_inner` can narrow it to the files worth keeping
+                  // before a single content byte arrives. It used to pause the
+                  // child itself, which lost a race with its own request —
+                  // aria2 refuses to unpause a group until it has finished
+                  // stopping — while the child fetched the whole torrent in the
+                  // meantime.
+                  //
+                  // Not `bt-metadata-only`, which stops aria2 *before* it
+                  // spawns the followed download at all: `followedBy` never
+                  // appears and every add runs out the clock. This one still
+                  // spawns it, just stopped, with its full file list readable.
+                  "--pause-metadata=true",
                   // Nothing is preallocated, so a file the metadata pass chose
                   // not to download never appears on disk at all — which is
                   // what makes downloading straight into the library safe.
