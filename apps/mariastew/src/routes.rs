@@ -201,6 +201,11 @@ pub async fn add(
         )
         .await?;
 
+    // `Complete` is what "the metadata has arrived" actually means. Waiting for a
+    // non-empty file list instead is racy: aria2 populates `files` slightly
+    // before it flips the status, so the pass could still be active when the
+    // infohash was freed below — which is how the real download came to be
+    // rejected as a duplicate of a download that had not finished letting go.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
     let files = loop {
         let status = state.aria2.tell_status(&metadata_gid).await?;
@@ -211,7 +216,7 @@ pub async fn add(
                     .unwrap_or_else(|| "metadata fetch failed".to_string()),
             ));
         }
-        if !status.files.is_empty() {
+        if status.status == Status::Complete {
             break status.files;
         }
         if tokio::time::Instant::now() >= deadline {

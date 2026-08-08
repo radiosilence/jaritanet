@@ -1,59 +1,65 @@
-<div id="downloads" class="flex flex-col gap-3">
+<!-- Each row is a native disclosure. Collapsed — the only state most visits
+     ever need — shows exactly what "how is it going" requires: the name,
+     the state, the bar. Rate, peers, controls and any error are real but
+     secondary, and stay one tap away rather than crowding a list meant to
+     be scanned at arm's length. The pattern already exists on this page for
+     an error (see the details below) — this just applies it to the whole
+     row, and for the same reason: no JavaScript, and open/closed survives
+     the SSE morph because patch-elements matches by id rather than
+     replacing the subtree. -->
+<div id="downloads" class="flex flex-col gap-2 p-4">
 {% for row in rows %}
-  <div id="dl-{{ row.gid }}" class="rounded-box border border-base-300 bg-base-100 p-3">
-    <div class="flex items-baseline justify-between gap-2">
-      <span class="font-medium truncate">{{ row.name }}</span>
-      <span class="badge badge-sm badge-outline">{{ row.state }}</span>
-    </div>
+  <details id="dl-{{ row.gid }}" class="rounded-box border border-base-300 bg-base-100">
+    <summary class="flex min-h-14 cursor-pointer items-center gap-3 p-3">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-baseline justify-between gap-2">
+          <span class="truncate text-sm font-medium">{{ row.name }}</span>
+          <span class="badge badge-sm badge-outline shrink-0">{{ row.state }}</span>
+        </div>
+        {% if row.percent.is_some() %}
+        <progress class="progress {{ row.bar_class }} mt-1.5 h-1.5 w-full"
+          value="{{ row.percent_display.as_deref().unwrap_or_default() }}" max="100"></progress>
+        {% else %}
+        <progress class="progress {{ row.bar_class }} mt-1.5 h-1.5 w-full"></progress>
+        {% endif %}
+      </div>
+    </summary>
 
-    {% if row.percent.is_some() %}
-    <progress class="progress {{ row.bar_class }} w-full mt-1"
-      value="{{ row.percent_display.as_deref().unwrap_or_default() }}" max="100"></progress>
-    {% else %}
-    <progress class="progress {{ row.bar_class }} w-full mt-1"></progress>
-    {% endif %}
-
-    <div class="flex justify-between text-xs opacity-70 mt-1">
-      <span>{{ row.done }} / {{ row.size }}</span>
-      <span>↓ {{ row.down }} ↑ {{ row.up }}</span>
-    </div>
-
-    <div class="flex items-center justify-between mt-2">
+    <div class="flex flex-col gap-3 border-t border-base-300 p-3">
+      <div class="flex justify-between text-xs opacity-70">
+        <span>{{ row.done }} / {{ row.size }}</span>
+        <span>↓ {{ row.down }} ↑ {{ row.up }}</span>
+      </div>
       <div class="flex items-center gap-3 text-xs opacity-70">
         <span aria-label="connections">🔗 {{ row.connections }}</span>
         <span aria-label="seeders">🌱 {{ row.seeders }}</span>
       </div>
-      <div class="flex gap-3">
+
+      {% if let Some(e) = row.error %}
+      <div class="rounded-box bg-base-200 p-2 font-mono text-xs break-words text-error">
+        <p>{{ e }}</p>
+        <p class="mt-1 opacity-70">gid {{ row.gid }}</p>
+        <p class="opacity-70">dir {{ row.dir }}</p>
+      </div>
+      {% endif %}
+
+      <div class="flex gap-2">
         {% if row.paused %}
-        <button type="button" class="btn btn-sm min-h-11"
+        <button type="button" class="btn btn-sm min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/resume')">Resume</button>
         {% else %}
-        <button type="button" class="btn btn-sm min-h-11"
+        <button type="button" class="btn btn-sm min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/pause')">Pause</button>
         {% endif %}
         {% if row.finished %}
-        <button type="button" class="btn btn-sm btn-ghost min-h-11"
+        <button type="button" class="btn btn-sm btn-ghost min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/remove')">Stop seeding</button>
         {% else %}
-        <button type="button" class="btn btn-sm btn-error min-h-11"
+        <button type="button" class="btn btn-sm btn-error min-h-11 flex-1"
           data-on:click="@post('/downloads/{{ row.gid }}/remove')">Delete download</button>
         {% endif %}
       </div>
     </div>
-
-    {% if let Some(e) = row.error %}
-    <!-- A native disclosure: no Datastar wiring, and its open/closed state
-         survives the morph because the row keeps this element's identity —
-         patch-elements matches by id, not by replacing the subtree. -->
-    <details class="mt-1">
-      <summary class="text-error text-xs min-h-11 flex items-center cursor-pointer">Error — tap for details</summary>
-      <div class="text-xs mt-1 rounded-box bg-base-200 p-2 font-mono break-words">
-        <p>{{ e }}</p>
-        <p class="opacity-70 mt-1">gid {{ row.gid }}</p>
-        <p class="opacity-70">dir {{ row.dir }}</p>
-      </div>
-    </details>
-    {% endif %}
-  </div>
+  </details>
 {% endfor %}
 </div>

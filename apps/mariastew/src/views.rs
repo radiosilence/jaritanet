@@ -495,7 +495,11 @@ mod tests {
         }
         .render()
         .unwrap();
-        assert!(!page.contains("<details"));
+        // Every row is a <details> now (see the module doc on downloads.html)
+        // — collapsed for a healthy one — so absence of the tag itself is no
+        // longer the signal. The error block itself, styled `text-error`
+        // and nowhere else on a row, is.
+        assert!(!page.contains("text-error"));
     }
 
     /// The failure mode this exists to prevent: a root with a hundred-plus
@@ -512,7 +516,7 @@ mod tests {
         .render()
         .unwrap();
         assert!(
-            page.contains("max-h-[90dvh]"),
+            page.contains("max-h-[85dvh]"),
             "dialog has no overall height cap: {page}"
         );
         assert!(
@@ -545,5 +549,162 @@ mod tests {
             header.contains("btn-lg") && header.contains("Add download"),
             "the header is not a single prominent primary action: {header}"
         );
+    }
+
+    /// The one thing worth seeing the instant the dialog opens is the
+    /// magnet field — the destination matters (#257) but is a second
+    /// decision, not the first one, so it starts folded away rather than
+    /// dumping a directory tree in front of an empty paste field. Neither
+    /// `<details>` carries `open`: Askama has no way to emit a boolean
+    /// attribute conditionally-absent other than leaving it out, so its
+    /// absence here is the whole assertion.
+    #[test]
+    fn the_destination_picker_starts_collapsed_behind_the_magnet_field() {
+        let page = Page {
+            roots: vec![],
+            rows: vec![],
+            aria2_unreachable: false,
+        }
+        .render()
+        .unwrap();
+        let magnet_pos = page.find(r#"name="magnet""#).expect("magnet field");
+        let details_pos = page.find("<details").expect("a destination disclosure");
+        assert!(
+            magnet_pos < details_pos,
+            "the destination picker is not folded behind the magnet field: {page}"
+        );
+        assert!(
+            !page.contains("<details open"),
+            "a details element opens by default instead of on tap: {page}"
+        );
+    }
+
+    // SCRATCH — visual review only, delete before committing.
+    #[test]
+    fn print_full_page_for_screenshotting() {
+        let roots = vec![
+            RootView {
+                name: "tv".into(),
+                path: "/mnt/kontent/tv".into(),
+            },
+            RootView {
+                name: "movies".into(),
+                path: "/mnt/kontent/movies".into(),
+            },
+        ];
+        let rows = vec![
+            Row {
+                gid: "abc123def456".into(),
+                name: "A.Very.Long.Movie.Title.That.Should.Truncate.Not.Wrap.2024.2160p.WEB-DL.mkv"
+                    .into(),
+                percent: Some(63.0),
+                percent_display: Some("63".into()),
+                health: Health::Moving,
+                bar_class: "progress-success",
+                state: "moving",
+                down: "4.21 MiB/s".into(),
+                up: "312 KiB/s".into(),
+                size: "8.42 GiB".into(),
+                done: "5.31 GiB".into(),
+                connections: 6,
+                seeders: 14,
+                error: None,
+                dir: "/mnt/kontent/movies/A Very Long Movie Title".into(),
+                finished: false,
+                paused: false,
+            },
+            Row {
+                gid: "err000".into(),
+                name: "Errored.Torrent".into(),
+                percent: Some(4.0),
+                percent_display: Some("4".into()),
+                health: Health::Errored,
+                bar_class: "progress-error",
+                state: "errored",
+                down: "0 B/s".into(),
+                up: "0 B/s".into(),
+                size: "700 MiB".into(),
+                done: "28 MiB".into(),
+                connections: 0,
+                seeders: 0,
+                error: Some("No space left on device".into()),
+                dir: "/mnt/kontent/movies/Errored Torrent".into(),
+                finished: false,
+                paused: false,
+            },
+            Row {
+                gid: "fin777".into(),
+                name: "Finished.Movie.2023".into(),
+                percent: Some(100.0),
+                percent_display: Some("100".into()),
+                health: Health::Complete,
+                bar_class: "progress-success",
+                state: "complete",
+                down: "0 B/s".into(),
+                up: "89 KiB/s".into(),
+                size: "4.10 GiB".into(),
+                done: "4.10 GiB".into(),
+                connections: 2,
+                seeders: 9,
+                error: None,
+                dir: "/mnt/kontent/movies/Finished Movie".into(),
+                finished: true,
+                paused: false,
+            },
+            Row {
+                gid: "blk222".into(),
+                name: "Blocked.Show.S01E02".into(),
+                percent: Some(9.0),
+                percent_display: Some("9".into()),
+                health: Health::Blocked,
+                bar_class: "progress-error",
+                state: "blocked",
+                down: "0 B/s".into(),
+                up: "0 B/s".into(),
+                size: "1.20 GiB".into(),
+                done: "112 MiB".into(),
+                connections: 0,
+                seeders: 3,
+                error: None,
+                dir: "/mnt/kontent/tv/Blocked Show/S01".into(),
+                finished: false,
+                paused: false,
+            },
+        ];
+        let page = (Page {
+            roots,
+            rows,
+            aria2_unreachable: false,
+        })
+        .render()
+        .unwrap();
+        std::fs::write("/tmp/mariastew-page-preview.html", &page).unwrap();
+
+        let dirs: Vec<DirView> = (1..=140)
+            .map(|i| DirView {
+                name: format!("Movie Title {i} (20{:02})", 10 + i % 15),
+                path: format!("/mnt/kontent/movies/Movie Title {i}"),
+            })
+            .collect();
+        let drilled = (Browse {
+            parent: Some("/mnt/kontent".into()),
+            path: "/mnt/kontent/movies".into(),
+            dirs,
+        })
+        .render()
+        .unwrap();
+        let picker_start = page.find(r#"<div id="picker""#).unwrap();
+        let picker_end = page[picker_start..].find("</details>").unwrap() + picker_start;
+        let with_drilled_picker = format!(
+            "{}{}{}",
+            &page[..picker_start],
+            drilled,
+            &page[picker_end..]
+        );
+        std::fs::write(
+            "/tmp/mariastew-page-drilled-preview.html",
+            &with_drilled_picker,
+        )
+        .unwrap();
     }
 }

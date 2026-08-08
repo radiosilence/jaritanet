@@ -23,34 +23,45 @@
 </div>
 {% endif %}
 
-<!-- Bounded to the viewport and split into three regions so nothing about
-     reaching them depends on how long the directory list under the current
-     root happens to be (see browse.html): a pinned header carries the paste
-     field — the first, primary action, always visible the moment this
-     opens; only the middle region scrolls; Add and Cancel are pinned at the
-     bottom, in a phone's thumb zone, never below a long list. `dvh` rather
-     than `vh` because mobile Safari's collapsing toolbar makes `vh` wrong
-     the moment the address bar shows or hides. -->
-<dialog id="add-dialog" class="open:flex flex-col max-h-[90dvh] w-full max-w-sm rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
-  <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-6">
-    <h2 class="text-lg font-semibold">Add a download</h2>
-    <input name="magnet" required placeholder="magnet:?xt=..." class="input input-bordered w-full min-h-11" autofocus>
-    {{ self.picker()?|safe }}
+<!-- A bottom sheet, not a centered dialog: pinned to the bottom edge
+     (mt-auto/mb-0 on a UA stylesheet that otherwise centers a <dialog> with
+     margin:auto), which is where a thumb already is and where the rest of
+     this UI's controls live. `closedby="any"` is a tap-outside dismiss with
+     no JS — see #257. The one field that matters, the magnet paste, is the
+     first and only thing shown open; the destination is real but secondary,
+     so it starts collapsed behind its own disclosure rather than dumping a
+     directory tree in front of someone who has not pasted anything yet.
+     `dvh` rather than `vh` because mobile Safari's collapsing toolbar makes
+     `vh` wrong the moment the address bar shows or hides. -->
+<dialog id="add-dialog" closedby="any"
+  class="open:flex flex-col mx-0 mt-auto mb-0 w-full sm:mx-auto sm:mb-auto sm:max-w-sm max-h-[85dvh] rounded-t-2xl sm:rounded-box bg-base-100 shadow-xl backdrop:bg-black/50">
+  <div class="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-base-300 sm:hidden"></div>
+  <form id="add-form" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+    <input name="magnet" required placeholder="Paste a magnet link"
+      class="input input-bordered input-lg min-h-14 w-full text-base" autofocus>
+    <details class="rounded-box border border-base-300">
+      <summary class="min-h-11 flex items-center gap-2 p-3 cursor-pointer text-sm">
+        Destination <span class="opacity-50">— tap to choose</span>
+      </summary>
+      <div class="border-t border-base-300 p-3">
+        {{ self.picker()?|safe }}
+      </div>
+    </details>
   </form>
-  <div class="flex justify-end gap-2 border-t border-base-300 p-4">
-    <form method="dialog">
-      <button class="btn btn-ghost min-h-11">Cancel</button>
+  <div class="flex gap-2 border-t border-base-300 p-4">
+    <form method="dialog" class="flex-1">
+      <button class="btn btn-ghost min-h-12 w-full">Cancel</button>
     </form>
     <!-- `selector` because this button lives outside #add-form — pinned in
          the footer rather than scrolling away with it — so Datastar is told
          explicitly which form to serialize instead of walking up from here
          and finding none. -->
-    <button type="button" class="btn btn-primary min-h-11"
+    <button type="button" class="btn btn-primary min-h-12 flex-[2]"
       data-on:click="@post('/add', {contentType: 'form', selector: '#add-form'})">Add</button>
   </div>
 </dialog>
 
-<main class="p-4 max-w-2xl mx-auto">
+<main class="mx-auto max-w-2xl">
 {% include "downloads.html" %}
 </main>
 
