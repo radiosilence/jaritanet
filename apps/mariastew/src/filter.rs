@@ -8,6 +8,9 @@
 //! Global rather than per-destination, because the scope is television and
 //! film. There is no album art to protect, so scene garbage is garbage
 //! everywhere and one list serves every download.
+//!
+//! The tracker-spam rules below are not part of that port — see the comment
+//! at their definition for why the port stops being exact there.
 
 fn basename(path: &str) -> &str {
     match path.rfind('/') {
@@ -35,6 +38,47 @@ fn is_sample(stem: &str) -> bool {
         || stem.contains("_sample-")
 }
 
+/// A trailing Windows duplicate-file marker, stripped before judging the
+/// rest of a `.txt` stem. `clean-dls` never had to think about this — it
+/// swept a finished download, where a second copy just overwrites the
+/// first — but this filter decides before anything lands, so the same
+/// tracker-spam file re-fetched (a repeat download, a re-seeded release)
+/// can carry Windows' "already have one of these" annotation on top of the
+/// name that actually identifies it. Input is already lowercased by the
+/// caller.
+fn strip_copy_suffix(stem: &str) -> &str {
+    stem.strip_suffix(" - copy").unwrap_or(stem)
+}
+
+/// Whether a `.txt` stem is nothing but a bare hostname — `sitename.tld` and
+/// nothing else, the shape of `AhaShare.com.txt`.
+///
+/// Deliberately narrow: the *entire* stem has to be domain-shaped, not
+/// merely contain something that looks like one. That is what keeps a real
+/// two-word name like `Making.Of.txt` off the list (`of` is a two-letter
+/// final label, under the three-letter floor below) and a scene-style
+/// sidecar like `Show.Name.S01E01.txt` off it too (the final label has
+/// digits in it, never true of a TLD). The floor is deliberately three
+/// letters rather than two — real tracker sites do use two-letter TLDs
+/// (`.to`, `.is`), so this misses some of them, but a two-letter floor
+/// starts matching short, real, two-word names too easily, and wrongly
+/// deleting a real file is the failure that cannot be undone.
+fn looks_like_a_bare_hostname(stem: &str) -> bool {
+    if stem.is_empty() || stem.contains(' ') {
+        return false;
+    }
+    let labels: Vec<&str> = stem.split('.').collect();
+    if labels.len() < 2 || labels.iter().any(|l| l.is_empty()) {
+        return false;
+    }
+    let tld = labels[labels.len() - 1];
+    (3..=4).contains(&tld.len())
+        && tld.bytes().all(|b| b.is_ascii_alphabetic())
+        && labels
+            .iter()
+            .all(|l| l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+}
+
 /// Whether a path is scene garbage.
 pub fn is_garbage(path: &str) -> bool {
     let base = basename(path);
@@ -59,6 +103,24 @@ pub fn is_garbage(path: &str) -> bool {
         "readme.txt" | "info.txt" | "nfo.txt" | "file_id.diz"
     ) {
         return true;
+    }
+
+    // Not part of the `clean-dls` port above: that list is four exact names,
+    // ported unchanged. This is a judgement call the port never had to make,
+    // because `clean-dls` swept a finished download after the fact and an
+    // unrecognised `.txt` just sat there until someone deleted it by hand.
+    // Here it lands in the library and stays, which is what makes tracker
+    // attribution spam ("torrent downloaded from ...", or a bare site
+    // domain used as the filename — neither shipped by a scene group, both
+    // dragged in by whichever site re-hosted the release) worth catching
+    // rather than tolerating. Scoped to `.txt` only, and narrowly, per the
+    // two helpers above: keeping a real caption or synopsis file is a minor
+    // annoyance, deleting one is not recoverable.
+    if let Some(stem) = lbase.strip_suffix(".txt") {
+        let stem = strip_copy_suffix(stem);
+        if stem.contains("torrent downloaded from") || looks_like_a_bare_hostname(stem) {
+            return true;
+        }
     }
 
     let stem = match lbase.rfind('.') {
@@ -104,6 +166,55 @@ mod tests {
         assert!(is_garbage("nfo.txt"));
         assert!(is_garbage("file_id.diz"));
         assert!(is_garbage("FILE_ID.DIZ"));
+    }
+
+    /// The three real filenames a fake torrent left in the library, verbatim.
+    #[test]
+    fn real_tracker_spam_filenames_are_garbage() {
+        assert!(is_garbage("Other/AhaShare.com.txt"));
+        assert!(is_garbage(
+            "Other/Torrent downloaded from Demonoid.com - Copy.txt"
+        ));
+        assert!(is_garbage(
+            "Other/Torrent Downloaded From ExtraTorrent.com.txt"
+        ));
+    }
+
+    #[test]
+    fn tracker_spam_is_garbage_regardless_of_case() {
+        assert!(is_garbage("AHASHARE.COM.TXT"));
+        assert!(is_garbage(
+            "torrent downloaded from demonoid.com - copy.txt"
+        ));
+        assert!(is_garbage("TORRENT DOWNLOADED FROM EXTRATORRENT.COM.TXT"));
+    }
+
+    /// The `" - Copy"` suffix combined with a bare-hostname stem rather than
+    /// the attribution phrase — the one shape none of the three real names
+    /// happens to exercise, since the only one carrying the suffix is caught
+    /// by the phrase rule regardless of what follows it.
+    #[test]
+    fn a_bare_hostname_txt_is_garbage_even_with_a_copy_suffix() {
+        assert!(is_garbage("AhaShare.com - Copy.txt"));
+    }
+
+    /// The failure mode that matters more: a real `.txt` must never be
+    /// caught. None of these has a "torrent downloaded from" phrase, and
+    /// none is *only* a bare hostname once the reasons a title can contain a
+    /// dot or a short word are accounted for.
+    #[test]
+    fn legitimate_txt_files_survive() {
+        assert!(!is_garbage("synopsis.txt"));
+        assert!(!is_garbage("credits.txt"));
+        assert!(!is_garbage("notes.txt"));
+        // Scene-style sidecar: the final dot-separated label has digits in
+        // it, which no TLD does.
+        assert!(!is_garbage("Show.Name.S01E01.txt"));
+        // Two-letter TLD: the domain-shape rule is deliberately narrower
+        // than real-world tracker domains to avoid catching a short
+        // two-word name like "Making.Of.txt" — see `looks_like_a_bare_hostname`.
+        assert!(!is_garbage("Site.To.txt"));
+        assert!(!is_garbage("Making.Of.txt"));
     }
 
     #[test]
