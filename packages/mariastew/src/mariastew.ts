@@ -173,7 +173,7 @@ export function createMariastew(
               {
                 name: "session-file",
                 image,
-                imagePullPolicy: conf.image.pullPolicy ?? "Always",
+                imagePullPolicy: conf.image.pullPolicy,
                 command: ["/bin/touch", sessionFile],
                 resources: {
                   requests: { cpu: "5m", memory: "8Mi" },
@@ -190,7 +190,7 @@ export function createMariastew(
               {
                 name: "mariastew",
                 image,
-                imagePullPolicy: conf.image.pullPolicy ?? "Always",
+                imagePullPolicy: conf.image.pullPolicy,
                 ports: [{ name: "http", containerPort: 8080 }],
                 env: [
                   { name: "BIND_ADDR", value: "0.0.0.0:8080" },
@@ -239,7 +239,7 @@ export function createMariastew(
               {
                 name: "aria2",
                 image,
-                imagePullPolicy: conf.image.pullPolicy ?? "Always",
+                imagePullPolicy: conf.image.pullPolicy,
                 command: [
                   "/usr/bin/aria2c",
                   "--enable-rpc",

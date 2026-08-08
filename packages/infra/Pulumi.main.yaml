@@ -145,7 +145,6 @@ config:
         image:
           repository: "deluan/navidrome"
           tag: 0.63.2
-          pullPolicy: "Always"
         env:
           ND_SCANSCHEDULE: 1h
           ND_LOGLEVEL: info
@@ -197,7 +196,6 @@ config:
         image:
           repository: "ghcr.io/radiosilence/jaritanet-files"
           tag: 1.0.0
-          pullPolicy: "Always"
         replicas: 1
         healthCheck:
           path: "/"
@@ -241,7 +239,6 @@ config:
         image:
           repository: "ghcr.io/radiosilence/blit"
           tag: sha-e7ec682
-          pullPolicy: "Always"
         httpPort: 3000
     # What lady serves off the media drive. Shares are anonymous — `map to
     # guest` turns unknown users into `guestAccount`, which must own the files
@@ -295,7 +292,6 @@ config:
         # to be a sha pushed here by that repo's CI on every build.
         repository: "ghcr.io/radiosilence/mcp-gateway"
         tag: v0.7.0
-        pullPolicy: "Always"
       # Each entry is both a backend pod and its entry in the registry the gateway
       # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
       # that doesn't exist is just a 502. The in-cluster URL joining them is
@@ -424,7 +420,6 @@ config:
       image:
         repository: "ghcr.io/radiosilence/mariastew"
         tag: 0.1.9
-        pullPolicy: "Always"
       roots:
         - name: tv
           hostPath: /mnt/kontent/tv
@@ -497,7 +492,6 @@ config:
     image:
       repository: "ghcr.io/radiosilence/auth"
       tag: 0.1.0
-      pullPolicy: "Always"
     github:
       clientId: Ov23lig1BPAzKe4qmT4F
       clientSecret:

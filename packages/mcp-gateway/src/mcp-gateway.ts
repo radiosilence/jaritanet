@@ -456,7 +456,7 @@ export function createMcpGateway(
               {
                 name: "mcp-gateway",
                 image: `${conf.image.repository}:${conf.image.tag}`,
-                imagePullPolicy: conf.image.pullPolicy ?? "Always",
+                imagePullPolicy: conf.image.pullPolicy,
                 ports: [{ name: "http", containerPort: 8080 }],
                 env: [
                   { name: "BIND_ADDR", value: "0.0.0.0:8080" },
