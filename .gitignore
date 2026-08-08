@@ -25,6 +25,12 @@ node_modules
 
 apps/*/target
 
+# Where CI unpacks the compiled binary for the container build, and where a
+# local reproduction of that build has to put it. Same name as the crate, so
+# only these two can be spelled out rather than globbed.
+/apps/mariastew/mariastew
+/apps/auth/auth
+
 
 # harness-managed agent worktrees
 .claude/worktrees/

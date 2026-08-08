@@ -193,8 +193,24 @@ Rewrites go through the YAML document API and mutate the existing scalar, so a b
 
 Builds and publishes each container on changes to its own directory, one job per
 architecture on a runner of that architecture (via `blit-workflows`) rather than
-emulating arm64 under QEMU. The Rust one is also checked by the `containers` job
-in `ci-cd.yml` (fmt, clippy, `cargo test`).
+emulating arm64 under QEMU. The Rust ones are also checked by the `containers`
+job in `ci-cd.yml` (fmt, clippy, `cargo test`).
+
+**Where the compile happens is the difference between the two Rust shapes.** A
+`cargo build` inside a Dockerfile is one atomic layer, so a single crate moving
+in `Cargo.lock` recompiles all of them — measured on `mariastew` at 168s of
+dependencies against 15s of its own code. Neither the stub-`main` layer nor
+`cargo-chef` subdivides that; they reorder it. Cargo's own cache does have the
+right granularity, and the only place it survives between runs is the runner, so
+`mariastew` and `auth` compile there under `Swatinem/rust-cache` and hand the
+binary to `build-publish-container.yml` as an artefact (`context-artifact`),
+leaving their Dockerfiles a `COPY` into a base image. The price is that those
+two Dockerfiles no longer build from a bare checkout. `serve-from-env` still
+compiles inline at 46 crates, where a second job shape costs more than it saves.
+
+Caches are written from `main` only (`save-if`). A branch's cache is invisible
+to every other branch and still evicts from the repository's 10GB, which is how
+`main` ends up cold — the one state this is all meant to avoid.
 
 Our containers are versioned and released from here, so the updater can track
 them like any upstream. The version lives in each app's `Cargo.toml`, or
