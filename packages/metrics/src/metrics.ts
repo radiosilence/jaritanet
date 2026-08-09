@@ -4,7 +4,11 @@ import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import * as yaml from "yaml";
 import type * as z from "zod";
-import { DATASOURCE_UID, dashboardFiles } from "./dashboards.ts";
+import {
+  DATASOURCE_UID,
+  dashboardFiles,
+  HOME_DASHBOARD,
+} from "./dashboards.ts";
 import type { MetricsConfSchema } from "./metrics.schemas.ts";
 import { scrapeConfig } from "./scrape.ts";
 
@@ -21,6 +25,9 @@ const SECRETS_NAME = "metrics-secrets";
  * and the Service are the same string rather than two that agree today.
  */
 export const GRAFANA = "metrics-grafana";
+
+/** Where the provisioned dashboards are mounted, and read from. */
+const DASHBOARD_DIR = "/etc/grafana/dashboards";
 
 /** Where the store answers, in the namespace of everything that asks. */
 const VMSINGLE_URL = `http://${VMSINGLE}:8428`;
@@ -436,7 +443,7 @@ export function createMetrics(
               // survives until the next deploy — which is the right lifetime
               // for an experiment.
               allowUiUpdates: true,
-              options: { path: "/etc/grafana/dashboards" },
+              options: { path: DASHBOARD_DIR },
             },
           ],
         }),
@@ -567,6 +574,17 @@ export function createMetrics(
                   },
                   { name: "GF_ANALYTICS_REPORTING_ENABLED", value: "false" },
                   { name: "GF_ANALYTICS_CHECK_FOR_UPDATES", value: "false" },
+                  // Grafana's default landing page is its own onboarding: a
+                  // "set up your first data source" walkthrough for things that
+                  // were set up by the deploy, and a feed of its company blog.
+                  // Land on the graphs the estate exists to show instead —
+                  // disks, because a drive filling up is the question this was
+                  // built to answer.
+                  {
+                    name: "GF_USERS_DEFAULT_HOME_DASHBOARD_PATH",
+                    value: `${DASHBOARD_DIR}/${HOME_DASHBOARD}.json`,
+                  },
+                  { name: "GF_NEWS_NEWS_FEED_ENABLED", value: "false" },
                 ],
                 volumeMounts: [
                   { name: "data", mountPath: "/var/lib/grafana" },
@@ -586,7 +604,7 @@ export function createMetrics(
                   },
                   {
                     name: "dashboards",
-                    mountPath: "/etc/grafana/dashboards",
+                    mountPath: DASHBOARD_DIR,
                     readOnly: true,
                   },
                 ],
