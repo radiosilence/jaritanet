@@ -83,7 +83,7 @@ config:
     # The image is a maintainer's Docker Hub account rather than the project's
     # own org, which publishes none — see conf.schemas.ts.
     hysteria:
-      image: docker.io/tobyxdd/hysteria:v2.12.0
+      image: docker.io/tobyxdd/hysteria:v2.12.1
     # Tailnet relay: joins the VPS to the tailnet so clients can reach 100.x
     # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
     # no-op until the secret exists.
