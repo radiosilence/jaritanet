@@ -14,6 +14,24 @@
 <script type="module" src="{{ self.app_js_path() }}"></script>
 <script type="module" src="/assets/datastar.js"></script>
 </head>
+{# Coming back to the page reconnects the stream, without asking whether it is
+     still up.
+
+     Datastar closes its fetch when the document goes hidden and reopens it when
+     it returns, so a tab switch is already covered. iOS is not: it suspends the
+     page rather than telling it anything, and what resumes is either a
+     connection that ended cleanly — a finished 200 body is the request being
+     over as far as Datastar is concerned, so it stops there and takes its own
+     visibilitychange listener with it, and nothing reopens the stream ever
+     again — or a socket that is dead with no error to observe. Either way the
+     page holds whatever it last painted until it is reloaded (#386).
+
+     Unconditional because of that second case: the only liveness signal
+     available is what Datastar believes, and a zombie socket is exactly where
+     that is wrong. It costs one redundant reconnect per return —
+     `requestCancellation` defaults to aborting the in-flight request to the
+     same URL, so there is still one stream — and its first tick is the whole
+     container, which is the fresh data being asked for. #}
 {# `$addStatus` and `$addMessage` are the whole contract with the server for
      this form: POST /add answers with a JSON body, which Datastar treats as a
      signal patch on its own (Content-Type: application/json is all it takes, no
@@ -28,6 +46,7 @@
 
      `__ifmissing` seeds them without stomping a patch that arrived first. #}
 <body data-init="@get('/stream')"
+  data-on:visibilitychange__document="!document.hidden && @get('/stream')"
   data-signals__ifmissing="{addStatus: '', addMessage: ''}"
   class="min-h-dvh bg-base-200">
 

@@ -5,6 +5,12 @@ All notable changes to mariastew are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.26] - 2026-08-09
+
+### Fixed
+
+- Returning to the page reconnects the download stream, so a phone coming back from the app switcher shows live data rather than whatever it last painted. Datastar reopens its own connection on `visibilitychange`, but only while it still considers the request live — a 200 body that simply ends is the request being over, and it removes that listener on the way out, so a stream iOS killed under a suspended page never came back and the page had to be reloaded ([#386](https://github.com/radiosilence/jaritanet/issues/386))
+
 ## [0.1.25] - 2026-08-08
 
 ### Removed

@@ -478,6 +478,18 @@ everything had — and doing it for an empty one too is what retires the
 unreachable warning: a snapshot exists only after aria2 has answered, so one
 arriving is the proof the page rendered on stale news.
 
+A page returning to the foreground reconnects, whatever state its stream was
+in. Datastar closes the connection while the document is hidden and reopens it
+when it comes back, which covers a tab switch — but iOS suspends a page without
+telling it, and what it resumes with has either ended (a finished 200 body is
+the request being over as far as Datastar is concerned, and it drops its own
+visibilitychange listener with it) or gone dead with no error to observe. The
+page then holds whatever it last painted until it is reloaded. The reconnect is
+unconditional because of the second case: the only liveness signal available is
+Datastar's own belief, and a zombie socket is precisely where that is wrong. It
+costs one redundant connection per return, whose first tick is the container —
+the fresh data that was wanted anyway.
+
 With nobody watching it drops to `IDLE_POLL_MS` and renders nothing. That
 interval is the notifier's alone — it is looking for a download that finished
 or failed, and nothing about that is in a hurry — and the first page to open
