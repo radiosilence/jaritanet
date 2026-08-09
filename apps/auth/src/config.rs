@@ -27,7 +27,11 @@ pub struct FirstPartyClient {
 }
 
 fn default_scopes() -> Vec<String> {
-    ["openid", "profile", "offline_access"]
+    // `email` is not optional in practice: Grafana refuses a login whose
+    // token carries no address at all, and Hydra grants only what the
+    // client is registered for — so a scope missing here is a relying party
+    // that cannot sign anybody in, reported as the provider denying it.
+    ["openid", "profile", "email", "offline_access"]
         .map(str::to_string)
         .to_vec()
 }

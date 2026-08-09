@@ -11,22 +11,39 @@ use url::Url;
 
 use crate::config::Config;
 
-/// Who GitHub says this is: a stable numeric id, and the login to show.
+/// Who GitHub says this is: a stable numeric id, the login to show, and an
+/// address to reach them at.
 ///
 /// The subject is the id rather than the login because a login can be changed
 /// by its owner and reused by somebody else, and every relying party keys its
 /// own state on whatever is issued here.
+///
+/// The address is not decoration. Grafana refuses a login carrying no `email`
+/// claim outright — `errOAuthMissingRequiredEmail`, before its own user sync
+/// runs — so a provider that emits none cannot sign anyone in to it at all.
 pub struct Identity {
     pub subject: String,
     pub login: String,
+    pub email: String,
+    /// Whether GitHub vouches for the address, which is false for the fallback
+    /// below. Nothing here reads it; it goes on the token because a relying
+    /// party deciding that a verified address is proof of anything deserves to
+    /// be told when it is not one.
+    pub email_verified: bool,
 }
+
+/// `user:email` is the narrowest scope that answers "what is this person's
+/// address": `read:user` returns the profile's *public* email, which is null
+/// unless they chose to publish one, so relying on it works for whoever set it
+/// up and fails silently for everyone else.
+const SCOPE: &str = "read:user user:email";
 
 pub fn authorize_url(config: &Config, csrf: &str) -> String {
     let mut url = Url::parse("https://github.com/login/oauth/authorize").expect("static URL");
     url.query_pairs_mut()
         .append_pair("client_id", &config.github.client_id)
         .append_pair("redirect_uri", &config.github_redirect_uri())
-        .append_pair("scope", "read:user")
+        .append_pair("scope", SCOPE)
         .append_pair("state", csrf);
     url.into()
 }
@@ -41,6 +58,36 @@ struct TokenResponse {
 struct User {
     id: u64,
     login: String,
+}
+
+#[derive(Deserialize)]
+struct Address {
+    email: String,
+    primary: bool,
+    verified: bool,
+}
+
+/// GitHub's own no-reply address for an account.
+///
+/// Used when the address list cannot be read or holds nothing verified. It is
+/// not a placeholder: GitHub routes it, it is unique to this account, and it
+/// survives a login being renamed because the numeric id leads. That matters
+/// because a relying party keys a user on whatever arrives here, so an address
+/// that changes shape later is a duplicate account rather than an update.
+fn noreply(user: &User) -> String {
+    format!("{}+{}@users.noreply.github.com", user.id, user.login)
+}
+
+/// The primary verified address, or any verified one.
+///
+/// Verified only, deliberately. An unverified address on GitHub is a string
+/// somebody typed, and handing it downstream as an identity claim is how an
+/// account gets matched to a mailbox its owner never proved they hold.
+fn pick(addresses: &[Address]) -> Option<&Address> {
+    addresses
+        .iter()
+        .find(|a| a.primary && a.verified)
+        .or_else(|| addresses.iter().find(|a| a.verified))
 }
 
 pub async fn exchange_code(
@@ -95,9 +142,36 @@ pub async fn exchange_code(
         .await
         .context("GitHub's user response was not JSON")?;
 
+    // A failure here is not a failed login: the fallback address is derivable
+    // from what is already in hand, and refusing to sign anyone in because
+    // GitHub's address list was briefly unavailable trades an inconvenience
+    // for an outage.
+    let addresses: Vec<Address> = match http
+        .get("https://api.github.com/user/emails")
+        .header("accept", "application/vnd.github+json")
+        .header("user-agent", "jaritanet-auth")
+        .bearer_auth(&access_token)
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status)
+    {
+        Ok(response) => response.json().await.unwrap_or_default(),
+        Err(err) => {
+            tracing::warn!(%err, "GitHub refused the address list; using the no-reply address");
+            Vec::new()
+        }
+    };
+
+    let (email, email_verified) = match pick(&addresses) {
+        Some(address) => (address.email.clone(), true),
+        None => (noreply(&user), false),
+    };
+
     Ok(Identity {
         subject: format!("github:{}", user.id),
         login: user.login,
+        email,
+        email_verified,
     })
 }
 
@@ -128,6 +202,66 @@ mod tests {
         assert!(url.contains("client_id=cid"));
         assert!(url.contains("state=nonce"));
         assert!(url.contains("auth%2Fgithub%2Fcallback"));
+    }
+
+    /// Narrowing this breaks every login at once and reads, downstream, as the
+    /// provider refusing the request rather than as a missing claim.
+    #[test]
+    fn the_authorize_url_asks_for_the_address() {
+        assert!(authorize_url(&config(), "nonce").contains("user%3Aemail"));
+    }
+
+    fn address(email: &str, primary: bool, verified: bool) -> Address {
+        Address {
+            email: email.into(),
+            primary,
+            verified,
+        }
+    }
+
+    #[test]
+    fn the_primary_verified_address_wins() {
+        let addresses = [
+            address("old@example.com", false, true),
+            address("jc@blit.cc", true, true),
+        ];
+        assert_eq!(
+            pick(&addresses).map(|a| a.email.as_str()),
+            Some("jc@blit.cc")
+        );
+    }
+
+    /// An unverified address is a string somebody typed. Handing it downstream
+    /// as an identity claim is how an account is matched to a mailbox its owner
+    /// never proved they hold — so it loses to a verified non-primary, and to
+    /// nothing at all.
+    #[test]
+    fn an_unverified_address_never_wins() {
+        let addresses = [
+            address("unproven@example.com", true, false),
+            address("old@example.com", false, true),
+        ];
+        assert_eq!(
+            pick(&addresses).map(|a| a.email.as_str()),
+            Some("old@example.com")
+        );
+        assert!(pick(&[address("unproven@example.com", true, false)]).is_none());
+        assert!(pick(&[]).is_none());
+    }
+
+    /// The fallback leads with the numeric id, so it survives the login being
+    /// renamed. A relying party keys a user on whatever arrives here, and an
+    /// address that changes shape later is a duplicate account, not an update.
+    #[test]
+    fn the_fallback_address_is_githubs_own() {
+        let user = User {
+            id: 12345,
+            login: "radiosilence".into(),
+        };
+        assert_eq!(
+            noreply(&user),
+            "12345+radiosilence@users.noreply.github.com"
+        );
     }
 
     /// The callback path is what the OAuth App is registered with, so it is

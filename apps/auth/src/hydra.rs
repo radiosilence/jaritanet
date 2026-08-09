@@ -30,10 +30,16 @@ pub struct LoginRequest {
     #[serde(default)]
     pub subject: String,
     /// Whatever was attached when this session was accepted. Carries the
-    /// upstream login, so a skipped login still knows whose name to put on the
-    /// token without asking GitHub again.
+    /// upstream login and address, so a skipped login still knows what to put
+    /// on the token without asking GitHub again.
     #[serde(default)]
     pub context: Value,
+}
+
+impl LoginRequest {
+    pub fn claims(&self) -> SessionClaims {
+        SessionClaims::from_context(&self.context, &self.subject)
+    }
 }
 
 #[derive(Deserialize)]
@@ -60,11 +66,60 @@ impl ConsentRequest {
             .unwrap_or(&self.client.client_id)
     }
 
-    pub fn login(&self) -> &str {
-        self.context
+    pub fn claims(&self) -> SessionClaims {
+        SessionClaims::from_context(&self.context, &self.subject)
+    }
+}
+
+/// What the login session carries, and what ends up on the ID token.
+///
+/// One shape rather than three positional strings, because it is written at
+/// the end of a GitHub round-trip and read back somewhere else entirely — by a
+/// skipped login and by every consent request — and a transposed pair of
+/// arguments between those two points would put a login in the email field
+/// with nothing to catch it.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct SessionClaims {
+    pub login: String,
+    pub email: String,
+    pub email_verified: bool,
+}
+
+impl SessionClaims {
+    /// The subject stands in for a missing login, which is what a session
+    /// written before there was a context looks like. A missing address stays
+    /// missing rather than being invented — see `routes::login`, which
+    /// answers an absent one by asking GitHub again rather than by issuing
+    /// a token no relying party will accept.
+    fn from_context(context: &Value, subject: &str) -> Self {
+        let string = |key: &str| {
+            context
+                .get(key)
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        };
+        let login = context
             .get("login")
             .and_then(Value::as_str)
-            .unwrap_or(&self.subject)
+            .unwrap_or(subject)
+            .to_string();
+        Self {
+            login,
+            email: string("email"),
+            email_verified: context
+                .get("email_verified")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        }
+    }
+
+    fn as_context(&self) -> Value {
+        json!({
+            "login": self.login,
+            "email": self.email,
+            "email_verified": self.email_verified,
+        })
     }
 }
 
@@ -135,16 +190,17 @@ impl HydraAdmin {
         .await
     }
 
-    /// Accept the login, and attach the upstream login name to the session.
+    /// Accept the login, and attach what is known about the person to it.
     ///
     /// The `context` is what a later skipped login and every consent request
-    /// read back, so the name survives without GitHub being asked a second
-    /// time — and without this service keeping a session to hold it in.
+    /// read back, so the name and the address survive without GitHub being
+    /// asked a second time — and without this service keeping a session to
+    /// hold them in.
     pub async fn accept_login(
         &self,
         challenge: &str,
         subject: &str,
-        login: &str,
+        claims: &SessionClaims,
     ) -> Result<String> {
         self.put_redirect(
             "/admin/oauth2/auth/requests/login/accept",
@@ -153,7 +209,7 @@ impl HydraAdmin {
                 "subject": subject,
                 "remember": true,
                 "remember_for": REMEMBER_FOR_SECS,
-                "context": { "login": login },
+                "context": claims.as_context(),
             }),
         )
         .await
@@ -171,10 +227,11 @@ impl HydraAdmin {
     ///
     /// A login accepted without session claims yields an ID token carrying
     /// `sub` and nothing else, which leaves every dashboard downstream
-    /// displaying `github:12345` at its user. The name comes from here or it
-    /// does not exist.
+    /// displaying `github:12345` at its user — and, for one that requires an
+    /// address, refusing the login outright. The claims come from here or
+    /// they do not exist.
     pub async fn accept_consent(&self, challenge: &str, req: &ConsentRequest) -> Result<String> {
-        let login = req.login();
+        let claims = req.claims();
         self.put_redirect(
             "/admin/oauth2/auth/requests/consent/accept",
             &[("consent_challenge", challenge)],
@@ -185,8 +242,10 @@ impl HydraAdmin {
                 "remember_for": REMEMBER_FOR_SECS,
                 "session": {
                     "id_token": {
-                        "name": login,
-                        "preferred_username": login,
+                        "name": claims.login,
+                        "preferred_username": claims.login,
+                        "email": claims.email,
+                        "email_verified": claims.email_verified,
                     },
                 },
             }),
@@ -283,9 +342,52 @@ mod tests {
     #[test]
     fn the_login_comes_from_the_session_context() {
         assert_eq!(
-            consent(None, json!({ "login": "radiosilence" })).login(),
+            consent(None, json!({ "login": "radiosilence" }))
+                .claims()
+                .login,
             "radiosilence"
         );
-        assert_eq!(consent(None, Value::Null).login(), "github:12345");
+        assert_eq!(consent(None, Value::Null).claims().login, "github:12345");
+    }
+
+    /// The whole point of carrying the address: a consent request arriving on a
+    /// remembered session has no upstream to ask, so what is not in the context
+    /// is not on the token.
+    #[test]
+    fn the_address_rides_in_the_context_too() {
+        let claims = consent(
+            None,
+            json!({
+                "login": "radiosilence",
+                "email": "jc@blit.cc",
+                "email_verified": true,
+            }),
+        )
+        .claims();
+        assert_eq!(claims.email, "jc@blit.cc");
+        assert!(claims.email_verified);
+    }
+
+    /// A session accepted before the address was a claim. It must read as
+    /// absent rather than as an empty-but-present address, because that is the
+    /// signal `login` uses to ask GitHub again instead of issuing a token no
+    /// relying party will accept.
+    #[test]
+    fn a_session_from_before_the_address_carries_none() {
+        let claims = consent(None, json!({ "login": "radiosilence" })).claims();
+        assert_eq!(claims.email, "");
+        assert!(!claims.email_verified);
+    }
+
+    /// An unverified address is not evidence, so it is never the one chosen —
+    /// the round-trip through the context must not quietly promote one.
+    #[test]
+    fn an_unverified_address_stays_unverified() {
+        let claims = consent(
+            None,
+            json!({ "login": "x", "email": "typo@example", "email_verified": false }),
+        )
+        .claims();
+        assert!(!claims.email_verified);
     }
 }

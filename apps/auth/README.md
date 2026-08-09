@@ -48,6 +48,24 @@ every relying party to a token carrying a bare `sub`, which leaves dashboards
 displaying `github:12345` at their user. The auto-grant lives in the handler for
 exactly that reason.
 
+**An address is a claim, not a nicety.** Grafana refuses a login whose token
+carries no `email` at all — `errOAuthMissingRequiredEmail`, before its own user
+sync runs — so a provider that emits none cannot sign anyone in to it, and the
+refusal surfaces at the relying party rather than here. GitHub's `read:user`
+returns only the *public* profile address, which is null unless the person chose
+to publish one, so the scope is `read:user user:email` and the address comes from
+`/user/emails`: the primary verified one, or any verified one. Nothing
+unverified is ever used — that is a string somebody typed, and passing it on as
+an identity claim is how an account gets matched to a mailbox its owner never
+proved they hold. When GitHub cannot be asked, the fallback is that account's own
+`<id>+<login>@users.noreply.github.com`, which routes, is unique, and leads with
+the numeric id so it survives a rename.
+
+Both halves have to agree: Hydra grants only what a client is registered for, so
+`email` is in `default_scopes()` too. A relying party asking for a scope its
+registration lacks is refused with `invalid_scope`, which Grafana reports as the
+provider denying the request — an error naming neither the scope nor the claim.
+
 **The session is Hydra's, not this service's.** Accepting a login with
 `remember` is what makes the second service seamless, and it lives at the
 authorization server where every relying party benefits. So restarting this pod
