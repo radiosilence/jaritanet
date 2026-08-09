@@ -5,11 +5,32 @@ All notable changes to mariastew are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.26] - 2026-08-09
+## [0.1.28] - 2026-08-09
 
 ### Fixed
 
 - Returning to the page reconnects the download stream, so a phone coming back from the app switcher shows live data rather than whatever it last painted. Datastar reopens its own connection on `visibilitychange`, but only while it still considers the request live — a 200 body that simply ends is the request being over, and it removes that listener on the way out, so a stream iOS killed under a suspended page never came back and the page had to be reloaded ([#386](https://github.com/radiosilence/jaritanet/issues/386))
+- `Dockerfile.dev` copies `build.rs`, so `docker compose` builds again. It has not since the browser script gained a build script to name its hashed filename (0.1.22), which left local development to a compile error about `APP_JS_FILENAME` ([#386](https://github.com/radiosilence/jaritanet/issues/386))
+
+## [0.1.27] - 2026-08-08
+
+### Added
+
+- An app icon, and the set around it: a favicon (SVG, plus a 16/32/48 `.ico` for anything that will not take one), an apple-touch icon, and a web manifest carrying 192 and 512 at each of `any` and `maskable`, so the tab is no longer the browser's blank page glyph and the home screen no longer a screenshot. Two of each size rather than one declared `any maskable`, because only what is definitely going to be masked can afford to be full-bleed — everywhere else that is a bare square, and everywhere else is where a person actually looks at it. It is a horseshoe magnet holding the stew between its poles — aria2 said out loud is "Maria Stew", and what it does is fetch things off strangers with magnet links. Rendered from one SVG by `mise run mariastew:app-icons` and committed, so no build learns about librsvg ([#373](https://github.com/radiosilence/jaritanet/issues/373))
+- A `mariastew` daisyUI theme, which is the icon read out loud: amber is the stew, steel is the magnet, red is its poles, so `btn-primary`, a download bar and a failed download are the three colours in the drawing. daisyUI's own themes are switched off, so the stylesheet carries only the palette it renders ([#373](https://github.com/radiosilence/jaritanet/issues/373))
+- The icon's silhouette as a very faint fixed watermark behind the page. The rows on top of it are opaque, so what it is really for is everything that is not a full list — the empty state, the sign-in page, the space under the last row ([#373](https://github.com/radiosilence/jaritanet/issues/373))
+
+### Changed
+
+- A download's state is plain text while it is still moving, rather than each one getting an outlined pill of its own. That spent the loudest shape in the row on "downloading", which the progress bar directly underneath was already saying better; the filled green badge a finished download gets now has the glance to itself, which is what it was introduced for ([#373](https://github.com/radiosilence/jaritanet/issues/373))
+- Flat surfaces and smaller radii throughout — daisyUI 5's gradient overlay and surface texture are off, and nothing is a pill. The header carries a border instead of a drop shadow, which on a dark surface was drawing a separation the eye could not see ([#373](https://github.com/radiosilence/jaritanet/issues/373))
+
+## [0.1.26] - 2026-08-08
+
+### Fixed
+
+- A magnet no longer announces itself as downloaded before it starts downloading. The metadata pass reaches aria2's `Complete` when the *torrent file* arrives, and every reading taken off its byte counters was answering about the wrong download: the row turned green and said "downloaded" beside the torrent's name, filled its bar, showed "0s left", and the completion watch sent Telegram a finished message and swept a directory nothing had been written to. A metadata pass now measures nothing (`Download::display_totals`), so the bar is indeterminate, the size and ETA are absent, and the state stays *finding peers* until the real download exists ([#372](https://github.com/radiosilence/jaritanet/issues/372))
+- No ETA before the size is known. A resolving magnet moves bytes at a real rate with no total to spend them against, which divided out to "0s left" on a torrent that had not started ([#372](https://github.com/radiosilence/jaritanet/issues/372))
 
 ## [0.1.25] - 2026-08-08
 

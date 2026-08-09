@@ -21,6 +21,7 @@ use serde::Deserialize;
 use crate::cookie::{self, FLOW_COOKIE};
 use crate::error::{AppError, AppResult};
 use crate::github;
+use crate::hydra::SessionClaims;
 use crate::state::AppState;
 use crate::store::{FLOW_TTL_SECS, Flow};
 
@@ -84,16 +85,16 @@ pub async fn login(
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
 
-    if request.skip {
-        let login = request
-            .context
-            .get("login")
-            .and_then(|v| v.as_str())
-            .unwrap_or(&request.subject)
-            .to_string();
+    // A session accepted before the address became a claim carries none, and
+    // nothing here can reconstruct one — so that session is not skipped, and
+    // the upstream is asked again. GitHub's own session usually makes the
+    // round-trip invisible, which is what makes this a migration rather than a
+    // forced sign-out.
+    let claims = request.claims();
+    if request.skip && !claims.email.is_empty() {
         let redirect_to = state
             .hydra
-            .accept_login(&q.login_challenge, &request.subject, &login)
+            .accept_login(&q.login_challenge, &request.subject, &claims)
             .await
             .map_err(|e| AppError::Upstream(e.to_string()))?;
         return Ok(redirect(&redirect_to, &[]));
@@ -161,9 +162,14 @@ pub async fn github_callback(
         return Err(AppError::Unauthorized);
     }
 
+    let claims = SessionClaims {
+        login: identity.login,
+        email: identity.email,
+        email_verified: identity.email_verified,
+    };
     let redirect_to = state
         .hydra
-        .accept_login(&flow.login_challenge, &identity.subject, &identity.login)
+        .accept_login(&flow.login_challenge, &identity.subject, &claims)
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
 
@@ -213,7 +219,7 @@ pub async fn consent(
     let page = ConsentTemplate {
         challenge: q.consent_challenge,
         client: request.client_label().to_string(),
-        login: request.login().to_string(),
+        login: request.claims().login,
         scopes: request.requested_scope.clone(),
         audience: request.requested_access_token_audience.clone(),
     };

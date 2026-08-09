@@ -41,21 +41,76 @@ pub const APP_JS_PATH: &str = concat!("/assets/", env!("APP_JS_FILENAME"));
 /// bundle are build outputs, so a mount would be a second thing to keep in step
 /// with the image, and `app.js` travels with them because it is the same thing
 /// to the browser.
-const ASSETS: [(&str, &str, &str); 3] = [
+///
+/// Bodies are bytes rather than `&str` because half of these are now PNGs.
+/// `include_bytes!` covers the text ones too — the content type is stated here
+/// either way, so nothing was being checked by the compiler's insistence that
+/// the script was UTF-8.
+///
+/// `/favicon.ico` sits beside its `/assets` copy because that is the path a
+/// browser asks for on its own, before it has parsed any `<link>` — and the
+/// only router that would otherwise answer it is behind the session layer, so
+/// an unauthenticated tab would get a login redirect where it wanted an image.
+const ASSETS: [(&str, &str, &[u8]); 12] = [
     (
         APP_JS_PATH,
         "text/javascript; charset=utf-8",
-        include_str!(concat!("../assets/", env!("APP_JS_FILENAME"))),
+        include_bytes!(concat!("../assets/", env!("APP_JS_FILENAME"))),
     ),
     (
         "/assets/datastar.js",
         "text/javascript; charset=utf-8",
-        include_str!("../assets/datastar.js"),
+        include_bytes!("../assets/datastar.js"),
     ),
     (
         "/assets/app.css",
         "text/css; charset=utf-8",
-        include_str!("../assets/app.css"),
+        include_bytes!("../assets/app.css"),
+    ),
+    (
+        "/assets/manifest.webmanifest",
+        "application/manifest+json",
+        include_bytes!("../assets/manifest.webmanifest"),
+    ),
+    (
+        "/assets/icon.svg",
+        "image/svg+xml",
+        include_bytes!("../assets/icon.svg"),
+    ),
+    (
+        "/assets/favicon.ico",
+        "image/x-icon",
+        include_bytes!("../assets/favicon.ico"),
+    ),
+    (
+        "/favicon.ico",
+        "image/x-icon",
+        include_bytes!("../assets/favicon.ico"),
+    ),
+    (
+        "/assets/apple-touch-icon.png",
+        "image/png",
+        include_bytes!("../assets/apple-touch-icon.png"),
+    ),
+    (
+        "/assets/icon-192.png",
+        "image/png",
+        include_bytes!("../assets/icon-192.png"),
+    ),
+    (
+        "/assets/icon-512.png",
+        "image/png",
+        include_bytes!("../assets/icon-512.png"),
+    ),
+    (
+        "/assets/icon-192-maskable.png",
+        "image/png",
+        include_bytes!("../assets/icon-192-maskable.png"),
+    ),
+    (
+        "/assets/icon-512-maskable.png",
+        "image/png",
+        include_bytes!("../assets/icon-512-maskable.png"),
     ),
 ];
 

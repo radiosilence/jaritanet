@@ -8,6 +8,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">{# For safe-area-insets #}
 <title>mariastew</title>
 {% import "icons.html" as icons %}
+{# The SVG is what every browser here will actually use; the `.ico` is for
+     Windows and for anything that asks before it has parsed this. The
+     apple-touch icon and the manifest pair are drawn full-bleed on purpose —
+     iOS and Android round a home screen icon themselves, and a tile that
+     arrives pre-rounded gets rounded twice (see scripts/gen-app-icons.ts).
+
+     All of them are served from outside the session layer, along with the
+     stylesheet: the sign-in page needs an icon too, and a manifest is fetched
+     without credentials by default, so one behind the layer would answer the
+     install prompt with a login redirect. #}
+<link rel="icon" href="/assets/favicon.ico" sizes="32x32">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/assets/manifest.webmanifest">
+<meta name="theme-color" content="#1b1210">
 <link rel="stylesheet" href="/assets/app.css">
 {# Before Datastar: both are modules, so they run in document order and `ms.*`
      is defined by the time an expression names one. #}
@@ -60,7 +75,10 @@
 
      Nothing is reset here: closing is what clears an abandoned attempt, and
      that is the one event every dismissal raises. #}
-<header class="bg-base-100 shadow-sm p-4">
+{# A border rather than the shadow it used to cast: the theme is flat, and on
+     a dark surface a small drop shadow is invisible anyway — it was drawing a
+     separation the eye could not see. #}
+<header class="bg-base-100 border-b border-base-300 p-4">
   <button type="button" class="btn btn-primary btn-lg min-h-14 w-full"
     aria-label="Add download" title="Add download"
     data-on:click="$addDialog.showModal()">{% call icons::magnet(class="text-3xl") %}{% endcall %}</button>

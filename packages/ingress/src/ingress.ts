@@ -58,6 +58,24 @@ export function createIngress(
             hostPort: 8443,
           },
         },
+        // Per-route request rates, response codes and latencies — the other
+        // half of "is anything actually broken". Only the labels are set here:
+        // the chart enables its Prometheus endpoint by default and annotates
+        // its own pod with `prometheus.io/scrape` and the metrics entrypoint's
+        // port, which is what @jaritanet/metrics discovers it by. Adding a
+        // `podAnnotations` block of our own is both redundant and rejected —
+        // the key lives under `deployment`, and the chart's values schema
+        // fails the release rather than ignoring it.
+        //
+        // `addRoutersLabels` is the one that is off by default and is the whole
+        // point: without it the numbers are a single total for the estate.
+        metrics: {
+          prometheus: {
+            addEntryPointsLabels: true,
+            addRoutersLabels: true,
+            addServicesLabels: true,
+          },
+        },
         service: {
           // `service.spec.type`, not `service.type` — same trap as
           // updateStrategy below. Left at the chart's LoadBalancer default it

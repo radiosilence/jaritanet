@@ -121,6 +121,16 @@ than a percentage:
   the badge and the activity log. Nothing in one `tellStatus` separates a
   magnet nobody has from one that is merely slow. How long it has been does,
   and that is what the log's timestamps answer.
+
+  It also holds all the way through, which it did not: the metadata pass
+  reaches aria2's `Complete` the moment the *torrent file* arrives, and every
+  reading taken off its byte counters was answering about the wrong download.
+  For a second the row went green, said "downloaded" beside the torrent's
+  name, filled its bar and put "0s left" under it, Telegram announced a
+  finished download, `sweep_garbage` walked a directory nothing had been
+  written to — and then the torrent started downloading. A metadata pass now
+  measures nothing at all (`Download::display_totals`), so it renders as the
+  unknown it is: indeterminate bar, no size, no ETA, still *finding peers*.
 - **Readings, not just a bar:** bytes done against total, up and down rates,
   bytes given back and the share ratio, peers against seeders, and the piece
   count and size — which is the explanation for both lumpy progress and for a
@@ -810,6 +820,82 @@ Every icon names itself with `data-icon`, which is what tests assert on — a
 count of `<svg>`s only says the number changed, which every new call site
 does. `views::tests::nothing_is_drawn_with_a_unicode_glyph` fails the build if
 a character is used instead.
+
+## The app icon
+
+`icons/icon.svg` is the drawing and everything else is rendered from it by
+
+```sh
+mise run mariastew:app-icons
+```
+
+which needs `brew install librsvg`. The outputs are committed, so neither the
+container build nor a plain `cargo build` needs it — `main.rs` compiles them in
+with `include_bytes!`, the same way it does the stylesheet.
+
+A horseshoe magnet holding the stew between its poles, which is what the name
+and the job are: aria2 said out loud is "Maria Stew", and what it does is fetch
+things off strangers with magnet links. It is drawn as flat fills rather than
+in the Lucide line style above, because 16px is the size that decides an icon —
+it is the browser tab, and a 2-unit stroke on a 24 grid is a third of a pixel
+there. Nine of the ten it was chosen from are in the history of
+[#373](https://github.com/radiosilence/jaritanet/issues/373).
+
+Two shapes come out of the one drawing, and the difference is who rounds the
+corners. Anything shown as given keeps the tile's own: the favicon, and the
+manifest's `purpose: any` pair, which is what an install prompt, a task
+switcher and a file browser put on screen. Only what is definitely going to be
+masked renders full-bleed — the `maskable` pair, which Android cuts to
+whatever the launcher's shape is, and `apple-touch-icon`, which iOS always cuts
+to a squircle. A pre-rounded tile handed to a mask is rounded twice and shows
+the page's background in the gap.
+
+That is why there are two of each size rather than one declared `any
+maskable`: a single full-bleed icon doing both jobs is a bare square
+everywhere it is not masked. And it is why `icon.svg` keeps its tile and its
+mark as separate elements, so `scripts/gen-app-icons.ts` can compose the
+full-bleed variants from `#mark` rather than from a second drawing to keep in
+step.
+
+All of them, and the manifest, are served from outside the session layer along
+with the stylesheet: the sign-in page needs an icon too, and a manifest is
+fetched without credentials by default, so one behind the layer would answer an
+install prompt with a login redirect. `/favicon.ico` is registered at the root
+as well as under `/assets`, because that is the path a browser asks for on its
+own before it has parsed any `<link>`.
+
+## The theme
+
+One daisyUI theme, `mariastew`, defined in `styles/app.css`; daisyUI's own are
+switched off (`themes: false`), so the stylesheet carries the one palette it
+renders. It is the app icon read out loud — amber is the stew, steel is the
+magnet, red is its poles — so `btn-primary`, a download bar and a failed
+download are literally the three colours in `icons/icon.svg`, and `base-200` is
+the icon's own tile. `success` and `info` are the two that are not in the
+drawing: they have to be told apart from each other and from `warning` at a
+glance across a progress bar, which is a job for hue distance rather than for
+brand.
+
+It is dark only. This is a thing you open at night to start a download, and a
+second palette is a second set of contrast decisions to keep true for a
+preference nobody has expressed yet.
+
+Flat, and rounded only enough to notice — `--depth` and `--noise`, the gradient
+overlay and surface texture daisyUI 5 adds over a flat theme, are both off, and
+the radii step up with the size of the thing rather than making a badge a pill.
+That is also why the header carries a border instead of the shadow it used to:
+on a dark surface a small drop shadow draws a separation the eye cannot see.
+
+The page background is the icon's silhouette, once, very faint, `fixed` so it
+does not scroll. It is the silhouette and not the icon because flattening the
+drawing to one colour fills the gap between the poles and the U stops reading;
+for the same reason the poles are cut away from the legs by a gap rather than
+sitting on them, since a gap says what the colour change said using the only
+ink one flat colour has.
+With a full list it is a background in the literal sense — the rows on top of
+it are opaque, so it is seen around and between them and mostly not seen at
+all. Where it does the work is everything that is not a full list: the empty
+state, the sign-in page, a short queue, the space under the last row.
 
 ## Rebuilding the stylesheet
 

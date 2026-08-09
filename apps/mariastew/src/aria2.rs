@@ -170,6 +170,12 @@ impl From<RawFile> for File {
     }
 }
 
+/// What aria2 calls a magnet it has not resolved yet: `[METADATA]<dn>`, or
+/// `[METADATA]<infohash>` when the magnet carried no display name. The one
+/// place this string is spelled out — it is both how a metadata pass is told
+/// apart and what has to come off before anyone reads the name.
+const METADATA_PREFIX: &str = "[METADATA]";
+
 #[derive(Clone, Debug)]
 pub struct Download {
     pub gid: String,
@@ -251,7 +257,19 @@ impl Download {
     /// of four chosen showed the whole torrent's size next to a bar tracking
     /// only the chosen one. Falls back to the download-level counters, which
     /// is right until the file list arrives and nothing else can answer.
+    ///
+    /// Nothing at all for a metadata pass. Its counters are the torrent
+    /// *file's* — a few kilobytes fetched from whoever has it — and every
+    /// reading built on them was answering about the wrong download: a bar
+    /// that filled and turned green, a size of "34 KB" beside the torrent's
+    /// name, an ETA that read zero, and an `is_finished` that told the
+    /// notifier to announce the torrent as downloaded before a single content
+    /// byte existed. There is nothing to measure yet, so this measures
+    /// nothing and everything downstream renders as the unknown it is.
     pub fn display_totals(&self) -> (u64, u64) {
+        if self.is_metadata() {
+            return (0, 0);
+        }
         self.selected_totals()
             .unwrap_or((self.total_length, self.completed_length))
     }
@@ -292,16 +310,32 @@ impl Download {
     }
 
     pub fn is_metadata(&self) -> bool {
-        self.name().starts_with("[METADATA]")
+        self.name().starts_with(METADATA_PREFIX)
+    }
+
+    /// The name for anything a person reads — a row, a Telegram message.
+    ///
+    /// aria2 names an unresolved magnet `[METADATA]<dn>`, and the marker is
+    /// how the download is classified rather than something worth showing:
+    /// the state already says what it is doing, and the title after the
+    /// marker is the one the torrent will keep.
+    pub fn display_name(&self) -> &str {
+        self.name().trim_start_matches(METADATA_PREFIX)
     }
 
     /// `None` when nothing is moving — an ETA with zero speed is infinity, and
-    /// one taken off a collapsing rate is misleading.
+    /// one taken off a collapsing rate is misleading. Also `None` when the
+    /// size is not known yet: a resolving magnet moves bytes at a real rate
+    /// with no total to subtract them from, and dividing zero remaining by it
+    /// put "0s left" beside a torrent that had not started.
     pub fn eta_secs(&self) -> Option<u64> {
         if self.download_speed == 0 || self.is_finished() {
             return None;
         }
         let (total, done) = self.display_totals();
+        if total == 0 {
+            return None;
+        }
         total
             .checked_sub(done)
             .map(|left| left / self.download_speed)
@@ -356,13 +390,22 @@ impl Download {
     /// Finished *for display*. With `--seed-ratio=0.0`, status never reaches
     /// Complete on its own, and aggregate byte counts lie with selections. A
     /// torrent is finished when all *selected* files are done.
+    ///
+    /// A metadata pass never is. It reaches `Complete` the moment the torrent
+    /// file arrives, which is the beginning of the download rather than the
+    /// end of one — and every consumer here reads this as the torrent's:
+    /// the badge went green and said "downloaded", the notifier sent Telegram
+    /// a finished message, the garbage sweep walked a directory nothing had
+    /// been written to, and the remove button offered to keep files that did
+    /// not exist. All of it about a torrent that then started downloading.
     pub fn is_finished(&self) -> bool {
+        if self.is_metadata() {
+            return false;
+        }
         if self.status == Status::Complete {
             return true;
         }
-        let (total, done) = self
-            .selected_totals()
-            .unwrap_or((self.total_length, self.completed_length));
+        let (total, done) = self.display_totals();
         total > 0 && done >= total
     }
 
@@ -1023,6 +1066,65 @@ mod tests {
         d.total_length = 100;
         d.completed_length = 25;
         assert_eq!(d.percent(), Some(25.0));
+    }
+
+    /// A magnet whose metadata has fully arrived, as aria2 reports it just
+    /// before `follow-torrent` spawns the real download: `Complete`, with one
+    /// file — itself — every byte of which is in.
+    fn resolved_metadata_pass() -> Download {
+        let mut d = download(Status::Complete);
+        d.bittorrent_name = Some("[METADATA]Some.Show.S01".to_string());
+        d.total_length = 34_000;
+        d.completed_length = 34_000;
+        d.files = vec![file(1, 34_000, 34_000, true)];
+        d.download_speed = 34_000;
+        d.upload_length = 1_000;
+        d
+    }
+
+    /// The dance in #372, in one assertion each. A metadata pass reaches
+    /// `Complete` when the torrent *file* arrives, and every reading below
+    /// was answering as though the torrent had: the badge went green and
+    /// said "downloaded", `notify`'s watcher — whose terminal test is this
+    /// same `is_finished` — sent Telegram a finished message and swept a
+    /// directory nothing had been written to, and then the real download
+    /// started, which is the part that was never in doubt.
+    #[test]
+    fn a_resolved_metadata_pass_is_not_a_finished_torrent() {
+        let d = resolved_metadata_pass();
+        assert!(!d.is_finished());
+        assert_eq!(d.health(), Health::Resolving);
+    }
+
+    /// Its 34 KB are the torrent file's, so there is nothing yet to measure
+    /// and nothing is what these say — which is what the row already renders
+    /// as an indeterminate bar and a size of "—".
+    #[test]
+    fn a_metadata_passes_own_bytes_are_not_the_torrents_progress() {
+        let d = resolved_metadata_pass();
+        assert_eq!(d.percent(), None);
+        assert_eq!(d.eta_secs(), None);
+        assert_eq!(d.ratio(), None);
+    }
+
+    /// The magnet's own title, which is the only part of `[METADATA]<dn>`
+    /// worth showing — see `display_name`.
+    #[test]
+    fn a_metadata_pass_is_named_after_the_torrent_it_will_become() {
+        assert_eq!(resolved_metadata_pass().display_name(), "Some.Show.S01");
+        let mut d = download(Status::Active);
+        d.bittorrent_name = Some("Some.Show.S01".to_string());
+        assert_eq!(d.display_name(), "Some.Show.S01");
+    }
+
+    /// An unresolved magnet has a real download speed and no size to spend it
+    /// against, which used to divide out to "0s left" beside a torrent that
+    /// had not started.
+    #[test]
+    fn no_eta_before_the_size_is_known() {
+        let mut d = download(Status::Active);
+        d.download_speed = 1_000;
+        assert_eq!(d.eta_secs(), None);
     }
 
     #[test]
