@@ -15,6 +15,10 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs && \
     cargo build --locked && \
     rm -rf src
 
+# Not part of the stub stage above: cargo auto-detects a build script by its
+# presence, so a stage without it compiles the dependencies and nothing that
+# needs `APP_JS_FILENAME`, which is what the stub stage is for.
+COPY build.rs ./
 COPY src ./src
 COPY templates ./templates
 COPY assets ./assets
