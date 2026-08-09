@@ -515,7 +515,7 @@ config:
       secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
     image:
       repository: "ghcr.io/radiosilence/auth"
-      tag: 0.1.1
+      tag: 0.2.0
     github:
       clientId: Ov23lig1BPAzKe4qmT4F
       clientSecret:
