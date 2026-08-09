@@ -12,12 +12,31 @@
 /** Fixed in the provisioned datasource, so panels can name it. */
 export const DATASOURCE_UID = "victoriametrics";
 
+/**
+ * What Grafana opens on, in place of its own onboarding page.
+ *
+ * Disks, because "is a drive filling up" is the question this was built to
+ * answer. Exported so the env var naming the file and the dashboard that file
+ * holds are one string rather than two that agree today.
+ */
+export const HOME_DASHBOARD = "jaritanet-disks";
+
 type Panel = {
   title: string;
   /** Grafana unit id — `bytes`, `Bps`, `percent`, `percentunit`, `s`, `reqps`. */
   unit?: string;
   description?: string;
   max?: number;
+  /**
+   * More series than a screen has room to name — one per pod, one per route.
+   *
+   * The table legend below is worth its space on a panel with two lines on it:
+   * current and peak, per node, right there. On a panel with thirty it is a
+   * scrolling table taller than the graph it belongs to, and on a phone, where
+   * every panel is full width and read one at a time, it is the whole screen.
+   * Those get a plain list and a single-series tooltip instead.
+   */
+  busy?: boolean;
   /** `[expression, legend]`, in query order. */
   targets: [string, string][];
 };
@@ -56,12 +75,16 @@ function dashboard(uid: string, title: string, panels: Panel[]) {
         overrides: [],
       },
       options: {
-        legend: {
-          displayMode: "table",
-          placement: "bottom",
-          calcs: ["lastNotNull", "max"],
-        },
-        tooltip: { mode: "multi", sort: "desc" },
+        legend: panel.busy
+          ? { displayMode: "list", placement: "bottom" }
+          : {
+              displayMode: "table",
+              placement: "bottom",
+              calcs: ["lastNotNull", "max"],
+            },
+        tooltip: panel.busy
+          ? { mode: "single" }
+          : { mode: "multi", sort: "desc" },
       },
       targets: panel.targets.map(([expr, legendFormat], n) => ({
         expr,
@@ -84,7 +107,7 @@ const DEVICE_LABEL_CAVEAT =
 /** Real filesystems. tmpfs and the container overlays are noise here. */
 const REAL_FS = 'fstype!~"tmpfs|ramfs|squashfs|overlay|fuse.*"';
 
-const disks = dashboard("jaritanet-disks", "Disks", [
+const disks = dashboard(HOME_DASHBOARD, "Disks", [
   {
     title: "Filesystem used",
     unit: "percent",
@@ -200,6 +223,7 @@ const nodes = dashboard("jaritanet-nodes", "Nodes", [
   },
   {
     title: "Container memory",
+    busy: true,
     unit: "bytes",
     description:
       "Working set, which is what the OOM killer looks at — so this against a pod's limit is the answer to why it was killed.",
@@ -212,6 +236,7 @@ const nodes = dashboard("jaritanet-nodes", "Nodes", [
   },
   {
     title: "Container CPU",
+    busy: true,
     description: "Cores. Compare against the pod's limit before raising it.",
     targets: [
       [
@@ -245,6 +270,7 @@ const edge = dashboard("jaritanet-edge", "Ingress and policy", [
   },
   {
     title: "Requests by route",
+    busy: true,
     unit: "reqps",
     targets: [
       [
@@ -265,6 +291,7 @@ const edge = dashboard("jaritanet-edge", "Ingress and policy", [
   },
   {
     title: "Route latency (p95)",
+    busy: true,
     unit: "s",
     targets: [
       [
@@ -275,6 +302,7 @@ const edge = dashboard("jaritanet-edge", "Ingress and policy", [
   },
   {
     title: "Scrape targets up",
+    busy: true,
     max: 1,
     description:
       "A job at 0 is a collector that is not collecting — the failure that otherwise presents months later as an empty graph.",
