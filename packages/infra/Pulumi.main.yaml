@@ -444,7 +444,7 @@ config:
         # scrape, is single-digit GB a year on VictoriaMetrics' compression.
         retention: 1y
       vmagent:
-        image: docker.io/victoriametrics/vmagent:v1.149.0
+        image: docker.io/victoriametrics/vmagent:v1.150.0
       nodeExporter:
         image: quay.io/prometheus/node-exporter:v1.12.1
       grafana:
