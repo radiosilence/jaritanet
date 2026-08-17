@@ -439,7 +439,7 @@ config:
         secure: AAABAPrG5CFazA6hrLjmaKcEWD5ye0zMJwhhWlQdHb5ZYE60sU/xNXzJzyA=
       storageNode: sympathy
       vmsingle:
-        image: docker.io/victoriametrics/victoria-metrics:v1.149.0
+        image: docker.io/victoriametrics/victoria-metrics:v1.150.0
         # Order of 10k series across both nodes with cAdvisor included, at a 30s
         # scrape, is single-digit GB a year on VictoriaMetrics' compression.
         retention: 1y
