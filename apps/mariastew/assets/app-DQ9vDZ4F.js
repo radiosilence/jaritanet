@@ -1,5 +1,15 @@
 //#region web/app.ts
 /**
+* Three of the server's five-second heartbeats, and a little more.
+*
+* Two would reconnect over one frame lost to a stalled event loop, which is a
+* connection that is fine. The cost of waiting the third is the width of the
+* window in which the page shows something out of date, and against a phone
+* that has been in a pocket that window is nothing.
+*/
+const STREAM_TIMEOUT_MS = 16e3;
+let streamLastSeen = Date.now();
+/**
 * The behaviours that do not belong in an attribute.
 *
 * Datastar evaluates `data-on:*` as a function body, so an attribute holds
@@ -63,6 +73,39 @@ globalThis.ms = {
 	browseUrl(evt) {
 		const dir = evt.target.closest("[data-dir]")?.dataset.dir;
 		return dir === void 0 ? null : `/browse?path=${encodeURIComponent(dir)}`;
+	},
+	/**
+	* Note that the stream just proved it is there.
+	*
+	* Anything at all counts — a row patch, the heartbeat behind it
+	* (`routes::HEARTBEAT`), or Datastar announcing it has started a request.
+	* The last of those is what stops a reconnect that cannot connect from
+	* retrying every interval: the attempt itself resets the clock, so a server
+	* that is down is asked once per timeout rather than once per tick.
+	*/
+	streamSeen() {
+		streamLastSeen = Date.now();
+	},
+	/**
+	* Whether the stream has been quiet long enough to presume it is gone.
+	*
+	* This is the half of the problem `data-on:visibilitychange` cannot reach.
+	* That one has a trigger — the page left and came back — and a pod replaced
+	* under a tab nobody switched away from does not raise it. Neither does a
+	* socket that stops carrying bytes without erroring, which is what a phone
+	* hands back and what Datastar has no way to notice: it believes the request
+	* is live, and there is nothing else to ask. Silence is the only evidence
+	* available, which is why the server sends something to be silent *instead
+	* of*.
+	*
+	* False while the document is hidden, whatever the clock says. Datastar
+	* closes the stream on its way out of view and opens it again on the way
+	* back, so quiet is correct there, and the timers driving this are throttled
+	* anyway — a page returning after an hour would otherwise reconnect twice,
+	* once for the return and once for the hour.
+	*/
+	streamLost() {
+		return !document.hidden && Date.now() - streamLastSeen > STREAM_TIMEOUT_MS;
 	}
 };
 /**

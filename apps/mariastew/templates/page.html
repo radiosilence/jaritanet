@@ -29,24 +29,33 @@
 <script type="module" src="{{ self.app_js_path() }}"></script>
 <script type="module" src="/assets/datastar.js"></script>
 </head>
-{# Coming back to the page reconnects the stream, without asking whether it is
-     still up.
+{# The stream reopens itself, by two attributes doing one job.
 
-     Datastar closes its fetch when the document goes hidden and reopens it when
-     it returns, so a tab switch is already covered. iOS is not: it suspends the
-     page rather than telling it anything, and what resumes is either a
-     connection that ended cleanly — a finished 200 body is the request being
-     over as far as Datastar is concerned, so it stops there and takes its own
-     visibilitychange listener with it, and nothing reopens the stream ever
-     again — or a socket that is dead with no error to observe. Either way the
-     page holds whatever it last painted until it is reloaded (#386).
+     A stream can stop without anybody being told. Datastar reads a finished 200
+     body as the request being over, so a pod replaced under an open page ends
+     it for good; and a socket can simply stop carrying bytes, which is what a
+     suspended phone hands back, and which Datastar cannot see at all — it still
+     believes the request is live. Its own belief is therefore the one thing
+     this must not consult (#386, #390).
 
-     Unconditional because of that second case: the only liveness signal
-     available is what Datastar believes, and a zombie socket is exactly where
-     that is wrong. It costs one redundant reconnect per return —
-     `requestCancellation` defaults to aborting the in-flight request to the
-     same URL, so there is still one stream — and its first tick is the whole
-     container, which is the fresh data being asked for. #}
+     `data-on-interval` is the mechanism: the server sends a heartbeat on a
+     cadence (`routes::HEARTBEAT`), `ms.streamSeen` records every frame that
+     arrives, and `ms.streamLost` answers whether the quiet has gone on too
+     long. Silence is the only evidence a client has, and the heartbeat is what
+     makes silence mean something — the list is legitimately still while nothing
+     is downloading.
+
+     `data-on:visibilitychange` is the same reconnect on the one occasion worth
+     not waiting for: a phone coming back into the hand, where the timeout would
+     otherwise be spent staring at a stale screen. Unconditional, because that
+     is precisely where liveness cannot be judged. It costs one redundant
+     reconnect per return — `requestCancellation` defaults to aborting the
+     in-flight request to the same URL, so there is still one stream — and its
+     first tick is the whole container, which is the fresh data being asked for.
+
+     The `datastar-fetch` handler is filtered to this element because it hears
+     every request the page makes, and the picker's `@get('/browse')` arriving
+     is no evidence the stream is up. #}
 {# `$addStatus` and `$addMessage` are the whole contract with the server for
      this form: POST /add answers with a JSON body, which Datastar treats as a
      signal patch on its own (Content-Type: application/json is all it takes, no
@@ -61,6 +70,8 @@
 
      `__ifmissing` seeds them without stomping a patch that arrived first. #}
 <body data-init="@get('/stream')"
+  data-on:datastar-fetch="evt.detail.el === el && ms.streamSeen()"
+  data-on-interval__duration.5s="ms.streamLost() && @get('/stream')"
   data-on:visibilitychange__document="!document.hidden && @get('/stream')"
   data-signals__ifmissing="{addStatus: '', addMessage: ''}"
   class="min-h-dvh bg-base-200">

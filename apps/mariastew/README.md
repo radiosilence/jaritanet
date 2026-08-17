@@ -488,22 +488,46 @@ everything had — and doing it for an empty one too is what retires the
 unreachable warning: a snapshot exists only after aria2 has answered, so one
 arriving is the proof the page rendered on stale news.
 
-A page returning to the foreground reconnects, whatever state its stream was
-in. Datastar closes the connection while the document is hidden and reopens it
-when it comes back, which covers a tab switch — but iOS suspends a page without
-telling it, and what it resumes with has either ended (a finished 200 body is
-the request being over as far as Datastar is concerned, and it drops its own
-visibilitychange listener with it) or gone dead with no error to observe. The
-page then holds whatever it last painted until it is reloaded. The reconnect is
-unconditional because of the second case: the only liveness signal available is
-Datastar's own belief, and a zombie socket is precisely where that is wrong. It
-costs one redundant connection per return, whose first tick is the container —
-the fresh data that was wanted anyway.
-
 With nobody watching it drops to `IDLE_POLL_MS` and renders nothing. That
 interval is the notifier's alone — it is looking for a download that finished
 or failed, and nothing about that is in a hurry — and the first page to open
 wakes the poller immediately rather than sitting out the rest of the sleep.
+
+## How a stream comes back
+
+A stream can stop without anyone being told, and there are two ways. Datastar
+reads a finished 200 body as the request being over, so it neither retries nor
+keeps watching — an ordinary deploy ends every open stream that way, since the
+pod is replaced rather than drained. And a socket can stop carrying bytes with
+no error at all, which is what a suspended phone hands back; Datastar still
+believes that request is live, and has nothing to notice. Its own account of
+whether the stream is up is therefore the one thing the page must not ask.
+
+What is left is silence, and silence had to be made to mean something first:
+the stream sends the rows whose hash moved, so a queue with nothing running is
+silent because there is nothing to say. `HEARTBEAT` (`src/routes.rs`) is a
+`datastar-heartbeat` frame on a five-second timer, sent only when nothing else
+has gone down the wire — a busy stream sends none. It is on its own timer
+rather than counted off the poller's ticks, because what it reports is that
+*this connection* is up: a poller wedged on an aria2 that stopped answering
+would otherwise take every page's heartbeat down with it and reconnect all of
+them, to a server whose problem another connection does not solve. It replaces
+axum's keep-alive rather than joining it — both keep a proxy from timing out an
+idle connection, only this one reaches the page.
+
+The page then watches the quiet. `ms.streamSeen` records every frame that
+arrives on the stream, `ms.streamLost` answers whether it has been longer than
+three heartbeats, and `data-on-interval` reconnects when it has. Datastar
+announcing a request *started* counts as a frame, which is what keeps a
+reconnect that cannot connect from retrying every tick: the attempt resets the
+clock, so a server that is down is asked once per timeout.
+
+`data-on:visibilitychange` is the same reconnect, on the one occasion worth not
+waiting out the timeout for — a phone coming back into a hand, where sixteen
+seconds is spent looking at a stale screen. It is unconditional, for the reason
+above: the return is exactly the moment liveness cannot be judged. The cost is
+one redundant connection, whose first tick is the container, which is the fresh
+data that was wanted anyway.
 
 ## Seeding, and why cancel has two meanings
 
