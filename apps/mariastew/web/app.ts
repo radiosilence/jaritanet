@@ -3,10 +3,26 @@ declare global {
     pasteInto(field: HTMLInputElement): void;
     clickOnEnter(evt: KeyboardEvent, button: HTMLButtonElement): void;
     browseUrl(evt: Event): string | null;
-    streamSeen(): void;
+    streamEvent(
+      evt: CustomEvent<{ type: string; argsRaw?: Record<string, string> }>,
+    ): void;
     streamLost(): boolean;
   };
 }
+
+/**
+ * The Datastar fetch events that are evidence the stream is carrying bytes.
+ *
+ * An allowlist rather than a list of the failures to ignore, so an event type
+ * nobody here has heard of cannot be mistaken for liveness — which is the
+ * whole quantity being measured.
+ */
+const STREAM_FRAMES = new Set([
+  "started",
+  "datastar-heartbeat",
+  "datastar-patch-elements",
+  "datastar-patch-signals",
+]);
 
 /**
  * Three of the server's five-second heartbeats, and a little more.
@@ -19,6 +35,10 @@ declare global {
 const STREAM_TIMEOUT_MS = 16_000;
 
 let streamLastSeen = Date.now();
+
+/** Set by a 401: the stream is refused rather than lost, and no reconnect
+ * fixes that. Cleared by anything the server actually serves. */
+let streamRefused = false;
 
 /**
  * The behaviours that do not belong in an attribute.
@@ -93,15 +113,36 @@ globalThis.ms = {
   },
 
   /**
-   * Note that the stream just proved it is there.
+   * Take one of the stream's own Datastar fetch events.
    *
-   * Anything at all counts — a row patch, the heartbeat behind it
-   * (`routes::HEARTBEAT`), or Datastar announcing it has started a request.
-   * The last of those is what stops a reconnect that cannot connect from
-   * retrying every interval: the attempt itself resets the clock, so a server
-   * that is down is asked once per timeout rather than once per tick.
+   * A frame is proof the connection is there and resets the clock
+   * `streamLost` reads — a row patch, the heartbeat behind it
+   * (`routes::HEARTBEAT`), or Datastar announcing it has *started* a request.
+   * That last one is what stops a reconnect that cannot connect from retrying
+   * every tick: the attempt itself resets the clock, so a server that is down
+   * is asked once per timeout.
+   *
+   * Which is exactly why a 401 has to stop it outright. A session lives only in
+   * the pod's memory, so the deploy that ends the stream is usually the deploy
+   * that signs the page out, and `require_session` answers a Datastar request
+   * with a status where a navigation would get the login redirect —
+   * deliberately, since a stream cannot be redirected. No reconnect gets past
+   * that, and every attempt would reset the clock for the next one, so the page
+   * would ask forever and never arrive anywhere.
+   *
+   * It is refused rather than dead, so a later frame lifts it: the reconnect on
+   * returning to the foreground is unconditional, and if that one is served
+   * the session came back and the watchdog should resume. `started` is not
+   * enough — that is the asking, not the answer.
    */
-  streamSeen() {
+  streamEvent(evt) {
+    const { type, argsRaw } = evt.detail;
+    if (type === "error") {
+      streamRefused ||= argsRaw?.status === "401";
+      return;
+    }
+    if (!STREAM_FRAMES.has(type)) return;
+    if (type !== "started") streamRefused = false;
     streamLastSeen = Date.now();
   },
 
@@ -122,9 +163,16 @@ globalThis.ms = {
    * back, so quiet is correct there, and the timers driving this are throttled
    * anyway — a page returning after an hour would otherwise reconnect twice,
    * once for the return and once for the hour.
+   *
+   * False too once the stream has been refused. Quiet that nothing can cure is
+   * not worth a request every timeout, forever, for as long as the tab is open.
    */
   streamLost() {
-    return !document.hidden && Date.now() - streamLastSeen > STREAM_TIMEOUT_MS;
+    return (
+      !streamRefused &&
+      !document.hidden &&
+      Date.now() - streamLastSeen > STREAM_TIMEOUT_MS
+    );
   },
 };
 
