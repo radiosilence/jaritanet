@@ -7,7 +7,7 @@ use std::time::Duration;
 use askama::Template;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::sse::{Event, KeepAlive};
+use axum::response::sse::Event;
 use axum::response::{Html, IntoResponse, Response, Sse};
 use axum::routing::{get, post};
 use axum::{Form, Router};
@@ -26,6 +26,23 @@ use crate::views::{self, DirView, RootView, Row};
 /// hours, and it takes the write lock on the session map every time it runs —
 /// a cost worth paying once a second and not ten times.
 const SESSION_RECHECK: Duration = Duration::from_secs(1);
+
+/// How often a connection with nothing else to say announces itself.
+///
+/// The stream is legitimately silent most of the time — it sends the rows whose
+/// hash moved, and a queue with nothing running moves nothing — so silence
+/// carries no information, and a page cannot tell it apart from a socket that
+/// died without saying so. That is the failure the page's own reconnect cannot
+/// see, because the page never went away: a pod replaced under an open laptop
+/// tab, or a link that dropped without an error to observe. A frame on a known
+/// cadence is what makes the difference visible, and `ms.streamLost` in
+/// `web/app.ts` is what acts on it.
+///
+/// It replaces axum's keep-alive rather than joining it. Both keep a proxy from
+/// timing an idle connection out; only this one reaches the page, and two
+/// mechanisms firing at different rates is one more thing to hold in mind than
+/// there needs to be.
+const HEARTBEAT: Duration = Duration::from_secs(5);
 
 /// Everything behind the auth layer. Mounted by `main`, which wraps it — see
 /// `auth::extract::require_session` for why that is a layer and not a
@@ -125,6 +142,18 @@ fn patch_elements(html: &str) -> Event {
         .data(patch_elements_data(html))
 }
 
+/// A frame that says only that the connection is still there.
+///
+/// Named `datastar-` so it survives the client: Datastar forwards an event to
+/// the page as a `datastar-fetch` only if the name is one of its own, and drops
+/// anything else before a `data-on` could see it. No payload, because there is
+/// nothing to say beyond having arrived — its own parser dispatches on the
+/// blank line rather than on having read a `data:` field, which is the one
+/// place it is looser than the spec and the one place that helps.
+fn heartbeat() -> Event {
+    Event::default().event("datastar-heartbeat")
+}
+
 pub async fn page(State(state): State<AppState>) -> AppResult<Html<String>> {
     // A restarted aria2 sidecar should not blank the whole page: the picker
     // and everything else on it are still useful without a download list, and
@@ -217,8 +246,31 @@ pub async fn stream(
     let s = async_stream::stream! {
         let mut sent: Option<Vec<(String, u64)>> = None;
         let mut checked = std::time::Instant::now() - SESSION_RECHECK;
+        // On its own timer rather than counted off the poller's ticks: what it
+        // reports is that this connection is up, and a poller wedged on an
+        // aria2 that stopped answering would otherwise take every open page's
+        // heartbeat down with it — reconnecting all of them, to a server whose
+        // problem a new connection does not solve.
+        let mut beat = tokio::time::interval(HEARTBEAT);
+        beat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        beat.tick().await; // The first completes immediately.
 
-        while let Some(snapshot) = viewer.next().await {
+        loop {
+            // `watch::Receiver::changed` is cancel-safe, so losing this branch
+            // to the heartbeat drops nothing: the snapshot is still there to be
+            // read on the next pass, and `unsent` compares against what went
+            // down this connection rather than against the previous tick.
+            let snapshot = tokio::select! {
+                next = viewer.next() => match next {
+                    Some(snapshot) => snapshot,
+                    None => break,
+                },
+                _ = beat.tick() => {
+                    yield Ok::<_, Infallible>(heartbeat());
+                    continue;
+                }
+            };
+
             // A page left open holds this connection for hours; a session
             // revoked in the meantime is never re-checked by anything else,
             // so logging out would otherwise leave a live feed of the queue
@@ -234,16 +286,32 @@ pub async fn stream(
                 continue;
             };
 
-            match unsent(&mut sent, &view.rows) {
-                Some(rows) => for row in rows {
-                    yield Ok::<_, Infallible>(patch_elements(&row.html));
-                },
-                None => yield Ok::<_, Infallible>(patch_elements(&view.full)),
+            let sent_anything = match unsent(&mut sent, &view.rows) {
+                Some(rows) => {
+                    let any = !rows.is_empty();
+                    for row in rows {
+                        yield Ok::<_, Infallible>(patch_elements(&row.html));
+                    }
+                    any
+                }
+                None => {
+                    yield Ok::<_, Infallible>(patch_elements(&view.full));
+                    true
+                }
+            };
+
+            // Anything that just went down the wire is the proof a heartbeat
+            // would have carried, so a busy stream sends none at all. A tick
+            // that changed nothing is not: `unsent` answers with an empty list
+            // for a queue sitting still, which is every tick of the case the
+            // heartbeat exists for.
+            if sent_anything {
+                beat.reset();
             }
         }
     };
 
-    Sse::new(s).keep_alive(KeepAlive::default()).into_response()
+    Sse::new(s).into_response()
 }
 
 #[derive(serde::Deserialize)]
