@@ -291,7 +291,7 @@ config:
         # Bumped by update-apps.yml, which watches mcp-gateway's releases. It used
         # to be a sha pushed here by that repo's CI on every build.
         repository: "ghcr.io/radiosilence/mcp-gateway"
-        tag: v0.7.0
+        tag: v0.7.1
       # Each entry is both a backend pod and its entry in the registry the gateway
       # boots from (MCP_REGISTRY) — declared once, since a registry naming a pod
       # that doesn't exist is just a 502. The in-cluster URL joining them is
@@ -302,14 +302,36 @@ config:
         # backends would silently drift from the gateway they serve.
         - id: fastmail
           name: Fastmail
-          image: "ghcr.io/radiosilence/fastmail-cli:v3.3.2"
+          image: "ghcr.io/radiosilence/fastmail-cli:v3.4.0"
           args: ["mcp", "--http", "0.0.0.0:8080", "--graphql"]
           port: 8080
           path: "/mcp"
           graphqlPath: "/graphql"
-          credentialHeader: "X-Fastmail-Token"
           keyHelpUrl: "https://app.fastmail.com/settings/security/tokens"
-          keyHint: "fmu1-…"
+          # Mail runs on the API token; contacts go over CardDAV, which is a
+          # separate protocol that rejects API tokens — hence three values
+          # rather than one. The CardDAV pair is optional: without it mail works
+          # and contact search doesn't, which the backend reports up front as
+          # `session { carddavConfigured }` rather than failing a query halfway
+          # through one. `token` keeps the id the credentialHeader shorthand
+          # normalised to, so stored credentials survive the change.
+          fields:
+            - id: token
+              label: API token
+              header: "X-Fastmail-Token"
+              hint: "fmu1-…"
+            - id: username
+              label: Username (contacts only)
+              header: "X-Fastmail-Username"
+              secret: false
+              required: false
+              hint: "you@fastmail.com"
+            # An app password, not the API token above: CardDAV won't take one.
+            - id: app_password
+              label: App password (contacts only)
+              header: "X-Fastmail-App-Password"
+              required: false
+              hint: "Blank = mail works, contact search doesn't"
           # Re-runs the handshake rather than reading a cached client, so a
           # revoked token is caught rather than reported as fine. Only a 401 is a
           # verdict on the credential; rate limits and outages are UNREACHABLE.
@@ -439,12 +461,12 @@ config:
         secure: AAABAPrG5CFazA6hrLjmaKcEWD5ye0zMJwhhWlQdHb5ZYE60sU/xNXzJzyA=
       storageNode: sympathy
       vmsingle:
-        image: docker.io/victoriametrics/victoria-metrics:v1.149.0
+        image: docker.io/victoriametrics/victoria-metrics:v1.150.0
         # Order of 10k series across both nodes with cAdvisor included, at a 30s
         # scrape, is single-digit GB a year on VictoriaMetrics' compression.
         retention: 1y
       vmagent:
-        image: docker.io/victoriametrics/vmagent:v1.149.0
+        image: docker.io/victoriametrics/vmagent:v1.150.0
       nodeExporter:
         image: quay.io/prometheus/node-exporter:v1.12.1
       grafana:
