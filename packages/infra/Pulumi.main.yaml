@@ -28,7 +28,7 @@ config:
       secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
-    chartVersion: "41.2.0"
+    chartVersion: "41.3.0"
   jaritanet:gateway:
     # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
