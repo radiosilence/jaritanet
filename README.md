@@ -160,7 +160,7 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 
 - **`metrics.ts`** — VictoriaMetrics single-node for storage, node-exporter and `vmagent` as DaemonSets, Grafana on top as an ordinary relying party of Hydra. Not kube-prometheus-stack: the gateway carrying this also carries the control plane, Cilium, Traefik, two VPN transports, Hydra and Postgres, and `vmsingle` answers the same PromQL at roughly a quarter of the memory
 - **`scrape.ts`** — what one agent scrapes: its own node, and nothing else. A central scraper reaching across to the home box turns every residential-uplink blip into a hole in the graphs, where a local scrape plus a buffered remote-write replays it
-- **`dashboards.ts`** — disks, nodes, ingress and policy. Built here rather than pasted in as exported JSON, so the queries are the diff
+- **`dashboards.ts`** — an overview, then disks, nodes, and ingress and policy. The overview is what Grafana opens on and the only one meant to be needed: six tiles, each the worst case across the estate and each naming what it belongs to, picked from where this estate actually breaks — USB-enclosed mechanical disks, memory ceilings that have already killed things, a residential uplink carrying pod traffic, a certificate that renews itself or silently does not, and NetworkPolicies never verified under Cilium. Built here rather than pasted in as exported JSON, so the queries are the diff
 
 **`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/mcp-gateway`**, **`@jaritanet/mariastew`**, **`@jaritanet/k8s`**, **`@jaritanet/remote`**
 

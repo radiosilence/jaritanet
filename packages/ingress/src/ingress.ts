@@ -74,6 +74,12 @@ export function createIngress(
             addEntryPointsLabels: true,
             addRoutersLabels: true,
             addServicesLabels: true,
+            // The chart's default boundaries are 0.1/0.3/1.2/5.0, so a p95
+            // lands on 5 the moment anything exceeds 1.2 — measured on a
+            // dashboard that answers in milliseconds. These resolve the range a
+            // reverse proxy on a LAN actually operates in, and still have a
+            // bucket left for "something is badly wrong".
+            buckets: "0.05,0.1,0.25,0.5,1,2.5,5,10",
           },
         },
         service: {
