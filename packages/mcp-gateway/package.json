@@ -14,7 +14,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@jaritanet/k8s": "workspace:*",
     "@pulumi/kubernetes": "4.30.0",
     "@pulumi/pulumi": "3.239.0",
     "@pulumi/random": "4.20.0",
