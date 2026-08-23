@@ -28,9 +28,8 @@ import { resourcePrefix, type SshConnection, type SystemdOpts } from "./ssh.ts";
  */
 export function createTailscaleSystemd(
   connection: SshConnection,
-  // Omits `image`: this path apt-installs tailscaled, so a container
   // reference means nothing to it.
-  tailnet: Omit<z.infer<typeof TailnetConfSchema>, "image">,
+  tailnet: z.infer<typeof TailnetConfSchema>,
   authKey: pulumi.Output<string>,
   { name = "", dependsOn = [] }: SystemdOpts = {},
 ) {

@@ -2,6 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TailnetConfSchema } from "./tailscale.schemas.ts";
+import { VERSIONS } from "./versions.ts";
 
 /**
  * Joins the gateway to the tailnet from inside its own cluster, so it can relay
@@ -143,7 +144,7 @@ export function createTailscale(
             containers: [
               {
                 name: app,
-                image: tailnet.image,
+                image: VERSIONS.tailscale,
                 env: [
                   {
                     name: "TS_AUTHKEY",

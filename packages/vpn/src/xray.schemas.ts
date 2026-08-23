@@ -33,5 +33,4 @@ export const XrayConfSchema = z.object({
     .refine((names) => new Set(names.map(sniLabel)).size === names.length, {
       message: "serverNames must have distinct first labels",
     }),
-  version: z.string().default("v26.3.27"),
 });

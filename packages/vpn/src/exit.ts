@@ -2,6 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import { resourceRequests, sha256hex } from "@jaritanet/k8s";
+import { VERSIONS } from "./versions.ts";
 
 /** An exit with its host port resolved (see deriveExitPort). */
 export type ResolvedExit = {
@@ -10,7 +11,6 @@ export type ResolvedExit = {
   nodeLabel: string;
   port: number;
   method: string;
-  image: string;
   server: string;
 };
 
@@ -152,7 +152,7 @@ export function createExit(
             containers: [
               {
                 name: "ssserver",
-                image: exit.image,
+                image: VERSIONS.ssRust,
                 command: ["ssserver", "-c", "/etc/shadowsocks/config.json"],
                 volumeMounts: [
                   {

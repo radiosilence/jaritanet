@@ -77,7 +77,6 @@ export default async function () {
   // Uniqueness is asserted per node, not globally: the port is bound on the
   // exit's own host, so two exits only clash when they share a machine.
   const resolvedExits = conf.exits.map((e) => ({
-    image: e.image,
     method: e.method,
     name: e.name,
     node: e.node,
@@ -310,13 +309,7 @@ export default async function () {
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
   if (gatewayConf) {
-    createUnbound(
-      provider,
-      nsName,
-      gatewayConf.unbound,
-      conf.vpnEntryLabel,
-      transportDeps,
-    );
+    createUnbound(provider, nsName, conf.vpnEntryLabel, transportDeps);
 
     if (gatewayConf.xray) {
       const t = createXray(
