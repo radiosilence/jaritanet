@@ -16,7 +16,7 @@ import {
   writeDependency,
 } from "./versions.ts";
 
-const ROOT = join(import.meta.dirname, "..", "..", "..");
+const ROOT = join(import.meta.dirname, "..", "..");
 const tracked = async () =>
   TrackedListSchema.parse(
     parse(

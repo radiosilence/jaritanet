@@ -33,7 +33,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run fmt:check` - Check formatting with oxfmt
 - `mise run preview` / `mise run up` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
-- `./packages/infra/src/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
+- `./scripts/update-apps/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
 ### Git Hooks
 
@@ -233,7 +233,7 @@ Both verbs enter `packages/infra/src/deploy.ts` (Pulumi Automation API), which a
 
 Daily check for new releases of the components listed in `.github/tracked-versions.yml`. Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
 
-The workflow only supplies tokens; the work is `packages/infra/src/update-apps.ts`, with the decisions it makes — tag normalisation, image reference parsing, and whether an entry moved — isolated in `versions.ts` where they are unit tested. A release tag is never trusted on its own: the registry is asked whether the image actually published, including for entries already up to date, so a pin that stopped resolving is reported rather than waiting for the next pod restart to find it.
+The workflow only supplies tokens; the work is `scripts/update-apps/`, with the decisions it makes — tag normalisation, image reference parsing, and whether an entry moved — isolated in `versions.ts` where they are unit tested. A release tag is never trusted on its own: the registry is asked whether the image actually published, including for entries already up to date, so a pin that stopped resolving is reported rather than waiting for the next pod restart to find it.
 
 A missing image fails the run only when it is the *pinned* one — that is a live deployment referencing something that no longer exists. A newer release whose image has not published yet warns and leaves the entry alone: several upstreams build their container separately from the release it tracks, so lag is their normal operation and there is nothing here to act on. Failing on it left the workflow permanently red, which costs the alarm rather than fixing anything.
 
