@@ -1,4 +1,4 @@
-import type { McpSchema } from "@jaritanet/mcp-gateway";
+import type { McpSchema } from "@radiosilence/mcp-gateway-pulumi";
 import type * as z from "zod";
 
 /**

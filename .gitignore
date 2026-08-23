@@ -34,3 +34,6 @@ apps/*/target
 
 # harness-managed agent worktrees
 .claude/worktrees/
+
+# Written by `mise run auth`; holds a GitHub Packages token.
+.npmrc.auth

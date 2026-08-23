@@ -12,7 +12,7 @@ export const VERSIONS = {
 
 /**
  * Pins the updater deliberately does not watch, and why — see the same const in
- * `@jaritanet/mcp-gateway`. Redis holds one ten-minute nonce per login in
+ * `@radiosilence/mcp-gateway-pulumi`. Redis holds one ten-minute nonce per login in
  * flight and nothing else, so chasing its patch releases would be noise.
  */
 export const UNTRACKED = {

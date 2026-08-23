@@ -77,11 +77,18 @@
   key: auth
   value: "ghcr.io/radiosilence/auth:{version}"
 
+# Not an image: mcp-gateway publishes the Pulumi component that deploys it, at
+# its own crate version, so what this follows is an ordinary dependency and the
+# image is the package's business rather than ours.
+#
+# No `image` to confirm either, and none needed. That repo's release is cut
+# last, after both the manifest push and the package publish, so a release tag
+# existing already means both are there.
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway
-  file: packages/mcp-gateway/src/versions.ts
-  key: mcpGateway
-  value: "ghcr.io/radiosilence/mcp-gateway:v{version}"
+  manifest: packages/infra/package.json
+  package: "@radiosilence/mcp-gateway-pulumi"
+  value: "{version}"
 
 # The MCPs the gateway fronts, each an image reference inside a list.
 - app: Fastmail MCP

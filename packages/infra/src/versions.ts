@@ -6,21 +6,44 @@
  */
 import * as z from "zod";
 
-export const TrackedSchema = z.object({
-  app: z.string(),
-  repo: z.string(),
-  /** A `versions.ts`, relative to the repository root. */
-  file: z.string().min(1),
-  /**
-   * The entry in that file's exported `VERSIONS` to rewrite. An identifier,
-   * which is what makes the rewrite a plain regex: no escaping, and no way for
-   * a key to carry pattern syntax of its own.
-   */
-  key: z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/),
-  value: z.string(),
-  image: z.string().optional(),
-  tagPrefix: z.string().optional(),
-});
+/**
+ * Where a tracked component's version is written down.
+ *
+ * Two kinds, because there are two kinds of thing to follow. An image this
+ * deployment pulls is a pin in the package that deploys it. A component that
+ * publishes its own deploy code is an ordinary dependency, and what moves is
+ * the range in a `package.json` — the image it runs is then the published
+ * package's business, not ours.
+ */
+const TargetSchema = z.union([
+  z.object({
+    /** A `versions.ts`, relative to the repository root. */
+    file: z.string().min(1),
+    /**
+     * The entry in that file's exported `VERSIONS` to rewrite. An identifier,
+     * which is what makes the rewrite a plain regex: no escaping, and no way
+     * for a key to carry pattern syntax of its own.
+     */
+    key: z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/),
+  }),
+  z.object({
+    /** A `package.json`, relative to the repository root. */
+    manifest: z.string().min(1),
+    /** The dependency in it whose version to rewrite. */
+    package: z.string().min(1),
+  }),
+]);
+
+export const TrackedSchema = z.intersection(
+  z.object({
+    app: z.string(),
+    repo: z.string(),
+    value: z.string(),
+    image: z.string().optional(),
+    tagPrefix: z.string().optional(),
+  }),
+  TargetSchema,
+);
 
 export const TrackedListSchema = z.array(TrackedSchema);
 
@@ -200,6 +223,32 @@ export function writeConst(source: string, key: string, value: string) {
   if (readConst(source, key) === undefined) return undefined;
   return source.replace(
     new RegExp(pinPattern(key), "m"),
+    (_, before: string, __: string, after: string) =>
+      `${before}${value}${after}`,
+  );
+}
+
+/**
+ * One dependency's version in a `package.json`.
+ *
+ * A regex over the text rather than a parse-and-reserialise, for the reason the
+ * pin writer is one: a bump should change one line and leave the rest of the
+ * file exactly as it was. The package name is matched literally, so a scope's
+ * `@` and `/` cannot be read as pattern syntax.
+ */
+const dependencyPattern = (pkg: string) =>
+  `^(\\s*"${pkg.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}":\\s*")([^"]*)(")`;
+
+export function readDependency(manifest: string, pkg: string) {
+  const all = manifest.match(new RegExp(dependencyPattern(pkg), "gm"));
+  if (all?.length !== 1) return undefined;
+  return new RegExp(dependencyPattern(pkg), "m").exec(manifest)?.[2];
+}
+
+export function writeDependency(manifest: string, pkg: string, value: string) {
+  if (readDependency(manifest, pkg) === undefined) return undefined;
+  return manifest.replace(
+    new RegExp(dependencyPattern(pkg), "m"),
     (_, before: string, __: string, after: string) =>
       `${before}${value}${after}`,
   );
