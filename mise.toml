@@ -12,6 +12,22 @@ rust = { version = "1", components = "rustfmt,clippy" }
 # package.json script that only forwards again.
 _.path = ["node_modules/.bin"]
 
+[tasks.auth]
+description = "Write the GitHub Packages token .npmrc reads"
+# Not an ${ENV} in .npmrc: aube refuses to expand environment variables in auth
+# settings a project controls, because a checked-in .npmrc could otherwise
+# exfiltrate the environment of anyone who installs. So the token goes in a
+# gitignored file that .npmrc names. GH_TOKEN for CI, the gh login otherwise —
+# either way nobody has to mint a PAT by hand.
+run = '''
+token="${GH_TOKEN:-$(gh auth token 2>/dev/null || true)}"
+if [ -z "$token" ]; then
+  echo "no GitHub token: run 'gh auth login', or set GH_TOKEN" >&2
+  exit 1
+fi
+printf '//npm.pkg.github.com/:_authToken=%s\n' "$token" > .npmrc.auth
+'''
+
 [tasks.setup]
 description = "Toolchain, dependencies and git hooks, from a fresh clone"
 # `prepare` installs lefthook, so the hooks come with the dependencies. It

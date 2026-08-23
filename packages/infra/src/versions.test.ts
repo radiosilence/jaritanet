@@ -9,9 +9,11 @@ import {
   parseImageRef,
   pickLatestTag,
   readConst,
+  readDependency,
   TrackedListSchema,
   verifyRef,
   writeConst,
+  writeDependency,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -22,9 +24,13 @@ const tracked = async () =>
     ),
   );
 
-/** Every package `versions.ts` an entry points at, keyed by its repo path. */
-const pinSources = async (entries: Awaited<ReturnType<typeof tracked>>) => {
-  const files = [...new Set(entries.map((e) => e.file))];
+type Entries = Awaited<ReturnType<typeof tracked>>;
+
+/** Every file an entry rewrites, of either kind, keyed by its repo path. */
+const targetSources = async (entries: Entries) => {
+  const files = [
+    ...new Set(entries.map((e) => ("file" in e ? e.file : e.manifest))),
+  ];
   const texts = await Promise.all(
     files.map((f) => readFile(join(ROOT, f), "utf8")),
   );
@@ -214,9 +220,12 @@ describe("decide", () => {
 describe("targets against the real tree", () => {
   it("resolves every tracked entry to a string", async () => {
     const entries = await tracked();
-    const sources = await pinSources(entries);
+    const sources = await targetSources(entries);
     for (const entry of entries) {
-      const current = readConst(sources.get(entry.file)!, entry.key);
+      const current =
+        "file" in entry
+          ? readConst(sources.get(entry.file)!, entry.key)
+          : readDependency(sources.get(entry.manifest)!, entry.package);
       expect(current, `${entry.app} resolves`).toEqual(expect.any(String));
     }
   });
@@ -228,11 +237,13 @@ describe("targets against the real tree", () => {
    */
   it("tracks every pin in every package versions.ts", async () => {
     const entries = await tracked();
-    for (const [file, source] of await pinSources(entries)) {
+    const pinned = entries.filter((e) => "file" in e);
+    const sources = await targetSources(pinned);
+    for (const [file, source] of sources) {
       const watched = new Set(
-        entries.flatMap((e) => (e.file === file ? [e.key] : [])),
+        pinned.flatMap((e) => ("file" in e && e.file === file ? [e.key] : [])),
       );
-      // `VERSIONS` only. A pin that deliberately floats lives in `FLOATING`,
+      // `VERSIONS` only. A pin that deliberately floats lives in `UNTRACKED`,
       // which is the point of the two being separate consts — a decision not to
       // track has to be visible, and an oversight still has to fail here.
       const pins = /export const VERSIONS = \{([\s\S]*?)^\} as const;/m.exec(
@@ -288,5 +299,48 @@ describe("applyTemplate", () => {
       "ghcr.io/o/r:v1.2.3",
     );
     expect(applyTemplate("{version}-{version}", "1")).toBe("1-1");
+  });
+});
+
+describe("rewriting a dependency", () => {
+  const manifest = [
+    "{",
+    '  "dependencies": {',
+    '    "@radiosilence/mcp-gateway-pulumi": "0.8.1",',
+    '    "zod": "4.4.3"',
+    "  }",
+    "}",
+  ].join("\n");
+
+  it("reads a dependency's version", () => {
+    expect(readDependency(manifest, "@radiosilence/mcp-gateway-pulumi")).toBe(
+      "0.8.1",
+    );
+  });
+
+  it("changes exactly one line", () => {
+    const next = writeDependency(
+      manifest,
+      "@radiosilence/mcp-gateway-pulumi",
+      "0.9.0",
+    )!;
+    const changed = next
+      .split("\n")
+      .filter((line, i) => line !== manifest.split("\n")[i]);
+    expect(changed).toEqual([
+      '    "@radiosilence/mcp-gateway-pulumi": "0.9.0",',
+    ]);
+  });
+
+  /** A scope's `@` and `/` are matched literally, not as pattern syntax. */
+  it("does not treat the package name as a regex", () => {
+    expect(
+      readDependency(manifest, "@radiosilence/mcp.gateway-pulumi"),
+    ).toBeUndefined();
+  });
+
+  it("reports a dependency that is not there", () => {
+    expect(readDependency(manifest, "left-pad")).toBeUndefined();
+    expect(writeDependency(manifest, "left-pad", "1.0.0")).toBeUndefined();
   });
 });

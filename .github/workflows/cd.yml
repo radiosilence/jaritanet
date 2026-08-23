@@ -2,6 +2,8 @@ name: CD jaritanet
 
 permissions:
   contents: read
+  # @radiosilence/mcp-gateway-pulumi comes from GitHub Packages.
+  packages: read
 
 on:
   workflow_dispatch:
@@ -44,6 +46,13 @@ jobs:
 
       - name: Setup Environment
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+
+      # `.npmrc` names a token file rather than an ${ENV}, because aube refuses
+      # to expand environment variables in auth settings a project controls.
+      - name: Authenticate to GitHub Packages
+        run: mise run auth
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
         uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0

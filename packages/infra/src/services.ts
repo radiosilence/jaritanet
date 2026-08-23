@@ -24,7 +24,7 @@ import { createSamba, createSyncthing } from "@jaritanet/home";
 import { createIngressRoute } from "@jaritanet/ingress";
 import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@jaritanet/mariastew";
-import { createMcpGateway } from "@jaritanet/mcp-gateway";
+import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createNavidrome } from "@jaritanet/navidrome";
 import {
