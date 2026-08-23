@@ -22,7 +22,7 @@ import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createSamba, createSyncthing } from "@jaritanet/home";
 import { createIngressRoute } from "@jaritanet/ingress";
-import type { Deployed, Route } from "@jaritanet/k8s";
+import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@jaritanet/mariastew";
 import { createMcpGateway } from "@jaritanet/mcp-gateway";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
@@ -49,6 +49,9 @@ import { MCPS } from "./mcps.ts";
  * that machine, applied by the seed drive when it joins.
  */
 const MEDIA_NODE = "lady";
+
+/** One binding, because the requests below are derived from it. */
+const MCP_GATEWAY_LIMITS = { cpu: "250m", memory: "256Mi" };
 const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
 
 /**
@@ -220,7 +223,11 @@ export function createServices(ctx: EstateContext) {
           replicas: 2,
           // Routes and terminates OAuth rather than serving a file, so more
           // headroom than blit — but it measured 1m CPU idle, not 500m.
-          limits: { cpu: "250m", memory: "256Mi" },
+          limits: MCP_GATEWAY_LIMITS,
+          // The chart takes the numbers and states no policy about them: how
+          // much of a ceiling to reserve depends on what else shares the node,
+          // which is ours to know. See `resourceRequests`.
+          requests: resourceRequests(MCP_GATEWAY_LIMITS).requests,
           mcps: MCPS,
         },
         {
