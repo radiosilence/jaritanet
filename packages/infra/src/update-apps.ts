@@ -20,25 +20,21 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
-import { parse, parseDocument } from "yaml";
+import { parse } from "yaml";
 import {
   applyTemplate,
   decide,
   normaliseVersion,
   parseImageRef,
   pickLatestTag,
-  readAt,
   readConst,
-  STRINGIFY_OPTIONS,
   TrackedListSchema,
   verifyRef,
-  writeAt,
   writeConst,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 const TRACKED = join(ROOT, ".github", "tracked-versions.yml");
-const CONFIG = join(ROOT, "packages", "infra", "Pulumi.main.yaml");
 
 const MANIFEST_ACCEPT = [
   "application/vnd.oci.image.index.v1+json",
@@ -194,8 +190,6 @@ async function record(titles: string[], details: string[]) {
 const dryRun = process.argv.includes("--dry-run");
 
 const entries = TrackedListSchema.parse(parse(await readFile(TRACKED, "utf8")));
-const doc = parseDocument(await readFile(CONFIG, "utf8"));
-
 /**
  * Package `versions.ts` files, read once and kept in memory.
  *
@@ -236,10 +230,7 @@ for (const entry of entries) {
   const ref = verifyRef(entry, version);
   const decision = decide({
     tag,
-    current:
-      "path" in entry
-        ? readAt(doc, entry.path)
-        : readConst((await source(entry.file)).text, entry.key),
+    current: readConst((await source(entry.file)).text, entry.key),
     next,
     ref,
     exists: ref ? await imageExists(ref) : true,
@@ -261,25 +252,19 @@ for (const entry of entries) {
 
   log(`${entry.app} — ${decision.from} -> ${decision.to}`);
   if (!dryRun) {
-    if ("path" in entry) {
-      writeAt(doc, entry.path, decision.to);
-      await writeFile(CONFIG, doc.toString(STRINGIFY_OPTIONS));
-      await git("add", CONFIG);
-    } else {
-      const { abs, text } = await source(entry.file);
-      const rewritten = writeConst(text, entry.key, decision.to);
-      // `decide` already read the same key through the same matcher, so this
-      // cannot miss — but it returns a value rather than throwing, and a silent
-      // skip here would report a bump that was never written.
-      if (rewritten === undefined) {
-        warn(`${entry.app} — could not write ${entry.key} in ${entry.file}`);
-        failed.push(entry.app);
-        continue;
-      }
-      sources.set(abs, rewritten);
-      await writeFile(abs, rewritten);
-      await git("add", abs);
+    const { abs, text } = await source(entry.file);
+    const rewritten = writeConst(text, entry.key, decision.to);
+    // `decide` already read the same key through the same matcher, so this
+    // cannot miss — but it returns a value rather than throwing, and a silent
+    // skip here would report a bump that was never written.
+    if (rewritten === undefined) {
+      warn(`${entry.app} — could not write ${entry.key} in ${entry.file}`);
+      failed.push(entry.app);
+      continue;
     }
+    sources.set(abs, rewritten);
+    await writeFile(abs, rewritten);
+    await git("add", abs);
     // `-n`: the pre-commit hook lints, formats and typechecks a working tree a
     // human is about to push. This commit is one scalar written by the process
     // that just parsed it, on a runner whose only stake in the hook is that it

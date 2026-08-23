@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { AbsolutePath, Hostname } from "@jaritanet/k8s";
+import { AbsolutePath } from "@jaritanet/k8s";
 
 /**
  * A synced tree. Same reasoning as a samba share: `hostPath`, because the disk
@@ -53,7 +53,6 @@ export const SyncthingConfSchema = z.object({
    * Hostname for the web UI, behind Traefik. Omit and the UI is reachable only
    * on the LAN and the tailnet at `:8384`.
    */
-  hostname: Hostname.optional(),
   gid: z.number().default(1000),
   uid: z.number().default(1000),
 });

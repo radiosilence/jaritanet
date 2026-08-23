@@ -50,11 +50,6 @@ description = "Everything CI checks"
 # failure stops the dependents rather than the whole file.
 depends = ["lint", "fmt:check", "typecheck", "test"]
 
-[tasks."gen:schemas"]
-description = "Generate JSON schemas from the Zod definitions"
-# Sequential: the generator writes, then the formatter fixes what it wrote.
-run = ["./scripts/gen-schemas.ts", "oxfmt --write schemas"]
-
 [tasks."css"]
 description = "Rebuild mariastew's stylesheet after changing a template"
 dir = "apps/mariastew"

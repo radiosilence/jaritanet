@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
-import type { SyncthingConfSchema } from "./syncthing.schemas.ts";
+import { SyncthingConfSchema } from "./syncthing.schemas.ts";
 
 /** Where a folder's hostPath is mounted inside the container. */
 const folderPath = (name: string) => `/data/${name}`;
@@ -32,10 +32,11 @@ const GUI_PORT = 8384;
 export function createSyncthing(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
-  syncthing: z.infer<typeof SyncthingConfSchema>,
+  syncthingArgs: z.input<typeof SyncthingConfSchema>,
   nodeLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
+  const syncthing = SyncthingConfSchema.parse(syncthingArgs);
   const app = "syncthing";
 
   new k8s.apps.v1.DaemonSet(

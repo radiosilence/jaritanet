@@ -2,7 +2,9 @@ import { resourceRequests } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
-import type { MariastewConfSchema } from "./mariastew.schemas.ts";
+import type { Deployed } from "@jaritanet/k8s";
+import { MariastewConfSchema } from "./mariastew.schemas.ts";
+import { VERSIONS } from "./versions.ts";
 
 const SECRETS_NAME = "mariastew-secrets";
 /** An env `valueFrom` pointing at a key in this service's Secret. */
@@ -56,8 +58,10 @@ done`;
 export function createMariastew(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
-  conf: z.infer<typeof MariastewConfSchema>,
+  confArgs: z.input<typeof MariastewConfSchema>,
   opts: {
+    /** Where it is published, and where its OAuth client is sent back to. */
+    hostname: string;
     nodeLabel: string;
     /**
      * Issued by the identity provider, which registers this client with Hydra
@@ -75,6 +79,7 @@ export function createMariastew(
     telegram?: { botToken: pulumi.Input<string>; chatId: pulumi.Input<string> };
   },
 ) {
+  const conf = MariastewConfSchema.parse(confArgs);
   const options = { provider };
   const clientSecret = pulumi.output(opts.oidcClientSecret);
 
@@ -93,7 +98,6 @@ export function createMariastew(
     options,
   );
 
-  const image = `${conf.image.repository}:${conf.image.tag}`;
   const mounts = conf.roots.map(({ name, hostPath }) => ({
     name,
     mountPath: hostPath,
@@ -172,8 +176,8 @@ export function createMariastew(
             initContainers: [
               {
                 name: "session-file",
-                image,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.mariastew,
+                imagePullPolicy: "IfNotPresent",
                 command: ["/bin/touch", sessionFile],
                 resources: {
                   requests: { cpu: "5m", memory: "8Mi" },
@@ -189,8 +193,8 @@ export function createMariastew(
             containers: [
               {
                 name: "mariastew",
-                image,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.mariastew,
+                imagePullPolicy: "IfNotPresent",
                 ports: [{ name: "http", containerPort: 8080 }],
                 env: [
                   { name: "BIND_ADDR", value: "0.0.0.0:8080" },
@@ -204,7 +208,7 @@ export function createMariastew(
                       .map((r) => `${r.name}:${r.hostPath}`)
                       .join(","),
                   },
-                  { name: "PUBLIC_URL", value: `https://${conf.hostname}` },
+                  { name: "PUBLIC_URL", value: `https://${opts.hostname}` },
                   { name: "OIDC_ISSUER", value: opts.oidc.issuer },
                   { name: "OIDC_CLIENT_ID", value: opts.oidc.clientId },
                   {
@@ -238,8 +242,8 @@ export function createMariastew(
               },
               {
                 name: "aria2",
-                image,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.mariastew,
+                imagePullPolicy: "IfNotPresent",
                 command: [
                   "/usr/bin/aria2c",
                   "--enable-rpc",
@@ -475,7 +479,7 @@ export function createMariastew(
   }
 
   // Named for what `createIngressRoute` derives from the route prefix.
-  const service = new k8s.core.v1.Service(
+  new k8s.core.v1.Service(
     "mariastew-service",
     {
       metadata: { name: "mariastew-service", namespace },
@@ -542,5 +546,12 @@ export function createMariastew(
     options,
   );
 
-  return service;
+  return {
+    routes: [{ service: "mariastew", hostname: opts.hostname }],
+    oidc: {
+      id: "mariastew",
+      name: "mariastew",
+      redirectUri: `https://${opts.hostname}/auth/callback`,
+    },
+  } satisfies Deployed;
 }

@@ -3,6 +3,7 @@ import { sha256hex } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "./users.ts";
+import { VERSIONS } from "./versions.ts";
 import {
   buildProfile,
   type Exit,
@@ -43,7 +44,6 @@ export function createProfileServer(
   opts: {
     slug: pulumi.Input<string>;
     magicdnsSuffix: string;
-    image: string;
     exits?: Exit[];
     hostname: string;
     telegram?: { botToken: pulumi.Output<string>; chatId: string };
@@ -119,7 +119,7 @@ export function createProfileServer(
             containers: [
               {
                 name: app,
-                image: opts.image,
+                image: VERSIONS.serveFromEnv,
                 ports: [{ name: "http", containerPort: 8080 }],
                 envFrom: [{ secretRef: { name: secret.metadata.name } }],
                 resources: { limits: { cpu: "100m", memory: "64Mi" } },

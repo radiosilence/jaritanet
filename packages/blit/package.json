@@ -1,0 +1,20 @@
+{
+  "name": "@jaritanet/blit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The public site",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@jaritanet/k8s": "workspace:*",
+    "@pulumi/kubernetes": "4.30.0"
+  }
+}

@@ -174,9 +174,10 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 **`packages/infra`** — this stack
 
 - **`main.ts`** — orchestrates everything; **`gateway.ts`** / **`edge.ts`** compose a Hetzner box with transports on it
-- **`services.ts`** — builds every cluster workload from its `kind` and publishes the hostnames it claims, in one loop
-- **`conf.schemas.ts`** — the config surface, assembled from the component schemas
-- **`conf.ts`** — parses the whole config surface, secrets included, in one pass
+- **`stack.ts`** — what jaritanet is: every value that is not a credential, as ordinary TypeScript
+- **`services.ts`** — calls every cluster workload's constructor and publishes what they return
+- **`secrets.ts`** — the only reader of stack config
+- **`schemas.ts`** — the shapes that exist only because they are composed, with the defaults and cross-field invariants a type cannot express
 
 Packages are imported as TypeScript source: Node resolves a workspace symlink to
 its real path, which is outside `node_modules`, so type stripping applies and the
@@ -185,9 +186,10 @@ emit and `@pulumi/pulumi` moved to a peer dependency.
 
 ## Secrets
 
-Everything the deploy needs is stack configuration, secrets included — each one
-nested beside whatever consumes it, so `pulumi up` from a laptop needs a Pulumi
-login and nothing else.
+`Pulumi.main.yaml` holds the credentials and nothing else — what the deployment
+*is* lives in `packages/infra/src/stack.ts`. Everything the deploy needs is
+still in the stack, so `pulumi up` from a laptop needs a Pulumi login and
+nothing else.
 
 Secrets inside structured config decrypt to ordinary strings: the `secure:`
 wrapper exists only in the stack file, and the `[secret]` in a deploy's output
@@ -326,7 +328,6 @@ mise run setup       # Toolchain, dependencies and git hooks
 mise run check       # Lint, format, typecheck and test — in parallel
 mise run lint:fix    # Lint and auto-fix
 mise run fmt         # Format with oxfmt
-mise run gen:schemas # Generate JSON schemas
 mise run preview     # Preview the stack
 mise run up          # Deploy it
 

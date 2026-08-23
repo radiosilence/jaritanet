@@ -1,4 +1,4 @@
-import { ImageSchema, LimitsSchema } from "@jaritanet/k8s";
+import { LimitsSchema } from "@jaritanet/k8s";
 import * as z from "zod";
 
 /** One value a backend MCP needs from the user, injected into its own header. */
@@ -84,9 +84,6 @@ export const McpSchema = z
 export const McpGatewayConfSchema = z.object({
   // Blank in the (public) repo; injected at CI time from secrets, so the source
   // reveals no hostnames. An empty hostname skips the stack (see infra main.ts).
-  hostname: z.string().default(""),
-  image: ImageSchema,
-  hydraTag: z.string().default("v2.2.0"),
   replicas: z.number().default(2),
   limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
   // Postgres uses the cluster's default StorageClass unless set — a few tiny

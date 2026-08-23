@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
-import type { SambaConfSchema } from "./samba.schemas.ts";
+import { SambaConfSchema } from "./samba.schemas.ts";
 
 /** Where a share's hostPath is mounted inside the container. */
 const mountPath = (name: string) => `/shares/${name}`;
@@ -83,10 +83,11 @@ ${samba.shares.map(shareBlock).join("")}`;
 export function createSamba(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
-  samba: z.infer<typeof SambaConfSchema>,
+  sambaArgs: z.input<typeof SambaConfSchema>,
   nodeLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
+  const samba = SambaConfSchema.parse(sambaArgs);
   const app = "samba";
   const config = new k8s.core.v1.ConfigMap(
     "samba-config",

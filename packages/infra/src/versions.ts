@@ -4,67 +4,27 @@
  * upstreams spell releases differently, registries lag behind release tags, and
  * the config underneath moves.
  */
-import { type Document, isMap, isScalar, isSeq } from "yaml";
 import * as z from "zod";
 
-/**
- * A key, or a selector picking a list entry by one of its fields. `{ id: tfl }`
- * finds that MCP wherever it sits in the list, so reordering the list is
- * harmless.
- */
-const PathSegmentSchema = z.union([
-  z.string(),
-  z.record(z.string(), z.string()),
-]);
-
-/** Addresses a scalar in the config document. Named because `Tracked` is a
- *  union now, so `Tracked["path"]` no longer describes anything. */
-export type PathSegment = z.infer<typeof PathSegmentSchema>;
-
-/**
- * Where an entry's pin lives, and the only thing that differs between the two
- * kinds of tracked component.
- *
- * `file`/`key` is where pins belong: next to the code that deploys them, in the
- * package that owns them. `path` is the older form, addressing the stack's own
- * config, and survives for the handful of pins that have no package to sit in
- * yet — the orphan images and the ones still keyed off a service block.
- */
-const TargetSchema = z.union([
-  z.object({
-    file: z.string().min(1),
-    // An identifier, which is what makes the rewrite a plain regex: no escaping
-    // and no way for a key to carry pattern syntax of its own.
-    key: z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/),
-  }),
-  z.object({ path: z.array(PathSegmentSchema).min(1) }),
-]);
-
-export const TrackedSchema = z.intersection(
-  z.object({
-    app: z.string(),
-    repo: z.string(),
-    value: z.string(),
-    image: z.string().optional(),
-    tagPrefix: z.string().optional(),
-  }),
-  TargetSchema,
-);
+export const TrackedSchema = z.object({
+  app: z.string(),
+  repo: z.string(),
+  /** A `versions.ts`, relative to the repository root. */
+  file: z.string().min(1),
+  /**
+   * The entry in that file's exported `VERSIONS` to rewrite. An identifier,
+   * which is what makes the rewrite a plain regex: no escaping, and no way for
+   * a key to carry pattern syntax of its own.
+   */
+  key: z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/),
+  value: z.string(),
+  image: z.string().optional(),
+  tagPrefix: z.string().optional(),
+});
 
 export const TrackedListSchema = z.array(TrackedSchema);
 
 export type Tracked = z.infer<typeof TrackedSchema>;
-
-/**
- * Chosen so an untouched document round-trips byte-for-byte. Left to its
- * defaults the serialiser re-wraps long strings and pads flow collections,
- * which would bury a one-line version bump in an unrelated reformat of the
- * whole file.
- */
-export const STRINGIFY_OPTIONS = {
-  lineWidth: 0,
-  flowCollectionPadding: false,
-} as const;
 
 export type Decision =
   | { kind: "up-to-date"; current: string }
@@ -212,48 +172,6 @@ export function decide({
   }
   if (current === next) return { kind: "up-to-date", current };
   return { kind: "update", from: current, to: next };
-}
-
-/**
- * Turns each selector segment into the list index it currently matches, giving
- * a path the document can address directly.
- */
-export function resolvePath(doc: Document, path: PathSegment[]) {
-  const resolved: (string | number)[] = [];
-  for (const segment of path) {
-    if (typeof segment === "string") {
-      resolved.push(segment);
-      continue;
-    }
-    const [field, wanted] = Object.entries(segment)[0] ?? [];
-    const list = doc.getIn(resolved);
-    if (field === undefined || !isSeq(list)) return undefined;
-    const index = list.items.findIndex(
-      (item) => isMap(item) && item.get(field) === wanted,
-    );
-    if (index < 0) return undefined;
-    resolved.push(index);
-  }
-  return resolved;
-}
-
-export function readAt(doc: Document, path: PathSegment[]) {
-  const resolved = resolvePath(doc, path);
-  const value = resolved && doc.getIn(resolved);
-  return typeof value === "string" ? value : undefined;
-}
-
-/**
- * Mutates the existing scalar rather than replacing it, so the value keeps
- * whatever quoting it was written with. Without that an unquoted `41.0` would
- * come back as a float on the next read.
- */
-export function writeAt(doc: Document, path: PathSegment[], value: string) {
-  const resolved = resolvePath(doc, path);
-  const node = resolved && doc.getIn(resolved, true);
-  if (!isScalar(node)) return false;
-  node.value = value;
-  return true;
 }
 
 /**

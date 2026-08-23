@@ -9,7 +9,7 @@ import {
   dashboardFiles,
   HOME_DASHBOARD,
 } from "./dashboards.ts";
-import type { MetricsConfSchema } from "./metrics.schemas.ts";
+import { MetricsConfSchema } from "./metrics.schemas.ts";
 import { scrapeConfig } from "./scrape.ts";
 import { VERSIONS, VM_AGENT_IMAGE, VM_SINGLE_IMAGE } from "./versions.ts";
 
@@ -61,14 +61,23 @@ const secretRef = (key: string) => ({
 export function createMetrics(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
-  conf: z.infer<typeof MetricsConfSchema>,
-  oidc?: {
+  confArgs: z.input<typeof MetricsConfSchema>,
+  /**
+   * Absent → the collection half stands and the dashboard does not. Worth
+   * having either way: a store that is filling is useful on a deploy that
+   * cannot publish a Grafana, and a Grafana has no local login form, so one
+   * deployed without an issuer is a page nobody can open.
+   */
+  grafana?: {
+    /** Where the dashboard is published. */
+    hostname: string;
     /** Where the authorization server stands. Read once at the top level. */
     authHostname: string;
     clientId: pulumi.Input<string>;
     clientSecret: pulumi.Input<string>;
   },
 ) {
+  const conf = MetricsConfSchema.parse(confArgs);
   const opts = { provider };
 
   // --- Storage -------------------------------------------------------------
@@ -388,7 +397,7 @@ export function createMetrics(
     { dependsOn: [agentBinding, vmsingle], provider },
   );
 
-  if (!oidc || conf.hostname === "") return;
+  if (!grafana) return;
 
   // --- Grafana -------------------------------------------------------------
   // Bootstrap admin, generated. The login form is disabled below, so nothing
@@ -406,7 +415,7 @@ export function createMetrics(
       metadata: { name: SECRETS_NAME, namespace },
       stringData: {
         "admin-password": adminPassword.result,
-        "oidc-client-secret": pulumi.output(oidc.clientSecret),
+        "oidc-client-secret": pulumi.output(grafana.clientSecret),
       },
     },
     opts,
@@ -465,7 +474,7 @@ export function createMetrics(
   // Hydra's public API. `generic_oauth` has no discovery field, so the three
   // endpoints are named rather than found — all on the bare `Host()` rule the
   // authorization server already answers, so nothing about routing changes.
-  const issuer = `https://${oidc.authHostname}`;
+  const issuer = `https://${grafana.authHostname}`;
 
   new k8s.apps.v1.Deployment(
     GRAFANA,
@@ -518,7 +527,7 @@ export function createMetrics(
                   // surfaces at Hydra, which is a confusing place to meet it.
                   {
                     name: "GF_SERVER_ROOT_URL",
-                    value: `https://${conf.hostname}`,
+                    value: `https://${grafana.hostname}`,
                   },
                   // The one that fails silently. Grafana's username/password
                   // form is entirely independent of OIDC, so leaving it up
@@ -567,7 +576,7 @@ export function createMetrics(
                   },
                   {
                     name: "GF_AUTH_GENERIC_OAUTH_CLIENT_ID",
-                    value: pulumi.output(oidc.clientId),
+                    value: pulumi.output(grafana.clientId),
                   },
                   {
                     name: "GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET",

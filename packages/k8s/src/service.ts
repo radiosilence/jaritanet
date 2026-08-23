@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as z from "zod";
 import type { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
-import type { ServiceArgsSchema } from "./service.schemas.ts";
+import { ServiceArgsSchema } from "./service.schemas.ts";
 import { resourceRequests } from "./util.ts";
 
 const annotations = {
@@ -28,10 +28,20 @@ const probe = (
   successThreshold: hc.successThreshold,
 });
 
+/**
+ * What a caller writes, before defaults. The parse happens here rather than at
+ * a config boundary, so a service is declared by passing the handful of fields
+ * it actually differs on — the other thirty defaults stay stated once, in the
+ * schema, instead of being reproduced at every call site.
+ */
+export type ServiceArgs = z.input<typeof ServiceArgsSchema>;
+
 export function createService(
   provider: k8s.Provider,
   serviceName: string,
-  {
+  args: ServiceArgs,
+) {
+  const {
     dropCapabilities,
     env,
     healthCheck,
@@ -46,8 +56,7 @@ export function createService(
     restrictIngress,
     securityContext,
     strategy,
-  }: z.infer<typeof ServiceArgsSchema>,
-) {
+  } = ServiceArgsSchema.parse(args);
   const pvs = Object.fromEntries(
     persistence.map(
       ({
@@ -247,10 +256,13 @@ export function createService(
                   })),
                 ],
                 resources: { limits, ...resourceRequests(limits) },
-                env: Object.entries(env).map(([name, value]) => ({
-                  name,
-                  value,
-                })),
+                // Sorted, so the rendered order is a property of the names
+                // rather than of how they happened to be written. Pulumi used
+                // to sort these on the way out of stack config, which meant
+                // reordering a literal now churns the Deployment for nothing.
+                env: Object.entries(env)
+                  .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+                  .map(([name, value]) => ({ name, value })),
                 volumeMounts: [
                   ...hostVolumes.map(({ name, mountPath, readOnly }) => ({
                     name,

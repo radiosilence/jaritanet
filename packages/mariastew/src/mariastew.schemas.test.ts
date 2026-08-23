@@ -27,21 +27,15 @@ describe("MariastewRootSchema", () => {
 
 describe("MariastewConfSchema", () => {
   it("refuses a service with no roots: there would be nowhere to download to", () => {
-    expect(() => MariastewConfSchema.parse({ image, roots: [] })).toThrow();
-  });
-
-  it("defaults hostname to empty, which means built but not published", () => {
-    expect(MariastewConfSchema.parse({ image, roots }).hostname).toBe("");
+    expect(() => MariastewConfSchema.parse({ roots: [] })).toThrow();
   });
 
   it("seeds indefinitely by default — ratio zero means no limit", () => {
-    expect(MariastewConfSchema.parse({ image, roots }).aria2.seedRatio).toBe(
-      "0.0",
-    );
+    expect(MariastewConfSchema.parse({ roots }).aria2.seedRatio).toBe("0.0");
   });
 
   it("defaults the aria2 tuning that the deployment relies on", () => {
-    const { aria2 } = MariastewConfSchema.parse({ image, roots });
+    const { aria2 } = MariastewConfSchema.parse({ roots });
     expect(aria2).toEqual({
       limits: { cpu: "4", memory: "2Gi" },
       listenPort: 51413,
@@ -59,7 +53,7 @@ describe("MariastewConfSchema", () => {
   });
 
   it("keeps aria2's state off the media roots by default", () => {
-    const { aria2 } = MariastewConfSchema.parse({ image, roots });
+    const { aria2 } = MariastewConfSchema.parse({ roots });
     for (const root of roots) {
       expect(aria2.statePath.startsWith(root.hostPath)).toBe(false);
     }
