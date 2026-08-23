@@ -162,11 +162,10 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 - **`scrape.ts`** — what one agent scrapes: its own node, and nothing else. A central scraper reaching across to the home box turns every residential-uplink blip into a hole in the graphs, where a local scrape plus a buffered remote-write replays it
 - **`dashboards.ts`** — an overview, then disks, nodes, and ingress and policy. The overview is what Grafana opens on and the only one meant to be needed: six tiles, each the worst case across the estate and each naming what it belongs to, picked from where this estate actually breaks — USB-enclosed mechanical disks, memory ceilings that have already killed things, a residential uplink carrying pod traffic, a certificate that renews itself or silently does not, and NetworkPolicies never verified under Cilium. Built here rather than pasted in as exported JSON, so the queries are the diff
 
-**`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/mariastew`**, **`@jaritanet/k8s`**, **`@jaritanet/remote`**
+**`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/k8s`**, **`@jaritanet/remote`**
 
 - **`ingress.ts`** — Traefik Helm chart and IngressRoutes
 - **`dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`mariastew.ts`** — torrent web UI fronting aria2; one pod, two containers built from the same image and sharing a network namespace, so aria2's RPC never leaves loopback. Leaving for [its own repository](https://github.com/radiosilence/mariastew)
 - **`service.ts`** — K8s Deployment/Service/PV/PVC templates, plus the schemas and helpers the other packages share
 - **`preamble.ts`** — `remotePreamble`, the shell every `command.remote.Command` opens with. Pulumi SSHes in the moment the box answers, so waiting for cloud-init and setting a dpkg lock timeout is the first thing on the wire — depending on nothing and on no cloud is what lets the `-systemd` transports and the k3s install share one copy
 
@@ -232,55 +231,49 @@ reaches the stack in the first place.
 
 ### Stack configuration
 
-Secrets are marked 🔒 — set those with `--secret`.
+`Pulumi.main.yaml` holds credentials and nothing else — everything the
+deployment *is* lives in `packages/infra/src/stack.ts` as TypeScript, and
+`secrets.ts` is the only thing that reads config.
 
-| Path | Required | Purpose |
+| Key | Required | Purpose |
 |---|---|---|
-| `cloudflare.apiToken` 🔒 | Yes | DNS + Traefik ACME DNS-01 (DNS:Edit, Zone:Read) |
-| `cloudflare.accountId` | Yes | Cloudflare account id |
-| `gateway.hcloudToken` 🔒 | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
-| `adminSshKey` | No | Break-glass admin key for the gateway and every edge (see below). Unset = nobody but Pulumi can SSH to them. Not secret — it is the public half |
-| `ubuntuProToken` 🔒 | No | Ubuntu Pro, for kernel livepatch. Unset = the reboot window is still set and only livepatch is skipped |
-| `vpnEntryLabel` | Yes | Node label key marking a machine as a VPN entry, e.g. `jaritanet.radiosilence.dev/vpn-entry`. Read once and passed to both the command that labels the node and every transport's `nodeSelector`, so they cannot disagree — a selector matching no node schedules nothing while the cluster looks healthy. Required for that reason: a red deploy beats a silently dark VPN |
-| `vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
-| `tailnet.authKey` 🔒 | No | OAuth client secret (`tskey-client-…`, `tag:server`) joining the gateway and edges to the tailnet — enables the relay |
-| `tailnet.magicdnsSuffix` | No | MagicDNS suffix baked into the sing-box profiles |
-| `tailnet.name`, `tailnet.oauth.clientId` 🔒, `tailnet.oauth.clientSecret` 🔒 | No | Manage the tailnet policy file as code (see below). Unset = policy stays hand-managed |
-| `telegram.botToken` 🔒 / `.chatId` 🔒 | No | Shared bot + chat: the profile server notifies on a URL rotation, mariastew on a download finishing or failing. Absent → neither sends anything |
-| `services.mcp-gateway.github.clientId` / `.clientSecret` 🔒 / `.allowed` | No | GitHub OAuth app and login allowlist. Absent → the MCP gateway is skipped |
-| `services.mariastew.hostname` / `.oidc.issuer` | No | Hostname and Hydra issuer for the torrent UI. Either absent → the service is skipped rather than deployed without a way to authenticate |
-| `services.metrics.hostname` | No | Where Grafana is published. Absent → collection deploys, the dashboard does not |
-| `services.metrics.storageNode` | Yes (with the kind) | Which machine holds the metrics store and Grafana's state. Both are directories on one node, and it should be the gateway: the home box losing its uplink is exactly when the graphs are wanted |
-| `ipWatcher.deployToken` 🔒 | No | GitHub PAT (Actions:write) — enables the direct-mode IP-watcher pod |
+| `cloudflare:apiToken`, `hcloud:token` | Yes | Provider credentials |
+| `secrets.cloudflareApiToken` | Yes | Handed to Traefik for the ACME DNS-01 challenge (DNS:Edit, Zone:Read) |
+| `secrets.hcloudToken` | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
+| `secrets.githubClientSecret` | Yes | The OAuth app the identity provider authenticates people against |
+| `secrets.ubuntuProToken` | No | Ubuntu Pro, for kernel livepatch. Unset = the reboot window is still set and only livepatch is skipped |
+| `secrets.vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
+| `secrets.tailnetAuthKey` | No | Joins the gateway and edges to the tailnet — enables the relay |
+| `secrets.tailnetOauthClientSecret` | No | Manages the tailnet policy file as code. Unset = policy stays hand-managed |
+| `secrets.telegramBotToken` / `telegramChatId` | No | Shared bot + chat: the profile server notifies on a URL rotation, mariastew on a download finishing. Absent → neither sends anything |
 
-The profile slug is generated by Pulumi and rotated by `gateway.credentialRotation`
-rather than held as a secret, so there is nothing to set for it.
+Everything else — the gateway's shape, the zones, the exits, the tailnet's
+non-secret half, and every service — is stated in `stack.ts` and
+`services.ts`, where the compiler checks it.
+
+The profile slug is generated by Pulumi and rotated by
+`gateway.credentialRotation` rather than held as a secret, so there is nothing
+to set for it.
 
 ### Services
 
-Everything that runs in the cluster is an entry in `services`, keyed by name and
-tagged with a `kind`. The kind decides which schema the entry is parsed against
-and which constructor builds it; publishing — the A record and the IngressRoute —
-is handled once for whatever hostnames the kind claims.
+Every service is a function call in `packages/infra/src/services.ts`. There is
+no `services` map and no `kind` union: that union existed so *data* could pick a
+constructor, which is what a program does by calling one.
 
-| Kind | What it is |
-|---|---|
-| `web` | A container behind Traefik. Everything ordinary: image, env, limits, probes, volumes |
-| `samba` | Anonymous read-only SMB on the node holding the disks |
-| `syncthing` | Sync on that same node, with an optional published web UI |
-| `mcp-gateway` | OAuth-fronted gateway for self-hosted MCPs (Hydra + Postgres) |
-| `singbox-profiles` | The per-user VPN subscription server |
-| `mariastew` | Torrent web UI fronting aria2, OIDC-gated against Hydra. Skipped unless both `hostname` and `oidc.issuer` are set — a write endpoint onto the media library that cannot authenticate should not be deployed at all |
-| `metrics` | Storage, per-node collection and Grafana. Without a hostname or an identity provider the collection half still deploys and Grafana does not: it has no local login form, so one deployed with nowhere to sign in is a page nobody can open, while a store that is filling is worth having either way |
+What each constructor returns is where it stands and, if it signs people in,
+the OAuth client it needs registered. Publishing — the A record and the
+IngressRoute — and client registration are then handled once, from what came
+back, rather than per service. That is what keeps the redirect allowlist
+honest: a service builds its redirect URI from the same binding it publishes
+at, so the two cannot disagree.
 
-A kind exists only where the behaviour cannot be written down as config —
-rendering `smb.conf`, standing up Hydra, hashing a routing table into a pod
-annotation. Anything that is a container with disks is `web`: navidrome is 2Ti
-of media, a pinned uid and two volumes, and needs no module of its own.
-
-Set `hostname: ""` (or omit it) to build a service without publishing it.
-Unknown keys are a parse error rather than being ignored, so a typo fails the
-preview instead of reading as a setting that does nothing.
+A service is skipped rather than half-deployed when what it needs is missing —
+mariastew and the MCP gateway both refuse to stand up without an identity
+provider, since a write endpoint that cannot authenticate should not exist, and
+Grafana has no local login form so one with nowhere to sign in is a page nobody
+can open. The metrics collection half still deploys in that case: a store that
+is filling is worth having either way.
 
 CI does not join the tailnet. It reaches the API server on the VPS's public
 `:6443`, so a tailnet outage cannot fail a deploy — which it repeatedly did.

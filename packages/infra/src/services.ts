@@ -23,7 +23,7 @@ import { createFiles } from "@jaritanet/files";
 import { createSamba, createSyncthing } from "@jaritanet/home";
 import { createIngressRoute } from "@jaritanet/ingress";
 import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
-import { createMariastew } from "@jaritanet/mariastew";
+import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createNavidrome } from "@jaritanet/navidrome";
@@ -50,8 +50,11 @@ import { MCPS } from "./mcps.ts";
  */
 const MEDIA_NODE = "lady";
 
-/** One binding, because the requests below are derived from it. */
+/** One binding each, because the requests below are derived from them. */
 const MCP_GATEWAY_LIMITS = { cpu: "250m", memory: "256Mi" };
+const MARIASTEW_LIMITS = { cpu: "500m", memory: "256Mi" };
+// aria2 hashes pieces, which is the only thing here that wants real CPU.
+const ARIA2_LIMITS = { cpu: "4", memory: "2Gi" };
 const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
 
 /**
@@ -267,6 +270,16 @@ export function createServices(ctx: EstateContext) {
             { name: "tv", hostPath: "/mnt/kontent/tv" },
             { name: "movies", hostPath: "/mnt/kontent/movies" },
           ],
+          // The chart takes ceilings and states no policy about reserving
+          // them; that depends on what else shares the node, which is ours to
+          // know. Both were the chart's defaults, so they are stated here now
+          // rather than inherited.
+          limits: MARIASTEW_LIMITS,
+          requests: resourceRequests(MARIASTEW_LIMITS).requests,
+          aria2: {
+            limits: ARIA2_LIMITS,
+            requests: resourceRequests(ARIA2_LIMITS).requests,
+          },
         },
         {
           hostname: hostnames.mariastew,

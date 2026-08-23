@@ -63,12 +63,14 @@
   value: "{version}"
   image: "ghcr.io/radiosilence/jaritanet-files:{version}"
 
+# Its own repository now, publishing the component that deploys it — so this
+# follows a dependency and the image is that package's business. No tagPrefix
+# either: one repository releasing one thing needs no way to say which.
 - app: mariastew
-  repo: radiosilence/jaritanet
-  tagPrefix: mariastew-v
-  file: packages/mariastew/src/versions.ts
-  key: mariastew
-  value: "ghcr.io/radiosilence/mariastew:{version}"
+  repo: radiosilence/mariastew
+  manifest: packages/infra/package.json
+  package: "@radiosilence/mariastew-pulumi"
+  value: "{version}"
 
 - app: auth
   repo: radiosilence/jaritanet
