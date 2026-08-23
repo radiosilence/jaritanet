@@ -14,7 +14,6 @@
     "@jaritanet/home": "workspace:*",
     "@jaritanet/ingress": "workspace:*",
     "@jaritanet/k8s": "workspace:*",
-    "@jaritanet/mariastew": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
     "@jaritanet/navidrome": "workspace:*",
     "@jaritanet/remote": "workspace:*",
@@ -26,6 +25,7 @@
     "@pulumi/random": "4.20.0",
     "@pulumi/tailscale": "^0.29.0",
     "@pulumi/tls": "5.4.0",
+    "@radiosilence/mariastew-pulumi": "0.2.0",
     "@radiosilence/mcp-gateway-pulumi": "0.8.1",
     "yaml": "2.9.0",
     "zod": "4.4.3"

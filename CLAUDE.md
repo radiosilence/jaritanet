@@ -88,7 +88,7 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
 - **`@jaritanet/metrics`** — VictoriaMetrics single-node, node-exporter and `vmagent` as DaemonSets, and Grafana signed in through the estate's own provider. Each agent scrapes its own node and remote-writes, rather than one scraper reaching across the tailnet to a residential uplink where a missed scrape is simply lost. Not kube-prometheus-stack: the operator, Alertmanager, kube-state-metrics and ~30 CRDs are monitoring outweighing the monitored on the box whose scheduler already refused a transport for lack of CPU
 - **`apps/serve-from-env/deploy/pulumi`** (`@jaritanet/serve-from-env`) — a Secret of path → body, a Deployment serving exactly those paths, and the annotation that restarts it when the table changes. The caller keeps what the table *means*; this knows only that it is JSON
-- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra, whose client is registered for it by `@jaritanet/auth` rather than by itself. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own. Leaving for its own repository; see radiosilence/mariastew
+- **Extracted, and consumed as published packages** — `@radiosilence/mcp-gateway-pulumi` and `@radiosilence/mariastew-pulumi`. Each is published by the repository that builds the app, at that app's own version, so pinning the package says exactly which build runs and what image that is stops being this repository's business
 - **`packages/infra`** — this stack. `main.ts` orchestrates, `stack.ts` says what jaritanet is, `services.ts` builds everything in the cluster and publishes it, `secrets.ts` is the only reader of stack config, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, and `schemas.ts` holds the shapes that exist only because they are composed. `checkout.ts` warns when the deploy is not running from a clean, current `main`: the plan is whatever the tree contains, so a branch that is behind reverts what main has and it lacks, which twice nearly downgraded mariastew as an incidental line in an unrelated diff
 
 Packages are `private` and imported as TypeScript source — Node resolves a
@@ -264,10 +264,11 @@ in `Cargo.lock` recompiles all of them — measured on `mariastew` at 168s of
 dependencies against 15s of its own code. Neither the stub-`main` layer nor
 `cargo-chef` subdivides that; they reorder it. Cargo's own cache does have the
 right granularity, and the only place it survives between runs is the runner, so
-`mariastew` and `auth` compile there under `Swatinem/rust-cache` and hand the
+`auth` compiles there under `Swatinem/rust-cache` and hands the
 binary to `build-publish-container.yml` as an artefact (`context-artifact`),
-leaving their Dockerfiles a `COPY` into a base image. The price is that those
-two Dockerfiles no longer build from a bare checkout. `serve-from-env` still
+leaving its Dockerfile a `COPY` into a base image. The price is that it no
+longer builds from a bare checkout. mariastew does the same in its own
+repository. `serve-from-env` still
 compiles inline at 46 crates, where a second job shape costs more than it saves.
 
 Caches are written from `main` only (`save-if`). A branch's cache is invisible

@@ -1,3 +1,0 @@
-# docker-compose's bind-mounted roots: real downloads plus the directory
-# tree scripts/seed-dev-fixtures.ts generates. Neither belongs in git.
-dev-data/
