@@ -202,7 +202,6 @@ function createOne(
       createProfileServer(provider, namespace, ctx.users, ctx.singboxNodes, {
         slug: slug.result,
         magicdnsSuffix: ctx.magicdnsSuffix,
-        image: service.image,
         exits: ctx.exits,
         hostname: service.hostname,
         telegram: ctx.telegram

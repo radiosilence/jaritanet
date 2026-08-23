@@ -414,7 +414,6 @@ config:
       kind: singbox-profiles
       hostname:
         secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
-      image: ghcr.io/radiosilence/serve-from-env:0.1.0
     # Television and film only, which is what makes the scene-garbage filter
     # global — there is no album art to protect, so one list serves every
     # download. Each root is both the pod's mount and a root the picker
@@ -430,9 +429,6 @@ config:
       kind: mariastew
       hostname:
         secure: AAABALH0zY11nQLr6MZkyhv8bm35+Wpvwnxeq3YQBVjpRN6zuFzwHtrA
-      image:
-        repository: "ghcr.io/radiosilence/mariastew"
-        tag: 0.1.29
       roots:
         - name: tv
           hostPath: /mnt/kontent/tv
@@ -519,9 +515,6 @@ config:
   jaritanet:auth:
     hostname:
       secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
-    image:
-      repository: "ghcr.io/radiosilence/auth"
-      tag: 0.2.0
     github:
       clientId: Ov23lig1BPAzKe4qmT4F
       clientSecret:

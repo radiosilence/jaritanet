@@ -39,13 +39,19 @@
   key: traefikChart
   value: "{version}"
 
-# Our own containers, released from this repo when their version file changes —
-# so a fix to the thing handing out everyone's sing-box profile reaches the
-# cluster on the next updater run rather than when somebody remembers.
+# Our own containers, released from this repo when their version file changes.
+#
+# Tracked like any upstream, and deliberately not derived from the app's own
+# `Cargo.toml`: that file changes when the source does, and this has to change
+# only once an image carrying that version exists to pull. The gap between the
+# two is a bump merged before the container workflow finished, deploying a tag
+# that was never published. This is the commit that closes it, and the registry
+# check is what holds it back until the image is really there.
 - app: serve-from-env
   repo: radiosilence/jaritanet
   tagPrefix: serve-from-env-v
-  path: [config, "jaritanet:services", singbox-profiles, image]
+  file: packages/vpn/src/versions.ts
+  key: serveFromEnv
   value: "ghcr.io/radiosilence/serve-from-env:{version}"
 
 - app: Files
@@ -58,16 +64,16 @@
 - app: mariastew
   repo: radiosilence/jaritanet
   tagPrefix: mariastew-v
-  path: [config, "jaritanet:services", mariastew, image, tag]
-  value: "{version}"
-  image: "ghcr.io/radiosilence/mariastew:{version}"
+  file: packages/mariastew/src/versions.ts
+  key: mariastew
+  value: "ghcr.io/radiosilence/mariastew:{version}"
 
 - app: auth
   repo: radiosilence/jaritanet
   tagPrefix: auth-v
-  path: [config, "jaritanet:auth", image, tag]
-  value: "{version}"
-  image: "ghcr.io/radiosilence/auth:{version}"
+  file: packages/auth/src/versions.ts
+  key: auth
+  value: "ghcr.io/radiosilence/auth:{version}"
 
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway

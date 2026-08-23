@@ -1,4 +1,4 @@
-import { AbsolutePath, ImageSchema, LimitsSchema } from "@jaritanet/k8s";
+import { AbsolutePath, LimitsSchema } from "@jaritanet/k8s";
 import * as z from "zod";
 
 /**
@@ -146,7 +146,6 @@ export const MariastewConfSchema = z.object({
   // type, which would mean writing every flag out a second time here.
   aria2: Aria2ConfSchema.prefault({}),
   hostname: z.string().default(""),
-  image: ImageSchema,
   /**
    * The service's ceiling, which is not aria2's — see `aria2.limits`. This
    * process polls a socket and renders a list; it was measured at 6Mi while

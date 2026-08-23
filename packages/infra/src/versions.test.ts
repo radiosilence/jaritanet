@@ -243,7 +243,14 @@ describe("targets against the real tree", () => {
       const watched = new Set(
         entries.flatMap((e) => ("file" in e && e.file === file ? [e.key] : [])),
       );
-      for (const [, key] of source.matchAll(/^\s{2}(\w+): "/gm)) {
+      // `VERSIONS` only. A pin that deliberately floats lives in `FLOATING`,
+      // which is the point of the two being separate consts — a decision not to
+      // track has to be visible, and an oversight still has to fail here.
+      const pins = /export const VERSIONS = \{([\s\S]*?)^\} as const;/m.exec(
+        source,
+      )?.[1];
+      expect(pins, `${file} exports VERSIONS`).toEqual(expect.any(String));
+      for (const [, key] of pins!.matchAll(/^\s{2}(\w+): "/gm)) {
         expect(watched.has(key!), `${file}: ${key} is tracked`).toBe(true);
       }
     }

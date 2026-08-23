@@ -51,9 +51,6 @@
                 }
               ]
             },
-            "image": {
-              "$ref": "#/$defs/__schema1"
-            },
             "replicas": {
               "default": 2,
               "type": "number"
@@ -63,25 +60,7 @@
                 "cpu": "100m",
                 "memory": "64Mi"
               },
-              "$ref": "#/$defs/__schema2"
-            },
-            "redisImage": {
-              "default": "redis:8-alpine",
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "secure": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["secure"],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/$defs/__schema1"
             },
             "github": {
               "type": "object",
@@ -142,7 +121,6 @@
               "required": ["clientId", "clientSecret"]
             }
           },
-          "required": ["image"],
           "additionalProperties": false
         },
         "jaritanet:bluesky": {
@@ -240,7 +218,7 @@
                   "port": 443,
                   "sni": "www.bing.com"
                 },
-                "$ref": "#/$defs/__schema4"
+                "$ref": "#/$defs/__schema3"
               },
               "image": {
                 "default": "ubuntu-26.04",
@@ -304,11 +282,11 @@
                 "properties": {
                   "dest": {
                     "default": "www.microsoft.com:443",
-                    "$ref": "#/$defs/__schema7"
+                    "$ref": "#/$defs/__schema6"
                   },
                   "serverName": {
                     "default": "www.microsoft.com",
-                    "$ref": "#/$defs/__schema6"
+                    "$ref": "#/$defs/__schema5"
                   }
                 }
               },
@@ -332,7 +310,7 @@
               },
               "zone": {
                 "default": "radiosilence.dev",
-                "$ref": "#/$defs/__schema6"
+                "$ref": "#/$defs/__schema5"
               }
             },
             "required": ["name"]
@@ -397,10 +375,10 @@
                 ]
               },
               "nodeLabel": {
-                "$ref": "#/$defs/__schema8"
+                "$ref": "#/$defs/__schema7"
               },
               "port": {
-                "$ref": "#/$defs/__schema5"
+                "$ref": "#/$defs/__schema4"
               },
               "server": {
                 "anyOf": [
@@ -429,7 +407,7 @@
           "type": "object",
           "properties": {
             "dkimDomain": {
-              "$ref": "#/$defs/__schema6"
+              "$ref": "#/$defs/__schema5"
             },
             "dkimSubdomain": {
               "anyOf": [
@@ -503,10 +481,10 @@
               ]
             },
             "mxDomain": {
-              "$ref": "#/$defs/__schema6"
+              "$ref": "#/$defs/__schema5"
             },
             "spfDomain": {
-              "$ref": "#/$defs/__schema6"
+              "$ref": "#/$defs/__schema5"
             }
           },
           "required": [
@@ -558,7 +536,7 @@
               ]
             },
             "hysteria": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema3"
             },
             "name": {
               "default": "sympathy",
@@ -600,13 +578,13 @@
               "type": "object",
               "properties": {
                 "apiViaTailnet": {
-                  "$ref": "#/$defs/__schema9"
+                  "$ref": "#/$defs/__schema8"
                 },
                 "ciliumVersion": {
-                  "$ref": "#/$defs/__schema10"
+                  "$ref": "#/$defs/__schema9"
                 },
                 "version": {
-                  "$ref": "#/$defs/__schema11"
+                  "$ref": "#/$defs/__schema10"
                 }
               }
             },
@@ -693,13 +671,13 @@
               "properties": {
                 "dest": {
                   "default": "127.0.0.1:8443",
-                  "$ref": "#/$defs/__schema7"
+                  "$ref": "#/$defs/__schema6"
                 },
                 "serverNames": {
                   "minItems": 1,
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/__schema12"
+                    "$ref": "#/$defs/__schema11"
                   }
                 }
               },
@@ -768,10 +746,10 @@
                 "type": "object",
                 "properties": {
                   "kind": {
-                    "$ref": "#/$defs/__schema13"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "args": {
-                    "$ref": "#/$defs/__schema14"
+                    "$ref": "#/$defs/__schema13"
                   },
                   "hostname": {
                     "$ref": "#/$defs/__schema16"
@@ -939,7 +917,7 @@
                   },
                   "configPath": {
                     "default": "/var/lib/syncthing",
-                    "$ref": "#/$defs/__schema15"
+                    "$ref": "#/$defs/__schema14"
                   },
                   "folders": {
                     "minItems": 1,
@@ -949,7 +927,7 @@
                     }
                   },
                   "hostname": {
-                    "$ref": "#/$defs/__schema6"
+                    "$ref": "#/$defs/__schema5"
                   },
                   "gid": {
                     "default": 1000,
@@ -1006,7 +984,7 @@
                     ]
                   },
                   "image": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema15"
                   },
                   "hydraTag": {
                     "default": "v2.2.0",
@@ -1035,7 +1013,7 @@
                       "cpu": "500m",
                       "memory": "256Mi"
                     },
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema1"
                   },
                   "postgresStorageClass": {
                     "anyOf": [
@@ -1132,13 +1110,10 @@
                     "$ref": "#/$defs/__schema33"
                   },
                   "hostname": {
-                    "$ref": "#/$defs/__schema6"
-                  },
-                  "image": {
-                    "$ref": "#/$defs/__schema34"
+                    "$ref": "#/$defs/__schema5"
                   }
                 },
-                "required": ["kind", "hostname", "image"],
+                "required": ["kind", "hostname"],
                 "additionalProperties": false,
                 "description": "The per-user sing-box subscription server"
               },
@@ -1154,7 +1129,7 @@
                           "cpu": "4",
                           "memory": "2Gi"
                         },
-                        "$ref": "#/$defs/__schema2"
+                        "$ref": "#/$defs/__schema1"
                       },
                       "listenPort": {
                         "default": 51413,
@@ -1186,7 +1161,7 @@
                       },
                       "statePath": {
                         "default": "/var/lib/mariastew",
-                        "$ref": "#/$defs/__schema15"
+                        "$ref": "#/$defs/__schema14"
                       },
                       "saveSessionInterval": {
                         "default": 60,
@@ -1287,21 +1262,18 @@
                       }
                     ]
                   },
-                  "image": {
-                    "$ref": "#/$defs/__schema1"
-                  },
                   "limits": {
                     "default": {
                       "cpu": "500m",
                       "memory": "256Mi"
                     },
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema1"
                   },
                   "roots": {
                     "minItems": 1,
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/__schema35"
+                      "$ref": "#/$defs/__schema34"
                     }
                   },
                   "kind": {
@@ -1326,7 +1298,7 @@
                     "$ref": "#/$defs/__schema18"
                   }
                 },
-                "required": ["image", "roots", "kind"],
+                "required": ["roots", "kind"],
                 "additionalProperties": false
               },
               {
@@ -1336,7 +1308,7 @@
                     "default": "",
                     "anyOf": [
                       {
-                        "$ref": "#/$defs/__schema6"
+                        "$ref": "#/$defs/__schema5"
                       },
                       {
                         "anyOf": [
@@ -1364,14 +1336,14 @@
                     "properties": {
                       "hostPath": {
                         "default": "/var/lib/jaritanet/grafana",
-                        "$ref": "#/$defs/__schema15"
+                        "$ref": "#/$defs/__schema14"
                       },
                       "limits": {
                         "default": {
                           "cpu": "500m",
                           "memory": "512Mi"
                         },
-                        "$ref": "#/$defs/__schema2"
+                        "$ref": "#/$defs/__schema1"
                       }
                     },
                     "additionalProperties": false
@@ -1385,7 +1357,7 @@
                           "cpu": "200m",
                           "memory": "128Mi"
                         },
-                        "$ref": "#/$defs/__schema2"
+                        "$ref": "#/$defs/__schema1"
                       }
                     },
                     "additionalProperties": false
@@ -1417,7 +1389,7 @@
                           "cpu": "500m",
                           "memory": "256Mi"
                         },
-                        "$ref": "#/$defs/__schema2"
+                        "$ref": "#/$defs/__schema1"
                       },
                       "scrapeInterval": {
                         "default": "30s",
@@ -1447,14 +1419,14 @@
                     "properties": {
                       "hostPath": {
                         "default": "/var/lib/jaritanet/victoria-metrics",
-                        "$ref": "#/$defs/__schema15"
+                        "$ref": "#/$defs/__schema14"
                       },
                       "limits": {
                         "default": {
                           "cpu": "1",
                           "memory": "1Gi"
                         },
-                        "$ref": "#/$defs/__schema2"
+                        "$ref": "#/$defs/__schema1"
                       },
                       "retention": {
                         "default": "1y",
@@ -1528,7 +1500,7 @@
               ]
             },
             "magicdnsSuffix": {
-              "$ref": "#/$defs/__schema6"
+              "$ref": "#/$defs/__schema5"
             },
             "name": {
               "anyOf": [
@@ -1715,7 +1687,7 @@
           ]
         },
         "jaritanet:vpnEntryLabel": {
-          "$ref": "#/$defs/__schema8"
+          "$ref": "#/$defs/__schema7"
         },
         "jaritanet:vpnUsers": {
           "anyOf": [
@@ -1761,7 +1733,7 @@
                 }
               },
               "name": {
-                "$ref": "#/$defs/__schema6"
+                "$ref": "#/$defs/__schema5"
               },
               "zoneId": {
                 "anyOf": [
@@ -1835,78 +1807,18 @@
     "__schema1": {
       "type": "object",
       "properties": {
-        "pullPolicy": {
-          "default": "IfNotPresent",
-          "anyOf": [
-            {
-              "type": "string",
-              "enum": ["Always", "IfNotPresent", "Never"]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "secure": {
-                  "type": "string"
-                }
-              },
-              "required": ["secure"],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "repository": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "secure": {
-                  "type": "string"
-                }
-              },
-              "required": ["secure"],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "tag": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "secure": {
-                  "type": "string"
-                }
-              },
-              "required": ["secure"],
-              "additionalProperties": false
-            }
-          ]
-        }
-      },
-      "required": ["repository", "tag"],
-      "additionalProperties": false
-    },
-    "__schema2": {
-      "type": "object",
-      "properties": {
         "cpu": {
           "default": "50m",
-          "$ref": "#/$defs/__schema3"
+          "$ref": "#/$defs/__schema2"
         },
         "memory": {
           "default": "64Mi",
-          "$ref": "#/$defs/__schema3"
+          "$ref": "#/$defs/__schema2"
         }
       },
       "additionalProperties": false
     },
-    "__schema3": {
+    "__schema2": {
       "anyOf": [
         {
           "type": "string",
@@ -1924,32 +1836,32 @@
         }
       ]
     },
-    "__schema4": {
+    "__schema3": {
       "type": "object",
       "properties": {
         "altPorts": {
           "default": [3478, 4500],
           "type": "array",
           "items": {
-            "$ref": "#/$defs/__schema5"
+            "$ref": "#/$defs/__schema4"
           }
         },
         "port": {
           "default": 443,
-          "$ref": "#/$defs/__schema5"
+          "$ref": "#/$defs/__schema4"
         },
         "sni": {
           "default": "www.bing.com",
-          "$ref": "#/$defs/__schema6"
+          "$ref": "#/$defs/__schema5"
         }
       }
     },
-    "__schema5": {
+    "__schema4": {
       "type": "integer",
       "minimum": 1,
       "maximum": 65535
     },
-    "__schema6": {
+    "__schema5": {
       "anyOf": [
         {
           "type": "string",
@@ -1967,7 +1879,7 @@
         }
       ]
     },
-    "__schema7": {
+    "__schema6": {
       "anyOf": [
         {
           "type": "string",
@@ -1985,7 +1897,7 @@
         }
       ]
     },
-    "__schema8": {
+    "__schema7": {
       "anyOf": [
         {
           "type": "string",
@@ -2003,11 +1915,11 @@
         }
       ]
     },
-    "__schema9": {
+    "__schema8": {
       "default": false,
       "type": "boolean"
     },
-    "__schema10": {
+    "__schema9": {
       "default": "1.20.0",
       "anyOf": [
         {
@@ -2025,8 +1937,25 @@
         }
       ]
     },
-    "__schema11": {
+    "__schema10": {
       "default": "v1.36.3+k3s1",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema11": {
       "anyOf": [
         {
           "type": "string"
@@ -2046,23 +1975,6 @@
     "__schema12": {
       "anyOf": [
         {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "__schema13": {
-      "anyOf": [
-        {
           "type": "string",
           "const": "web"
         },
@@ -2078,7 +1990,7 @@
         }
       ]
     },
-    "__schema14": {
+    "__schema13": {
       "type": "object",
       "properties": {
         "dropCapabilities": {
@@ -2249,7 +2161,7 @@
             "type": "object",
             "properties": {
               "hostPath": {
-                "$ref": "#/$defs/__schema15"
+                "$ref": "#/$defs/__schema14"
               },
               "hostPathType": {
                 "default": "Directory",
@@ -2279,7 +2191,7 @@
                 ]
               },
               "mountPath": {
-                "$ref": "#/$defs/__schema15"
+                "$ref": "#/$defs/__schema14"
               },
               "name": {
                 "anyOf": [
@@ -2322,10 +2234,10 @@
           "type": "boolean"
         },
         "image": {
-          "$ref": "#/$defs/__schema1"
+          "$ref": "#/$defs/__schema15"
         },
         "limits": {
-          "$ref": "#/$defs/__schema2"
+          "$ref": "#/$defs/__schema1"
         },
         "persistence": {
           "default": [],
@@ -2334,10 +2246,10 @@
             "type": "object",
             "properties": {
               "hostPath": {
-                "$ref": "#/$defs/__schema15"
+                "$ref": "#/$defs/__schema14"
               },
               "mountPath": {
-                "$ref": "#/$defs/__schema15"
+                "$ref": "#/$defs/__schema14"
               },
               "name": {
                 "anyOf": [
@@ -2488,7 +2400,7 @@
       "required": ["image"],
       "additionalProperties": false
     },
-    "__schema15": {
+    "__schema14": {
       "anyOf": [
         {
           "type": "string",
@@ -2506,10 +2418,70 @@
         }
       ]
     },
+    "__schema15": {
+      "type": "object",
+      "properties": {
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "secure": {
+                  "type": "string"
+                }
+              },
+              "required": ["secure"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["repository", "tag"],
+      "additionalProperties": false
+    },
     "__schema16": {
       "anyOf": [
         {
-          "$ref": "#/$defs/__schema6"
+          "$ref": "#/$defs/__schema5"
         },
         {
           "anyOf": [
@@ -2552,14 +2524,14 @@
           ]
         },
         "hostPath": {
-          "$ref": "#/$defs/__schema15"
+          "$ref": "#/$defs/__schema14"
         }
       },
       "required": ["name", "hostPath"]
     },
     "__schema18": {
       "default": "jaritanet.radiosilence.dev/file-node",
-      "$ref": "#/$defs/__schema8"
+      "$ref": "#/$defs/__schema7"
     },
     "__schema19": {
       "type": "object",
@@ -2582,7 +2554,7 @@
           ]
         },
         "hostPath": {
-          "$ref": "#/$defs/__schema15"
+          "$ref": "#/$defs/__schema14"
         }
       },
       "required": ["name", "hostPath"]
@@ -2979,23 +2951,6 @@
       ]
     },
     "__schema34": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "__schema35": {
       "type": "object",
       "properties": {
         "name": {
@@ -3017,7 +2972,7 @@
           ]
         },
         "hostPath": {
-          "$ref": "#/$defs/__schema15"
+          "$ref": "#/$defs/__schema14"
         }
       },
       "required": ["name", "hostPath"],

@@ -274,7 +274,6 @@ export const ServiceConfSchema = z.discriminatedUnion("kind", [
        * wanted on — blocks the device from fetching its own subscription.
        */
       hostname: Hostname,
-      image: z.string(),
     })
     .describe("The per-user sing-box subscription server"),
   MariastewConfSchema.extend({

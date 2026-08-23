@@ -3,6 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { MariastewConfSchema } from "./mariastew.schemas.ts";
+import { VERSIONS } from "./versions.ts";
 
 const SECRETS_NAME = "mariastew-secrets";
 /** An env `valueFrom` pointing at a key in this service's Secret. */
@@ -93,7 +94,6 @@ export function createMariastew(
     options,
   );
 
-  const image = `${conf.image.repository}:${conf.image.tag}`;
   const mounts = conf.roots.map(({ name, hostPath }) => ({
     name,
     mountPath: hostPath,
@@ -172,8 +172,8 @@ export function createMariastew(
             initContainers: [
               {
                 name: "session-file",
-                image,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.mariastew,
+                imagePullPolicy: "IfNotPresent",
                 command: ["/bin/touch", sessionFile],
                 resources: {
                   requests: { cpu: "5m", memory: "8Mi" },
@@ -189,8 +189,8 @@ export function createMariastew(
             containers: [
               {
                 name: "mariastew",
-                image,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.mariastew,
+                imagePullPolicy: "IfNotPresent",
                 ports: [{ name: "http", containerPort: 8080 }],
                 env: [
                   { name: "BIND_ADDR", value: "0.0.0.0:8080" },
@@ -238,8 +238,8 @@ export function createMariastew(
               },
               {
                 name: "aria2",
-                image,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.mariastew,
+                imagePullPolicy: "IfNotPresent",
                 command: [
                   "/usr/bin/aria2c",
                   "--enable-rpc",

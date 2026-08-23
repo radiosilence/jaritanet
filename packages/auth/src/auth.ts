@@ -3,6 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { AuthConfSchema } from "./auth.schemas.ts";
+import { FLOATING, VERSIONS } from "./versions.ts";
 
 const APP = "auth";
 const REDIS = "auth-redis";
@@ -137,7 +138,7 @@ export function createAuth(
             containers: [
               {
                 name: "redis",
-                image: conf.redisImage,
+                image: FLOATING.redis,
                 // Both halves of the default persistence, off: `--save ""`
                 // stops the periodic dump, `--appendonly no` the log. Otherwise
                 // a container with no volume writes both to its own filesystem
@@ -199,8 +200,8 @@ export function createAuth(
             containers: [
               {
                 name: APP,
-                image: `${conf.image.repository}:${conf.image.tag}`,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.auth,
+                imagePullPolicy: "IfNotPresent",
                 ports: [{ name: "http", containerPort: 8080 }],
                 env: [
                   { name: "BIND_ADDR", value: "0.0.0.0:8080" },
