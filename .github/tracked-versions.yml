@@ -199,10 +199,22 @@
   value: "v{version}"
   image: "docker.io/rancher/system-upgrade-controller:v{version}"
 
+# blit follows a branch rather than a release: it is a website, and a typo fix
+# should not need a version bump to reach it. Its own CI asks this workflow to
+# run once it has pushed the image, so the pin moves within a minute of a
+# content change rather than at the next scheduled sweep.
+- app: blit
+  repo: radiosilence/blit
+  branch: main
+  file: packages/blit/src/versions.ts
+  key: blit
+  value: "sha-{version}"
+  image: "ghcr.io/radiosilence/blit:sha-{version}"
+
 # Deliberately absent, and each said so where it is pinned, in an `UNTRACKED`
 # const beside the `VERSIONS` the updater does read: Hydra (a major bump needs
-# a database migration), postgres and redis (major tags that carry their own
-# patches), and blit (pinned to a build, because it cuts no releases).
+# a database migration), and postgres and redis (major tags that carry their
+# own patches).
 #
 # Also deliberately absent: k3s and Cilium. Cilium's version has to match the
 # cluster's k8s minor, and k3s is the cluster — bumping either unattended

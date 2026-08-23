@@ -1,12 +1,14 @@
 /**
- * Pinned to a build rather than a release, which is why it is not in
- * `.github/tracked-versions.yml`: blit cuts no releases, so there is no tag for
- * the updater to follow and this moves by hand.
+ * Pinned to a build, not a release.
  *
- * That is a gap rather than a design — it is the one image in the estate
- * nothing watches. It closes when blit gains a release process of its own,
- * which is also what it needs before it can publish its own deploy package.
+ * blit is a website: a typo fix should reach it without a version bump, so its
+ * images are tagged by commit and this follows the head of `main`. The updater
+ * resolves that itself rather than blit reaching in here and rewriting it,
+ * which is what it used to do — and what broke the moment this repository's
+ * config became TypeScript.
+ *
+ * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
-export const UNTRACKED = {
+export const VERSIONS = {
   blit: "sha-e7ec682",
 } as const;

@@ -41,6 +41,18 @@ export const TrackedSchema = z.intersection(
     value: z.string(),
     image: z.string().optional(),
     tagPrefix: z.string().optional(),
+    /**
+     * Follow a branch's head rather than a release.
+     *
+     * For something released continuously: blit is a website, and a typo fix
+     * should not need a version bump to reach it. Its images are tagged by
+     * commit, so what there is to follow is where the branch points.
+     *
+     * The resolved value is a short commit SHA and is used verbatim — it never
+     * goes through `normaliseVersion`, which strips everything before the first
+     * digit and would turn `e7ec682` into `7ec682`.
+     */
+    branch: z.string().optional(),
   }),
   TargetSchema,
 );
