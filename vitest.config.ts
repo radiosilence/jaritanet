@@ -4,7 +4,11 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["packages/**/*.test.ts", "apps/*/deploy/pulumi/**/*.test.ts"],
+    include: [
+      "packages/**/*.test.ts",
+      "apps/*/deploy/pulumi/**/*.test.ts",
+      "scripts/**/*.test.ts",
+    ],
     typecheck: {
       enabled: true,
     },

@@ -1,0 +1,14 @@
+{
+  "name": "@jaritanet/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Maintenance scripts: the version updater, the profile validator, node provisioning",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "type": "module",
+  "dependencies": {
+    "@jaritanet/vpn": "workspace:*",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  }
+}

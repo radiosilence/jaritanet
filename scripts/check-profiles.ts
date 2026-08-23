@@ -54,8 +54,18 @@ const node = {
   },
 };
 const edge = { ...node, name: "helsinki", server: "5.6.7.8" };
+// `server` is the exit's tailnet address, and it was missing here — so every
+// profile this validated carried an exit outbound with no server at all, which
+// is not a shape any device is ever handed. Nothing caught it because scripts/
+// was not typechecked.
 const exits = [
-  { name: "home", port: 9000, method: "aes-128-gcm", password: "ss-psk" },
+  {
+    name: "home",
+    port: 9000,
+    method: "aes-128-gcm",
+    password: "ss-psk",
+    server: "100.64.0.1",
+  },
 ];
 
 const profiles = [

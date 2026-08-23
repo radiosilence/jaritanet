@@ -39,16 +39,7 @@ import * as random from "@pulumi/random";
 import type * as z from "zod";
 import type { ZonesConfSchema } from "./schemas.ts";
 import { MCPS } from "./mcps.ts";
-
-/**
- * The machine holding the media drive.
- *
- * A hostname rather than a label because it pins a `local` PersistentVolume's
- * node affinity, which names a node. The daemonset-shaped file services select
- * `FILE_NODE_LABEL` instead — which machine holds the disks is a property of
- * that machine, applied by the seed drive when it joins.
- */
-const MEDIA_NODE = "lady";
+import { CLOUD_NODE, MEDIA_NODE } from "./nodes.ts";
 
 /** One binding each, because the requests below are derived from them. */
 const MCP_GATEWAY_LIMITS = { cpu: "250m", memory: "256Mi" };
@@ -226,6 +217,8 @@ export function createServices(ctx: EstateContext) {
           replicas: 2,
           // Routes and terminates OAuth rather than serving a file, so more
           // headroom than blit — but it measured 1m CPU idle, not 500m.
+          // Hydra and its Postgres, together and off the home box.
+          node: CLOUD_NODE,
           limits: MCP_GATEWAY_LIMITS,
           // The chart takes the numbers and states no policy about them: how
           // much of a ceiling to reserve depends on what else shares the node,
