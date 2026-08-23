@@ -162,14 +162,26 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 - **`scrape.ts`** — what one agent scrapes: its own node, and nothing else. A central scraper reaching across to the home box turns every residential-uplink blip into a hole in the graphs, where a local scrape plus a buffered remote-write replays it
 - **`dashboards.ts`** — an overview, then disks, nodes, and ingress and policy. The overview is what Grafana opens on and the only one meant to be needed: six tiles, each the worst case across the estate and each naming what it belongs to, picked from where this estate actually breaks — USB-enclosed mechanical disks, memory ceilings that have already killed things, a residential uplink carrying pod traffic, a certificate that renews itself or silently does not, and NetworkPolicies never verified under Cilium. Built here rather than pasted in as exported JSON, so the queries are the diff
 
-**`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/mcp-gateway`**, **`@jaritanet/mariastew`**, **`@jaritanet/k8s`**, **`@jaritanet/remote`**
+**`@jaritanet/ingress`**, **`@jaritanet/dns`**, **`@jaritanet/mariastew`**, **`@jaritanet/k8s`**, **`@jaritanet/remote`**
 
 - **`ingress.ts`** — Traefik Helm chart and IngressRoutes
 - **`dns.ts`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`mcp-gateway.ts`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
-- **`mariastew.ts`** — torrent web UI fronting aria2 (see `apps/mariastew/README.md`); one pod, two containers built from the same image and sharing a network namespace, so aria2's RPC never leaves loopback
+- **`mariastew.ts`** — torrent web UI fronting aria2; one pod, two containers built from the same image and sharing a network namespace, so aria2's RPC never leaves loopback. Leaving for [its own repository](https://github.com/radiosilence/mariastew)
 - **`service.ts`** — K8s Deployment/Service/PV/PVC templates, plus the schemas and helpers the other packages share
 - **`preamble.ts`** — `remotePreamble`, the shell every `command.remote.Command` opens with. Pulumi SSHes in the moment the box answers, so waiting for cloud-init and setting a dpkg lock timeout is the first thing on the wire — depending on nothing and on no cloud is what lets the `-systemd` transports and the k3s install share one copy
+
+**`apps/<x>/deploy/pulumi`** — an app's own chart, next to the app
+
+- **`apps/auth`** — the login and consent provider Hydra delegates to
+- **`apps/files`** — static nginx over a read-only mount
+- **`apps/serve-from-env`** — a Secret of path → body, and a Deployment serving
+  exactly those paths
+
+The chart pins the app's own version and they release together, so the two live
+in one directory. That is also what makes an app extractable: mcp-gateway and
+mariastew both left as a directory, chart included. Deploy code for software
+built somewhere else stays in `packages/`, because there is nowhere to extract
+it to.
 
 **`packages/infra`** — this stack
 
