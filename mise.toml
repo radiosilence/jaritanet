@@ -53,7 +53,7 @@ run = "oxfmt --check"
 
 [tasks.typecheck]
 description = "Type check every package"
-run = 'for p in packages/*/tsconfig.json apps/*/tsconfig*.json; do echo "→ $p" && tsc -p "$p" || exit 1; done'
+run = 'for p in packages/*/tsconfig.json apps/*/tsconfig*.json apps/*/deploy/pulumi/tsconfig.json; do echo "→ $p" && tsc -p "$p" || exit 1; done'
 
 [tasks.test]
 description = "Run the test suite (vitest on Node — Pulumi needs Node's v8)"
