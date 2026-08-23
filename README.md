@@ -191,6 +191,13 @@ emit and `@pulumi/pulumi` moved to a peer dependency.
 still in the stack, so `pulumi up` from a laptop needs a Pulumi login and
 nothing else.
 
+Service hostnames used to be encrypted here so a public repository would not
+hand out the list. They carry certificates, so Certificate Transparency held
+them regardless, and that only bought anything while the logs were awkward to
+search — crt.name lists every name under a domain in one query. They are plain
+values in `stack.ts` now, which also retires the rule that no doc or comment
+could name a host.
+
 Secrets inside structured config decrypt to ordinary strings: the `secure:`
 wrapper exists only in the stack file, and the `[secret]` in a deploy's output
 is the engine redacting its own stdout. That is what lets a credential sit in

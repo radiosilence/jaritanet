@@ -6,16 +6,10 @@
  * the compiler checks it, the editor completes it, and a value used twice is
  * one binding rather than two entries that can disagree.
  *
- * Hostnames are here for the same reason and no other: they carry certificates
- * and are in the public Certificate Transparency logs already, so encrypting
- * them buys nothing against a determined reader — only against a public
- * repository handing out the list.
- *
  * `getObject` returns plaintext. The `secure:` wrapper exists in the stack file,
  * and the `[secret]` in a deploy's output is the engine redacting its own
  * stdout, so one Zod parse still validates the whole block.
  */
-import { Hostname } from "@jaritanet/k8s";
 import * as pulumi from "@pulumi/pulumi";
 import * as z from "zod";
 
@@ -44,14 +38,3 @@ const SecretsSchema = z.strictObject({
 const config = new pulumi.Config();
 
 export const secrets = SecretsSchema.parse(config.requireObject("secrets"));
-
-/**
- * Where each service is published, keyed by the name it is created under.
- *
- * A name with no entry is built and not published, which is a real state: the
- * samba shares and syncthing's UI are reached on the LAN and the tailnet and
- * have no business having an address.
- */
-export const hostnames = z
-  .record(z.string(), Hostname)
-  .parse(config.requireObject("hostnames"));
