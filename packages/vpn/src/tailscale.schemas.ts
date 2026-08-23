@@ -10,7 +10,6 @@ import * as z from "zod";
  */
 export const TailnetConfSchema = z.object({
   hostname: z.string().default("jaritanet-gw"),
-  image: z.string().default("ghcr.io/tailscale/tailscale:v1.98.9"),
   // A node cannot advertise a tag the policy does not define, and the prefix
   // is what makes it a tag rather than a hostname.
   tag: z

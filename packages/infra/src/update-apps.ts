@@ -28,10 +28,12 @@ import {
   parseImageRef,
   pickLatestTag,
   readAt,
+  readConst,
   STRINGIFY_OPTIONS,
   TrackedListSchema,
   verifyRef,
   writeAt,
+  writeConst,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -194,6 +196,23 @@ const dryRun = process.argv.includes("--dry-run");
 const entries = TrackedListSchema.parse(parse(await readFile(TRACKED, "utf8")));
 const doc = parseDocument(await readFile(CONFIG, "utf8"));
 
+/**
+ * Package `versions.ts` files, read once and kept in memory.
+ *
+ * Two entries can share a file — the metrics stack pins four upstreams in one —
+ * and each bump commits separately, so a second entry has to see the first
+ * one's edit rather than the copy on disk from before the run started.
+ */
+const sources = new Map<string, string>();
+const source = async (file: string) => {
+  const abs = join(ROOT, file);
+  const cached = sources.get(abs);
+  if (cached !== undefined) return { abs, text: cached };
+  const text = await readFile(abs, "utf8");
+  sources.set(abs, text);
+  return { abs, text };
+};
+
 if (!dryRun) {
   await git("config", "user.email", "action@github.com");
   await git("config", "user.name", "GitHub Action");
@@ -217,7 +236,10 @@ for (const entry of entries) {
   const ref = verifyRef(entry, version);
   const decision = decide({
     tag,
-    current: readAt(doc, entry.path),
+    current:
+      "path" in entry
+        ? readAt(doc, entry.path)
+        : readConst((await source(entry.file)).text, entry.key),
     next,
     ref,
     exists: ref ? await imageExists(ref) : true,
@@ -239,14 +261,30 @@ for (const entry of entries) {
 
   log(`${entry.app} — ${decision.from} -> ${decision.to}`);
   if (!dryRun) {
-    writeAt(doc, entry.path, decision.to);
-    await writeFile(CONFIG, doc.toString(STRINGIFY_OPTIONS));
-    await git("add", CONFIG);
+    if ("path" in entry) {
+      writeAt(doc, entry.path, decision.to);
+      await writeFile(CONFIG, doc.toString(STRINGIFY_OPTIONS));
+      await git("add", CONFIG);
+    } else {
+      const { abs, text } = await source(entry.file);
+      const rewritten = writeConst(text, entry.key, decision.to);
+      // `decide` already read the same key through the same matcher, so this
+      // cannot miss — but it returns a value rather than throwing, and a silent
+      // skip here would report a bump that was never written.
+      if (rewritten === undefined) {
+        warn(`${entry.app} — could not write ${entry.key} in ${entry.file}`);
+        failed.push(entry.app);
+        continue;
+      }
+      sources.set(abs, rewritten);
+      await writeFile(abs, rewritten);
+      await git("add", abs);
+    }
     // `-n`: the pre-commit hook lints, formats and typechecks a working tree a
-    // human is about to push. This commit is one YAML scalar written by the
-    // process that just parsed it, on a runner whose only stake in the hook is
-    // that it can fail — which it did, aborting a run that had already computed
-    // the right bump.
+    // human is about to push. This commit is one scalar written by the process
+    // that just parsed it, on a runner whose only stake in the hook is that it
+    // can fail — which it did, aborting a run that had already computed the
+    // right bump.
     await git(
       "commit",
       "-qn",

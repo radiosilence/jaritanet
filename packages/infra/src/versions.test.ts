@@ -9,10 +9,12 @@ import {
   parseImageRef,
   pickLatestTag,
   readAt,
+  readConst,
   STRINGIFY_OPTIONS,
   TrackedListSchema,
   verifyRef,
   writeAt,
+  writeConst,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -24,6 +26,17 @@ const tracked = async () =>
       await readFile(join(ROOT, ".github", "tracked-versions.yml"), "utf8"),
     ),
   );
+
+/** Every package `versions.ts` an entry points at, keyed by its repo path. */
+const pinSources = async (entries: Awaited<ReturnType<typeof tracked>>) => {
+  const files = [
+    ...new Set(entries.flatMap((e) => ("file" in e ? [e.file] : []))),
+  ];
+  const texts = await Promise.all(
+    files.map((f) => readFile(join(ROOT, f), "utf8")),
+  );
+  return new Map(files.map((f, i) => [f, texts[i]!]));
+};
 
 describe("normaliseVersion", () => {
   it.each([
@@ -205,13 +218,34 @@ describe("decide", () => {
   });
 });
 
-describe("paths against the real config", () => {
+describe("targets against the real tree", () => {
   it("resolves every tracked entry to a string", async () => {
     const doc = parseDocument(await config());
-    for (const entry of await tracked()) {
-      expect(readAt(doc, entry.path), `${entry.app} resolves`).toEqual(
-        expect.any(String),
+    const entries = await tracked();
+    const sources = await pinSources(entries);
+    for (const entry of entries) {
+      const current =
+        "path" in entry
+          ? readAt(doc, entry.path)
+          : readConst(sources.get(entry.file)!, entry.key);
+      expect(current, `${entry.app} resolves`).toEqual(expect.any(String));
+    }
+  });
+
+  /**
+   * The gap this closes is not hypothetical: `blit` is pinned to a git SHA and
+   * tracked by nothing, and ss-rust was invisible for as long as its pin lived
+   * in a schema default. A pin nobody watches is only discovered when it breaks.
+   */
+  it("tracks every pin in every package versions.ts", async () => {
+    const entries = await tracked();
+    for (const [file, source] of await pinSources(entries)) {
+      const watched = new Set(
+        entries.flatMap((e) => ("file" in e && e.file === file ? [e.key] : [])),
       );
+      for (const [, key] of source.matchAll(/^\s{2}(\w+): "/gm)) {
+        expect(watched.has(key!), `${file}: ${key} is tracked`).toBe(true);
+      }
     }
   });
 
@@ -289,14 +323,57 @@ describe("rewriting the config", () => {
 
   it("keeps a quoted scalar quoted, so a version cannot come back as a float", async () => {
     const doc = parseDocument(await config());
-    const path = ["config", "jaritanet:traefik", "chartVersion"];
+    const path = [
+      "config",
+      "jaritanet:services",
+      "files",
+      "args",
+      "image",
+      "tag",
+    ];
 
     expect(writeAt(doc, path, "41.0")).toBe(true);
 
-    expect(doc.toString(STRINGIFY_OPTIONS)).toContain('chartVersion: "41.0"');
+    expect(doc.toString(STRINGIFY_OPTIONS)).toContain('tag: "41.0"');
     expect(readAt(parseDocument(doc.toString(STRINGIFY_OPTIONS)), path)).toBe(
       "41.0",
     );
+  });
+});
+
+describe("rewriting a package pin", () => {
+  const source = [
+    "export const VERSIONS = {",
+    '  hysteria: "docker.io/tobyxdd/hysteria:v2.12.2",',
+    '  unbound: "docker.io/klutchell/unbound:v1.26.0",',
+    "} as const;",
+    "",
+    "export const DERIVED = `x${VERSIONS.hysteria}`;",
+  ].join("\n");
+
+  it("reads a pin", () => {
+    expect(readConst(source, "unbound")).toBe(
+      "docker.io/klutchell/unbound:v1.26.0",
+    );
+  });
+
+  it("changes exactly one line", () => {
+    const next = writeConst(source, "hysteria", "docker.io/x/y:v9")!;
+    const changed = next
+      .split("\n")
+      .filter((line, i) => line !== source.split("\n")[i]);
+    expect(changed).toEqual(['  hysteria: "docker.io/x/y:v9",']);
+  });
+
+  /** A miss has to be reportable, not a silent no-op that claims a bump. */
+  it("reports a key that is not there", () => {
+    expect(readConst(source, "nope")).toBeUndefined();
+    expect(writeConst(source, "nope", "x")).toBeUndefined();
+  });
+
+  it("refuses a key appearing twice rather than guessing which", () => {
+    const doubled = `${source}\n  hysteria: "other",`;
+    expect(readConst(doubled, "hysteria")).toBeUndefined();
   });
 });
 

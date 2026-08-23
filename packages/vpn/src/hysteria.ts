@@ -6,6 +6,7 @@ import type * as z from "zod";
 import type { HysteriaConfSchema } from "./hysteria.schemas.ts";
 import type { VpnUser } from "./users.ts";
 import { sha256hex } from "@jaritanet/k8s";
+import { VERSIONS } from "./versions.ts";
 
 // Hysteria2 publishes no images under the apernet org — `ghcr.io/apernet/
 // hysteria` does not exist. tobyxdd is the maintainer, and this is the image
@@ -162,7 +163,7 @@ ${userpassBlock}
             nodeSelector: { [entryLabel]: "true" },
             containers: ports.map((port) => ({
               name: `${app}-${port}`,
-              image: hysteria.image,
+              image: VERSIONS.hysteria,
               args: ["server", "-c", `/etc/hysteria/config-${port}.yaml`],
               // A CPU request and no CPU limit: a limit means CFS throttling,
               // which on a QUIC transport is periodic latency spikes and

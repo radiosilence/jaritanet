@@ -7,6 +7,7 @@ import type { XrayConfSchema } from "./xray.schemas.ts";
 import type { VpnUser } from "./users.ts";
 import { resourcePrefix, type SshConnection, type SystemdOpts } from "./ssh.ts";
 import { GUEST_DENY_CIDRS } from "./xray.ts";
+import { XRAY_VERSION } from "./versions.ts";
 
 /**
  * Provisions Xray-core (VLESS-Vision-REALITY) on the gateway VPS.
@@ -81,7 +82,7 @@ export function createXraySystemd(
       connection,
       create: pulumi.interpolate`${remotePreamble}
 export DEBIAN_FRONTEND=noninteractive
-XRAY_VERSION=$(printf '%s' "${xray.version}" | sed 's/^v//')
+XRAY_VERSION=${XRAY_VERSION}
 
 # Official XTLS installer: sets up the systemd unit, a dedicated user,
 # CAP_NET_BIND_SERVICE for :443, plus geodata and log dirs.
@@ -94,7 +95,7 @@ if [ ! -f /usr/local/etc/xray/private.key ]; then
   sed -n '2p' /tmp/xray-keypair.txt | awk '{print $NF}' > /usr/local/etc/xray/public.key
   rm -f /tmp/xray-keypair.txt
 fi`,
-      triggers: [xray.version],
+      triggers: [`v${XRAY_VERSION}`],
     },
     { dependsOn },
   );

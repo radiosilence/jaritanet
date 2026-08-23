@@ -2,9 +2,14 @@
 # updater itself never needs touching.
 #
 #   repo   where the releases are read from
-#   path   what to rewrite in Pulumi.main.yaml, as a list of keys. A mapping
-#          segment like `{ id: tfl }` picks a list entry out by field rather
-#          than by position, so reordering that list is harmless.
+#   file   a package's `versions.ts`, and
+#   key    the entry in its exported `VERSIONS` to rewrite. This is where a pin
+#          belongs — next to the code that deploys it — and an entry has this
+#          form as soon as its component has a package to sit in.
+#   path   the older form: what to rewrite in Pulumi.main.yaml, as a list of
+#          keys. A mapping segment like `{ id: tfl }` picks a list entry out by
+#          field rather than by position, so reordering that list is harmless.
+#          Still used by the pins with no package of their own yet.
 #   value  what to write, with {version} substituted
 #   image  an image reference to confirm exists before committing the bump.
 #          Defaults to `value` when that is already a full reference, so only
@@ -30,7 +35,8 @@
 # Chart releases are tagged "traefik-34.5.0".
 - app: Traefik
   repo: traefik/traefik-helm-chart
-  path: [config, "jaritanet:traefik", chartVersion]
+  file: packages/ingress/src/versions.ts
+  key: traefikChart
   value: "{version}"
 
 # Our own containers, released from this repo when their version file changes —
@@ -90,53 +96,65 @@
   path: [config, "jaritanet:services", mcp-gateway, mcps, { id: tfl }, image]
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
 
-# The metrics stack. VictoriaMetrics releases the store and the agent from one
-# repo and one tag, so both entries take the same release — a pair that must not
-# skew, since the agent speaks the store's remote-write protocol.
+# The metrics stack.
 - app: VictoriaMetrics
   repo: VictoriaMetrics/VictoriaMetrics
-  path: [config, "jaritanet:services", metrics, vmsingle, image]
-  value: "docker.io/victoriametrics/victoria-metrics:v{version}"
-
-- app: vmagent
-  repo: VictoriaMetrics/VictoriaMetrics
-  path: [config, "jaritanet:services", metrics, vmagent, image]
-  value: "docker.io/victoriametrics/vmagent:v{version}"
+  file: packages/metrics/src/versions.ts
+  key: victoriaMetrics
+  value: "{version}"
+  # A bare version, because the store and the agent derive their images from
+  # this one binding — which is what stops the pair skewing. One entry now
+  # where there were two.
+  image: "docker.io/victoriametrics/victoria-metrics:v{version}"
 
 - app: node-exporter
   repo: prometheus/node_exporter
-  path: [config, "jaritanet:services", metrics, nodeExporter, image]
+  file: packages/metrics/src/versions.ts
+  key: nodeExporter
   value: "quay.io/prometheus/node-exporter:v{version}"
 
 # Grafana's image tags carry no leading v, unlike its release tags.
 - app: Grafana
   repo: grafana/grafana
-  path: [config, "jaritanet:services", metrics, grafana, image]
+  file: packages/metrics/src/versions.ts
+  key: grafana
   value: "docker.io/grafana/grafana:{version}"
 
-# The internet-facing daemons. These terminate traffic from hostile networks,
-# so they are the entries where a stale pin actually costs something — and all
-# four were hardcoded in TypeScript until they moved into config so this file
-# could reach them.
+# The internet-facing daemons. These terminate traffic from hostile networks, so
+# they are the entries where a stale pin actually costs something. They were
+# hardcoded in TypeScript, then moved into config so this file could reach them,
+# and are back in TypeScript now that it can reach them there — the round trip
+# left every one of them with a stale `.default()` shadowed by a live config
+# value, which is the drift this form removes.
 
 - app: Xray
   repo: XTLS/Xray-core
-  path: [config, "jaritanet:gateway", xray, version]
-  value: "v{version}"
-  # The module strips the leading v — its image tags carry none.
-  image: "ghcr.io/xtls/xray-core:{version}"
+  file: packages/vpn/src/versions.ts
+  key: xray
+  value: "ghcr.io/xtls/xray-core:{version}"
 
 # Releases are tagged "app/v2.10.0"; everything before the first digit is
 # stripped, so the prefix costs nothing here.
 - app: Hysteria2
   repo: apernet/hysteria
-  path: [config, "jaritanet:gateway", hysteria, image]
+  file: packages/vpn/src/versions.ts
+  key: hysteria
   value: "docker.io/tobyxdd/hysteria:v{version}"
 
 - app: Tailscale
   repo: tailscale/tailscale
-  path: [config, "jaritanet:gateway", tailnet, image]
+  file: packages/vpn/src/versions.ts
+  key: tailscale
   value: "ghcr.io/tailscale/tailscale:v{version}"
+
+# The egress side: ss-rust on an exit node. Tracked by nothing until the pin
+# moved into the package — it had no config entry to name, so this file could
+# not see it and it sat on whatever the schema default happened to say.
+- app: ss-rust
+  repo: shadowsocks/shadowsocks-rust
+  file: packages/vpn/src/versions.ts
+  key: ssRust
+  value: "ghcr.io/shadowsocks/ssserver-rust:v{version}"
 
 # The image repo and the release repo are different projects here: klutchell
 # builds the container and cuts no GitHub releases, so it was unreadable and
@@ -146,7 +164,8 @@
 # waiting is the only correct response to it.
 - app: Unbound
   repo: NLnetLabs/unbound
-  path: [config, "jaritanet:gateway", unbound, image]
+  file: packages/vpn/src/versions.ts
+  key: unbound
   value: "docker.io/klutchell/unbound:v{version}"
 
 # What carries k3s upgrades to nodes Pulumi never installed. The controller
@@ -154,7 +173,8 @@
 # that is a judgement, not this.
 - app: System Upgrade Controller
   repo: rancher/system-upgrade-controller
-  path: [config, "jaritanet:gateway", k3s, upgradeControllerVersion]
+  file: packages/hetzner/src/versions.ts
+  key: upgradeController
   value: "v{version}"
   image: "docker.io/rancher/system-upgrade-controller:v{version}"
 

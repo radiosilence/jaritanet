@@ -6,6 +6,7 @@ import type { XrayConfSchema } from "./xray.schemas.ts";
 import type { VpnUser } from "./users.ts";
 import { sha256hex } from "@jaritanet/k8s";
 import { realityKeypair } from "./reality.ts";
+import { VERSIONS } from "./versions.ts";
 
 // A guest may address the public internet and nothing else. Narrower rules were
 // a mistake: exits were blocked only on their own port range (20000-29999, see
@@ -224,10 +225,7 @@ export function createXray(
             containers: [
               {
                 name: app,
-                // Tracks `xray.version`, so the pinned core is stated once and
-                // the image cannot drift from the version the config targets.
-                // The published tags carry no leading `v`.
-                image: `ghcr.io/xtls/xray-core:${xray.version.replace(/^v/, "")}`,
+                image: VERSIONS.xray,
                 args: ["-config", "/etc/xray/config.json"],
                 // A CPU *request* and no CPU limit. A limit is enforced by CFS
                 // throttling — once the quota is spent the process is stopped

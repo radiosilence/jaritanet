@@ -238,8 +238,7 @@
                 "default": {
                   "altPorts": [3478, 4500],
                   "port": 443,
-                  "sni": "www.bing.com",
-                  "image": "docker.io/tobyxdd/hysteria:v2.10.0"
+                  "sni": "www.bing.com"
                 },
                 "$ref": "#/$defs/__schema4"
               },
@@ -345,24 +344,6 @@
           "items": {
             "type": "object",
             "properties": {
-              "image": {
-                "default": "ghcr.io/shadowsocks/ssserver-rust:v1.24.0",
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "secure": {
-                        "type": "string"
-                      }
-                    },
-                    "required": ["secure"],
-                    "additionalProperties": false
-                  }
-                ]
-              },
               "method": {
                 "default": "aes-256-gcm",
                 "anyOf": [
@@ -624,11 +605,8 @@
                 "ciliumVersion": {
                   "$ref": "#/$defs/__schema10"
                 },
-                "upgradeControllerVersion": {
-                  "$ref": "#/$defs/__schema11"
-                },
                 "version": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema11"
                 }
               }
             },
@@ -689,56 +667,12 @@
                     }
                   ]
                 },
-                "image": {
-                  "default": "ghcr.io/tailscale/tailscale:v1.98.9",
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "secure": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["secure"],
-                      "additionalProperties": false
-                    }
-                  ]
-                },
                 "tag": {
                   "default": "tag:server",
                   "anyOf": [
                     {
                       "type": "string",
                       "pattern": "^tag:[a-z][a-z0-9-]*$"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "secure": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["secure"],
-                      "additionalProperties": false
-                    }
-                  ]
-                }
-              }
-            },
-            "unbound": {
-              "default": {
-                "image": "docker.io/klutchell/unbound:v1.24.0"
-              },
-              "type": "object",
-              "properties": {
-                "image": {
-                  "default": "docker.io/klutchell/unbound:v1.24.0",
-                  "anyOf": [
-                    {
-                      "type": "string"
                     },
                     {
                       "type": "object",
@@ -765,26 +699,8 @@
                   "minItems": 1,
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/__schema13"
+                    "$ref": "#/$defs/__schema12"
                   }
-                },
-                "version": {
-                  "default": "v26.3.27",
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "secure": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["secure"],
-                      "additionalProperties": false
-                    }
-                  ]
                 }
               },
               "required": ["serverNames"]
@@ -852,13 +768,13 @@
                 "type": "object",
                 "properties": {
                   "kind": {
-                    "$ref": "#/$defs/__schema14"
+                    "$ref": "#/$defs/__schema13"
                   },
                   "args": {
-                    "$ref": "#/$defs/__schema15"
+                    "$ref": "#/$defs/__schema14"
                   },
                   "hostname": {
-                    "$ref": "#/$defs/__schema17"
+                    "$ref": "#/$defs/__schema16"
                   }
                 },
                 "required": ["kind", "args"],
@@ -954,7 +870,7 @@
                     "minItems": 1,
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/__schema18"
+                      "$ref": "#/$defs/__schema17"
                     }
                   },
                   "workgroup": {
@@ -994,7 +910,7 @@
                     ]
                   },
                   "nodeLabel": {
-                    "$ref": "#/$defs/__schema19"
+                    "$ref": "#/$defs/__schema18"
                   }
                 },
                 "required": ["guestAccount", "shares", "kind"],
@@ -1023,13 +939,13 @@
                   },
                   "configPath": {
                     "default": "/var/lib/syncthing",
-                    "$ref": "#/$defs/__schema16"
+                    "$ref": "#/$defs/__schema15"
                   },
                   "folders": {
                     "minItems": 1,
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/__schema20"
+                      "$ref": "#/$defs/__schema19"
                     }
                   },
                   "hostname": {
@@ -1062,7 +978,7 @@
                     ]
                   },
                   "nodeLabel": {
-                    "$ref": "#/$defs/__schema19"
+                    "$ref": "#/$defs/__schema18"
                   }
                 },
                 "required": ["folders", "kind"],
@@ -1145,43 +1061,43 @@
                       "type": "object",
                       "properties": {
                         "id": {
-                          "$ref": "#/$defs/__schema21"
+                          "$ref": "#/$defs/__schema20"
                         },
                         "name": {
-                          "$ref": "#/$defs/__schema22"
+                          "$ref": "#/$defs/__schema21"
                         },
                         "image": {
-                          "$ref": "#/$defs/__schema23"
+                          "$ref": "#/$defs/__schema22"
                         },
                         "args": {
-                          "$ref": "#/$defs/__schema24"
+                          "$ref": "#/$defs/__schema23"
                         },
                         "port": {
-                          "$ref": "#/$defs/__schema25"
+                          "$ref": "#/$defs/__schema24"
                         },
                         "path": {
-                          "$ref": "#/$defs/__schema26"
+                          "$ref": "#/$defs/__schema25"
                         },
                         "credentialHeader": {
-                          "$ref": "#/$defs/__schema27"
+                          "$ref": "#/$defs/__schema26"
                         },
                         "fields": {
-                          "$ref": "#/$defs/__schema28"
+                          "$ref": "#/$defs/__schema27"
                         },
                         "public": {
-                          "$ref": "#/$defs/__schema29"
+                          "$ref": "#/$defs/__schema28"
                         },
                         "graphqlPath": {
-                          "$ref": "#/$defs/__schema30"
+                          "$ref": "#/$defs/__schema29"
                         },
                         "keyHelpUrl": {
-                          "$ref": "#/$defs/__schema31"
+                          "$ref": "#/$defs/__schema30"
                         },
                         "keyHint": {
-                          "$ref": "#/$defs/__schema32"
+                          "$ref": "#/$defs/__schema31"
                         },
                         "verify": {
-                          "$ref": "#/$defs/__schema33"
+                          "$ref": "#/$defs/__schema32"
                         }
                       },
                       "required": ["id", "name", "image"]
@@ -1213,13 +1129,13 @@
                 "type": "object",
                 "properties": {
                   "kind": {
-                    "$ref": "#/$defs/__schema34"
+                    "$ref": "#/$defs/__schema33"
                   },
                   "hostname": {
                     "$ref": "#/$defs/__schema6"
                   },
                   "image": {
-                    "$ref": "#/$defs/__schema35"
+                    "$ref": "#/$defs/__schema34"
                   }
                 },
                 "required": ["kind", "hostname", "image"],
@@ -1270,7 +1186,7 @@
                       },
                       "statePath": {
                         "default": "/var/lib/mariastew",
-                        "$ref": "#/$defs/__schema16"
+                        "$ref": "#/$defs/__schema15"
                       },
                       "saveSessionInterval": {
                         "default": 60,
@@ -1385,7 +1301,7 @@
                     "minItems": 1,
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/__schema36"
+                      "$ref": "#/$defs/__schema35"
                     }
                   },
                   "kind": {
@@ -1407,7 +1323,7 @@
                     ]
                   },
                   "nodeLabel": {
-                    "$ref": "#/$defs/__schema19"
+                    "$ref": "#/$defs/__schema18"
                   }
                 },
                 "required": ["image", "roots", "kind"],
@@ -1443,28 +1359,12 @@
                     ]
                   },
                   "grafana": {
+                    "default": {},
                     "type": "object",
                     "properties": {
-                      "image": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "secure": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["secure"],
-                            "additionalProperties": false
-                          }
-                        ]
-                      },
                       "hostPath": {
                         "default": "/var/lib/jaritanet/grafana",
-                        "$ref": "#/$defs/__schema16"
+                        "$ref": "#/$defs/__schema15"
                       },
                       "limits": {
                         "default": {
@@ -1474,29 +1374,12 @@
                         "$ref": "#/$defs/__schema2"
                       }
                     },
-                    "required": ["image"],
                     "additionalProperties": false
                   },
                   "nodeExporter": {
+                    "default": {},
                     "type": "object",
                     "properties": {
-                      "image": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "secure": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["secure"],
-                            "additionalProperties": false
-                          }
-                        ]
-                      },
                       "limits": {
                         "default": {
                           "cpu": "200m",
@@ -1505,7 +1388,6 @@
                         "$ref": "#/$defs/__schema2"
                       }
                     },
-                    "required": ["image"],
                     "additionalProperties": false
                   },
                   "storageNode": {
@@ -1527,25 +1409,9 @@
                     ]
                   },
                   "vmagent": {
+                    "default": {},
                     "type": "object",
                     "properties": {
-                      "image": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "secure": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["secure"],
-                            "additionalProperties": false
-                          }
-                        ]
-                      },
                       "limits": {
                         "default": {
                           "cpu": "500m",
@@ -1573,32 +1439,15 @@
                         ]
                       }
                     },
-                    "required": ["image"],
                     "additionalProperties": false
                   },
                   "vmsingle": {
+                    "default": {},
                     "type": "object",
                     "properties": {
-                      "image": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "secure": {
-                                "type": "string"
-                              }
-                            },
-                            "required": ["secure"],
-                            "additionalProperties": false
-                          }
-                        ]
-                      },
                       "hostPath": {
                         "default": "/var/lib/jaritanet/victoria-metrics",
-                        "$ref": "#/$defs/__schema16"
+                        "$ref": "#/$defs/__schema15"
                       },
                       "limits": {
                         "default": {
@@ -1627,7 +1476,6 @@
                         ]
                       }
                     },
-                    "required": ["image"],
                     "additionalProperties": false
                   },
                   "kind": {
@@ -1649,14 +1497,7 @@
                     ]
                   }
                 },
-                "required": [
-                  "grafana",
-                  "nodeExporter",
-                  "storageNode",
-                  "vmagent",
-                  "vmsingle",
-                  "kind"
-                ],
+                "required": ["storageNode", "kind"],
                 "additionalProperties": false
               }
             ]
@@ -1840,24 +1681,6 @@
                   "type": "string",
                   "format": "email",
                   "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "secure": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["secure"],
-                  "additionalProperties": false
-                }
-              ]
-            },
-            "chartVersion": {
-              "default": "41.0.2",
-              "anyOf": [
-                {
-                  "type": "string"
                 },
                 {
                   "type": "object",
@@ -2111,24 +1934,6 @@
             "$ref": "#/$defs/__schema5"
           }
         },
-        "image": {
-          "default": "docker.io/tobyxdd/hysteria:v2.10.0",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "secure": {
-                  "type": "string"
-                }
-              },
-              "required": ["secure"],
-              "additionalProperties": false
-            }
-          ]
-        },
         "port": {
           "default": 443,
           "$ref": "#/$defs/__schema5"
@@ -2221,7 +2026,7 @@
       ]
     },
     "__schema11": {
-      "default": "v0.20.1",
+      "default": "v1.36.3+k3s1",
       "anyOf": [
         {
           "type": "string"
@@ -2239,7 +2044,6 @@
       ]
     },
     "__schema12": {
-      "default": "v1.36.3+k3s1",
       "anyOf": [
         {
           "type": "string"
@@ -2259,23 +2063,6 @@
     "__schema13": {
       "anyOf": [
         {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "__schema14": {
-      "anyOf": [
-        {
           "type": "string",
           "const": "web"
         },
@@ -2291,7 +2078,7 @@
         }
       ]
     },
-    "__schema15": {
+    "__schema14": {
       "type": "object",
       "properties": {
         "dropCapabilities": {
@@ -2462,7 +2249,7 @@
             "type": "object",
             "properties": {
               "hostPath": {
-                "$ref": "#/$defs/__schema16"
+                "$ref": "#/$defs/__schema15"
               },
               "hostPathType": {
                 "default": "Directory",
@@ -2492,7 +2279,7 @@
                 ]
               },
               "mountPath": {
-                "$ref": "#/$defs/__schema16"
+                "$ref": "#/$defs/__schema15"
               },
               "name": {
                 "anyOf": [
@@ -2547,10 +2334,10 @@
             "type": "object",
             "properties": {
               "hostPath": {
-                "$ref": "#/$defs/__schema16"
+                "$ref": "#/$defs/__schema15"
               },
               "mountPath": {
-                "$ref": "#/$defs/__schema16"
+                "$ref": "#/$defs/__schema15"
               },
               "name": {
                 "anyOf": [
@@ -2701,7 +2488,7 @@
       "required": ["image"],
       "additionalProperties": false
     },
-    "__schema16": {
+    "__schema15": {
       "anyOf": [
         {
           "type": "string",
@@ -2719,7 +2506,7 @@
         }
       ]
     },
-    "__schema17": {
+    "__schema16": {
       "anyOf": [
         {
           "$ref": "#/$defs/__schema6"
@@ -2744,7 +2531,7 @@
         }
       ]
     },
-    "__schema18": {
+    "__schema17": {
       "type": "object",
       "properties": {
         "name": {
@@ -2765,16 +2552,16 @@
           ]
         },
         "hostPath": {
-          "$ref": "#/$defs/__schema16"
+          "$ref": "#/$defs/__schema15"
         }
       },
       "required": ["name", "hostPath"]
     },
-    "__schema19": {
+    "__schema18": {
       "default": "jaritanet.radiosilence.dev/file-node",
       "$ref": "#/$defs/__schema8"
     },
-    "__schema20": {
+    "__schema19": {
       "type": "object",
       "properties": {
         "name": {
@@ -2795,10 +2582,27 @@
           ]
         },
         "hostPath": {
-          "$ref": "#/$defs/__schema16"
+          "$ref": "#/$defs/__schema15"
         }
       },
       "required": ["name", "hostPath"]
+    },
+    "__schema20": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema21": {
       "anyOf": [
@@ -2835,23 +2639,6 @@
       ]
     },
     "__schema23": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "__schema24": {
       "default": [],
       "type": "array",
       "items": {
@@ -2872,11 +2659,11 @@
         ]
       }
     },
-    "__schema25": {
+    "__schema24": {
       "default": 8080,
       "type": "number"
     },
-    "__schema26": {
+    "__schema25": {
       "default": "/mcp",
       "anyOf": [
         {
@@ -2894,7 +2681,7 @@
         }
       ]
     },
-    "__schema27": {
+    "__schema26": {
       "anyOf": [
         {
           "type": "string"
@@ -2911,7 +2698,7 @@
         }
       ]
     },
-    "__schema28": {
+    "__schema27": {
       "type": "array",
       "items": {
         "type": "object",
@@ -3045,8 +2832,25 @@
         "required": ["id", "label", "header"]
       }
     },
-    "__schema29": {
+    "__schema28": {
       "type": "boolean"
+    },
+    "__schema29": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "secure": {
+              "type": "string"
+            }
+          },
+          "required": ["secure"],
+          "additionalProperties": false
+        }
+      ]
     },
     "__schema30": {
       "anyOf": [
@@ -3083,23 +2887,6 @@
       ]
     },
     "__schema32": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "secure": {
-              "type": "string"
-            }
-          },
-          "required": ["secure"],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "__schema33": {
       "type": "object",
       "properties": {
         "query": {
@@ -3173,7 +2960,7 @@
       },
       "required": ["query"]
     },
-    "__schema34": {
+    "__schema33": {
       "anyOf": [
         {
           "type": "string",
@@ -3191,7 +2978,7 @@
         }
       ]
     },
-    "__schema35": {
+    "__schema34": {
       "anyOf": [
         {
           "type": "string"
@@ -3208,7 +2995,7 @@
         }
       ]
     },
-    "__schema36": {
+    "__schema35": {
       "type": "object",
       "properties": {
         "name": {
@@ -3230,7 +3017,7 @@
           ]
         },
         "hostPath": {
-          "$ref": "#/$defs/__schema16"
+          "$ref": "#/$defs/__schema15"
         }
       },
       "required": ["name", "hostPath"],

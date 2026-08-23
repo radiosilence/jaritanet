@@ -17,14 +17,39 @@ const PathSegmentSchema = z.union([
   z.record(z.string(), z.string()),
 ]);
 
-export const TrackedSchema = z.object({
-  app: z.string(),
-  repo: z.string(),
-  path: z.array(PathSegmentSchema).min(1),
-  value: z.string(),
-  image: z.string().optional(),
-  tagPrefix: z.string().optional(),
-});
+/** Addresses a scalar in the config document. Named because `Tracked` is a
+ *  union now, so `Tracked["path"]` no longer describes anything. */
+export type PathSegment = z.infer<typeof PathSegmentSchema>;
+
+/**
+ * Where an entry's pin lives, and the only thing that differs between the two
+ * kinds of tracked component.
+ *
+ * `file`/`key` is where pins belong: next to the code that deploys them, in the
+ * package that owns them. `path` is the older form, addressing the stack's own
+ * config, and survives for the handful of pins that have no package to sit in
+ * yet — the orphan images and the ones still keyed off a service block.
+ */
+const TargetSchema = z.union([
+  z.object({
+    file: z.string().min(1),
+    // An identifier, which is what makes the rewrite a plain regex: no escaping
+    // and no way for a key to carry pattern syntax of its own.
+    key: z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/),
+  }),
+  z.object({ path: z.array(PathSegmentSchema).min(1) }),
+]);
+
+export const TrackedSchema = z.intersection(
+  z.object({
+    app: z.string(),
+    repo: z.string(),
+    value: z.string(),
+    image: z.string().optional(),
+    tagPrefix: z.string().optional(),
+  }),
+  TargetSchema,
+);
 
 export const TrackedListSchema = z.array(TrackedSchema);
 
@@ -193,7 +218,7 @@ export function decide({
  * Turns each selector segment into the list index it currently matches, giving
  * a path the document can address directly.
  */
-export function resolvePath(doc: Document, path: Tracked["path"]) {
+export function resolvePath(doc: Document, path: PathSegment[]) {
   const resolved: (string | number)[] = [];
   for (const segment of path) {
     if (typeof segment === "string") {
@@ -212,7 +237,7 @@ export function resolvePath(doc: Document, path: Tracked["path"]) {
   return resolved;
 }
 
-export function readAt(doc: Document, path: Tracked["path"]) {
+export function readAt(doc: Document, path: PathSegment[]) {
   const resolved = resolvePath(doc, path);
   const value = resolved && doc.getIn(resolved);
   return typeof value === "string" ? value : undefined;
@@ -223,10 +248,41 @@ export function readAt(doc: Document, path: Tracked["path"]) {
  * whatever quoting it was written with. Without that an unquoted `41.0` would
  * come back as a float on the next read.
  */
-export function writeAt(doc: Document, path: Tracked["path"], value: string) {
+export function writeAt(doc: Document, path: PathSegment[], value: string) {
   const resolved = resolvePath(doc, path);
   const node = resolved && doc.getIn(resolved, true);
   if (!isScalar(node)) return false;
   node.value = value;
   return true;
+}
+
+/**
+ * One pin inside a package's `versions.ts`, written as `key: "value"`.
+ *
+ * A regex rather than a TypeScript parse, and what makes that safe is what it
+ * insists on: the key must appear exactly once in the file as a quoted string
+ * literal. Absent, duplicated, or computed is a miss rather than a guess, and
+ * `decide` turns a miss into a reported problem. These files hold pins and
+ * nothing else, so there is no second `hysteria:` for it to find.
+ */
+const pinPattern = (key: string) => `^(\\s*${key}: ")([^"]*)(")`;
+
+export function readConst(source: string, key: string) {
+  const all = source.match(new RegExp(pinPattern(key), "gm"));
+  if (all?.length !== 1) return undefined;
+  return new RegExp(pinPattern(key), "m").exec(source)?.[2];
+}
+
+/**
+ * Replaces the literal and nothing else, so a bump is one changed line and the
+ * docblocks around it are untouched — the same property the YAML writer gets
+ * from mutating a scalar in place.
+ */
+export function writeConst(source: string, key: string, value: string) {
+  if (readConst(source, key) === undefined) return undefined;
+  return source.replace(
+    new RegExp(pinPattern(key), "m"),
+    (_, before: string, __: string, after: string) =>
+      `${before}${value}${after}`,
+  );
 }

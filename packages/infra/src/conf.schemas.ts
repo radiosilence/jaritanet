@@ -29,7 +29,6 @@ import {
   ExitConfSchema,
   HysteriaConfSchema,
   TailnetConfSchema,
-  UnboundConfSchema,
   XrayConfSchema,
 } from "@jaritanet/vpn";
 import * as z from "zod";
@@ -49,7 +48,6 @@ export {
   SyncthingConfSchema,
   TailnetConfSchema,
   TraefikConfSchema,
-  UnboundConfSchema,
   XrayConfSchema,
   ZoneConfSchema,
   ZonesConfSchema,
@@ -84,10 +82,11 @@ export const TelegramConfSchema = z.object({
 /**
  * The tailnet itself, as distinct from the relay that joins it.
  *
- * `gateway.tailnet` describes a *daemon* — which image, what to call the node.
- * This describes the account that daemon authenticates against, which is why
- * the edges and the profile server read it too. Neither is a sub-case of the
- * other, so they are separate blocks rather than one with optional halves.
+ * `gateway.tailnet` describes a *daemon* — what to call the node and which tag
+ * it advertises. This describes the account that daemon authenticates against,
+ * which is why the edges and the profile server read it too. Neither is a
+ * sub-case of the other, so they are separate blocks rather than one with
+ * optional halves.
  */
 export const TailnetAccountConfSchema = z.object({
   /** Joins the gateway, every edge, and the in-cluster relay. */
@@ -165,9 +164,6 @@ export const GatewayConfSchema = z.object({
   location: z.string().default("nbg1"),
   serverType: z.string().default("cx23"),
   tailnet: TailnetConfSchema.optional(),
-  unbound: UnboundConfSchema.default({
-    image: "docker.io/klutchell/unbound:v1.24.0",
-  }),
   xray: XrayConfSchema.optional(),
 });
 
@@ -185,7 +181,6 @@ export const EdgeConfSchema = z.object({
     altPorts: [3478, 4500],
     port: 443,
     sni: "www.bing.com",
-    image: "docker.io/tobyxdd/hysteria:v2.10.0",
   }),
   image: z.string().default("ubuntu-26.04"),
   location: z.string().default("hel1"),
