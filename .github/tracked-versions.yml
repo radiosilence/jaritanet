@@ -51,14 +51,14 @@
 - app: serve-from-env
   repo: radiosilence/jaritanet
   tagPrefix: serve-from-env-v
-  file: packages/vpn/src/versions.ts
+  file: apps/serve-from-env/deploy/pulumi/src/versions.ts
   key: serveFromEnv
   value: "ghcr.io/radiosilence/serve-from-env:{version}"
 
 - app: Files
   repo: radiosilence/jaritanet
   tagPrefix: files-v
-  file: packages/files/src/versions.ts
+  file: apps/files/deploy/pulumi/src/versions.ts
   key: files
   value: "{version}"
   image: "ghcr.io/radiosilence/jaritanet-files:{version}"
@@ -73,7 +73,7 @@
 - app: auth
   repo: radiosilence/jaritanet
   tagPrefix: auth-v
-  file: packages/auth/src/versions.ts
+  file: apps/auth/deploy/pulumi/src/versions.ts
   key: auth
   value: "ghcr.io/radiosilence/auth:{version}"
 

@@ -1,9 +1,8 @@
 import * as crypto from "node:crypto";
-import { sha256hex } from "@jaritanet/k8s";
-import * as k8s from "@pulumi/kubernetes";
+import { createServeFromEnv } from "@jaritanet/serve-from-env";
+import type * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type { VpnUser } from "./users.ts";
-import { VERSIONS } from "./versions.ts";
 import {
   buildProfile,
   type Exit,
@@ -49,6 +48,8 @@ export function createProfileServer(
     telegram?: { botToken: pulumi.Output<string>; chatId: string };
   },
 ) {
+  const app = "singbox-profiles";
+
   // Unguessable path per user, derived from the secret base slug — stable
   // across deploys so a subscription keeps working, unguessable without the
   // base. Same scheme the file server used, so existing URLs keep their shape.
@@ -85,59 +86,14 @@ export function createProfileServer(
       ),
     );
 
-  const routesHash = sha256hex(pulumi.secret(routes)).apply((h) =>
-    h.slice(0, 16),
-  );
-
-  const secret = new k8s.core.v1.Secret(
-    "singbox-profiles",
-    {
-      metadata: { name: "singbox-profiles", namespace },
-      stringData: { ROUTES: routes },
-    },
-    { provider },
-  );
-
-  const app = "singbox-profiles";
-  new k8s.apps.v1.Deployment(
-    "singbox-profiles",
-    {
-      metadata: { name: app, namespace },
-      spec: {
-        replicas: 1,
-        selector: { matchLabels: { app } },
-        template: {
-          metadata: {
-            labels: { app },
-            // ROUTES arrives as an environment variable, which is read once at
-            // exec. Without this the pod would keep serving the profiles it
-            // started with after a rotation, silently.
-            annotations: { "jaritanet/routes": routesHash },
-          },
-          spec: {
-            automountServiceAccountToken: false,
-            containers: [
-              {
-                name: app,
-                image: VERSIONS.serveFromEnv,
-                ports: [{ name: "http", containerPort: 8080 }],
-                envFrom: [{ secretRef: { name: secret.metadata.name } }],
-                resources: { limits: { cpu: "100m", memory: "64Mi" } },
-                securityContext: {
-                  allowPrivilegeEscalation: false,
-                  seccompProfile: { type: "RuntimeDefault" },
-                  // Listens on 8080, owns no files, shells out to nothing.
-                  capabilities: { drop: ["ALL"] },
-                  readOnlyRootFilesystem: true,
-                  runAsNonRoot: true,
-                },
-              },
-            ],
-          },
-        },
-      },
-    },
-    { provider },
+  // The Secret, Deployment and Service are serve-from-env's own shape, and
+  // live with it. What stays here is what the table means: how a path is
+  // derived and what the body says.
+  const { secret, service, routesHash } = createServeFromEnv(
+    provider,
+    namespace,
+    app,
+    routes,
   );
 
   if (opts.telegram) {
@@ -157,15 +113,5 @@ export function createProfileServer(
     );
   }
 
-  return new k8s.core.v1.Service(
-    "singbox-profiles-service",
-    {
-      metadata: { name: `${app}-service`, namespace },
-      spec: {
-        ports: [{ port: 80, protocol: "TCP", targetPort: 8080 }],
-        selector: { app },
-      },
-    },
-    { provider },
-  );
+  return service;
 }

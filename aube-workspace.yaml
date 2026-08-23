@@ -36,3 +36,8 @@ packages:
   # Apps hold their own build tooling (eg. mariastew's stylesheet) rather than
   # being deployed from here.
   - "apps/*"
+  # An app's chart lives with the app. They are one project — the chart pins the
+  # app's own version — and when an app leaves for its own repository the chart
+  # is part of the directory that goes with it, as mcp-gateway's and mariastew's
+  # both were.
+  - "apps/*/deploy/pulumi"

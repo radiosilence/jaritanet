@@ -57,6 +57,19 @@ that somehow exists cannot abort a run that already did its work.
 
 ## Architecture
 
+### Where a thing lives
+
+**`apps/<x>` is source this repository builds, and its chart lives with it** at
+`apps/<x>/deploy/pulumi`. They are one project: the chart pins the app's own
+version, they release together, and when an app leaves for its own repository
+the chart is part of the directory that goes — which is exactly how mcp-gateway
+and mariastew left.
+
+**`packages/<x>` is deploy code for software built somewhere else**, whether
+upstream (navidrome, Traefik, VictoriaMetrics, the transports) or another
+repository of ours (blit) — plus the two shared primitives, `k8s` and `remote`.
+Nothing here can be extracted, because there is nothing to extract it *to*.
+
 ### Packages
 
 Components live in their own packages and know nothing about this deployment;
@@ -69,12 +82,13 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Each has a DaemonSet form and a `-systemd` form; the latter takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, the tailnet-rule DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing (see docs/architecture.md), and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
-- **`@jaritanet/navidrome`**, **`@jaritanet/files`**, **`@jaritanet/blit`** — a container, its volumes and its image pin. No configuration surface: 2Ti of media, a pinned uid and two volumes are facts about this deployment rather than knobs, and every one of them was already fixed in a config block nobody varied. What they take is only what the estate owns — where they are published, and which machine holds the disks
+- **`@jaritanet/navidrome`**, **`@jaritanet/blit`** (and **`@jaritanet/files`**, which lives with its app) — a container, its volumes and its image pin. No configuration surface: 2Ti of media, a pinned uid and two volumes are facts about this deployment rather than knobs, and every one of them was already fixed in a config block nobody varied. What they take is only what the estate owns — where they are published, and which machine holds the disks
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
-- **`@jaritanet/auth`** — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
+- **`apps/auth/deploy/pulumi`** (`@jaritanet/auth`) — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
 - **`@jaritanet/metrics`** — VictoriaMetrics single-node, node-exporter and `vmagent` as DaemonSets, and Grafana signed in through the estate's own provider. Each agent scrapes its own node and remote-writes, rather than one scraper reaching across the tailnet to a residential uplink where a missed scrape is simply lost. Not kube-prometheus-stack: the operator, Alertmanager, kube-state-metrics and ~30 CRDs are monitoring outweighing the monitored on the box whose scheduler already refused a transport for lack of CPU
-- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra, whose client is registered for it by `@jaritanet/auth` rather than by itself. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
+- **`apps/serve-from-env/deploy/pulumi`** (`@jaritanet/serve-from-env`) — a Secret of path → body, a Deployment serving exactly those paths, and the annotation that restarts it when the table changes. The caller keeps what the table *means*; this knows only that it is JSON
+- **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra, whose client is registered for it by `@jaritanet/auth` rather than by itself. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own. Leaving for its own repository; see radiosilence/mariastew
 - **`packages/infra`** — this stack. `main.ts` orchestrates, `stack.ts` says what jaritanet is, `services.ts` builds everything in the cluster and publishes it, `secrets.ts` is the only reader of stack config, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, and `schemas.ts` holds the shapes that exist only because they are composed. `checkout.ts` warns when the deploy is not running from a clean, current `main`: the plan is whatever the tree contains, so a branch that is behind reverts what main has and it lacks, which twice nearly downgraded mariastew as an incidental line in an unrelated diff
 
 Packages are `private` and imported as TypeScript source — Node resolves a
