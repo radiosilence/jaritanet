@@ -21,19 +21,17 @@ import {
 } from "@jaritanet/vpn";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import * as random from "@pulumi/random";
 import type * as z from "zod";
 import { warnUnlessCleanMain } from "./checkout.ts";
 import { conf, vpnUsers } from "./conf.ts";
 import { GatewayConfSchema } from "./conf.schemas.ts";
 import { createEdge, EDGE_TAILNET_TAG } from "./edge.ts";
 import { createGateway } from "./gateway.ts";
+import type { Route } from "@jaritanet/k8s";
 import {
   createServices,
+  type EstateContext,
   publishRoutes,
-  relyingParties,
-  type Route,
-  type ServiceContext,
 } from "./services.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
@@ -367,28 +365,13 @@ export default async function () {
     ...edgeNodes,
   ];
 
-  // One secret per relying party, generated here so the provider that registers
-  // the client and the service that authenticates with it are handed the same
-  // value. Named `<client>-oidc` because that is the name mariastew's own
-  // generator used, so lifting it out here rewires who owns the credential
-  // without rotating it — the resource is unchanged and nobody is logged out.
-  //
-  // NB: random.* resources use the default provider — passing the k8s provider
-  // makes Pulumi look for `random:...` types on it and fail with "unrecognized
-  // resource type".
-  const parties = relyingParties(conf.services);
-  const oidcClientSecrets = Object.fromEntries(
-    parties.map((p) => [
-      p.id,
-      new random.RandomPassword(`${p.id}-oidc`, { length: 48, special: false })
-        .result,
-    ]),
-  );
+  const authHostname = conf.hostnames.auth;
 
-  const serviceContext: ServiceContext = {
+  const estate: EstateContext = {
     provider,
     namespace: nsName,
     zones: conf.zones,
+    hostnames: conf.hostnames,
     dnsTarget,
     traefik: traefikRelease,
     credentialRotation: gatewayConf?.credentialRotation ?? "1",
@@ -397,11 +380,10 @@ export default async function () {
     singboxNodes,
     users,
     telegram: conf.telegram,
-    authHostname: conf.auth?.hostname,
-    oidcClientSecrets,
+    authHostname,
   };
 
-  const serviceRoutes = createServices(serviceContext, conf.services);
+  const { routes: serviceRoutes, clients } = createServices(estate);
 
   // The identity provider, on the hostname Hydra already stands at, claiming
   // the paths it answers. Higher priority than Hydra's bare `Host()` rule, so
@@ -413,25 +395,24 @@ export default async function () {
   // authenticate is worse than one that is not there — so it is skipped rather
   // than deployed broken.
   const authRoute: Route[] = [];
-  if (conf.auth?.hostname && conf.auth.github) {
+  if (authHostname && conf.auth?.github) {
     createAuth(provider, nsName, conf.auth, {
+      hostname: authHostname,
       githubClientId: conf.auth.github.clientId,
       githubClientSecret: pulumi.secret(conf.auth.github.clientSecret),
       githubAllowed: conf.auth.github.allowed,
-      // Hydra is stood up by the mcp-gateway kind and reached at a bare service
-      // name in the same namespace, so this is derived from that deployment
-      // rather than configured twice.
+      // Hydra is stood up alongside the MCP gateway and reached at a bare
+      // service name in the same namespace, so this is derived from that
+      // deployment rather than configured twice.
       hydraAdminUrl: "http://mcp-gateway-hydra-admin:4445",
-      clients: parties.map((p) => ({
-        id: p.id,
-        name: p.name,
-        redirectUri: p.redirectUri,
-        secret: oidcClientSecrets[p.id],
-      })),
+      // Every client any service asked to have registered, each carrying the
+      // secret that service was handed. Collected rather than declared: see
+      // createServices.
+      clients,
     });
     authRoute.push({
       service: "auth",
-      hostname: conf.auth.hostname,
+      hostname: authHostname,
       paths: authProviderPaths(),
       priority: 100,
     });
@@ -439,10 +420,7 @@ export default async function () {
 
   // One pass over every route the stack has, because `auth` shares Hydra's
   // hostname: the A record is made once and both IngressRoutes are made.
-  const services = publishRoutes(serviceContext, [
-    ...serviceRoutes,
-    ...authRoute,
-  ]);
+  const services = publishRoutes(estate, [...serviceRoutes, ...authRoute]);
 
   return {
     ...(gatewayProvider && { gatewayProvider }),

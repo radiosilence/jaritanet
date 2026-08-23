@@ -11,15 +11,10 @@ export const VERSIONS = {
 } as const;
 
 /**
- * Pins that deliberately float, and are therefore absent from `VERSIONS` and
- * from the tracker.
- *
- * Separate rather than merely untracked: the test that every pin is watched is
- * what stops the next ss-rust sitting invisible for a year, so a decision to
- * float has to look different from an oversight. Redis holds one ten-minute
- * nonce per login in flight and nothing else, so chasing its patch releases
- * would be noise — but that is a judgement, and it belongs written down.
+ * Pins the updater deliberately does not watch, and why — see the same const in
+ * `@jaritanet/mcp-gateway`. Redis holds one ten-minute nonce per login in
+ * flight and nothing else, so chasing its patch releases would be noise.
  */
-export const FLOATING = {
+export const UNTRACKED = {
   redis: "redis:8-alpine",
 } as const;

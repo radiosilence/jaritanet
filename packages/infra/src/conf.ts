@@ -28,7 +28,7 @@ const { data, error } = ConfSchema.safeParse({
   exits: config.getObject("exits"),
   fastmail: config.requireObject("fastmail"),
   gateway: config.getObject("gateway"),
-  services: config.requireObject("services"),
+  hostnames: config.getObject("hostnames"),
   tailnet: config.getObject("tailnet"),
   telegram: config.getObject("telegram"),
   traefik: config.requireObject("traefik"),

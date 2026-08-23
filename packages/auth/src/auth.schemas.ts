@@ -13,7 +13,6 @@ import * as z from "zod";
  * a public repository.
  */
 export const AuthConfSchema = z.strictObject({
-  hostname: z.string().default(""),
   /**
    * Stateless apart from Redis, so this is only about surviving a node losing
    * a pod: every service's login goes through it, and one replica means a

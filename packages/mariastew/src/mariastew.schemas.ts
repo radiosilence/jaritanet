@@ -145,7 +145,6 @@ export const MariastewConfSchema = z.object({
   // field's own defaults fill an omitted block in. `default` takes the parsed
   // type, which would mean writing every flag out a second time here.
   aria2: Aria2ConfSchema.prefault({}),
-  hostname: z.string().default(""),
   /**
    * The service's ceiling, which is not aria2's — see `aria2.limits`. This
    * process polls a socket and renders a list; it was measured at 6Mi while

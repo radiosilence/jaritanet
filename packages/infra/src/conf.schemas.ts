@@ -21,7 +21,6 @@ import { AuthConfSchema as AuthComponentConfSchema } from "@jaritanet/auth";
 import { K3sConfSchema } from "@jaritanet/hetzner";
 import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
-import { ServiceArgsSchema } from "@jaritanet/k8s";
 import { MariastewConfSchema } from "@jaritanet/mariastew";
 import { McpGatewayConfSchema, McpSchema } from "@jaritanet/mcp-gateway";
 import { MetricsConfSchema } from "@jaritanet/metrics";
@@ -199,98 +198,23 @@ export const EdgeConfSchema = z.object({
 });
 
 /**
- * Which machine serves files.
- *
- * A property of the machine rather than a hostname written down here — the same
- * argument the VPN entry label makes. Unlike that one it cannot be enforced from
- * here: nothing in this program can label the node, because reaching the home
- * box over SSH is exactly the coupling moving these services into the cluster
- * removes. The label arrives with the node, from `scripts/make-seed-drive`.
- *
- * Per service rather than on a block wrapping several, because which node
- * serves a share was always a fact about that share. A samba on lady and a
- * syncthing somewhere else is a sentence the config can now say.
- */
-const FileNodeLabel = LabelKey.default("jaritanet.radiosilence.dev/file-node");
-
-/**
  * Empty rather than absent is how a service says "built, but not published" —
  * it gets its workload and no DNS record and no route.
  */
-const PublishedHostname = Hostname.or(z.literal("")).optional();
-
 /**
- * A workload this deployment runs, tagged by what kind of thing it is.
+ * Where each service is published, keyed by the name it is created under.
  *
- * `kind` is what replaced four top-level blocks — `mcpGateway`, `home.samba`,
- * `home.syncthing`, `profiles` — each of which had its own construction call
- * and its own hand-rolled copy of "find the zone, make an A record, make an
- * IngressRoute". Publishing is the one thing every workload has in common, so
- * it happens once (see services.ts) rather than four times with four subtly
- * different zone lookups.
+ * One block rather than a field on every service. Which hostname a workload
+ * answers on is a fact about this estate, not about the workload — a package
+ * carrying its own address could not be deployed twice — and it is the only
+ * part of a service's shape that is encrypted, so gathering it here is also
+ * what leaves the rest of the description free to be ordinary TypeScript.
  *
- * A kind exists only for behaviour the config cannot express: rendering
- * `smb.conf`, standing up Hydra and Postgres, hashing a routing table into a
- * pod annotation. Anything that is just a container with disks is `web` and
- * needs no module at all — navidrome is 2Ti of media, a pinned uid and two
- * volumes, and it has never needed one. That is why there is no navidrome kind
- * and why the composition here stops at a tagged union rather than growing
- * into a hierarchy.
- *
- * Strict, all the way down. `navidrome.args.nodeSelector` sat in the stack file
- * doing nothing for months because Zod strips unknown keys in silence and the
- * generated JSON schema allowed them — the pinning it looked like it was doing
- * actually came from `nodeAffinityHostname` on the volumes. A key nobody reads
- * should be a red preview, not a comment that lies.
+ * A name with no entry is built and not published, which is a real state: the
+ * samba shares and syncthing's UI are reached on the LAN and the tailnet and
+ * have no business having an address.
  */
-export const ServiceConfSchema = z.discriminatedUnion("kind", [
-  z
-    .strictObject({
-      kind: z.literal("web"),
-      args: ServiceArgsSchema,
-      hostname: PublishedHostname,
-    })
-    .describe("A container behind Traefik — the default for anything ordinary"),
-  SambaConfSchema.extend({
-    kind: z.literal("samba"),
-    nodeLabel: FileNodeLabel,
-  }).strict(),
-  SyncthingConfSchema.extend({
-    kind: z.literal("syncthing"),
-    nodeLabel: FileNodeLabel,
-  }).strict(),
-  // No `github` block: the gateway had its own OAuth app while it was the
-  // login provider, and is an ordinary client of `auth` now. Which upstream
-  // vouches for anyone is a single fact, at the top level, read once.
-  McpGatewayConfSchema.extend({ kind: z.literal("mcp-gateway") }).strict(),
-  z
-    .strictObject({
-      kind: z.literal("singbox-profiles"),
-      /**
-       * Where each user's sing-box profile is served from.
-       *
-       * Deliberately not on blit.cc: FortiGuard rates it "Other Adult
-       * Materials", so a filtered network — exactly the network a VPN profile is
-       * wanted on — blocks the device from fetching its own subscription.
-       */
-      hostname: Hostname,
-    })
-    .describe("The per-user sing-box subscription server"),
-  MariastewConfSchema.extend({
-    kind: z.literal("mariastew"),
-    /**
-     * Runs where the disks are, pinned by the same label as the other file
-     * services — the roots it writes to are hostPaths on that machine.
-     */
-    nodeLabel: FileNodeLabel,
-  }).strict(),
-  // One kind rather than four services: a store, two collectors and a
-  // dashboard, wired to each other by names none of them configures. See
-  // MetricsConfSchema.
-  MetricsConfSchema.extend({ kind: z.literal("metrics") }).strict(),
-]);
-
-export const ServicesMapSchema = z.record(z.string(), ServiceConfSchema);
+export const HostnamesConfSchema = z.record(z.string(), Hostname);
 
 /**
  * The identity provider, and the OAuth app it authenticates people against.
@@ -349,19 +273,9 @@ export const ConfSchema = z.object({
   exits: z.array(ExitConfSchema).default([]),
   fastmail: FastmailConfSchema,
   gateway: GatewayConfSchema.optional(),
+  hostnames: HostnamesConfSchema.default({}),
   managedBy: z.string().default("jaritanet"),
   namespace: z.string().default("jaritanet"),
-  /**
-   * Everything this deployment runs in the cluster, keyed by name.
-   *
-   * The rule that decides what belongs here rather than at the top level: if it
-   * is a workload, it is a service. What is left above is the part that is not
-   * one — the accounts and DNS facts (`cloudflare`, `zones`, `tailnet`,
-   * `fastmail`, `bluesky`), the machines (`gateway`, `edges`, `exits`), and
-   * `traefik`, which cannot be a service because it is the thing that publishes
-   * them.
-   */
-  services: ServicesMapSchema,
   tailnet: TailnetAccountConfSchema.default({ extraTags: [], tagOwners: [] }),
   /**
    * Two consumers — the sing-box profile server on change, and mariastew when

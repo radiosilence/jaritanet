@@ -1,4 +1,4 @@
-import { AbsolutePath, Hostname, LimitsSchema } from "@jaritanet/k8s";
+import { AbsolutePath, LimitsSchema } from "@jaritanet/k8s";
 import * as z from "zod";
 
 /**
@@ -37,12 +37,6 @@ const Duration = z
  * static scrape config is not the part that hurts.
  */
 export const MetricsConfSchema = z.strictObject({
-  /**
-   * Where Grafana is published. Empty means the collection half is deployed and
-   * the dashboard is not — see `createMetrics`, which refuses to stand up a
-   * Grafana nobody can sign in to.
-   */
-  hostname: Hostname.or(z.literal("")).default(""),
   grafana: z
     .strictObject({
       /**

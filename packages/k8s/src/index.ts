@@ -14,5 +14,6 @@ export {
 } from "./schemas.ts";
 export { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 export { ServiceArgsSchema } from "./service.schemas.ts";
-export { createService } from "./service.ts";
+export type { Deployed, OidcClient, Route } from "./deployed.ts";
+export { createService, type ServiceArgs } from "./service.ts";
 export { resourceRequests, sha256hex } from "./util.ts";

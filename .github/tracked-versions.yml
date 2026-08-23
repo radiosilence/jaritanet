@@ -28,7 +28,8 @@
 
 - app: Navidrome
   repo: deluan/navidrome
-  path: [config, "jaritanet:services", navidrome, args, image, tag]
+  file: packages/navidrome/src/versions.ts
+  key: navidrome
   value: "{version}"
   image: "deluan/navidrome:{version}"
 
@@ -57,7 +58,8 @@
 - app: Files
   repo: radiosilence/jaritanet
   tagPrefix: files-v
-  path: [config, "jaritanet:services", files, args, image, tag]
+  file: packages/files/src/versions.ts
+  key: files
   value: "{version}"
   image: "ghcr.io/radiosilence/jaritanet-files:{version}"
 
@@ -77,29 +79,33 @@
 
 - app: MCP Gateway
   repo: radiosilence/mcp-gateway
-  path: [config, "jaritanet:services", mcp-gateway, image, tag]
-  value: "v{version}"
-  image: "ghcr.io/radiosilence/mcp-gateway:v{version}"
+  file: packages/mcp-gateway/src/versions.ts
+  key: mcpGateway
+  value: "ghcr.io/radiosilence/mcp-gateway:v{version}"
 
 # The MCPs the gateway fronts, each an image reference inside a list.
 - app: Fastmail MCP
   repo: radiosilence/fastmail-cli
-  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: fastmail }, image]
+  file: packages/infra/src/mcps.ts
+  key: fastmail
   value: "ghcr.io/radiosilence/fastmail-cli:v{version}"
 
 - app: CalDAV MCP
   repo: radiosilence/caldav-cli
-  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: caldav }, image]
+  file: packages/infra/src/mcps.ts
+  key: caldav
   value: "ghcr.io/radiosilence/caldav-cli:v{version}"
 
 - app: Folk MCP
   repo: radiosilence/mainlynorfolk-mcp
-  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: folk }, image]
+  file: packages/infra/src/mcps.ts
+  key: folk
   value: "ghcr.io/radiosilence/mainlynorfolk-mcp:v{version}"
 
 - app: TfL MCP
   repo: radiosilence/tfl-mcp
-  path: [config, "jaritanet:services", mcp-gateway, mcps, { id: tfl }, image]
+  file: packages/infra/src/mcps.ts
+  key: tfl
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
 
 # The metrics stack.
@@ -184,7 +190,12 @@
   value: "v{version}"
   image: "docker.io/rancher/system-upgrade-controller:v{version}"
 
-# Deliberately absent: k3s and Cilium. Cilium's version has to match the
+# Deliberately absent, and each said so where it is pinned, in an `UNTRACKED`
+# const beside the `VERSIONS` the updater does read: Hydra (a major bump needs
+# a database migration), postgres and redis (major tags that carry their own
+# patches), and blit (pinned to a build, because it cuts no releases).
+#
+# Also deliberately absent: k3s and Cilium. Cilium's version has to match the
 # cluster's k8s minor, and k3s is the cluster — bumping either unattended
 # changes the thing every other entry is deployed onto. They move by hand,
 # together, with the compatibility matrix open — and CILIUM_K8S_SUPPORT fails
