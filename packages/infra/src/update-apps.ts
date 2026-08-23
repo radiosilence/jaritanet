@@ -28,9 +28,12 @@ import {
   parseImageRef,
   pickLatestTag,
   readConst,
+  readDependency,
+  type Tracked,
   TrackedListSchema,
   verifyRef,
   writeConst,
+  writeDependency,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -190,14 +193,25 @@ async function record(titles: string[], details: string[]) {
 const dryRun = process.argv.includes("--dry-run");
 
 const entries = TrackedListSchema.parse(parse(await readFile(TRACKED, "utf8")));
+/** Which file an entry rewrites, whichever kind of target it is. */
+const targetFile = (entry: Tracked) =>
+  "file" in entry ? entry.file : entry.manifest;
+
 /**
- * Package `versions.ts` files, read once and kept in memory.
+ * The files entries rewrite, read once and kept in memory.
  *
  * Two entries can share a file — the metrics stack pins four upstreams in one —
  * and each bump commits separately, so a second entry has to see the first
  * one's edit rather than the copy on disk from before the run started.
  */
 const sources = new Map<string, string>();
+const current = async (entry: Tracked) => {
+  const { text } = await source(targetFile(entry));
+  return "file" in entry
+    ? readConst(text, entry.key)
+    : readDependency(text, entry.package);
+};
+
 const source = async (file: string) => {
   const abs = join(ROOT, file);
   const cached = sources.get(abs);
@@ -230,7 +244,7 @@ for (const entry of entries) {
   const ref = verifyRef(entry, version);
   const decision = decide({
     tag,
-    current: readConst((await source(entry.file)).text, entry.key),
+    current: await current(entry),
     next,
     ref,
     exists: ref ? await imageExists(ref) : true,
@@ -252,13 +266,16 @@ for (const entry of entries) {
 
   log(`${entry.app} — ${decision.from} -> ${decision.to}`);
   if (!dryRun) {
-    const { abs, text } = await source(entry.file);
-    const rewritten = writeConst(text, entry.key, decision.to);
+    const { abs, text } = await source(targetFile(entry));
+    const rewritten =
+      "file" in entry
+        ? writeConst(text, entry.key, decision.to)
+        : writeDependency(text, entry.package, decision.to);
     // `decide` already read the same key through the same matcher, so this
     // cannot miss — but it returns a value rather than throwing, and a silent
     // skip here would report a bump that was never written.
     if (rewritten === undefined) {
-      warn(`${entry.app} — could not write ${entry.key} in ${entry.file}`);
+      warn(`${entry.app} — could not write into ${targetFile(entry)}`);
       failed.push(entry.app);
       continue;
     }

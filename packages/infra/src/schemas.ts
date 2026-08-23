@@ -22,7 +22,10 @@ import { K3sConfSchema } from "@jaritanet/hetzner";
 import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
 import { MariastewConfSchema } from "@jaritanet/mariastew";
-import { McpGatewayConfSchema, McpSchema } from "@jaritanet/mcp-gateway";
+import {
+  McpGatewayConfSchema,
+  McpSchema,
+} from "@radiosilence/mcp-gateway-pulumi";
 import { MetricsConfSchema } from "@jaritanet/metrics";
 import {
   ExitConfSchema,

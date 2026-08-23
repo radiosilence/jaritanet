@@ -180,9 +180,6 @@ importers:
       '@jaritanet/mariastew':
         specifier: workspace:*
         version: 0.0.0
-      '@jaritanet/mcp-gateway':
-        specifier: workspace:*
-        version: 0.0.0
       '@jaritanet/metrics':
         specifier: workspace:*
         version: 0.0.0
@@ -216,6 +213,9 @@ importers:
       '@pulumi/tls':
         specifier: 5.4.0
         version: 5.4.0(typescript@6.0.3)
+      '@radiosilence/mcp-gateway-pulumi':
+        specifier: 0.8.1
+        version: 0.8.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)
       yaml:
         specifier: 2.9.0
         version: 2.9.0
@@ -264,24 +264,6 @@ importers:
       '@pulumi/random':
         specifier: 4.20.0
         version: 4.20.0(typescript@6.0.3)
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
-
-  packages/mcp-gateway:
-    dependencies:
-      '@pulumi/kubernetes':
-        specifier: 4.30.0
-        version: 4.30.0(typescript@6.0.3)
-      '@pulumi/pulumi':
-        specifier: 3.239.0
-        version: 3.239.0(typescript@6.0.3)
-      '@pulumi/random':
-        specifier: 4.20.0
-        version: 4.20.0(typescript@6.0.3)
-      yaml:
-        specifier: 2.9.0
-        version: 2.9.0
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -979,6 +961,14 @@ packages:
 
   '@pulumi/tls@5.4.0':
     resolution: {integrity: sha512-onLIie8deuZJHV8JkuDnY7nilIgGTr8HNyatg1FbgHikqo/HxU9yOwPM5Q7J0EAKtfHXuI9wkhnc4NReWIUfNg==}
+
+  '@radiosilence/mcp-gateway-pulumi@0.8.1':
+    resolution: {gitHosted: true, integrity: sha512-/BUrHuznQw2cPFzuMKWzOxcGBsRQVIsk15c7qiYR9KE0W6H6QULHqeLVO4/fQztKrmnDx4Gy76389y1lUOhdtA==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.8.1/40f277feb54a16ade0d0e59c0802cef79b63f508}
+    peerDependencies:
+      '@pulumi/kubernetes': ^4
+      '@pulumi/pulumi': ^3
+      '@pulumi/random': ^4
+      zod: ^4
 
   '@rolldown/binding-android-arm64@1.1.5':
     resolution: {integrity: sha512-lZg8fqIv2v7FF237bwMgzGZEJvGL79/s5knJ/i6FmsGF4XXlzccZ4jb+TrFIxtSSxFtIpdsgrPZeMk1I9AFcyQ==}
@@ -3092,6 +3082,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - ts-node
+
+  '@radiosilence/mcp-gateway-pulumi@0.8.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)':
+    dependencies:
+      '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
+      '@pulumi/random': 4.20.0(typescript@6.0.3)
+      yaml: 2.9.0
+      zod: 4.4.3
 
   '@rolldown/binding-android-arm64@1.1.5':
     optional: true
