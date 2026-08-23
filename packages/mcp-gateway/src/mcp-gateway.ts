@@ -3,10 +3,9 @@ import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import * as yaml from "yaml";
 import type * as z from "zod";
-import type { Deployed } from "@jaritanet/k8s";
+import type { Deployed } from "./contract.ts";
 import { UNTRACKED, VERSIONS } from "./versions.ts";
 import { McpGatewayConfSchema } from "./mcp-gateway.schemas.ts";
-import { resourceRequests } from "@jaritanet/k8s";
 
 const SECRETS_NAME = "mcp-gateway-secrets";
 /** An env `valueFrom` pointing at a key in the stack's Secret. */
@@ -496,7 +495,7 @@ export function createMcpGateway(
                 },
                 resources: {
                   limits: conf.limits,
-                  ...resourceRequests(conf.limits),
+                  ...(conf.requests && { requests: conf.requests }),
                 },
                 securityContext: { allowPrivilegeEscalation: false },
               },

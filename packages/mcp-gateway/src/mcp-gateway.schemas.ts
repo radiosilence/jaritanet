@@ -1,5 +1,5 @@
-import { LimitsSchema } from "@jaritanet/k8s";
 import * as z from "zod";
+import { ResourcesSchema } from "./contract.ts";
 
 /** One value a backend MCP needs from the user, injected into its own header. */
 export const McpCredentialFieldSchema = z.object({
@@ -85,7 +85,16 @@ export const McpGatewayConfSchema = z.object({
   // Blank in the (public) repo; injected at CI time from secrets, so the source
   // reveals no hostnames. An empty hostname skips the stack (see infra main.ts).
   replicas: z.number().default(2),
-  limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
+  limits: ResourcesSchema.default({ cpu: "500m", memory: "256Mi" }),
+  /**
+   * Left to the deployer rather than derived from `limits`.
+   *
+   * How much of a ceiling to reserve is a scheduling policy — it depends on
+   * what else shares the node and how bursty it is — so it belongs to whoever
+   * runs the cluster, not to the chart. Absent means Kubernetes defaults the
+   * request to the limit, which is the conservative reading.
+   */
+  requests: ResourcesSchema.optional(),
   // Postgres uses the cluster's default StorageClass unless set — a few tiny
   // tables, so (unlike the media services) we don't pin them to a disk path.
   postgresStorageClass: z.string().optional(),
