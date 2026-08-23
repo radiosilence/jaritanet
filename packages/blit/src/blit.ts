@@ -1,6 +1,6 @@
 import { createService, type Deployed } from "@jaritanet/k8s";
 import type * as k8s from "@pulumi/kubernetes";
-import { UNTRACKED } from "./versions.ts";
+import { VERSIONS } from "./versions.ts";
 
 /**
  * The public site. A static bundle behind nano-web, and the only workload here
@@ -29,7 +29,7 @@ export function createBlit(
     // nano-web processes every file before it binds, which under 100m outlasted
     // the liveness probe.
     limits: { cpu: "500m", memory: "192Mi" },
-    image: { repository: "ghcr.io/radiosilence/blit", tag: UNTRACKED.blit },
+    image: { repository: "ghcr.io/radiosilence/blit", tag: VERSIONS.blit },
     httpPort: 3000,
   });
 

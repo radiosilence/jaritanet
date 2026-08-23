@@ -1,2 +1,2 @@
 export { createBlit } from "./blit.ts";
-export { UNTRACKED as BLIT_UNTRACKED } from "./versions.ts";
+export { VERSIONS as BLIT_VERSIONS } from "./versions.ts";
