@@ -305,6 +305,16 @@ for (const entry of entries) {
     sources.set(abs, rewritten);
     await writeFile(abs, rewritten);
     await git("add", abs);
+
+    // A dependency bump is two files. `aube install --frozen-lockfile` is what
+    // every workflow runs, and it refuses a manifest the lockfile disagrees
+    // with — so a commit carrying only package.json is a red deploy rather than
+    // a version that quietly did not take. Same commit, because the updater
+    // commits per entry and each one has to stand on its own.
+    if (!("file" in entry)) {
+      await run("aube", ["install", "--fix-lockfile"], { cwd: ROOT });
+      await git("add", join(ROOT, "aube-lock.yaml"));
+    }
     // `-n`: the pre-commit hook lints, formats and typechecks a working tree a
     // human is about to push. This commit is one scalar written by the process
     // that just parsed it, on a runner whose only stake in the hook is that it

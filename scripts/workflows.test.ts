@@ -46,3 +46,32 @@ describe("every workflow that installs can authenticate", () => {
     }
   });
 });
+
+/**
+ * A dependency bump is two files. Every workflow installs with
+ * `--frozen-lockfile`, which refuses a manifest the lockfile disagrees with, so
+ * a commit carrying only `package.json` is a red deploy rather than a version
+ * that quietly did not take. It has happened once: the updater moved
+ * `@radiosilence/mcp-gateway-pulumi` to 0.8.4 and left the lockfile on 0.8.3.
+ */
+describe("the lockfile agrees with every manifest", () => {
+  it("resolves each workspace dependency at the version its manifest asks for", async () => {
+    const root = join(import.meta.dirname, "..");
+    const lock = await readFile(join(root, "aube-lock.yaml"), "utf8");
+    const manifests = ["packages/infra/package.json"];
+    for (const m of manifests) {
+      const { dependencies } = JSON.parse(
+        await readFile(join(root, m), "utf8"),
+      );
+      for (const [name, spec] of Object.entries(dependencies ?? {})) {
+        // Exact pins only. A range resolves to something the lockfile records
+        // and the manifest does not, so there is no string to compare — and
+        // the updater only ever writes exact versions anyway.
+        if (typeof spec !== "string" || !/^\d+\.\d+\.\d+/.test(spec)) continue;
+        expect(lock, `${m}: ${name}@${spec} is in the lockfile`).toContain(
+          `${name}@${spec}`,
+        );
+      }
+    }
+  });
+});
