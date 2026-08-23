@@ -205,8 +205,8 @@ importers:
         specifier: 0.2.0
         version: 0.2.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/mcp-gateway-pulumi':
-        specifier: 0.8.1
-        version: 0.8.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)
+        specifier: 0.8.2
+        version: 0.8.2(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)
       yaml:
         specifier: 2.9.0
         version: 2.9.0
@@ -838,8 +838,8 @@ packages:
       '@pulumi/pulumi': ^3
       zod: ^4
 
-  '@radiosilence/mcp-gateway-pulumi@0.8.1':
-    resolution: {gitHosted: true, integrity: sha512-/BUrHuznQw2cPFzuMKWzOxcGBsRQVIsk15c7qiYR9KE0W6H6QULHqeLVO4/fQztKrmnDx4Gy76389y1lUOhdtA==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.8.1/40f277feb54a16ade0d0e59c0802cef79b63f508}
+  '@radiosilence/mcp-gateway-pulumi@0.8.2':
+    resolution: {gitHosted: true, integrity: sha512-fe14LaJ23a/i7wzxrKCOH+Yln2361AFp8qb5xmIjapH0MporpdaVipk1Mkg20ASoIhbcsKB+aDXSInvWw9Tj+g==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.8.2/601862236b1475e6811594e18f4c6fdc9c13388b}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2532,7 +2532,7 @@ snapshots:
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
       zod: 4.4.3
 
-  '@radiosilence/mcp-gateway-pulumi@0.8.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)':
+  '@radiosilence/mcp-gateway-pulumi@0.8.2(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)':
     dependencies:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)

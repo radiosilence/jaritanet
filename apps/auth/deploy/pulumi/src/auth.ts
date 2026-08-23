@@ -142,6 +142,9 @@ export function createAuth(
         template: {
           metadata: { labels: { app: REDIS } },
           spec: {
+            ...(conf.node && {
+              nodeSelector: { "kubernetes.io/hostname": conf.node },
+            }),
             containers: [
               {
                 name: "redis",
@@ -204,6 +207,9 @@ export function createAuth(
             },
           },
           spec: {
+            ...(conf.node && {
+              nodeSelector: { "kubernetes.io/hostname": conf.node },
+            }),
             containers: [
               {
                 name: APP,
