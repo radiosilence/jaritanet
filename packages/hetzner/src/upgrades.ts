@@ -2,6 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { K3sConfSchema } from "./k3s.schemas.ts";
+import { VERSIONS } from "./versions.ts";
 
 const NAMESPACE = "system-upgrade";
 
@@ -42,7 +43,7 @@ export function createK3sUpgrades(
   k3s: z.infer<typeof K3sConfSchema>,
   dependsOn: pulumi.Resource[] = [],
 ) {
-  const release = `https://github.com/rancher/system-upgrade-controller/releases/download/${k3s.upgradeControllerVersion}`;
+  const release = `https://github.com/rancher/system-upgrade-controller/releases/download/${VERSIONS.upgradeController}`;
 
   // Pinned release URLs rather than vendored manifests: the CRD alone is 1300
   // lines of generated schema, and a bump should be a one-line diff for the

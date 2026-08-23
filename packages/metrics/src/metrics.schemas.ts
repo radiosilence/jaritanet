@@ -43,20 +43,22 @@ export const MetricsConfSchema = z.strictObject({
    * Grafana nobody can sign in to.
    */
   hostname: Hostname.or(z.literal("")).default(""),
-  grafana: z.strictObject({
-    image: z.string(),
-    /**
-     * Grafana's sqlite: which OIDC subject is which user, their preferences,
-     * and anything built in the UI. Provisioned dashboards are rebuilt from
-     * ConfigMaps on every start and do not depend on this.
-     */
-    hostPath: AbsolutePath.default("/var/lib/jaritanet/grafana"),
-    limits: LimitsSchema.default({ cpu: "500m", memory: "512Mi" }),
-  }),
-  nodeExporter: z.strictObject({
-    image: z.string(),
-    limits: LimitsSchema.default({ cpu: "200m", memory: "128Mi" }),
-  }),
+  grafana: z
+    .strictObject({
+      /**
+       * Grafana's sqlite: which OIDC subject is which user, their preferences,
+       * and anything built in the UI. Provisioned dashboards are rebuilt from
+       * ConfigMaps on every start and do not depend on this.
+       */
+      hostPath: AbsolutePath.default("/var/lib/jaritanet/grafana"),
+      limits: LimitsSchema.default({ cpu: "500m", memory: "512Mi" }),
+    })
+    .prefault({}),
+  nodeExporter: z
+    .strictObject({
+      limits: LimitsSchema.default({ cpu: "200m", memory: "128Mi" }),
+    })
+    .prefault({}),
   /**
    * Which machine holds the metrics store and Grafana's state.
    *
@@ -66,21 +68,23 @@ export const MetricsConfSchema = z.strictObject({
    * the home internet dropping is when the graphs are most wanted.
    */
   storageNode: z.string().min(1),
-  vmagent: z.strictObject({
-    image: z.string(),
-    limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
-    scrapeInterval: Duration.default("30s"),
-  }),
-  vmsingle: z.strictObject({
-    image: z.string(),
-    /**
-     * A host directory rather than a `local` PersistentVolume: kubelet refuses
-     * to mount a local volume whose path does not exist, and nothing in this
-     * program can create a directory on a node. `DirectoryOrCreate` makes the
-     * first deploy the thing that creates it.
-     */
-    hostPath: AbsolutePath.default("/var/lib/jaritanet/victoria-metrics"),
-    limits: LimitsSchema.default({ cpu: "1", memory: "1Gi" }),
-    retention: Retention.default("1y"),
-  }),
+  vmagent: z
+    .strictObject({
+      limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
+      scrapeInterval: Duration.default("30s"),
+    })
+    .prefault({}),
+  vmsingle: z
+    .strictObject({
+      /**
+       * A host directory rather than a `local` PersistentVolume: kubelet refuses
+       * to mount a local volume whose path does not exist, and nothing in this
+       * program can create a directory on a node. `DirectoryOrCreate` makes the
+       * first deploy the thing that creates it.
+       */
+      hostPath: AbsolutePath.default("/var/lib/jaritanet/victoria-metrics"),
+      limits: LimitsSchema.default({ cpu: "1", memory: "1Gi" }),
+      retention: Retention.default("1y"),
+    })
+    .prefault({}),
 });

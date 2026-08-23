@@ -60,7 +60,6 @@ import { LabelKey, Port } from "@jaritanet/k8s";
  * resolve a rare name-hash collision.
  */
 export const ExitConfSchema = z.object({
-  image: z.string().default("ghcr.io/shadowsocks/ssserver-rust:v1.24.0"),
   method: z.string().default("aes-256-gcm"),
   name: z.string(),
   node: z.string(),

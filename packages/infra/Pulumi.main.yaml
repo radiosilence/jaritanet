@@ -28,7 +28,6 @@ config:
       secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
   jaritanet:traefik:
     acmeEmail: jc@blit.cc
-    chartVersion: "41.3.0"
   jaritanet:gateway:
     # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
     # cheaper and actually in stock, unlike the CX line. 8GB because this box now
@@ -52,7 +51,6 @@ config:
     k3s:
       version: v1.36.3+k3s1
       ciliumVersion: 1.20.0
-      upgradeControllerVersion: v0.20.1
     # xray shares :443; traffic that doesn't match a client falls back to
     # dest (Traefik's local https port), so real visitors still get the site.
     #
@@ -78,22 +76,15 @@ config:
         - www.baidu.com
         - vk.com
       dest: 127.0.0.1:8443
-      version: v26.3.27
     # Hysteria2 (QUIC/UDP) on 443/udp — fast, loss-tolerant daily driver.
-    # The image is a maintainer's Docker Hub account rather than the project's
-    # own org, which publishes none — see conf.schemas.ts.
-    hysteria:
-      image: docker.io/tobyxdd/hysteria:v2.12.2
+    # Empty, and present anyway: the key is what deploys it. Everything about
+    # it defaults, and the image is pinned in @jaritanet/vpn.
+    hysteria: {}
     # Tailnet relay: joins the VPS to the tailnet so clients can reach 100.x
     # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
     # no-op until the secret exists.
     tailnet:
       hostname: sympathy
-      image: ghcr.io/tailscale/tailscale:v1.102.3
-    # Caching resolver for VPN clients, reached at 127.0.0.1:53 through the
-    # tunnel. Distinct from coredns, which serves pods.
-    unbound:
-      image: docker.io/klutchell/unbound:v1.26.0
     hcloudToken:
       secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
   # Egress exit nodes — ss-rust on the machine whose IP you want to leave from,
@@ -461,16 +452,9 @@ config:
         secure: AAABAPrG5CFazA6hrLjmaKcEWD5ye0zMJwhhWlQdHb5ZYE60sU/xNXzJzyA=
       storageNode: sympathy
       vmsingle:
-        image: docker.io/victoriametrics/victoria-metrics:v1.150.0
         # Order of 10k series across both nodes with cAdvisor included, at a 30s
         # scrape, is single-digit GB a year on VictoriaMetrics' compression.
         retention: 1y
-      vmagent:
-        image: docker.io/victoriametrics/vmagent:v1.150.0
-      nodeExporter:
-        image: quay.io/prometheus/node-exporter:v1.12.1
-      grafana:
-        image: docker.io/grafana/grafana:13.2.0
   jaritanet:zones:
     - name: "blit.cc"
       zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"

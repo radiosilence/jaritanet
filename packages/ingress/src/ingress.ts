@@ -2,6 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TraefikConfSchema } from "./ingress.schemas.ts";
+import { VERSIONS } from "./versions.ts";
 
 /**
  * Traefik as the ingress controller, terminating TLS and routing by hostname,
@@ -132,7 +133,7 @@ export function createIngress(
           },
         },
       },
-      version: traefik.chartVersion,
+      version: VERSIONS.traefikChart,
     },
     { provider },
   );

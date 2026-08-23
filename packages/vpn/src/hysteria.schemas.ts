@@ -20,10 +20,6 @@ import { Hostname, Port } from "@jaritanet/k8s";
  */
 export const HysteriaConfSchema = z.object({
   altPorts: z.array(Port).default([3478, 4500]),
-  // Not the project's own GHCR org, which publishes nothing: this is the
-  // image hysteria's install docs point at, on a maintainer's Docker Hub
-  // account. A weaker supply-chain position, accepted knowingly.
-  image: z.string().default("docker.io/tobyxdd/hysteria:v2.10.0"),
   port: Port.default(443),
   sni: Hostname.default("www.bing.com"),
 });

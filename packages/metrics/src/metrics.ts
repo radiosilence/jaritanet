@@ -11,6 +11,7 @@ import {
 } from "./dashboards.ts";
 import type { MetricsConfSchema } from "./metrics.schemas.ts";
 import { scrapeConfig } from "./scrape.ts";
+import { VERSIONS, VM_AGENT_IMAGE, VM_SINGLE_IMAGE } from "./versions.ts";
 
 const VMSINGLE = "metrics-vmsingle";
 const VMAGENT = "metrics-vmagent";
@@ -92,7 +93,7 @@ export function createMetrics(
             containers: [
               {
                 name: "vmsingle",
-                image: conf.vmsingle.image,
+                image: VM_SINGLE_IMAGE,
                 args: [
                   "-storageDataPath=/storage",
                   `-retentionPeriod=${conf.vmsingle.retention}`,
@@ -186,7 +187,7 @@ export function createMetrics(
             containers: [
               {
                 name: "node-exporter",
-                image: conf.nodeExporter.image,
+                image: VERSIONS.nodeExporter,
                 args: [
                   "--path.procfs=/host/proc",
                   "--path.sysfs=/host/sys",
@@ -325,7 +326,7 @@ export function createMetrics(
             containers: [
               {
                 name: "vmagent",
-                image: conf.vmagent.image,
+                image: VM_AGENT_IMAGE,
                 args: [
                   "-promscrape.config=/config/scrape.yaml",
                   `-remoteWrite.url=${VMSINGLE_URL}/api/v1/write`,
@@ -508,7 +509,7 @@ export function createMetrics(
             containers: [
               {
                 name: "grafana",
-                image: conf.grafana.image,
+                image: VERSIONS.grafana,
                 ports: [{ name: "http", containerPort: 3000 }],
                 env: [
                   // Grafana builds its own `redirect_uri` from this, and the

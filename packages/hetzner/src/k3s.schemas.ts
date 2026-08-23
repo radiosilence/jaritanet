@@ -36,12 +36,6 @@ export const K3sConfSchema = z
      */
     apiViaTailnet: z.boolean().default(false),
     ciliumVersion: z.string().default("1.20.0"),
-    /**
-     * Rancher's system-upgrade-controller, which carries `version` to every
-     * node — including ones Pulumi has no SSH to. Mechanical to bump, so the
-     * version updater tracks it; see .github/tracked-versions.yml.
-     */
-    upgradeControllerVersion: z.string().default("v0.20.1"),
     version: z.string().default("v1.36.3+k3s1"),
   })
   // `.check` rather than `.superRefine`: the latter wraps the object in a pipe,

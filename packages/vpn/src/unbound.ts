@@ -1,7 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
-import type * as z from "zod";
-import type { UnboundConfSchema } from "./unbound.schemas.ts";
+import { VERSIONS } from "./versions.ts";
 
 /**
  * The gateway's caching DNS resolver, as a pod rather than an apt install.
@@ -25,7 +24,6 @@ import type { UnboundConfSchema } from "./unbound.schemas.ts";
 export function createUnbound(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
-  unbound: z.infer<typeof UnboundConfSchema>,
   entryLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
@@ -103,7 +101,7 @@ forward-zone:
             containers: [
               {
                 name: "unbound",
-                image: unbound.image,
+                image: VERSIONS.unbound,
                 args: ["-d", "-c", "/etc/unbound/unbound.conf"],
                 // 320Mi, not 192Mi: the config above declares 64m of msg cache
                 // and 128m of rrset cache, so 192Mi was the cache size exactly,
