@@ -13,6 +13,12 @@
 #
 # A secret decrypts to an ordinary string in the program, so one Zod parse in
 # `src/secrets.ts` still validates the whole block.
+#
+# Hostnames used to be here too, encrypted so a public repository would not hand
+# out the list. Every one of them carries a certificate and so was in the
+# Certificate Transparency logs regardless; that only mattered while the logs
+# were awkward to search, which crt.name ended. They are plain values in
+# `src/stack.ts` now.
 config:
   # Configures the provider; nothing can read this copy back out.
   cloudflare:apiToken:
@@ -20,32 +26,6 @@ config:
   # Configures the provider; nothing can read this copy back out.
   hcloud:token:
     secure: AAABALtD7dj7hUYrd1dLznzw5u+hjfJj5fCpMv7fRmoXKOKxtlczVbxdWKzmDhHWJHHfQkj6Z8qoxgZqIatPwDZAvi+CDQS+OqDUhBLRSXl815dDWd8jB+/p6cHE2YTK
-  # The service hostnames, encrypted — which is not the same claim as private.
-  # Every one carries a certificate, so it is in the public Certificate
-  # Transparency logs already and can be found by anyone who goes looking. What
-  # this buys is that a public repository does not hand out the list: the
-  # drive-by case, not the determined one. blit.cc stays in the clear because it
-  # is the apex and fronts a public site, so there is nothing to withhold.
-  #
-  # Only worth anything while the rest of the repository agrees: a hostname
-  # repeated in a doc or a comment undoes it silently.
-  jaritanet:hostnames:
-    auth:
-      secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
-    files:
-      secure: AAABAHFob6VSSPAryzCz1JmtWNQ9d4CnjpAHx14AgwDb75eRTy4FPmcrmYOXagsN1+RQNzPF
-    mariastew:
-      secure: AAABALH0zY11nQLr6MZkyhv8bm35+Wpvwnxeq3YQBVjpRN6zuFzwHtrA
-    mcp-gateway:
-      secure: AAABADHN+GrfSd0qTwQAuaJp3u9RRiCJf/3Ki4LWnL2HYjO6XupTDBd6qw==
-    metrics:
-      secure: AAABAPrG5CFazA6hrLjmaKcEWD5ye0zMJwhhWlQdHb5ZYE60sU/xNXzJzyA=
-    navidrome:
-      secure: AAABAOdacdl4CcEW/0b8Wssi5aAAtgT36tDzLCGgrCDnUsySnEuGoId0I0g4
-    singbox-profiles:
-      secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
-    # Public, and the only one that is: it is the site.
-    blit: blit.cc
   jaritanet:secrets:
     cloudflareApiToken:
       secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==

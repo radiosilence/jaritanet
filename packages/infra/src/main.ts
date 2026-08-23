@@ -23,7 +23,7 @@ import {
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { warnUnlessCleanMain } from "./checkout.ts";
-import { hostnames, secrets } from "./secrets.ts";
+import { secrets } from "./secrets.ts";
 import {
   ADMIN_SSH_KEY,
   auth as authConf,
@@ -33,6 +33,7 @@ import {
   exits as exitConfs,
   fastmail,
   gateway as gatewayConf,
+  hostnames,
   MANAGED_BY,
   NAMESPACE,
   tailnet,
