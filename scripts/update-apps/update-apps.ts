@@ -101,6 +101,26 @@ async function imageExists(ref: string) {
  * one thing. With a prefix the list is read instead and filtered — skipping
  * drafts and prereleases, which is what `releases/latest` does for us otherwise.
  */
+/**
+ * The short SHA a branch points at, for entries that follow one.
+ *
+ * Seven characters because that is what the container workflows tag with; the
+ * pin has to be a tag that exists, not a commit that does.
+ */
+async function headSha(repo: string, branch: string) {
+  try {
+    const { stdout } = await run("gh", [
+      "api",
+      `repos/${repo}/commits/${branch}`,
+      "--jq",
+      ".sha",
+    ]);
+    return stdout.trim().slice(0, 7) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function latestTag(repo: string, prefix?: string) {
   try {
     if (!prefix) {
@@ -232,14 +252,17 @@ const titles: string[] = [];
 const details: string[] = [];
 
 for (const entry of entries) {
-  const tag = await latestTag(entry.repo, entry.tagPrefix);
+  const tag = entry.branch
+    ? await headSha(entry.repo, entry.branch)
+    : await latestTag(entry.repo, entry.tagPrefix);
   if (!tag) {
     warn(`${entry.app} — no readable release on ${entry.repo}`);
     failed.push(entry.app);
     continue;
   }
 
-  const version = normaliseVersion(tag);
+  // A branch head is already the version; only a release tag needs unpicking.
+  const version = entry.branch ? tag : normaliseVersion(tag);
   const next = applyTemplate(entry.value, version);
   const ref = verifyRef(entry, version);
   const decision = decide({
