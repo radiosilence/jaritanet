@@ -10,8 +10,7 @@ on:
     paths:
       - ".github/workflows/update-apps.yml"
       - ".github/tracked-versions.yml"
-      - "packages/infra/src/update-apps.ts"
-      - "packages/infra/src/versions.ts"
+      - "scripts/update-apps/**"
   schedule:
     # Three times a day, not once: these entries now include the daemons
     # that terminate traffic from hostile networks, where the gap between a

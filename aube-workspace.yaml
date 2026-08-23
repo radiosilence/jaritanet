@@ -33,6 +33,10 @@ jailBuilds: true
 # `workspaces` field in package.json is the npm/yarn convention and is ignored.
 packages:
   - "packages/*"
+  # Maintenance scripts. A workspace member so their imports resolve and they
+  # are typechecked — which they were not, and check-profiles had been
+  # validating an exit shape no device is ever handed.
+  - "scripts"
   # Apps hold their own build tooling rather than being deployed from here.
   - "apps/*"
   # An app's chart lives with the app. They are one project — the chart pins the

@@ -36,7 +36,7 @@ import {
   writeDependency,
 } from "./versions.ts";
 
-const ROOT = join(import.meta.dirname, "..", "..", "..");
+const ROOT = join(import.meta.dirname, "..", "..");
 const TRACKED = join(ROOT, ".github", "tracked-versions.yml");
 
 const MANIFEST_ACCEPT = [

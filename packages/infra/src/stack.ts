@@ -28,6 +28,7 @@ import {
   TraefikConfSchema,
   ZonesConfSchema,
 } from "./schemas.ts";
+import { CLOUD_NODE } from "./nodes.ts";
 import { secrets } from "./secrets.ts";
 
 /** Namespace, and the annotation saying what put things in it. */
@@ -246,6 +247,7 @@ export const telegram =
  * cannot because it is what authenticates for them.
  */
 export const auth = AuthConfSchema.parse({
+  node: CLOUD_NODE,
   github: {
     clientId: "Ov23lig1BPAzKe4qmT4F",
     clientSecret: secrets.githubClientSecret,

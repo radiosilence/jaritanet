@@ -19,6 +19,16 @@ export const AuthConfSchema = z.strictObject({
    * rescheduled pod is a window where nobody can sign in to anything.
    */
   replicas: z.number().default(2),
+  /**
+   * Which node the provider and its Redis run on, by hostname.
+   *
+   * Redis holds the CSRF nonce for a login in flight, so a replica scheduled
+   * away from it reaches across whatever link separates them on every sign-in.
+   * Unset, the scheduler spreads them, which on a cluster of unequal machines
+   * means half the logins take the slow path and all of them depend on the
+   * worst node being up.
+   */
+  node: z.string().optional(),
   limits: LimitsSchema.default({ cpu: "100m", memory: "64Mi" }),
   /**
    * Holds one nonce per login in flight, for ten minutes. Pinned like anything

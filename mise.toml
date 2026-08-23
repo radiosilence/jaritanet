@@ -55,7 +55,7 @@ run = "oxfmt --check"
 description = "Type check every package"
 # `-e` guards the globs: an app with no browser TypeScript leaves
 # apps/*/tsconfig*.json unexpanded, and tsc is handed the literal.
-run = 'for p in packages/*/tsconfig.json apps/*/tsconfig*.json apps/*/deploy/pulumi/tsconfig.json; do [ -e "$p" ] || continue; echo "→ $p" && tsc -p "$p" || exit 1; done'
+run = 'for p in packages/*/tsconfig.json apps/*/tsconfig*.json apps/*/deploy/pulumi/tsconfig.json scripts/tsconfig.json; do [ -e "$p" ] || continue; echo "→ $p" && tsc -p "$p" || exit 1; done'
 
 [tasks.test]
 description = "Run the test suite (vitest on Node — Pulumi needs Node's v8)"
@@ -72,7 +72,7 @@ description = "Validate every profile shape against the real sing-box binary (ne
 run = "./scripts/check-profiles.ts"
 [tasks."update:apps"]
 description = "Report or apply upstream version bumps"
-run = "./packages/infra/src/update-apps.ts"
+run = "./scripts/update-apps/update-apps.ts"
 
 # Config lives in the stack, credentials included, so these need a Pulumi login
 # and nothing else. They wrap the CLI directly — what once made a shared
