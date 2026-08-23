@@ -21,7 +21,7 @@ import { AuthConfSchema as AuthComponentConfSchema } from "@jaritanet/auth";
 import { K3sConfSchema } from "@jaritanet/hetzner";
 import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
-import { MariastewConfSchema } from "@jaritanet/mariastew";
+import { MariastewConfSchema } from "@radiosilence/mariastew-pulumi";
 import {
   McpGatewayConfSchema,
   McpSchema,
