@@ -1,15 +1,15 @@
 /**
- * This stack's configuration surface.
+ * The shapes `stack.ts` states its values in.
  *
  * Every schema describing a *component* lives with that component, in its own
- * package. What is left here is the part that is genuinely jaritanet's: which
- * components this deployment runs, and the shapes that only exist because they
- * are composed — a gateway is a Hetzner box plus transports plus a control
- * plane, and no single package owns that sentence.
+ * package. What is left here is the part that only exists because it is
+ * composed — a gateway is a Hetzner box plus transports plus a control plane,
+ * and no single package owns that sentence.
  *
- * Component schemas are re-exported rather than merely imported, so
- * `scripts/gen-schemas.ts` and the config in Pulumi.main.yaml keep describing
- * one surface instead of chasing six packages.
+ * These stopped being a config parser when the config became TypeScript. What
+ * they still do is the part a type cannot: apply defaults, and enforce
+ * relationships — that `k3s.version` and `k3s.ciliumVersion` are a tested pair,
+ * that no two REALITY server names share a first label.
  */
 import {
   BlueskyConfSchema,
@@ -31,7 +31,7 @@ import {
   XrayConfSchema,
 } from "@jaritanet/vpn";
 import * as z from "zod";
-import { Hostname, HostPort, LabelKey } from "@jaritanet/k8s";
+import { Hostname, HostPort } from "@jaritanet/k8s";
 
 export {
   BlueskyConfSchema,
@@ -198,25 +198,6 @@ export const EdgeConfSchema = z.object({
 });
 
 /**
- * Empty rather than absent is how a service says "built, but not published" —
- * it gets its workload and no DNS record and no route.
- */
-/**
- * Where each service is published, keyed by the name it is created under.
- *
- * One block rather than a field on every service. Which hostname a workload
- * answers on is a fact about this estate, not about the workload — a package
- * carrying its own address could not be deployed twice — and it is the only
- * part of a service's shape that is encrypted, so gathering it here is also
- * what leaves the rest of the description free to be ordinary TypeScript.
- *
- * A name with no entry is built and not published, which is a real state: the
- * samba shares and syncthing's UI are reached on the LAN and the tailnet and
- * have no business having an address.
- */
-export const HostnamesConfSchema = z.record(z.string(), Hostname);
-
-/**
  * The identity provider, and the OAuth app it authenticates people against.
  *
  * The app is this deployment's rather than the component's — it needs *some*
@@ -237,80 +218,3 @@ export const AuthConfSchema = AuthComponentConfSchema.extend({
     })
     .optional(),
 }).strict();
-
-export const ConfSchema = z.object({
-  /**
-   * Break-glass admin key, installed on the gateway and every edge over SSH
-   * rather than at creation, so rotating it never replaces a box. Absent → no
-   * resource. Not a secret: it is the public half.
-   *
-   * Shape-checked because the failure is silent and badly timed — a mangled
-   * key installs cleanly and is only discovered to be useless when k3s is down
-   * and SSH is the last way in.
-   */
-  adminSshKey: z
-    .string()
-    .refine(
-      (key) => key === "" || /^(ssh|ecdsa|sk)-\S+\s+\S+/.test(key),
-      "adminSshKey must be an OpenSSH public key line (`ssh-ed25519 AAAA…`)",
-    )
-    .optional(),
-  /**
-   * Top level, beside `traefik`, and for the same reason: not because there is
-   * only one of it — there is only one navidrome — but because it is the same
-   * kind of thing. Traefik cannot be a service because it is what publishes
-   * them; this cannot because it is what authenticates for them. Every service
-   * depends on it and it depends on none of them.
-   *
-   * It still emits a hostname and a route, but that makes it a thing with an
-   * address rather than a thing the cluster exists to serve.
-   */
-  auth: AuthConfSchema.optional(),
-  bluesky: BlueskyConfSchema,
-  cloudflare: CloudflareConfSchema,
-  clusterDomain: z.string().default("cluster.local"),
-  edges: z.array(EdgeConfSchema).default([]),
-  exits: z.array(ExitConfSchema).default([]),
-  fastmail: FastmailConfSchema,
-  gateway: GatewayConfSchema.optional(),
-  hostnames: HostnamesConfSchema.default({}),
-  managedBy: z.string().default("jaritanet"),
-  namespace: z.string().default("jaritanet"),
-  tailnet: TailnetAccountConfSchema.default({ extraTags: [], tagOwners: [] }),
-  /**
-   * Two consumers — the sing-box profile server on change, and mariastew when
-   * a download finishes — so it is a shared account rather than either one's
-   * setting. Absent means neither notifies, which both treat as normal rather
-   * than as an error.
-   */
-  telegram: TelegramConfSchema.optional(),
-  traefik: TraefikConfSchema,
-  /**
-   * Ubuntu Pro, for livepatch on the gateway and every edge. Free for personal
-   * use on up to five machines. Absent → the reboot window is still configured
-   * and only livepatch is skipped, because a box that boots its patches is the
-   * baseline and livepatch is the improvement on it.
-   */
-  ubuntuProToken: z.string().optional(),
-  /**
-   * The node label key marking a machine as a VPN entry. One value reaches both
-   * the command that labels the node and the nodeSelector on every transport
-   * DaemonSet, so those cannot disagree — which is the whole reason it is read
-   * once, here, and passed down rather than defaulted in each place.
-   *
-   * Required rather than defaulted for the same reason. A wrong-but-present
-   * value is caught by the next preview, since relabelling a node and
-   * rescheduling the transports is a visible diff. An *absent* one would have
-   * to fall back to something, and a fallback that disagrees with the live
-   * node's label schedules zero pods onto a cluster reporting perfectly
-   * healthy — the VPN goes dark with nothing anywhere reporting a fault.
-   */
-  vpnEntryLabel: LabelKey,
-  /**
-   * Per-user VPN access (RBAC). One comma-separated list; a trailing `+` marks
-   * an admin. Absent → single implicit owner-admin (see main.ts). Parsed by
-   * `parseVpnUsers` from @jaritanet/vpn into a typed {name, role}[].
-   */
-  vpnUsers: z.string().optional(),
-  zones: ZonesConfSchema,
-});

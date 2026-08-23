@@ -1,9 +1,8 @@
-# yaml-language-server: $schema=../../schemas/infra.json
+# The credentials, and nothing else.
 #
-# Everything the deploy needs, credentials included — nothing is injected from
-# the environment. Secrets nest beside whatever consumes them, because a secret
-# inside structured config decrypts to an ordinary string in the program, so one
-# Zod parse still validates the whole block.
+# This file used to describe the whole deployment. What jaritanet *is* now lives
+# in `src/stack.ts`, where the compiler checks it and a value used twice is one
+# binding; what is left here is the part that cannot be committed in the clear.
 #
 # What makes committing the ciphertext safe is the secrets provider, not the
 # encryption on its own: this stack uses Pulumi Cloud's, so only the service
@@ -12,110 +11,24 @@
 # which cannot be un-published — into an offline cracking target against a
 # single password. Don't.
 #
-# The service hostnames are encrypted, which is not the same claim as private:
-# every one of them carries a certificate, so it is already in the public
-# Certificate Transparency logs and can be found by anyone who goes looking.
-# What this buys is that a public repository does not hand out the list — the
-# drive-by case, not the determined one. blit.cc stays in the clear because it
-# is the apex and fronts a public site, so there is nothing to withhold.
-#
-# Encrypting them here is only worth anything while the rest of the repository
-# agrees: a hostname repeated in a doc or a comment undoes it silently.
+# A secret decrypts to an ordinary string in the program, so one Zod parse in
+# `src/secrets.ts` still validates the whole block.
 config:
-  jaritanet:cloudflare:
-    accountId: 365e5168438376dc99d7ee2aedef4624
-    apiToken:
-      secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
-  jaritanet:traefik:
-    acmeEmail: jc@blit.cc
-  jaritanet:gateway:
-    # sympathy — Ampere ARM. Every image we run publishes arm64, and CAX is both
-    # cheaper and actually in stock, unlike the CX line. 8GB because this box now
-    # carries the cluster as well as the transports.
-    name: sympathy
-    # cx33: 4 vCPU / 8GB, x86 like the box already running, so this is an
-    # in-place resize rather than a new machine — the IP and the on-box REALITY
-    # key survive, and no client profile has to change. CAX (ARM) was the plan
-    # until it turned out to be unavailable in every location.
-    location: nbg1
-    serverType: cx33
-    # The cluster lives here now. One `pulumi up` creates the box, installs k3s,
-    # reads its kubeconfig and deploys into it.
-    # Cilium's version must match the k8s minor, and parsing enforces it against
-    # CILIUM_K8S_SUPPORT — take a new row from Cilium's own requirements doc for
-    # that branch rather than from memory. Outside the tested range you are
-    # relying on Kubernetes' backward compatibility rather than on anything
-    # tested, and the failure is a cluster that comes up healthy and moves no
-    # packets. Both values reach the fleet from here: version via an upgrade
-    # Plan, ciliumVersion via Helm.
-    k3s:
-      version: v1.36.3+k3s1
-      ciliumVersion: 1.20.0
-    # xray shares :443; traffic that doesn't match a client falls back to
-    # dest (Traefik's local https port), so real visitors still get the site.
-    #
-    # These are DELIBERATELY not our own domains. Content-filtering middleboxes
-    # (FortiGate et al) decide what to TLS-intercept from the SNI's reputation
-    # category, and a sparse personal domain is one bad rating away from having
-    # every REALITY handshake forged out from under it — blit.cc is rated "Other
-    # Adult Materials" by FortiGuard, which killed the tunnel on every filtered
-    # guest network. A category no filter dares touch is worth more here than an
-    # SNI that matches dest's cert; see docs/architecture.md.
-    #
-    # A list because no one borrowed identity is safe everywhere: google is
-    # camouflage in a British pub and blocked outright in China, where bing and
-    # apple still pass. First entry is the client's default; the rest are extra
-    # outbounds in its urltest, so it finds the identity the local network
-    # tolerates without anyone touching a setting.
-    xray:
-      serverNames:
-        - www.google.co.uk
-        - www.microsoft.com
-        - www.apple.com
-        - www.bing.com
-        - www.baidu.com
-        - vk.com
-      dest: 127.0.0.1:8443
-    # Hysteria2 (QUIC/UDP) on 443/udp — fast, loss-tolerant daily driver.
-    # Empty, and present anyway: the key is what deploys it. Everything about
-    # it defaults, and the image is pinned in @jaritanet/vpn.
-    hysteria: {}
-    # Tailnet relay: joins the VPS to the tailnet so clients can reach 100.x
-    # over the tunnel. Provisioned only when TS_AUTHKEY is set, so this is a
-    # no-op until the secret exists.
-    tailnet:
-      hostname: sympathy
-    hcloudToken:
-      secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
-  # Egress exit nodes — ss-rust on the machine whose IP you want to leave from,
-  # selectable in the client as exit-<name>. lady is the only one worth having:
-  # her address is a consumer ISP's, which no Hetzner range can be.
+  # Configures the provider; nothing can read this copy back out.
+  cloudflare:apiToken:
+    secure: AAABAAyTRwr6D9teTdgbWk2MOdcUtBUT/zaZgs+cbWPCz/IM9cFaXfhfhiHZi7RsdeujvCnJ46u9elLdSxd7pbYBfN+K1rReI1xJqHFP2cXRO4+pMA==
+  # Configures the provider; nothing can read this copy back out.
+  hcloud:token:
+    secure: AAABALtD7dj7hUYrd1dLznzw5u+hjfJj5fCpMv7fRmoXKOKxtlczVbxdWKzmDhHWJHHfQkj6Z8qoxgZqIatPwDZAvi+CDQS+OqDUhBLRSXl815dDWd8jB+/p6cHE2YTK
+  # The service hostnames, encrypted — which is not the same claim as private.
+  # Every one carries a certificate, so it is in the public Certificate
+  # Transparency logs already and can be found by anyone who goes looking. What
+  # this buys is that a public repository does not hand out the list: the
+  # drive-by case, not the determined one. blit.cc stays in the clear because it
+  # is the apex and fronts a public site, so there is nothing to withhold.
   #
-  # `server` is her tailnet address — how an entry reaches a box behind NAT with
-  # no forwarded port. Pinned rather than stable: a re-registration moves it and
-  # the exit then dials nobody, with everything still reporting healthy, so it
-  # is re-read from `kubectl get node lady -o wide` when that happens.
-  #
-  # `node` is the machine this program marks with `nodeLabel`, over the API
-  # rather than SSH. Marking it is the whole deployment: the DaemonSet controller
-  # watches Nodes, so the exit appears there within a second and vanishes if the
-  # label goes. Hand-labelling still works and is how you move an exit for an
-  # afternoon — it is no longer what holds it in place.
-  #
-  # The port is derived from the name; only set `port` to break a hash clash.
-  jaritanet:exits:
-    - name: lady
-      node: lady
-      nodeLabel: jaritanet.radiosilence.dev/vpn-exit
-      server: 100.74.66.121
-  # Where each service is published.
-  #
-  # One block rather than a field on each service: which hostname a workload
-  # answers on is a fact about this estate, not about the workload, and a
-  # package that carries its own address cannot be deployed twice. Encrypted
-  # because the repository is public — certificate transparency publishes them
-  # anyway, but a public repo should not hand out the address of a write
-  # endpoint onto the media library.
+  # Only worth anything while the rest of the repository agrees: a hostname
+  # repeated in a doc or a comment undoes it silently.
   jaritanet:hostnames:
     auth:
       secure: AAABABkYbnTgozUhAX/ALlO4+fnO9O6G7GnrIBiLuaR2uBVC9pSXjz8dR3g=
@@ -133,70 +46,22 @@ config:
       secure: AAABAD4z8yRK5YnDrYTWNebcjtt0TQU8tTs+0AhHNx2NQGoAQ/8G19VGYiUeSGTTVig=
     # Public, and the only one that is: it is the site.
     blit: blit.cc
-  jaritanet:zones:
-    - name: "blit.cc"
-      zoneId: "8aa9988e3df6b6a6ab4e4e6dbc3a2451"
-      modules:
-        - fastmail
-        - bluesky
-    - name: radiosilence.dev
-      zoneId: 3373ad7c3dc3104e7aeab31c1176e684
-      modules:
-        - fastmail
-        - bluesky
-    - name: buttholes.live
-      zoneId: 1115a1e5006523692d61e49e672f6df0
-      modules:
-        - fastmail
-        - bluesky
-  jaritanet:fastmail:
-    mxDomain: smtp.messagingengine.com
-    dkimDomain: dkim.fmhosted.com
-    dkimSubdomain: _domainkey
-    dmarcSubdomain: _dmarc
-    dmarcAggEmail: dmarc-agg@blit.cc
-    dmarcPolicy: reject
-    spfDomain: spf.messagingengine.com
-  jaritanet:bluesky:
-    did: did:plc:d32vuqlfqjttwbckkxgxgbgl
-  cloudflare:apiToken:
-    secure: AAABAAyTRwr6D9teTdgbWk2MOdcUtBUT/zaZgs+cbWPCz/IM9cFaXfhfhiHZi7RsdeujvCnJ46u9elLdSxd7pbYBfN+K1rReI1xJqHFP2cXRO4+pMA==
-  hcloud:token:
-    secure: AAABALtD7dj7hUYrd1dLznzw5u+hjfJj5fCpMv7fRmoXKOKxtlczVbxdWKzmDhHWJHHfQkj6Z8qoxgZqIatPwDZAvi+CDQS+OqDUhBLRSXl815dDWd8jB+/p6cHE2YTK
-  jaritanet:ubuntuProToken:
-    secure: AAABAH2gQiEnQhHzpwyAv7u//nuy08yl3yc+yd3rsTHew4jidd45Xp9MzYSUOWcSrw9d3PljUTjmnl/Aw6w=
-  jaritanet:vpnEntryLabel: jaritanet.radiosilence.dev/vpn-entry
-  jaritanet:adminSshKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIOKFd98fp579BSC4svd/E8h1Bs5aeu9Iv5qix40+WmI jc@blit.cc
-  jaritanet:tailnet:
-    authKey:
+  jaritanet:secrets:
+    cloudflareApiToken:
+      secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
+    githubClientSecret:
+      secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
+    hcloudToken:
+      secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
+    tailnetAuthKey:
       secure: AAABAPUJk8cSP4BCle0UNlTgQPHpZp80WGEMqbZp+4fx3Wh1ORkqWChwDukbz5Gd3DIsbT2L+F4awkbtp+R9xg6Elg1Ko8qHXYRVTM+My+YOv+Eus99hVHbE7usnjav7
-    magicdnsSuffix: zonkey-jazz.ts.net
-    oauth:
-      clientId: kwGpaNTK9Y11CNTRL
-      clientSecret:
-        secure: AAABAGhrgFsFYiXNK3QDi18u9DbNtR/bd39xzOW+IkgvlQZHDoGnpD8325akS306yfV4DsZKTVoUnRCIEhTJfgaDM0KSuzgFABAKTxC5MpHPA6t6c2wzSkjhKI3YWfg=
-    name: zonkey-jazz.ts.net
-    tagOwners:
-      - jc@blit.cc
-    extraTags:
-      - tag:ci
-  # Shared account: the sing-box profile server notifies on change, mariastew
-  # notifies when a download finishes. Absent → neither sends anything, which
-  # both treat as normal rather than as an error.
-  jaritanet:telegram:
-    botToken:
+    tailnetOauthClientSecret:
+      secure: AAABAGhrgFsFYiXNK3QDi18u9DbNtR/bd39xzOW+IkgvlQZHDoGnpD8325akS306yfV4DsZKTVoUnRCIEhTJfgaDM0KSuzgFABAKTxC5MpHPA6t6c2wzSkjhKI3YWfg=
+    telegramBotToken:
       secure: AAABAG1Dqy8QBBuB3QXADxbmJXDhzq7ZRvXoV4LlNZ8LuSXajDoE7AvgtWvJnhIEaXGRPOR46RFiItpup9yJXNsRTXRNS3EvFSEY6vJU
-    chatId:
+    telegramChatId:
       secure: AAABANHyq2ApXfynG6m0hA1s2LGgzmsn027DsS6erT16+yUxGKwagBo=
-  jaritanet:vpnUsers:
-    secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc
-  # The login screen, at the hostname Hydra already stands at and split from it
-  # by path. Top level beside traefik, and for the same reason: traefik cannot
-  # be a service because it is what publishes them, and this cannot because it
-  # is what authenticates for them.
-  jaritanet:auth:
-    github:
-      clientId: Ov23lig1BPAzKe4qmT4F
-      clientSecret:
-        secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
-      allowed: radiosilence
+    ubuntuProToken:
+      secure: AAABAH2gQiEnQhHzpwyAv7u//nuy08yl3yc+yd3rsTHew4jidd45Xp9MzYSUOWcSrw9d3PljUTjmnl/Aw6w=
+    vpnUsers:
+      secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc

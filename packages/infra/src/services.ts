@@ -37,7 +37,7 @@ import type * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type * as z from "zod";
-import type { ZonesConfSchema } from "./conf.schemas.ts";
+import type { ZonesConfSchema } from "./schemas.ts";
 import { MCPS } from "./mcps.ts";
 
 /**

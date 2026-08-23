@@ -17,7 +17,7 @@ import * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
-import type { GatewayConfSchema } from "./conf.schemas.ts";
+import type { GatewayConfSchema } from "./schemas.ts";
 
 /**
  * Provisions the Hetzner VPS the cluster and the transports run on.

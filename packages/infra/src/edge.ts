@@ -15,7 +15,7 @@ import * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
 import * as tls from "@pulumi/tls";
 import type * as z from "zod";
-import type { EdgeConfSchema } from "./conf.schemas.ts";
+import type { EdgeConfSchema } from "./schemas.ts";
 
 /**
  * The tag every edge advertises. Exported because the policy defines the tags

@@ -16,15 +16,31 @@ import {
   createUnbound,
   createXray,
   deriveExitPort,
+  parseVpnUsers,
   type SingboxNode,
   type VpnUser,
 } from "@jaritanet/vpn";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import type * as z from "zod";
 import { warnUnlessCleanMain } from "./checkout.ts";
-import { conf, vpnUsers } from "./conf.ts";
-import { GatewayConfSchema } from "./conf.schemas.ts";
+import { hostnames, secrets } from "./secrets.ts";
+import {
+  ADMIN_SSH_KEY,
+  auth as authConf,
+  bluesky,
+  cloudflare,
+  edges,
+  exits as exitConfs,
+  fastmail,
+  gateway as gatewayConf,
+  MANAGED_BY,
+  NAMESPACE,
+  tailnet,
+  telegram,
+  traefik,
+  VPN_ENTRY_LABEL,
+  zones,
+} from "./stack.ts";
 import { createEdge, EDGE_TAILNET_TAG } from "./edge.ts";
 import { createGateway } from "./gateway.ts";
 import type { Route } from "@jaritanet/k8s";
@@ -38,13 +54,11 @@ import { createTailnetPolicy } from "./tailnet-policy.ts";
 export default async function () {
   warnUnlessCleanMain();
 
-  const { namespace } = conf;
   let dnsTarget: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
   // Set when the gateway runs its own control plane; its kubeconfig then
   // replaces the KUBE_* secrets below.
   let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
-  let gatewayConf: z.infer<typeof GatewayConfSchema> | undefined;
   let gatewayIp: pulumi.Output<string> | undefined;
   // Where the API server answers. Cilium needs it too, and must agree with the
   // kubeconfig — see createCilium.
@@ -67,14 +81,15 @@ export default async function () {
   // The VPN roster. No `vpnUsers` → a single implicit owner-admin, so the
   // multi-user path is exercised uniformly and old single-owner deploys keep
   // full access. A trailing `+` in the secret marks an admin; the rest are guests.
+  const roster = secrets.vpnUsers ? parseVpnUsers(secrets.vpnUsers) : [];
   const users: VpnUser[] =
-    vpnUsers.length > 0 ? vpnUsers : [{ name: "owner", role: "admin" }];
+    roster.length > 0 ? roster : [{ name: "owner", role: "admin" }];
 
   // Resolve each exit's host port once (derived from the name unless set), so
   // the identical port is used at the ss server and the client outbound.
   // Uniqueness is asserted per node, not globally: the port is bound on the
   // exit's own host, so two exits only clash when they share a machine.
-  const resolvedExits = conf.exits.map((e) => ({
+  const resolvedExits = exitConfs.map((e) => ({
     method: e.method,
     name: e.name,
     node: e.node,
@@ -92,21 +107,22 @@ export default async function () {
   // this key (see createEdge). Without it the profile still offers every
   // entry × exit pair and not one of them can connect, so this is a red preview
   // rather than an exit axis that is present and dead.
-  if (resolvedExits.length && !conf.tailnet.authKey) {
+  if (resolvedExits.length && !tailnet.authKey) {
     throw new Error(
       "exits need `tailnet.authKey`: an entry with no tailnet cannot reach one",
     );
   }
 
-  if (conf.gateway?.hcloudToken) {
-    gatewayConf = conf.gateway ?? GatewayConfSchema.parse({});
+  // The gateway is unconditional: it is the box that provides the cluster, and
+  // its token is a required secret.
+  {
     const gw = createGateway(gatewayConf, users, {
-      adminSshKey: conf.adminSshKey,
-      clusterName: namespace,
-      proToken: conf.ubuntuProToken,
-      entryLabel: conf.vpnEntryLabel,
-      magicdnsSuffix: conf.tailnet.magicdnsSuffix,
-      tailnetAuthKey: conf.tailnet.authKey,
+      adminSshKey: ADMIN_SSH_KEY,
+      clusterName: NAMESPACE,
+      proToken: secrets.ubuntuProToken,
+      entryLabel: VPN_ENTRY_LABEL,
+      magicdnsSuffix: tailnet.magicdnsSuffix,
+      tailnetAuthKey: tailnet.authKey,
     });
     dnsTarget = gw.vpsIp;
     gatewayIp = gw.vpsIp;
@@ -135,19 +151,19 @@ export default async function () {
 
     // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
     // picker entry. Tailnet relay only when `tailnet.authKey` is present.
-    const edgeAuthKey = conf.tailnet.authKey
-      ? pulumi.secret(conf.tailnet.authKey)
+    const edgeAuthKey = tailnet.authKey
+      ? pulumi.secret(tailnet.authKey)
       : undefined;
-    for (const edge of conf.edges) {
+    for (const edge of edges) {
       const e = createEdge(
         edge,
         users,
         edgeAuthKey,
-        conf.adminSshKey,
-        conf.ubuntuProToken,
+        ADMIN_SSH_KEY,
+        secrets.ubuntuProToken,
       );
       const hostname = `${edge.name}.${edge.zone}`;
-      const zone = conf.zones.find((z) => z.name === edge.zone);
+      const zone = zones.find((z) => z.name === edge.zone);
       if (zone) {
         createServiceRecord(e.vpsIp, zone, hostname);
       }
@@ -177,30 +193,30 @@ export default async function () {
   // Tailnet policy as code — only once an OAuth client exists, so this is a
   // no-op until the secrets are set (and even then the provider refuses to
   // touch a policy nobody has imported).
-  if (conf.tailnet.oauth && conf.tailnet.name) {
+  if (tailnet.oauth && tailnet.name) {
     createTailnetPolicy({
-      clientId: pulumi.secret(conf.tailnet.oauth.clientId),
-      clientSecret: pulumi.secret(conf.tailnet.oauth.clientSecret),
-      tailnet: conf.tailnet.name,
+      clientId: pulumi.secret(tailnet.oauth.clientId),
+      clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
+      tailnet: tailnet.name,
       // Exits are the nodes the cluster's dataplane has to reach, and their
       // tailnet address is already the one Cilium uses.
-      clusterPeers: conf.exits.map((exit) => exit.server),
-      owners: conf.tailnet.tagOwners,
+      clusterPeers: exitConfs.map((exit) => exit.server),
+      owners: tailnet.tagOwners,
       tags: [
-        ...(gatewayConf?.tailnet ? [gatewayConf.tailnet.tag] : []),
-        ...(conf.edges.length ? [EDGE_TAILNET_TAG] : []),
-        ...conf.tailnet.extraTags,
+        ...(gatewayConf.tailnet ? [gatewayConf.tailnet.tag] : []),
+        ...(edges.length ? [EDGE_TAILNET_TAG] : []),
+        ...tailnet.extraTags,
       ],
     });
   }
 
   // --- DNS: zone modules (fastmail, bluesky) ---
-  for (const zone of conf.zones) {
+  for (const zone of zones) {
     for (const mod of zone.modules) {
       if (mod === "fastmail") {
-        createFastmailRecords(zone, conf.fastmail);
+        createFastmailRecords(zone, fastmail);
       } else {
-        createBlueskyRecords(zone, conf.bluesky);
+        createBlueskyRecords(zone, bluesky);
       }
     }
   }
@@ -221,7 +237,7 @@ export default async function () {
 
   const provider = new k8s.Provider(
     "provider",
-    { kubeconfig, namespace },
+    { kubeconfig, namespace: NAMESPACE },
     {
       customTimeouts: {
         create: "5m",
@@ -235,7 +251,7 @@ export default async function () {
   // --flannel-backend=none so Cilium can own networking and the
   // NetworkPolicies in this repo finally mean something.
   const cilium =
-    gatewayK3s && gatewayConf?.k3s && gatewayApiHost
+    gatewayK3s && gatewayConf.k3s && gatewayApiHost
       ? createCilium(provider, gatewayConf.k3s.ciliumVersion, gatewayApiHost, [
           gatewayK3s.install,
         ])
@@ -245,7 +261,7 @@ export default async function () {
   // no SSH connection here and would otherwise stay on whatever it was flashed
   // with forever. Gated on the CNI because the controller is an ordinary
   // Deployment and stays Pending without one.
-  if (gatewayConf?.k3s && cilium) {
+  if (gatewayConf.k3s && cilium) {
     createK3sUpgrades(provider, gatewayConf.k3s, [cilium]);
     // The pod network rides the tailnet between nodes, and Cilium's packet
     // marks collide with tailscaled's routing rules — see createTailnetRule.
@@ -258,15 +274,15 @@ export default async function () {
   // and on a fresh one it presents as `namespaces "jaritanet" not found` on
   // about forty resources at once.
   const ns = new k8s.core.v1.Namespace(
-    namespace,
+    NAMESPACE,
     {
       metadata: {
-        annotations: { "pulumi.com/managed-by": conf.managedBy },
+        annotations: { "pulumi.com/managed-by": MANAGED_BY },
         labels: {
-          name: namespace,
-          "kubernetes.io/metadata.name": namespace,
+          name: NAMESPACE,
+          "kubernetes.io/metadata.name": NAMESPACE,
         },
-        name: namespace,
+        name: NAMESPACE,
       },
     },
     // Gating the namespace on the CNI gates everything in it, since every
@@ -288,8 +304,8 @@ export default async function () {
   const { traefikRelease } = createIngress(
     provider,
     nsName,
-    conf.traefik,
-    conf.cloudflare.apiToken,
+    traefik,
+    cloudflare.apiToken,
   );
 
   createRedirectMiddleware(provider, nsName, traefikRelease);
@@ -306,8 +322,8 @@ export default async function () {
   //
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
-  if (gatewayConf) {
-    createUnbound(provider, nsName, conf.vpnEntryLabel, transportDeps);
+  {
+    createUnbound(provider, nsName, VPN_ENTRY_LABEL, transportDeps);
 
     if (gatewayConf.xray) {
       const t = createXray(
@@ -315,7 +331,7 @@ export default async function () {
         nsName,
         gatewayConf.xray,
         users,
-        conf.vpnEntryLabel,
+        VPN_ENTRY_LABEL,
         gatewayConf.credentialRotation,
         transportDeps,
       );
@@ -333,7 +349,7 @@ export default async function () {
         nsName,
         gatewayConf.hysteria,
         users,
-        conf.vpnEntryLabel,
+        VPN_ENTRY_LABEL,
         gatewayConf.credentialRotation,
         transportDeps,
       );
@@ -365,21 +381,21 @@ export default async function () {
     ...edgeNodes,
   ];
 
-  const authHostname = conf.hostnames.auth;
+  const authHostname = hostnames.auth;
 
   const estate: EstateContext = {
     provider,
     namespace: nsName,
-    zones: conf.zones,
-    hostnames: conf.hostnames,
+    zones: zones,
+    hostnames: hostnames,
     dnsTarget,
     traefik: traefikRelease,
-    credentialRotation: gatewayConf?.credentialRotation ?? "1",
+    credentialRotation: gatewayConf.credentialRotation,
     exits,
-    magicdnsSuffix: conf.tailnet.magicdnsSuffix,
+    magicdnsSuffix: tailnet.magicdnsSuffix,
     singboxNodes,
     users,
-    telegram: conf.telegram,
+    telegram: telegram,
     authHostname,
   };
 
@@ -395,12 +411,12 @@ export default async function () {
   // authenticate is worse than one that is not there — so it is skipped rather
   // than deployed broken.
   const authRoute: Route[] = [];
-  if (authHostname && conf.auth?.github) {
-    createAuth(provider, nsName, conf.auth, {
+  if (authHostname && authConf.github) {
+    createAuth(provider, nsName, authConf, {
       hostname: authHostname,
-      githubClientId: conf.auth.github.clientId,
-      githubClientSecret: pulumi.secret(conf.auth.github.clientSecret),
-      githubAllowed: conf.auth.github.allowed,
+      githubClientId: authConf.github.clientId,
+      githubClientSecret: pulumi.secret(authConf.github.clientSecret),
+      githubAllowed: authConf.github.allowed,
       // Hydra is stood up alongside the MCP gateway and reached at a bare
       // service name in the same namespace, so this is derived from that
       // deployment rather than configured twice.
@@ -424,7 +440,7 @@ export default async function () {
 
   return {
     ...(gatewayProvider && { gatewayProvider }),
-    namespace,
+    namespace: NAMESPACE,
     services,
     ...(dnsTarget && { vpsIp: dnsTarget }),
     // Per-user credentials + share URLs are now delivered as individual sing-box
