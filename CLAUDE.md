@@ -96,11 +96,6 @@ say what it runs — and the compiler checks the shape, the editor completes it,
 and a value needed twice is one binding rather than two entries that can drift.
 `infra/src/secrets.ts` is the only thing that reads stack config.
 
-Service hostnames are the exception, and are in config for one reason: the
-repository is public. They carry certificates, so Certificate Transparency
-publishes them anyway — encrypting them denies the drive-by reader a list, not
-a determined one.
-
 **Every service is a function call.** There is no `services` map and no `kind`
 union; that union existed only so data could select a constructor, which is what
 a program does by calling one. What every service shares — an address, and

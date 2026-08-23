@@ -52,6 +52,40 @@ export const VPN_ENTRY_LABEL = "jaritanet.radiosilence.dev/vpn-entry";
 export const ADMIN_SSH_KEY =
   "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIOKFd98fp579BSC4svd/E8h1Bs5aeu9Iv5qix40+WmI jc@blit.cc";
 
+/**
+ * Where each service is published.
+ *
+ * In the clear. These were encrypted on the grounds that a public repository
+ * should not hand out the list, while conceding that every one of them carries
+ * a certificate and is therefore in the Certificate Transparency logs already.
+ * That distinction rested on the logs being awkward to search, and it has not
+ * survived: crt.name will list every name under a domain in one query. The
+ * encryption was buying nothing and costing a rule that every doc and comment
+ * in the repository had to avoid naming a host.
+ *
+ * Nothing here was ever a security control. `p.radiosilence.dev` is unguessable
+ * by its *path*, which is a generated slug and stays secret; mariastew is a
+ * write endpoint onto the media library and is gated by OIDC, not by its
+ * address.
+ *
+ * A name with no entry is built and not published, which is a real state: the
+ * samba shares and syncthing's UI are reached on the LAN and the tailnet and
+ * have no business having an address.
+ */
+export const hostnames: Record<string, string> = {
+  auth: "auth.blit.cc",
+  blit: "blit.cc",
+  files: "files.radiosilence.dev",
+  mariastew: "dl.blit.cc",
+  "mcp-gateway": "mcp.blit.cc",
+  metrics: "dash.blit.cc",
+  navidrome: "music.blit.cc",
+  // Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials",
+  // so a filtered network — exactly the network a VPN profile is wanted on —
+  // blocks the device from fetching its own subscription.
+  "singbox-profiles": "p.radiosilence.dev",
+};
+
 export const cloudflare = CloudflareConfSchema.parse({
   accountId: "365e5168438376dc99d7ee2aedef4624",
   apiToken: secrets.cloudflareApiToken,
