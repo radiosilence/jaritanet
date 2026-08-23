@@ -1,86 +1,79 @@
+import type { Deployed } from "@jaritanet/k8s";
 import { describe, expect, it } from "vitest";
-import { relyingParties } from "./services.ts";
+import { registration, zoneFor } from "./services.ts";
 
 /**
  * The redirect allowlist is what stands between the identity provider and an
  * open redirect: without exact matching, a crafted `redirect_uri` walks off
- * with the authorization code and the login provider becomes the attack. So
- * what this function returns is a security control, not a convenience — hence
- * testing it rather than the config that no longer declares any of it.
+ * with the authorization code and the login provider becomes the attack.
+ *
+ * Most of that property is now structural rather than tested — a service builds
+ * its redirect URI from the same binding it publishes at, so the two cannot
+ * disagree. What is left to guard is the seam between the service declaring a
+ * client and the stack minting its secret, which is the one place the two
+ * halves can silently fail to meet.
  */
-describe("relyingParties", () => {
-  const image = { repository: "x", tag: "1" };
-  const services = {
-    mariastew: {
-      kind: "mariastew",
-      hostname: "dl.example",
-      image,
-      roots: [{ name: "tv", hostPath: "/tv" }],
+describe("registration", () => {
+  const withClient: Deployed = {
+    routes: [{ service: "mariastew", hostname: "dl.example" }],
+    oidc: {
+      id: "mariastew",
+      name: "mariastew",
+      redirectUri: "https://dl.example/auth/callback",
     },
-    "mcp-gateway": { kind: "mcp-gateway", hostname: "mcp.example", image },
-    metrics: { kind: "metrics", hostname: "dash.example" },
-    navidrome: { kind: "web", hostname: "music.example", args: {} },
-    samba: { kind: "samba", shares: [] },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  };
 
-  it("derives one exact redirect URI per relying party", () => {
-    expect(relyingParties(services)).toEqual([
-      {
-        id: "mariastew",
-        name: "mariastew",
-        redirectUri: "https://dl.example/auth/callback",
-      },
-      {
-        id: "mcp-gateway",
-        name: "mcp-gateway",
-        redirectUri: "https://mcp.example/auth/callback",
-      },
-      {
-        id: "metrics",
-        name: "metrics",
-        redirectUri: "https://dash.example/login/generic_oauth",
-      },
-    ]);
-  });
-
-  /**
-   * Grafana's callback path is Grafana's, not ours. What stays derived is the
-   * host half — that is the part an open redirect would abuse, and no service
-   * gets to name it.
-   */
-  it("takes the callback path from the kind and the host from the service", () => {
-    const moved = relyingParties({
-      ...services,
-      metrics: { ...services.metrics, hostname: "elsewhere.example" },
+  it("pairs a declared client with its secret", () => {
+    expect(registration(withClient, "s3cret")).toEqual({
+      id: "mariastew",
+      name: "mariastew",
+      redirectUri: "https://dl.example/auth/callback",
+      secret: "s3cret",
     });
-    expect(moved.find((p) => p.id === "metrics")?.redirectUri).toBe(
-      "https://elsewhere.example/login/generic_oauth",
-    );
   });
 
-  /** A wildcard on a hostname is how one forgotten subdomain becomes a token thief. */
-  it("never emits a pattern a second host could satisfy", () => {
-    for (const party of relyingParties(services)) {
-      expect(party.redirectUri).not.toContain("*");
-      expect(party.redirectUri.startsWith("https://")).toBe(true);
-    }
-  });
-
-  /** A service that does not sign anyone in has no business holding a client. */
-  it("ignores kinds that are not relying parties", () => {
-    const ids = relyingParties(services).map((p) => p.id);
-    expect(ids).not.toContain("navidrome");
-    expect(ids).not.toContain("samba");
+  it("has nothing to register for a service that signs nobody in", () => {
+    expect(registration({ routes: [] })).toBeUndefined();
   });
 
   /**
-   * An unpublished service has nowhere to be sent back to, so registering one
-   * would put an entry in the allowlist that no deployment answers.
+   * The failure this prevents is silent: the service deploys, publishes, and
+   * cannot log anybody in, with nothing anywhere reporting a fault.
    */
-  it("skips a service with no hostname", () => {
+  it("refuses a client with no secret rather than dropping it", () => {
+    expect(() => registration(withClient)).toThrow(/no secret/);
+  });
+});
+
+describe("zoneFor", () => {
+  const zones = [
+    { name: "blit.cc", zoneId: "1", modules: [] },
+    { name: "radiosilence.dev", zoneId: "2", modules: [] },
+  ];
+
+  it("matches a subdomain to its zone", () => {
+    expect(zoneFor(zones, "dl.blit.cc")?.zoneId).toBe("1");
+  });
+
+  it("matches the apex", () => {
+    expect(zoneFor(zones, "blit.cc")?.zoneId).toBe("1");
+  });
+
+  it("reports nothing for a hostname in no configured zone", () => {
+    expect(zoneFor(zones, "example.com")).toBeUndefined();
+  });
+
+  /**
+   * Documented rather than desired. A two-label match cannot see
+   * `example.co.uk`, and the record is skipped in silence — the same split
+   * `createServiceRecord` makes, so both halves are wrong together.
+   */
+  it("cannot see a three-label zone", () => {
     expect(
-      relyingParties({ mariastew: { ...services.mariastew, hostname: "" } }),
-    ).toEqual([]);
+      zoneFor(
+        [{ name: "example.co.uk", zoneId: "3", modules: [] }],
+        "a.example.co.uk",
+      ),
+    ).toBeUndefined();
   });
 });

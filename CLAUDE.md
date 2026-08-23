@@ -27,12 +27,11 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 
 - `mise run typecheck` - Type check every package
 - `mise run test` - Run tests (vitest on Node — Pulumi needs Node's v8)
-- `./scripts/gen-schemas.ts` - Generate JSON schemas from Zod definitions
 - `mise run lint` - Lint code with oxlint
 - `mise run lint:fix` - Lint and auto-fix with oxlint
 - `mise run fmt` - Format code with oxfmt
 - `mise run fmt:check` - Check formatting with oxfmt
-- `mise run preview` / `mise run up` - Wrap the Pulumi CLI. Config comes from the stack, credentials included, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
+- `mise run preview` / `mise run up` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
 - `./packages/infra/src/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
@@ -46,7 +45,7 @@ The project uses Lefthook for pre-commit validation:
 
 Installed by the root `prepare` script, which no-ops when `CI` is set. Hooks
 exist for a working tree a human is about to push; a runner has none, and the
-workflows that do commit (`update-apps`, `generate-schemas`) pass `-n` so a hook
+workflow that does commit (`update-apps`) passes `-n` so a hook
 that somehow exists cannot abort a run that already did its work.
 
 ### Package Management
@@ -70,12 +69,13 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Each has a DaemonSet form and a `-systemd` form; the latter takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, the tailnet-rule DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing (see docs/architecture.md), and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
+- **`@jaritanet/navidrome`**, **`@jaritanet/files`**, **`@jaritanet/blit`** — a container, its volumes and its image pin. No configuration surface: 2Ti of media, a pinned uid and two volumes are facts about this deployment rather than knobs, and every one of them was already fixed in a config block nobody varied. What they take is only what the estate owns — where they are published, and which machine holds the disks
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`@jaritanet/auth`** — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
 - **`@jaritanet/metrics`** — VictoriaMetrics single-node, node-exporter and `vmagent` as DaemonSets, and Grafana signed in through the estate's own provider. Each agent scrapes its own node and remote-writes, rather than one scraper reaching across the tailnet to a residential uplink where a missed scrape is simply lost. Not kube-prometheus-stack: the operator, Alertmanager, kube-state-metrics and ~30 CRDs are monitoring outweighing the monitored on the box whose scheduler already refused a transport for lack of CPU
 - **`@jaritanet/mariastew`** — torrent web UI fronting aria2, OIDC-gated against the estate's Hydra, whose client is registered for it by `@jaritanet/auth` rather than by itself. One pod, two containers sharing a network namespace, built from the same image, so aria2's RPC never leaves loopback and needs no credential of its own
-- **`packages/infra`** — this stack. `main.ts` orchestrates, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, `conf.schemas.ts` assembles the config surface from the component schemas, and `conf.ts` parses the whole config surface, secrets included, in one pass. `checkout.ts` warns when the deploy is not running from a clean, current `main`: the plan is whatever the tree contains, so a branch that is behind reverts what main has and it lacks, which twice nearly downgraded mariastew as an incidental line in an unrelated diff
+- **`packages/infra`** — this stack. `main.ts` orchestrates, `stack.ts` says what jaritanet is, `services.ts` builds everything in the cluster and publishes it, `secrets.ts` is the only reader of stack config, `gateway.ts` and `edge.ts` compose a Hetzner box with transports on it, and `schemas.ts` holds the shapes that exist only because they are composed. `checkout.ts` warns when the deploy is not running from a clean, current `main`: the plan is whatever the tree contains, so a branch that is behind reverts what main has and it lacks, which twice nearly downgraded mariastew as an incidental line in an unrelated diff
 
 Packages are `private` and imported as TypeScript source — Node resolves a
 workspace symlink to its real path, which is outside `node_modules`, so type
@@ -87,15 +87,41 @@ the version and `exports` fields are for; it needs a `tsc` emit and
 
 Everything still deploys in one `pulumi up` from `packages/infra/`.
 
-### Configuration System
+### The stack is TypeScript; config is a credential store
 
-All config uses Zod V4 schemas for runtime validation. Configuration lives in `Pulumi.main.yaml`. A component's schema lives with the component; `infra/src/conf.schemas.ts` re-exports them alongside the composed shapes (`GatewayConfSchema`, `EdgeConfSchema`) so the stack's config surface is described in one place, and regenerates via the gen-schemas script.
+**`Pulumi.main.yaml` holds secrets, and nothing else.** What jaritanet *is*
+lives in `infra/src/stack.ts` and `infra/src/services.ts` as ordinary
+TypeScript. `packages/infra` is the instance, not the class, so it can simply
+say what it runs — and the compiler checks the shape, the editor completes it,
+and a value needed twice is one binding rather than two entries that can drift.
+`infra/src/secrets.ts` is the only thing that reads stack config.
 
-**What is top-level and what is a service.** If it is a workload, it goes in `services` and declares a `kind`; what stays above is the part that is not one — accounts and DNS facts (`cloudflare`, `zones`, `tailnet`, `fastmail`, `bluesky`, `telegram`), machines (`gateway`, `edges`, `exits`), `traefik`, which cannot be a service because it is the thing that publishes them, and `auth`, which cannot be one because it is the thing that authenticates for them — every service depends on it and it depends on none of them. That rule is what replaced the `mcpGateway`, `home` and `profiles` top-level blocks, each of which carried its own copy of "find the zone, make an A record, make an IngressRoute"; publishing now happens once, in `infra/src/services.ts`, driven by whatever routes a kind returns. `telegram` moved up from a single service's config once it gained a second consumer (the sing-box profile server and mariastew both notify through it) — a value read by more than one workload is an account, not a setting that belongs to either.
+Service hostnames are the exception, and are in config for one reason: the
+repository is public. They carry certificates, so Certificate Transparency
+publishes them anyway — encrypting them denies the drive-by reader a list, not
+a determined one.
 
-A `kind` exists only for behaviour config cannot express — rendering `smb.conf`, standing up Hydra and Postgres, hashing a routing table into a pod annotation. Anything that is just a container with disks is `kind: web` and needs no module: navidrome is 2Ti of media, a pinned uid and two volumes, and has never had one. That is why composition stops at a tagged union rather than growing into a hierarchy, and why the answer to "should X be a module" is usually no.
+**Every service is a function call.** There is no `services` map and no `kind`
+union; that union existed only so data could select a constructor, which is what
+a program does by calling one. What every service shares — an address, and
+possibly an OAuth client — is derived once in `services.ts` from what each
+constructor returns, so publishing and client registration are still written in
+one place rather than per service. That matters most for the redirect
+allowlist: it is what stands between the identity provider and an open
+redirect, and a service builds its redirect URI from the same binding it
+publishes at, so the two cannot disagree.
 
-Config schemas are **strict**. `nodeSelector` sat in two service blocks for months doing nothing, because Zod strips unknown keys in silence and the generated JSON schema permitted them — it read as pinning to `lady` while the pinning actually came from `nodeAffinityHostname` on the volumes. A key nobody reads now fails the preview.
+**A package per deployable unit.** navidrome, files and blit are packages like
+everything else — the answer to "should X be a package" is now yes, uniformly,
+because a package is where a thing's deploy shape and its image pin belong
+together. What a package does *not* hold is its own address.
+
+**The schemas survive as a defaults-and-invariants layer, not a parser.** Each
+constructor takes `z.input<Schema>` and parses its own arguments, so a call site
+states only what it differs on and thirty defaults stay stated once. TypeScript
+describes shapes; Zod is kept for the relationships a type cannot express —
+that `k3s.version` and `k3s.ciliumVersion` are a tested pair, that no two
+REALITY server names share a first label.
 
 `mise run check:profiles` runs the **real** sing-box binary (pinned to the oldest core the fleet is on, `MIN_CORE` in the script) over every profile shape via docker `check`. That is the only test that answers "will the devices accept this" — a schema cannot, since the published one is always the latest. Skips silently without a docker daemon.
 
@@ -173,7 +199,7 @@ each relying party knowing how identity works is the thing being removed.
 - **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and Traefik's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (Traefik's `:8443`); matched clients are proxied out. One REALITY UUID per VPN user (`email: <name>`), delivered inside that user's sing-box profile (see RBAC). `serverNames` is a list, and deliberately contains none of our hostnames — content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain gets every handshake forged. The client carries one outbound per name in its urltest, so no single borrowed identity being blocked (google in China, an adult mis-rating in a pub) is fatal (see docs/architecture.md, Hardening notes).
 - **sing-box delivery** — `@jaritanet/vpn` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware), writes each to the file server over SSH (content-hashed, so unchanged deploys are silent), sweeps superseded slug files so rotated profile URLs 404 rather than serving stale credentials, and notifies Telegram with every user's URL on change. The notify script is piped to node over stdin rather than named as a file, because every input of a `local.Command` is a trigger and an absolute path made the checkout's location part of the resource — a deploy from a worktree announced a credential rotation that had not happened. It must therefore stay self-contained: a relative import has nothing to resolve against.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback. Its Prometheus endpoint carries the router, service and entrypoint labels, which is the difference between per-route rates and one number for the whole estate.
-- **Metrics** — `kind: metrics`. Grafana opens on a triage page rather than on its own onboarding: the worst disk, the worst container, anything unmeasured, and the nearest certificate expiry, each coloured and named. Anything summed per pod excludes `container=""` — cAdvisor reports the pod-level cgroup alongside its containers under the same `pod` label, so a naive `sum by (pod)` reads double. Cilium exports its own counters and Hubble's flow metrics alongside, including `hubble_drop_total{reason="POLICY_DENIED"}` — the NetworkPolicies in this repo were decorative under flannel and are enforced under Cilium, and that counter is how the difference stops being a belief. Both metrics servers sit on the same hostNetwork agent pod, so they are scraped as static targets on the node rather than discovered from a `prometheus.io/port` annotation that can only name one of them.
+- **Metrics** — Grafana opens on a triage page rather than on its own onboarding: the worst disk, the worst container, anything unmeasured, and the nearest certificate expiry, each coloured and named. Anything summed per pod excludes `container=""` — cAdvisor reports the pod-level cgroup alongside its containers under the same `pod` label, so a naive `sum by (pod)` reads double. Cilium exports its own counters and Hubble's flow metrics alongside, including `hubble_drop_total{reason="POLICY_DENIED"}` — the NetworkPolicies in this repo were decorative under flannel and are enforced under Cilium, and that counter is how the difference stops being a belief. Both metrics servers sit on the same hostNetwork agent pod, so they are scraped as static targets on the node rather than discovered from a `prometheus.io/port` annotation that can only name one of them.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records.
 - **Gateway** — Hetzner. `gateway.hcloudToken` and `gateway.k3s` are both required: the box provides the cluster.
 - **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `vpnEntryLabel`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
@@ -193,10 +219,6 @@ Triggered on pushes and pull requests affecting package files, manually via `wor
 Runs `pulumi preview --refresh` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge. The refresh is what makes it call the cloud APIs, so a credential revoked since the last deploy fails here rather than mid-deploy.
 
 Both verbs enter `packages/infra/src/deploy.ts` (Pulumi Automation API), which applies stack config from the environment and then previews or updates. Sharing an entrypoint is the point: a preview produced by different machinery than the deploy predicts nothing. Config is written to the checked-out `Pulumi.main.yaml` rather than the shared stack, so one PR's injected hostnames never reach another's preview.
-
-### Schema Generation (`generate-schemas.yml`)
-
-Generates JSON schemas from Zod definitions on changes or daily schedule. Commits with `[skip ci]` tag.
 
 ### App Version Updates (`update-apps.yml`)
 
@@ -263,7 +285,6 @@ repo-wide.
 
 ## Utility Scripts
 
-- **`scripts/gen-schemas.ts`** - Converts Zod schemas to JSON Schema format
 - **`scripts/k3s-node-token`** - Prints the k3s join token, read off the control-plane node through the API. The token exists only on that box and nothing in the stack reads it back, so a privileged pod is the way in until SSH exists
 - **`scripts/make-seed-drive`** - Builds the cloud-init seed drive that provisions a bare-metal node. A node is flashed with Ubuntu's cloud image directly rather than booted from an installer, which avoids betting on the boot order and BIOS password of a second-hand machine; the config arrives separately on a FAT32 volume labelled `CIDATA`, because macOS cannot write the image's ext4 root
 - **`scripts/lima-node`** - Joins a throwaway Lima VM to the cluster as a k3s agent, on the tailnet so the control plane can reach its kubelet back. Exercises the agent join path without hardware

@@ -7,7 +7,9 @@
   "main": "./src/main.ts",
   "dependencies": {
     "@jaritanet/auth": "workspace:*",
+    "@jaritanet/blit": "workspace:*",
     "@jaritanet/dns": "workspace:*",
+    "@jaritanet/files": "workspace:*",
     "@jaritanet/hetzner": "workspace:*",
     "@jaritanet/home": "workspace:*",
     "@jaritanet/ingress": "workspace:*",
@@ -15,6 +17,7 @@
     "@jaritanet/mariastew": "workspace:*",
     "@jaritanet/mcp-gateway": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
+    "@jaritanet/navidrome": "workspace:*",
     "@jaritanet/remote": "workspace:*",
     "@jaritanet/vpn": "workspace:*",
     "@pulumi/command": "1.2.1",

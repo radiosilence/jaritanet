@@ -17,6 +17,8 @@ export const VERSIONS = {
    * weaker supply-chain position, accepted knowingly.
    */
   hysteria: "docker.io/tobyxdd/hysteria:v2.12.2",
+  /** This repo's own; moved by the release process after the image exists. */
+  serveFromEnv: "ghcr.io/radiosilence/serve-from-env:0.1.0",
   ssRust: "ghcr.io/shadowsocks/ssserver-rust:v1.24.0",
   tailscale: "ghcr.io/tailscale/tailscale:v1.102.3",
   unbound: "docker.io/klutchell/unbound:v1.26.0",

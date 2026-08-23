@@ -704,7 +704,7 @@ cannot dial last when choking.
 
 The VPN is multi-tenant. The `vpnUsers` config value is one comma-separated
 list where a trailing `+` marks an admin — `jc+,guest1` → `jc` admin, `guest1`
-guest. `conf.ts` parses it into `{name, role}[]`; unset falls back to a single
+guest. `parseVpnUsers` turns it into `{name, role}[]`; unset falls back to a single
 implicit owner-admin, so pre-RBAC deploys keep full access. Each user gets their
 own credentials and their own sing-box profile at `<profile-host>/<slug>.json`
 (slug derived from a Pulumi-generated base + name — deterministic, so a

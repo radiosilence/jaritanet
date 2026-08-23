@@ -1,25 +1,20 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parse, parseDocument } from "yaml";
+import { parse } from "yaml";
 import {
   applyTemplate,
   decide,
   normaliseVersion,
   parseImageRef,
   pickLatestTag,
-  readAt,
   readConst,
-  STRINGIFY_OPTIONS,
   TrackedListSchema,
   verifyRef,
-  writeAt,
   writeConst,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
-const config = () =>
-  readFile(join(ROOT, "packages", "infra", "Pulumi.main.yaml"), "utf8");
 const tracked = async () =>
   TrackedListSchema.parse(
     parse(
@@ -29,9 +24,7 @@ const tracked = async () =>
 
 /** Every package `versions.ts` an entry points at, keyed by its repo path. */
 const pinSources = async (entries: Awaited<ReturnType<typeof tracked>>) => {
-  const files = [
-    ...new Set(entries.flatMap((e) => ("file" in e ? [e.file] : []))),
-  ];
+  const files = [...new Set(entries.map((e) => e.file))];
   const texts = await Promise.all(
     files.map((f) => readFile(join(ROOT, f), "utf8")),
   );
@@ -126,7 +119,7 @@ describe("parseImageRef", () => {
 });
 
 describe("verifyRef", () => {
-  const entry = { app: "a", repo: "o/r", path: ["x"], value: "" };
+  const entry = { app: "a", repo: "o/r", file: "f.ts", key: "k", value: "" };
 
   it("prefers an explicit image, templated", () => {
     expect(
@@ -220,14 +213,10 @@ describe("decide", () => {
 
 describe("targets against the real tree", () => {
   it("resolves every tracked entry to a string", async () => {
-    const doc = parseDocument(await config());
     const entries = await tracked();
     const sources = await pinSources(entries);
     for (const entry of entries) {
-      const current =
-        "path" in entry
-          ? readAt(doc, entry.path)
-          : readConst(sources.get(entry.file)!, entry.key);
+      const current = readConst(sources.get(entry.file)!, entry.key);
       expect(current, `${entry.app} resolves`).toEqual(expect.any(String));
     }
   });
@@ -241,103 +230,19 @@ describe("targets against the real tree", () => {
     const entries = await tracked();
     for (const [file, source] of await pinSources(entries)) {
       const watched = new Set(
-        entries.flatMap((e) => ("file" in e && e.file === file ? [e.key] : [])),
+        entries.flatMap((e) => (e.file === file ? [e.key] : [])),
       );
-      for (const [, key] of source.matchAll(/^\s{2}(\w+): "/gm)) {
+      // `VERSIONS` only. A pin that deliberately floats lives in `FLOATING`,
+      // which is the point of the two being separate consts — a decision not to
+      // track has to be visible, and an oversight still has to fail here.
+      const pins = /export const VERSIONS = \{([\s\S]*?)^\} as const;/m.exec(
+        source,
+      )?.[1];
+      expect(pins, `${file} exports VERSIONS`).toEqual(expect.any(String));
+      for (const [, key] of pins!.matchAll(/^\s{2}(\w+): "/gm)) {
         expect(watched.has(key!), `${file}: ${key} is tracked`).toBe(true);
       }
     }
-  });
-
-  it("picks a list entry by id rather than position", async () => {
-    const doc = parseDocument(await config());
-    const path = [
-      "config",
-      "jaritanet:services",
-      "mcp-gateway",
-      "mcps",
-      { id: "tfl" },
-      "image",
-    ];
-    expect(readAt(doc, path)).toContain("tfl-mcp");
-  });
-
-  it("reports a selector matching nothing", async () => {
-    const doc = parseDocument(await config());
-    expect(
-      readAt(doc, [
-        "config",
-        "jaritanet:services",
-        "mcp-gateway",
-        "mcps",
-        { id: "nope" },
-        "image",
-      ]),
-    ).toBeUndefined();
-    expect(
-      writeAt(
-        doc,
-        [
-          "config",
-          "jaritanet:services",
-          "mcp-gateway",
-          "mcps",
-          { id: "nope" },
-          "image",
-        ],
-        "x",
-      ),
-    ).toBe(false);
-  });
-});
-
-describe("rewriting the config", () => {
-  it("round-trips an untouched document byte for byte", async () => {
-    const raw = await config();
-    expect(parseDocument(raw).toString(STRINGIFY_OPTIONS)).toBe(raw);
-  });
-
-  it("changes only the line it was asked to change", async () => {
-    const raw = await config();
-    const doc = parseDocument(raw);
-    const path = [
-      "config",
-      "jaritanet:services",
-      "mcp-gateway",
-      "mcps",
-      { id: "tfl" },
-      "image",
-    ];
-
-    expect(writeAt(doc, path, "ghcr.io/radiosilence/tfl-mcp:v9.9.9")).toBe(
-      true,
-    );
-
-    const after = doc.toString(STRINGIFY_OPTIONS).split("\n");
-    const changed = raw
-      .split("\n")
-      .flatMap((line, i) => (line === after[i] ? [] : [i]));
-    expect(changed).toHaveLength(1);
-    expect(after[changed[0]!]).toContain("v9.9.9");
-  });
-
-  it("keeps a quoted scalar quoted, so a version cannot come back as a float", async () => {
-    const doc = parseDocument(await config());
-    const path = [
-      "config",
-      "jaritanet:services",
-      "files",
-      "args",
-      "image",
-      "tag",
-    ];
-
-    expect(writeAt(doc, path, "41.0")).toBe(true);
-
-    expect(doc.toString(STRINGIFY_OPTIONS)).toContain('tag: "41.0"');
-    expect(readAt(parseDocument(doc.toString(STRINGIFY_OPTIONS)), path)).toBe(
-      "41.0",
-    );
   });
 });
 

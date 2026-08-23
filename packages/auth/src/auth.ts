@@ -3,6 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { AuthConfSchema } from "./auth.schemas.ts";
+import { UNTRACKED, VERSIONS } from "./versions.ts";
 
 const APP = "auth";
 const REDIS = "auth-redis";
@@ -40,14 +41,19 @@ export function firstPartyClients(
   clients: { id: string; name: string; redirectUri: string; secret: string }[],
 ) {
   return JSON.stringify(
-    clients.map((c) => ({
-      id: c.id,
-      name: c.name,
-      secret: c.secret,
-      // Exact matches only. A wildcard on a hostname is how one forgotten
-      // subdomain becomes a token thief.
-      redirect_uris: [c.redirectUri],
-    })),
+    // Sorted by id for the reason the env block in `createService` is: the
+    // registry's contents are what matter, and its order should not depend on
+    // which order the stack happened to construct the services in.
+    clients
+      .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        secret: c.secret,
+        // Exact matches only. A wildcard on a hostname is how one forgotten
+        // subdomain becomes a token thief.
+        redirect_uris: [c.redirectUri],
+      })),
   );
 }
 
@@ -90,6 +96,8 @@ export function createAuth(
     githubClientId: pulumi.Input<string>;
     githubClientSecret: pulumi.Input<string>;
     githubAllowed: pulumi.Input<string>;
+    /** Where it stands, shared with Hydra and split by path. */
+    hostname: string;
     /** Cluster-internal, and never fronted by an IngressRoute. */
     hydraAdminUrl: pulumi.Input<string>;
     clients: RelyingParty[];
@@ -137,7 +145,7 @@ export function createAuth(
             containers: [
               {
                 name: "redis",
-                image: conf.redisImage,
+                image: UNTRACKED.redis,
                 // Both halves of the default persistence, off: `--save ""`
                 // stops the periodic dump, `--appendonly no` the log. Otherwise
                 // a container with no volume writes both to its own filesystem
@@ -199,12 +207,12 @@ export function createAuth(
             containers: [
               {
                 name: APP,
-                image: `${conf.image.repository}:${conf.image.tag}`,
-                imagePullPolicy: conf.image.pullPolicy,
+                image: VERSIONS.auth,
+                imagePullPolicy: "IfNotPresent",
                 ports: [{ name: "http", containerPort: 8080 }],
                 env: [
                   { name: "BIND_ADDR", value: "0.0.0.0:8080" },
-                  { name: "PUBLIC_URL", value: `https://${conf.hostname}` },
+                  { name: "PUBLIC_URL", value: `https://${opts.hostname}` },
                   // Bare service names: everything addressed here is in the
                   // same namespace as the pod resolving it, so the search path
                   // finds it and the namespace — an Output — stays out of a

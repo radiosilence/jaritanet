@@ -1,4 +1,4 @@
-import { ImageSchema, LimitsSchema } from "@jaritanet/k8s";
+import { LimitsSchema } from "@jaritanet/k8s";
 import * as z from "zod";
 
 /**
@@ -13,8 +13,6 @@ import * as z from "zod";
  * a public repository.
  */
 export const AuthConfSchema = z.strictObject({
-  hostname: z.string().default(""),
-  image: ImageSchema,
   /**
    * Stateless apart from Redis, so this is only about surviving a node losing
    * a pod: every service's login goes through it, and one replica means a
@@ -26,5 +24,4 @@ export const AuthConfSchema = z.strictObject({
    * Holds one nonce per login in flight, for ten minutes. Pinned like anything
    * else, and deliberately not persisted — see the deployment.
    */
-  redisImage: z.string().default("redis:8-alpine"),
 });
