@@ -17,7 +17,7 @@ export const VERSIONS = {
    * weaker supply-chain position, accepted knowingly.
    */
   hysteria: "docker.io/tobyxdd/hysteria:v2.12.2",
-  ssRust: "ghcr.io/shadowsocks/ssserver-rust:v1.24.0",
+  ssRust: "ghcr.io/shadowsocks/ssserver-rust:v1.25.0",
   tailscale: "ghcr.io/tailscale/tailscale:v1.102.3",
   unbound: "docker.io/klutchell/unbound:v1.26.0",
   xray: "ghcr.io/xtls/xray-core:26.3.27",
