@@ -81,6 +81,9 @@ export const hostnames: Record<string, string> = {
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   navidrome: "music.blit.cc",
+  // Not ours, and not on blit.cc: a pub on West Ham Lane, whose domain was
+  // pointing at a dead origin and 502ing.
+  queenshead: "queensheadstratford.london",
   // Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials",
   // so a filtered network — exactly the network a VPN profile is wanted on —
   // blocks the device from fetching its own subscription.
@@ -193,6 +196,14 @@ export const zones = ZonesConfSchema.parse([
     name: "buttholes.live",
     zoneId: "1115a1e5006523692d61e49e672f6df0",
     modules: MAIL_MODULES,
+  },
+  {
+    // Somebody else's domain, hosted as a favour. No mail modules: their email
+    // is not ours to point anywhere, and adding MX records to a working mailbox
+    // is the one mistake here that would actually cost somebody something.
+    name: "queensheadstratford.london",
+    zoneId: "14d84661caade3ab45cf9d16f76102a1",
+    modules: [],
   },
 ]);
 

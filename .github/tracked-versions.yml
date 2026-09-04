@@ -211,6 +211,16 @@
   value: "sha-{version}"
   image: "ghcr.io/radiosilence/blit:sha-{version}"
 
+# Same reasoning as blit, and the same shape: a website following a branch, whose
+# CI asks this workflow to run once the image is pushed.
+- app: queenshead
+  repo: radiosilence/qhstrtfrd
+  branch: main
+  file: packages/queenshead/src/versions.ts
+  key: queenshead
+  value: "sha-{version}"
+  image: "ghcr.io/radiosilence/qhstrtfrd:sha-{version}"
+
 # Deliberately absent, and each said so where it is pinned, in an `UNTRACKED`
 # const beside the `VERSIONS` the updater does read: Hydra (a major bump needs
 # a database migration), and postgres and redis (major tags that carry their

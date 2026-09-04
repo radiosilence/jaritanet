@@ -16,6 +16,7 @@
     "@jaritanet/k8s": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
     "@jaritanet/navidrome": "workspace:*",
+    "@jaritanet/queenshead": "workspace:*",
     "@jaritanet/remote": "workspace:*",
     "@jaritanet/vpn": "workspace:*",
     "@pulumi/command": "1.2.1",

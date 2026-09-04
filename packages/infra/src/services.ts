@@ -27,6 +27,7 @@ import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createNavidrome } from "@jaritanet/navidrome";
+import { createQueenshead } from "@jaritanet/queenshead";
 import {
   createProfileServer,
   type Exit,
@@ -162,6 +163,14 @@ export function createServices(ctx: EstateContext) {
     }),
   );
   add(createBlit(provider, "blit", { hostname: hostnames.blit }));
+  // Somebody else's pub, on somebody else's domain, served from the same node
+  // and the same base image as blit. Nothing about it is special enough to
+  // deserve its own anything.
+  add(
+    createQueenshead(provider, "queenshead", {
+      hostname: hostnames.queenshead,
+    }),
+  );
 
   // What lady serves off the media drive. Shares are anonymous — `map to guest`
   // turns unknown users into `guestAccount`, which must own the files or every
