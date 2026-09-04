@@ -202,7 +202,7 @@ export const zones = ZonesConfSchema.parse([
     // is not ours to point anywhere, and adding MX records to a working mailbox
     // is the one mistake here that would actually cost somebody something.
     name: "queensheadstratford.london",
-    zoneId: "REPLACE_WITH_ZONE_ID",
+    zoneId: "14d84661caade3ab45cf9d16f76102a1",
     modules: [],
   },
 ]);
