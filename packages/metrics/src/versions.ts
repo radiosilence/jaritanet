@@ -12,7 +12,7 @@
 export const VERSIONS = {
   grafana: "docker.io/grafana/grafana:13.2.0",
   nodeExporter: "quay.io/prometheus/node-exporter:v1.12.1",
-  victoriaMetrics: "1.150.0",
+  victoriaMetrics: "1.151.0",
 } as const;
 
 export const VM_SINGLE_IMAGE = `docker.io/victoriametrics/victoria-metrics:v${VERSIONS.victoriaMetrics}`;
