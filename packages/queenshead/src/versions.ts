@@ -8,5 +8,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  queenshead: "sha-72a76e9",
+  queenshead: "sha-9fd98b8",
 } as const;
