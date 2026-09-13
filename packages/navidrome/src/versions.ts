@@ -5,5 +5,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  navidrome: "0.63.2",
+  navidrome: "0.64.0",
 } as const;
