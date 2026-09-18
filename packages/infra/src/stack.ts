@@ -81,9 +81,6 @@ export const hostnames: Record<string, string> = {
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   navidrome: "music.blit.cc",
-  // Not ours, and not on blit.cc: a pub on West Ham Lane, whose domain was
-  // pointing at a dead origin and 502ing.
-  queenshead: "queensheadstratford.london",
   // Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials",
   // so a filtered network — exactly the network a VPN profile is wanted on —
   // blocks the device from fetching its own subscription.
