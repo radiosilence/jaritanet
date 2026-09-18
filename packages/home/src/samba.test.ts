@@ -9,7 +9,9 @@ import { smbConf } from "./samba.ts";
  * schema, for the same reason the mcp registry tests assert the wire format.
  */
 const parse = (shares: unknown[]) =>
-  smbConf(SambaConfSchema.parse({ guestAccount: "jc", shares }));
+  smbConf(
+    SambaConfSchema.parse({ guestAccount: "jc", lanInterface: "eno1", shares }),
+  );
 
 const music = { name: "music", hostPath: "/mnt/kontent/music" };
 
@@ -71,5 +73,14 @@ describe("smbConf", () => {
     expect(conf).toContain("server min protocol = SMB2");
     expect(conf).toContain("disable netbios = yes");
     expect(conf).toContain("smb ports = 445");
+  });
+
+  it("takes the interface avahi answers on rather than guessing", () => {
+    // A hostNetwork pod sees cilium_host and every pod veth too, so an
+    // unstated interface means the share is announced on links with nothing
+    // behind them.
+    expect(() =>
+      SambaConfSchema.parse({ guestAccount: "jc", shares: [music] }),
+    ).toThrow();
   });
 });

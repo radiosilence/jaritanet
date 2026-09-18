@@ -188,6 +188,10 @@ export function createServices(ctx: EstateContext) {
     ns,
     {
       guestAccount: "jc",
+      // What faces the house on lady. Avahi answers mDNS here and nowhere
+      // else, so the Apple TV finds the shares without needing the tailnet to
+      // reach a box on the same switch.
+      lanInterface: "eno1",
       shares: [
         { name: "music", hostPath: "/mnt/kontent/music" },
         { name: "movies", hostPath: "/mnt/kontent/movies" },
