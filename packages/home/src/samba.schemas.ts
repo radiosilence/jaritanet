@@ -42,7 +42,17 @@ export const SambaShareSchema = z.object({
 export const SambaConfSchema = z.object({
   image: z
     .string()
-    .default("ghcr.io/servercontainers/samba:smbd-only-a3.24.1-s4.23.8-r0"),
+    .default("ghcr.io/servercontainers/samba:a3.24.1-s4.23.8-r0"),
+  /**
+   * The node interface avahi answers mDNS on.
+   *
+   * Required, because a hostNetwork pod sees every interface the node has:
+   * left to itself avahi publishes across `cilium_host` and each pod veth as
+   * well, announcing a share on links with nothing on the other end. Named
+   * rather than derived for the same reason the node label is — which
+   * interface faces the house is a fact about the machine.
+   */
+  lanInterface: z.string(),
   /** `hosts allow` — the tailnet and the LAN, never the internet. */
   allowedNetworks: z
     .array(z.string())
