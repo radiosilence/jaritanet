@@ -25,10 +25,10 @@ const shareBlock = (
  * The image's own env-var templating is bypassed for the same reason: a share
  * that appears from an environment variable is a share nobody reviewed.
  *
- * `disable netbios` with `smb ports = 445` drops nmbd, 137, 138 and 139
- * entirely. NetBIOS name resolution has been unnecessary since SMB1 died —
- * macOS and Windows both discover over mDNS and WSD now — so the alternative
- * was three more exclusive host ports serving a protocol nothing asks for.
+ * `disable netbios` with `smb ports = 445` keeps smbd off 137, 138 and 139.
+ * It does not drop nmbd: the image starts that from runit whatever smb.conf
+ * says, so `NETBIOS_DISABLE` on the DaemonSet is what actually removes it —
+ * this config alone left nmbd holding both UDP ports on the node.
  *
  * `logging = stdout` is the one line that only makes sense in a container, and
  * it is the reason this is worth moving: share access becomes `kubectl logs`
@@ -48,7 +48,7 @@ export const smbConf = (samba: z.infer<typeof SambaConfSchema>) => `[global]
   # NetworkPolicy is in this path.
   hosts allow = ${samba.allowedNetworks.join(" ")}
   server min protocol = SMB2
-  # Drops nmbd along with 137, 138 and 139 — see above.
+  # Keeps smbd off 137, 138 and 139; nmbd is dropped by the DaemonSet.
   disable netbios = yes
   smb ports = 445
   load printers = no
@@ -73,6 +73,17 @@ ${samba.shares.map(shareBlock).join("")}`;
  * defaulted: whoever labels the node and whoever selects on it must agree
  * exactly, and a selector matching nothing schedules zero pods onto a cluster
  * that reports perfectly healthy.
+ *
+ * Avahi advertises `_smb._tcp` and the node's own `<host>.local`, and it is the
+ * only thing that makes the shares reachable by name on the LAN. The node takes
+ * a DHCP lease and publishes nothing else, so without it a client has to be
+ * given an address that can change, or reach the box over the tailnet — and a
+ * player on a device whose tailnet session has lapsed then fails to open a file
+ * sitting on the same switch. mDNS is link-local and announces only; `hosts
+ * allow` is still what decides who may read.
+ *
+ * wsdd2 goes with nmbd. Nothing here speaks WSD, and serving it would take 3702
+ * and 5357 on the host as well.
  *
  * Runs as root with a narrow capability set, not as the media's uid. smbd binds
  * a privileged port and then forks and drops to the guest account per
@@ -144,6 +155,11 @@ export function createSamba(
                     name: `GROUPID_${samba.guestAccount}`,
                     value: String(samba.guestGid),
                   },
+                  // Deletes the runit service. Anything non-empty counts as
+                  // set, including "".
+                  { name: "NETBIOS_DISABLE", value: "1" },
+                  { name: "WSDD2_DISABLE", value: "1" },
+                  { name: "AVAHI_INTERFACES", value: samba.lanInterface },
                 ],
                 // A request and no CPU limit, as everywhere else here: CFS
                 // throttling on a file server is a stalled transfer rather than
