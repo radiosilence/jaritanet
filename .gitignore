@@ -36,3 +36,6 @@ apps/*/target
 
 # Written by `mise run auth`; holds a GitHub Packages token.
 .npmrc.auth
+
+# Personal Claude Code context; never shared through the repository.
+CLAUDE.local.md
