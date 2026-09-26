@@ -22,6 +22,8 @@ on:
     paths:
       - .github/workflows/cd.yml
       - "packages/**"
+      # Charts that live beside their app: a pin bump there is a deploy.
+      - "apps/*/deploy/**"
       - "*.config.*"
       - package.json
   workflow_call:
