@@ -27,7 +27,7 @@
     "@pulumi/tailscale": "^0.29.0",
     "@pulumi/tls": "5.4.0",
     "@radiosilence/mariastew-pulumi": "0.2.1",
-    "@radiosilence/mcp-gateway-pulumi": "0.9.1",
+    "@radiosilence/mcp-gateway-pulumi": "0.9.0",
     "@radiosilence/slsk-mcp-pulumi": "0.1.0",
     "yaml": "2.9.0",
     "zod": "4.4.3"
