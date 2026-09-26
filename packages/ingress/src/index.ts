@@ -1,6 +1,7 @@
 export {
   createIngress,
   createIngressRoute,
+  createPathAlias,
   createRedirectMiddleware,
   routeMatch,
 } from "./ingress.ts";
