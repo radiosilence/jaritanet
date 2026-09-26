@@ -636,6 +636,26 @@ const soulseek = dashboard(
       targets: [["slsk_jobs", "{{status}}"]],
     },
     {
+      title: "Why albums did not land",
+      description:
+        "Outcomes other than a clean import, by cause. A cause that keeps recurring is a fix to make in slsk-mcp; its triage query lists examples and the version that produced them.",
+      targets: [
+        [
+          'sum by (cause) (increase(slsk_job_outcomes_total{cause!=""}[1h]))',
+          "{{cause}}",
+        ],
+      ],
+    },
+    {
+      title: "Albums imported",
+      targets: [
+        [
+          'sum(increase(slsk_job_outcomes_total{outcome="imported"}[1h])) or vector(0)',
+          "imported / h",
+        ],
+      ],
+    },
+    {
       title: "Downloads finished and failed",
       targets: [
         ["increase(slsk_downloads_completed_total[1h])", "files finished / h"],
