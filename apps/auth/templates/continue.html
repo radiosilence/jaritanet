@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{#- A page rather than a 302 after the consent form: form-action applies to
+    every redirect that follows a form submission, and the last hop leaves for
+    the client's own redirect URI, which is not 'self'. A meta refresh is a
+    fresh navigation that form-action does not govern, so the policy stays as
+    strict as the page needs. `to` comes from Hydra, and is escaped. -#}
+{% block head %}<meta http-equiv="refresh" content="0; url={{ to }}" />{% endblock %}
+
+{% block title %}Continuing{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{{ heading }}</h1>
+  <p><a href="{{ to }}">Continue</a> if nothing happens.</p>
+</section>
+{% endblock %}

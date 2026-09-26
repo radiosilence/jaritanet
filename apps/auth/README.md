@@ -83,6 +83,15 @@ is a form. A self-registered client picks its own `client_name`, which is
 rendered on that screen, so everything interpolated there is attacker-chosen and
 goes through the template's escaping.
 
+**The consent decision answers with a page, not a redirect.** The CSP also holds
+`form-action 'self'`, and browsers apply `form-action` to every redirect that
+follows a form submission. The decision's last hop leaves for the client's own
+redirect URI (`claude.ai`, or `localhost` for a CLI), so a 302 was silently
+dropped and "Allow" appeared to do nothing — for self-registered clients only,
+since first-party ones never see the form. A meta refresh is a new navigation
+that `form-action` does not govern, so the policy stays as strict as the page
+needs.
+
 ## Configuration
 
 Everything is an environment variable, set by Pulumi (`packages/auth`), parsed

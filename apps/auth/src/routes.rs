@@ -50,6 +50,22 @@ fn redirect(location: &str, cookies: &[String]) -> Response {
 struct IndexTemplate;
 
 #[derive(Template)]
+#[template(path = "continue.html")]
+struct ContinueTemplate<'a> {
+    heading: &'a str,
+    to: &'a str,
+}
+
+/// Where a consent decision sends the browser next. See `continue.html` for
+/// why this is a page and not a redirect.
+fn continue_to(heading: &str, to: &str) -> AppResult<Response> {
+    let html = ContinueTemplate { heading, to }
+        .render()
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+    Ok(Html(html).into_response())
+}
+
+#[derive(Template)]
 #[template(path = "consent.html")]
 struct ConsentTemplate {
     challenge: String,
@@ -97,7 +113,7 @@ pub async fn login(
             .accept_login(&q.login_challenge, &request.subject, &claims)
             .await
             .map_err(|e| AppError::Upstream(e.to_string()))?;
-        return Ok(redirect(&redirect_to, &[]));
+        return continue_to("Denied", &redirect_to);
     }
 
     let csrf = csrf_token();
@@ -262,5 +278,23 @@ pub async fn consent_decision(
         .accept_consent(&decision.challenge, &request)
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
-    Ok(redirect(&redirect_to, &[]))
+    continue_to("Allowed", &redirect_to)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_decision_continues_by_page_so_form_action_stays_self() {
+        let html = ContinueTemplate {
+            heading: "Allowed",
+            to: "https://claude.ai/api/mcp/auth_callback?code=a&state=b\"><script>",
+        }
+        .render()
+        .unwrap();
+        assert!(html.contains(r#"<meta http-equiv="refresh" content="0; url="#));
+        assert!(html.contains("code=a&#38;state=b") || html.contains("code=a&amp;state=b"));
+        assert!(!html.contains("<script>"));
+    }
 }
