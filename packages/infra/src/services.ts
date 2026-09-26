@@ -325,7 +325,10 @@ export function createServices(ctx: EstateContext) {
         provider,
         ns,
         {
+          // Both on the media drive, so an import is a rename; each is its own
+          // local volume, so an unmounted drive leaves the pod waiting.
           library: "/mnt/kontent/music",
+          downloads: "/mnt/kontent/slsk",
           beetsConfig: readFileSync(
             new URL("./beets.yaml", import.meta.url),
             "utf8",
@@ -335,7 +338,7 @@ export function createServices(ctx: EstateContext) {
         },
         {
           hostname: hostnames.slsk,
-          nodeLabel: FILE_NODE_LABEL,
+          node: MEDIA_NODE,
           oidc: { issuer: `https://${ctx.authHostname}`, clientId: "slsk" },
           oidcClientSecret: secret,
           // Generated once and kept in state: a new seal key would orphan the
