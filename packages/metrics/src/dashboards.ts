@@ -63,6 +63,8 @@ type Stat = {
   target: [string, string];
   /** `[amber, red]`: where it stops being fine, and where it is a problem. */
   thresholds: [number, number];
+  /** Digits after the point; whole numbers unless a fraction is the answer. */
+  decimals?: number;
   /**
    * For a number where *less* is worse — time left on a certificate, not
    * percent of a disk used. The thresholds stay ascending, which is what
@@ -113,7 +115,7 @@ function dashboard(
         fieldConfig: {
           defaults: {
             unit: stat.unit ?? "short",
-            decimals: 0,
+            decimals: stat.decimals ?? 0,
             mappings: [],
             thresholds: {
               mode: "absolute",
@@ -708,6 +710,43 @@ const soulseek = dashboard(
     },
   ],
   [
+    // What the client is for: how much it has given back against how much
+    // it has taken, over the dashboard's range. increase() rides over the
+    // counters resetting when the pod restarts. Neither total is good or bad
+    // on its own, so they stay green; the ratio is what colours.
+    {
+      title: "Uploaded",
+      description: "Bytes sent to other users over the selected time range.",
+      unit: "bytes",
+      target: [
+        "sum(increase(slsk_uploaded_bytes_total[$__range])) or vector(0)",
+        "given",
+      ],
+      thresholds: [Number.MAX_VALUE, Number.MAX_VALUE],
+    },
+    {
+      title: "Downloaded",
+      description:
+        "Bytes received from other users over the selected time range.",
+      unit: "bytes",
+      target: [
+        "sum(increase(slsk_downloaded_bytes_total[$__range])) or vector(0)",
+        "taken",
+      ],
+      thresholds: [Number.MAX_VALUE, Number.MAX_VALUE],
+    },
+    {
+      title: "Give/take ratio",
+      description:
+        "Uploaded over downloaded for the selected range. Amber below 0.5, red below 0.1: taking far more than is given back.",
+      target: [
+        "sum(increase(slsk_uploaded_bytes_total[$__range])) / sum(increase(slsk_downloaded_bytes_total[$__range]))",
+        "ratio",
+      ],
+      thresholds: [0.1, 0.5],
+      invert: true,
+      decimals: 2,
+    },
     {
       title: "Logged in",
       description:
