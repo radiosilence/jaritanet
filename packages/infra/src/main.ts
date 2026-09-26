@@ -398,6 +398,10 @@ export default async function () {
     users,
     telegram: telegram,
     authHostname,
+    slskAccount:
+      secrets.slskUsername && secrets.slskPassword
+        ? { username: secrets.slskUsername, password: secrets.slskPassword }
+        : undefined,
   };
 
   const { routes: serviceRoutes, clients } = createServices(estate);

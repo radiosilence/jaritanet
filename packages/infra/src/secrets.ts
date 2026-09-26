@@ -29,6 +29,13 @@ const SecretsSchema = z.strictObject({
     .string()
     .regex(/^-?\d+$/, "must be a Telegram chat id (an integer)")
     .optional(),
+  /**
+   * The Soulseek account the client logs in with at start, so it is sharing
+   * before anyone asks it anything. Absent → it waits for credentials from
+   * the MCP gateway or its own UI.
+   */
+  slskUsername: z.string().optional(),
+  slskPassword: z.string().optional(),
   /** Ubuntu Pro, for livepatch. Absent → patches still land on reboot. */
   ubuntuProToken: z.string().optional(),
   /** Comma-separated; a trailing `+` marks an admin. See `parseVpnUsers`. */
@@ -37,4 +44,10 @@ const SecretsSchema = z.strictObject({
 
 const config = new pulumi.Config();
 
-export const secrets = SecretsSchema.parse(config.requireObject("secrets"));
+/** Both or neither: a username alone logs in as nobody. */
+const refineSlsk = (s: z.infer<typeof SecretsSchema>) =>
+  !!s.slskUsername === !!s.slskPassword;
+
+export const secrets = SecretsSchema.refine(refineSlsk, {
+  message: "slskUsername and slskPassword must be set together",
+}).parse(config.requireObject("secrets"));

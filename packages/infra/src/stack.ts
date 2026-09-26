@@ -85,6 +85,7 @@ export const hostnames: Record<string, string> = {
   // so a filtered network — exactly the network a VPN profile is wanted on —
   // blocks the device from fetching its own subscription.
   "singbox-profiles": "p.radiosilence.dev",
+  slsk: "slsk.blit.cc",
 };
 
 export const cloudflare = CloudflareConfSchema.parse({

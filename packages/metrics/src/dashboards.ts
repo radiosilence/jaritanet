@@ -575,10 +575,84 @@ const overview = dashboard(
   ],
 );
 
+/**
+ * The Soulseek client: what the collection gives back, and whether the
+ * client keeps up. Counters are the engine's own (`slsk_*`), scraped from its
+ * pod by annotation.
+ */
+const soulseek = dashboard("jaritanet-soulseek", "Soulseek", [
+  {
+    title: "Throughput",
+    unit: "Bps",
+    targets: [
+      ["rate(slsk_uploaded_bytes_total[$__rate_interval])", "upload"],
+      ["rate(slsk_downloaded_bytes_total[$__rate_interval])", "download"],
+    ],
+  },
+  {
+    title: "Transfers",
+    description:
+      "Uploads waiting is the queue other users are in; it climbs when upload slots are too few for the demand.",
+    targets: [
+      ["slsk_uploads_active", "uploading"],
+      ["slsk_uploads_queued", "uploads waiting"],
+      ["slsk_downloads_active", "downloading"],
+    ],
+  },
+  {
+    title: "Completed and failed",
+    targets: [
+      ["increase(slsk_uploads_completed_total[1h])", "uploads / h"],
+      ["increase(slsk_uploads_failed_total[1h])", "failed uploads / h"],
+      ["increase(slsk_downloads_completed_total[1h])", "downloads / h"],
+      ["increase(slsk_downloads_failed_total[1h])", "failed downloads / h"],
+    ],
+  },
+  {
+    title: "Searches",
+    description:
+      "Requests is every search that reached us, from the server or the distributed network. Dropped means a matching search was shed because too many responses were already in flight.",
+    unit: "reqps",
+    targets: [
+      ["rate(slsk_search_requests_total[$__rate_interval])", "requests"],
+      ["rate(slsk_search_responses_total[$__rate_interval])", "answered"],
+      [
+        "rate(slsk_search_responses_dropped_total[$__rate_interval])",
+        "dropped",
+      ],
+      [
+        "rate(slsk_distributed_forwarded_total[$__rate_interval])",
+        "forwarded to children",
+      ],
+    ],
+  },
+  {
+    title: "Network position",
+    targets: [
+      ["slsk_peer_connections", "peer connections"],
+      ["slsk_distributed_children", "distributed children"],
+    ],
+  },
+  {
+    title: "Given back",
+    description:
+      "Everything uploaded to other users since the counter last reset.",
+    unit: "bytes",
+    targets: [
+      ["slsk_uploaded_bytes_total", "uploaded"],
+      ["slsk_downloaded_bytes_total", "downloaded"],
+    ],
+  },
+  {
+    title: "Files shared",
+    targets: [["slsk_shared_files", "files"]],
+  },
+]);
+
 /** Filename → dashboard JSON, as Grafana's file provisioner wants it. */
 export function dashboardFiles() {
   return Object.fromEntries(
-    [overview, disks, nodes, edge].map((d) => [
+    [overview, disks, nodes, edge, soulseek].map((d) => [
       `${d.uid}.json`,
       JSON.stringify(d, null, 2),
     ]),
