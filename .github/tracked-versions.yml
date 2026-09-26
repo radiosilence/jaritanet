@@ -72,6 +72,14 @@
   package: "@radiosilence/mariastew-pulumi"
   value: "{version}"
 
+# Same shape as mariastew: the repository publishes the component, at the
+# image's version.
+- app: slsk-mcp
+  repo: radiosilence/slsk-mcp
+  manifest: packages/infra/package.json
+  package: "@radiosilence/slsk-mcp-pulumi"
+  value: "{version}"
+
 - app: auth
   repo: radiosilence/jaritanet
   tagPrefix: auth-v

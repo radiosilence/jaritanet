@@ -25,6 +25,8 @@ import { createIngressRoute } from "@jaritanet/ingress";
 import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
+import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
+import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createNavidrome } from "@jaritanet/navidrome";
 import { createQueenshead } from "@jaritanet/queenshead";
@@ -48,6 +50,9 @@ const MARIASTEW_LIMITS = { cpu: "500m", memory: "256Mi" };
 // aria2 hashes pieces, which is the only thing here that wants real CPU.
 const ARIA2_LIMITS = { cpu: "4", memory: "2Gi" };
 const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
+// Hashing a library-sized share and holding thousands of peer connections is
+// real work; idle it is a few MB. See `resourceRequests`.
+const SLSK_LIMITS = { cpu: "2", memory: "1Gi" };
 
 /**
  * What the stack has already built by the time services are created.
@@ -80,6 +85,8 @@ export type EstateContext = {
   users: VpnUser[];
   /** Shared bot: the profile server and mariastew both notify through it. */
   telegram?: { botToken: string; chatId: string };
+  /** The Soulseek account slsk logs in with at start. */
+  slskAccount?: { username: string; password: string };
 };
 
 /**
@@ -297,6 +304,53 @@ export function createServices(ctx: EstateContext) {
                 chatId: ctx.telegram.chatId,
               }
             : undefined,
+        },
+      ),
+      secret,
+    );
+  }
+
+  // --- slsk -----------------------------------------------------------------
+  // The Soulseek client. It writes into the music library, so like mariastew
+  // it is not deployed without a way to authenticate. It runs where the library
+  // is, shares all of it, and files what it fetches into it — navidrome and
+  // syncthing pick new albums up from there like anything else.
+  //
+  // The importer reads the same beets config the laptop does, so an album
+  // lands under the same path whichever machine fetched it.
+  if (hostnames.slsk && ctx.authHostname) {
+    const secret = oidcSecret("slsk");
+    add(
+      createSlsk(
+        provider,
+        ns,
+        {
+          library: "/mnt/kontent/music",
+          beetsConfig: readFileSync(
+            new URL("./beets.yaml", import.meta.url),
+            "utf8",
+          ),
+          limits: SLSK_LIMITS,
+          requests: resourceRequests(SLSK_LIMITS).requests,
+        },
+        {
+          hostname: hostnames.slsk,
+          nodeLabel: FILE_NODE_LABEL,
+          oidc: { issuer: `https://${ctx.authHostname}`, clientId: "slsk" },
+          oidcClientSecret: secret,
+          // Generated once and kept in state: a new seal key would orphan the
+          // stored credentials, and a new password would lock the pod out of
+          // its own database.
+          sealKey: new random.RandomBytes("slsk-seal-key", { length: 32 })
+            .base64,
+          databasePassword: new random.RandomPassword("slsk-database", {
+            length: 40,
+            special: false,
+          }).result,
+          account: ctx.slskAccount && {
+            username: pulumi.secret(ctx.slskAccount.username),
+            password: pulumi.secret(ctx.slskAccount.password),
+          },
         },
       ),
       secret,
