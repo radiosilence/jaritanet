@@ -45,3 +45,7 @@ config:
       secure: AAABAH2gQiEnQhHzpwyAv7u//nuy08yl3yc+yd3rsTHew4jidd45Xp9MzYSUOWcSrw9d3PljUTjmnl/Aw6w=
     vpnUsers:
       secure: AAABACurdilg/HdFEY83oVFyPGyDRfbtDKWALsVqW/yTckjv6qBDJqEc
+    slskUsername:
+      secure: AAABAIT+caDiU0i8W7iWehjiydozveuH//eXlE/UcxUI+7KuMDawMw==
+    slskPassword:
+      secure: AAABAML50uSF2syloEfauzv/V2HNuGe1a+bvH59MMNwcBkQ3lc9SliOzvkv3t45cSVgNSA==
