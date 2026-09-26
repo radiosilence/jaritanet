@@ -21,7 +21,7 @@ import { createBlit } from "@jaritanet/blit";
 import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createSamba, createSyncthing } from "@jaritanet/home";
-import { createIngressRoute } from "@jaritanet/ingress";
+import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
 import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
@@ -257,6 +257,17 @@ export function createServices(ctx: EstateContext) {
     routes.push({
       service: "mcp-gateway-hydra",
       hostname: ctx.authHostname,
+    });
+    // MCP clients look for RFC 8414 metadata first, and some never fall
+    // back to OpenID discovery: without this, signing in stopped before the
+    // browser opened.
+    createPathAlias(ctx.provider, "oauth-as-metadata", {
+      hostname: ctx.authHostname,
+      from: "/.well-known/oauth-authorization-server",
+      to: "/.well-known/openid-configuration",
+      service: "mcp-gateway-hydra-service",
+      namespace: ctx.namespace,
+      traefik: ctx.traefik,
     });
   }
 

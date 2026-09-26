@@ -274,3 +274,60 @@ export function createRedirectMiddleware(
     { provider, dependsOn: traefik ? [traefik] : [] },
   );
 }
+
+/**
+ * Serves one exact path as another on the same service, by rewriting it.
+ *
+ * For a document published under two names: RFC 8414 clients ask an
+ * authorization server for `/.well-known/oauth-authorization-server`, which
+ * Hydra does not serve; its `/.well-known/openid-configuration` carries the
+ * same fields. Serving one as the other keeps a single source, so the two can
+ * never disagree. Priority 200 puts the exact path ahead of both the bare
+ * `Host()` route and prefix routes at 100.
+ */
+export function createPathAlias(
+  provider: k8s.Provider,
+  name: string,
+  opts: {
+    hostname: string;
+    from: string;
+    to: string;
+    service: string;
+    namespace: pulumi.Input<string>;
+    traefik?: pulumi.Resource;
+  },
+) {
+  const dependsOn = opts.traefik ? [opts.traefik] : [];
+  new k8s.apiextensions.CustomResource(
+    `${name}-rewrite`,
+    {
+      apiVersion: "traefik.io/v1alpha1",
+      kind: "Middleware",
+      metadata: { name: `${name}-rewrite`, namespace: opts.namespace },
+      spec: { replacePath: { path: opts.to } },
+    },
+    { provider, dependsOn },
+  );
+  new k8s.apiextensions.CustomResource(
+    `${name}-alias`,
+    {
+      apiVersion: "traefik.io/v1alpha1",
+      kind: "IngressRoute",
+      metadata: { name: `${name}-alias`, namespace: opts.namespace },
+      spec: {
+        entryPoints: ["websecure"],
+        routes: [
+          {
+            kind: "Rule",
+            match: `Host(\`${opts.hostname}\`) && Path(\`${opts.from}\`)`,
+            priority: 200,
+            middlewares: [{ name: `${name}-rewrite` }],
+            services: [{ name: opts.service, port: 80 }],
+          },
+        ],
+        tls: { certResolver: "letsencrypt" },
+      },
+    },
+    { provider, dependsOn },
+  );
+}
