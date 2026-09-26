@@ -576,78 +576,159 @@ const overview = dashboard(
 );
 
 /**
- * The Soulseek client: what the collection gives back, and whether the
- * client keeps up. Counters are the engine's own (`slsk_*`), scraped from its
- * pod by annotation.
+ * The Soulseek client, whole: whether it is online, what it gives back, what
+ * it is fetching, where each album is on its way into the library, and how it
+ * sits in the network. Everything comes from its own `/metrics`, scraped from
+ * the pod by annotation; the state gauges (`slsk_jobs`, `slsk_downloads`,
+ * `slsk_uploads`) are read from its state at scrape time.
  */
-const soulseek = dashboard("jaritanet-soulseek", "Soulseek", [
-  {
-    title: "Throughput",
-    unit: "Bps",
-    targets: [
-      ["rate(slsk_uploaded_bytes_total[$__rate_interval])", "upload"],
-      ["rate(slsk_downloaded_bytes_total[$__rate_interval])", "download"],
-    ],
-  },
-  {
-    title: "Transfers",
-    description:
-      "Uploads waiting is the queue other users are in; it climbs when upload slots are too few for the demand.",
-    targets: [
-      ["slsk_uploads_active", "uploading"],
-      ["slsk_uploads_queued", "uploads waiting"],
-      ["slsk_downloads_active", "downloading"],
-    ],
-  },
-  {
-    title: "Completed and failed",
-    targets: [
-      ["increase(slsk_uploads_completed_total[1h])", "uploads / h"],
-      ["increase(slsk_uploads_failed_total[1h])", "failed uploads / h"],
-      ["increase(slsk_downloads_completed_total[1h])", "downloads / h"],
-      ["increase(slsk_downloads_failed_total[1h])", "failed downloads / h"],
-    ],
-  },
-  {
-    title: "Searches",
-    description:
-      "Requests is every search that reached us, from the server or the distributed network. Dropped means a matching search was shed because too many responses were already in flight.",
-    unit: "reqps",
-    targets: [
-      ["rate(slsk_search_requests_total[$__rate_interval])", "requests"],
-      ["rate(slsk_search_responses_total[$__rate_interval])", "answered"],
-      [
-        "rate(slsk_search_responses_dropped_total[$__rate_interval])",
-        "dropped",
+const soulseek = dashboard(
+  "jaritanet-soulseek",
+  "Soulseek",
+  [
+    {
+      title: "Throughput",
+      unit: "Bps",
+      targets: [
+        ["rate(slsk_uploaded_bytes_total[$__rate_interval])", "upload"],
+        ["rate(slsk_downloaded_bytes_total[$__rate_interval])", "download"],
       ],
-      [
-        "rate(slsk_distributed_forwarded_total[$__rate_interval])",
-        "forwarded to children",
+    },
+    {
+      title: "Given back and taken",
+      description:
+        "Totals since the process started; a restart resets them, which is when the lines drop.",
+      unit: "bytes",
+      targets: [
+        ["slsk_uploaded_bytes_total", "uploaded"],
+        ["slsk_downloaded_bytes_total", "downloaded"],
       ],
-    ],
-  },
-  {
-    title: "Network position",
-    targets: [
-      ["slsk_peer_connections", "peer connections"],
-      ["slsk_distributed_children", "distributed children"],
-    ],
-  },
-  {
-    title: "Given back",
-    description:
-      "Everything uploaded to other users since the counter last reset.",
-    unit: "bytes",
-    targets: [
-      ["slsk_uploaded_bytes_total", "uploaded"],
-      ["slsk_downloaded_bytes_total", "downloaded"],
-    ],
-  },
-  {
-    title: "Files shared",
-    targets: [["slsk_shared_files", "files"]],
-  },
-]);
+    },
+    {
+      title: "Uploads by state",
+      description:
+        "Queued is other users waiting for a slot. A queue that only grows means too few slots, or too little upstream bandwidth.",
+      targets: [["slsk_uploads", "{{state}}"]],
+    },
+    {
+      title: "Users served",
+      description:
+        "Distinct users an upload has finished to since the process started.",
+      targets: [["slsk_upload_users", "users"]],
+    },
+    {
+      title: "Uploads finished and failed",
+      targets: [
+        ["increase(slsk_uploads_completed_total[1h])", "finished / h"],
+        ["increase(slsk_uploads_failed_total[1h])", "failed / h"],
+      ],
+    },
+    {
+      title: "Downloads by state",
+      description:
+        "remote_queued is waiting in someone else's queue; starting is offered and waiting for their connection.",
+      targets: [["slsk_downloads", "{{state}}"]],
+    },
+    {
+      title: "Albums by status",
+      description:
+        "review: the tagger could not choose a release. suspect: the spectrum says lossy or upsampled. Both wait for a person.",
+      targets: [["slsk_jobs", "{{status}}"]],
+    },
+    {
+      title: "Downloads finished and failed",
+      targets: [
+        ["increase(slsk_downloads_completed_total[1h])", "files finished / h"],
+        ["increase(slsk_downloads_failed_total[1h])", "files failed / h"],
+      ],
+    },
+    {
+      title: "Searches",
+      description:
+        "Requests is every search that reached us; answered is those our shares matched. Dropped means a match was shed because too many answers were already in flight.",
+      unit: "reqps",
+      targets: [
+        ["rate(slsk_search_requests_total[$__rate_interval])", "received"],
+        ["rate(slsk_search_responses_total[$__rate_interval])", "answered"],
+        [
+          "rate(slsk_search_responses_dropped_total[$__rate_interval])",
+          "dropped",
+        ],
+        ["rate(slsk_searches_sent_total[$__rate_interval])", "ours"],
+      ],
+    },
+    {
+      title: "Distributed network",
+      description:
+        "Forwarded is searches passed down to children. Branch level 0 with a parent of 0 means we are a branch root, fed by the server directly.",
+      targets: [
+        [
+          "rate(slsk_distributed_forwarded_total[$__rate_interval])",
+          "forwarded / s",
+        ],
+        ["slsk_distributed_children", "children"],
+        ["slsk_distributed_parent", "has parent"],
+        ["slsk_distributed_branch_level", "branch level"],
+      ],
+    },
+    {
+      title: "Shared library",
+      targets: [
+        ["slsk_shared_files", "files"],
+        ["slsk_shared_folders", "folders"],
+      ],
+    },
+    {
+      title: "Connections, messages, wishes",
+      targets: [
+        ["slsk_peer_connections", "peer connections"],
+        ["slsk_messages_unread", "unread messages"],
+        ["slsk_wishes_open", "open wishes"],
+      ],
+    },
+  ],
+  [
+    {
+      title: "Logged in",
+      description:
+        "Red means the client is not on the network: displaced by another login, refused, or disconnected.",
+      target: ["slsk_logged_in", "logged in"],
+      thresholds: [0.5, 1],
+      invert: true,
+    },
+    {
+      title: "Files shared",
+      target: ["slsk_shared_files", "files"],
+      thresholds: [1, 1],
+      invert: true,
+    },
+    {
+      title: "Uploading now",
+      target: ["slsk_uploads_active", "active"],
+      thresholds: [1000, 10000],
+    },
+    {
+      title: "Upload queue",
+      description: "Users waiting for a slot. Amber past 200, red past 1000.",
+      target: ["slsk_uploads_queued", "queued"],
+      thresholds: [200, 1000],
+    },
+    {
+      title: "Needs a person",
+      description: "Albums in review or suspect.",
+      target: [
+        'sum(slsk_jobs{status=~"review|suspect"}) or vector(0)',
+        "albums",
+      ],
+      thresholds: [1, 10],
+    },
+    {
+      title: "Failed albums",
+      target: ['sum(slsk_jobs{status="failed"}) or vector(0)', "albums"],
+      thresholds: [1, 5],
+    },
+  ],
+);
 
 /** Filename → dashboard JSON, as Grafana's file provisioner wants it. */
 export function dashboardFiles() {
