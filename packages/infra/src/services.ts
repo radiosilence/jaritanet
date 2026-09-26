@@ -325,8 +325,10 @@ export function createServices(ctx: EstateContext) {
         provider,
         ns,
         {
-          // Both on the media drive, so an import is a rename; each is its own
-          // local volume, so an unmounted drive leaves the pod waiting.
+          // One volume, the whole drive, so an import is a rename rather than
+          // a copy between mounts. The service will not start while the
+          // library is missing, which is what an unmounted drive looks like.
+          mediaRoot: "/mnt/kontent",
           library: "/mnt/kontent/music",
           downloads: "/mnt/kontent/slsk",
           beetsConfig: readFileSync(
