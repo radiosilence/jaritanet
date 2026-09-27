@@ -7,7 +7,7 @@ import { VERSIONS } from "./versions.ts";
  *
  * The guinea pig for ingress restriction (#172): if the CNI drops the kubelet's
  * probes and the pod restart-loops, nobody notices. Extend `restrictIngress` to
- * blit and navidrome only once this has stayed Ready through several probe
+ * blit only once this has stayed Ready through several probe
  * cycles.
  */
 export function createFiles(

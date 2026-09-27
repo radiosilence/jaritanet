@@ -66,7 +66,7 @@ the chart is part of the directory that goes — which is exactly how mcp-gatewa
 and mariastew left.
 
 **`packages/<x>` is deploy code for software built somewhere else**, whether
-upstream (navidrome, Traefik, VictoriaMetrics, the transports) or another
+upstream (Traefik, VictoriaMetrics, the transports) or another
 repository of ours (blit) — plus the two shared primitives, `k8s` and `remote`.
 Nothing here can be extracted, because there is nothing to extract it *to*.
 
@@ -83,7 +83,7 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, the tailnet-rule DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing (see docs/architecture.md), and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
 - **`@jaritanet/koan`** — koan as a headless server over the media library, read-only: GraphQL and Subsonic at its own hostname, and MCP on an internal port the gateway alone may reach, since that transport carries no credential. A raw Deployment rather than `createService`, for the same reason as slsk's: a root init container has to hand the state directory to the uid koan runs as. Users and the Subsonic secret are made with `koan auth setup` / `koan subsonic setup` in the pod; until then the public port refuses everything
-- **`@jaritanet/navidrome`**, **`@jaritanet/blit`** (and **`@jaritanet/files`**, which lives with its app) — a container, its volumes and its image pin. No configuration surface: 2Ti of media, a pinned uid and two volumes are facts about this deployment rather than knobs, and every one of them was already fixed in a config block nobody varied. What they take is only what the estate owns — where they are published, and which machine holds the disks
+- **`@jaritanet/blit`** (and **`@jaritanet/files`**, which lives with its app) — a container, its volumes and its image pin. No configuration surface: volumes, uids and pins are facts about this deployment rather than knobs, and every one of them was already fixed in a config block nobody varied. What they take is only what the estate owns — where they are published, and which machine holds the disks
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`apps/auth/deploy/pulumi`** (`@jaritanet/auth`) — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
 - **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
@@ -121,7 +121,7 @@ allowlist: it is what stands between the identity provider and an open
 redirect, and a service builds its redirect URI from the same binding it
 publishes at, so the two cannot disagree.
 
-**A package per deployable unit.** navidrome, files and blit are packages like
+**A package per deployable unit.** koan, files and blit are packages like
 everything else — the answer to "should X be a package" is now yes, uniformly,
 because a package is where a thing's deploy shape and its image pin belong
 together. What a package does *not* hold is its own address.

@@ -26,13 +26,6 @@
 # whatever form it actually needs — a bare version for a tag field, a full
 # reference for an image.
 
-- app: Navidrome
-  repo: deluan/navidrome
-  file: packages/navidrome/src/versions.ts
-  key: navidrome
-  value: "{version}"
-  image: "deluan/navidrome:{version}"
-
 # Chart releases are tagged "traefik-34.5.0".
 - app: Traefik
   repo: traefik/traefik-helm-chart

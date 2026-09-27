@@ -18,7 +18,6 @@
     "@jaritanet/koan": "workspace:*",
     "@jaritanet/koan-site": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
-    "@jaritanet/navidrome": "workspace:*",
     "@jaritanet/remote": "workspace:*",
     "@jaritanet/vpn": "workspace:*",
     "@pulumi/command": "1.2.1",

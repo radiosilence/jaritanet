@@ -62,7 +62,7 @@ export function createSyncthing(
             nodeSelector: { [nodeLabel]: "true" },
             securityContext: {
               // Files syncthing creates have to be owned by whoever owns the
-              // media, or navidrome and samba cannot read what it writes.
+              // media, or koan and samba cannot read what it writes.
               // fsGroup would not do it — kubelet does not apply it to hostPath
               // volumes — so the process itself is the right user.
               runAsUser: syncthing.uid,
