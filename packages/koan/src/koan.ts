@@ -240,5 +240,6 @@ export function createKoan(
     options,
   );
 
-  return { routes: [{ service: "koan-service", hostname: opts.hostname }] };
+  // The route helper names the Service `${service}-service`.
+  return { routes: [{ service: NAME, hostname: opts.hostname }] };
 }
