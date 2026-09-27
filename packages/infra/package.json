@@ -10,6 +10,7 @@
     "@jaritanet/blit": "workspace:*",
     "@jaritanet/dns": "workspace:*",
     "@jaritanet/files": "workspace:*",
+    "@jaritanet/groglog": "workspace:*",
     "@jaritanet/hetzner": "workspace:*",
     "@jaritanet/home": "workspace:*",
     "@jaritanet/ingress": "workspace:*",

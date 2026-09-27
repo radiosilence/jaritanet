@@ -77,6 +77,7 @@ export const hostnames: Record<string, string> = {
   auth: "auth.blit.cc",
   blit: "blit.cc",
   files: "files.radiosilence.dev",
+  groglog: "groglog.io",
   mariastew: "dl.blit.cc",
   koan: "koan.blit.cc",
   "mcp-gateway": "mcp.blit.cc",
@@ -195,6 +196,13 @@ export const zones = ZonesConfSchema.parse([
     name: "buttholes.live",
     zoneId: "1115a1e5006523692d61e49e672f6df0",
     modules: MAIL_MODULES,
+  },
+  {
+    // Mail only: support@ is the one address GrogLog publishes, on Fastmail so
+    // replies go out from it too. No Bluesky handle.
+    name: "groglog.io",
+    zoneId: "__GROGLOG_ZONE_ID__",
+    modules: ["fastmail"],
   },
   {
     // Somebody else's domain, hosted as a favour. No mail modules: their email

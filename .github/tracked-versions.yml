@@ -229,6 +229,16 @@
   value: "sha-{version}"
   image: "ghcr.io/radiosilence/qhstrtfrd:sha-{version}"
 
+# GrogLog's website, built in the app's repository. It publishes an image for
+# every commit on main, so the head always has one.
+- app: groglog
+  repo: radiosilence/groglog
+  branch: main
+  file: packages/groglog/src/versions.ts
+  key: groglog
+  value: "sha-{version}"
+  image: "ghcr.io/radiosilence/groglog-site:sha-{version}"
+
 # Deliberately absent, and each said so where it is pinned, in an `UNTRACKED`
 # const beside the `VERSIONS` the updater does read: Hydra (a major bump needs
 # a database migration), and postgres and redis (major tags that carry their
