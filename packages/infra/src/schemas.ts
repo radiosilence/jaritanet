@@ -215,7 +215,7 @@ export const EdgeConfSchema = z.object({
 export const AuthConfSchema = AuthComponentConfSchema.extend({
   github: z
     .object({
-      allowed: z.string().default(""),
+      allowed: z.array(z.string()).default([]),
       clientId: z.string(),
       clientSecret: z.string(),
     })
