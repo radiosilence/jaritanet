@@ -80,6 +80,7 @@ export const hostnames: Record<string, string> = {
   groglog: "groglog.io",
   mariastew: "dl.blit.cc",
   koan: "koan.blit.cc",
+  "koan-site": "koan.rocks",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   navidrome: "music.blit.cc",
@@ -203,6 +204,13 @@ export const zones = ZonesConfSchema.parse([
     name: "groglog.io",
     zoneId: "ca4fb3c87bb16171c80f339cb40e6350",
     modules: ["fastmail"],
+  },
+  {
+    // The kōan music player's website, at the apex. No mail modules: nothing
+    // sends or receives mail at this domain. No id: registered through
+    // Cloudflare, so the zone already exists and is looked up by name.
+    name: "koan.rocks",
+    modules: [],
   },
   {
     // Somebody else's domain, hosted as a favour. No mail modules: their email

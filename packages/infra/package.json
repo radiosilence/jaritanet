@@ -16,6 +16,7 @@
     "@jaritanet/ingress": "workspace:*",
     "@jaritanet/k8s": "workspace:*",
     "@jaritanet/koan": "workspace:*",
+    "@jaritanet/koan-site": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
     "@jaritanet/navidrome": "workspace:*",
     "@jaritanet/queenshead": "workspace:*",

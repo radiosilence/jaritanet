@@ -29,6 +29,7 @@ import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createKoan } from "@jaritanet/koan";
+import { createKoanSite } from "@jaritanet/koan-site";
 import { createNavidrome } from "@jaritanet/navidrome";
 import { createQueenshead } from "@jaritanet/queenshead";
 import { createGroglog } from "@jaritanet/groglog";
@@ -184,6 +185,9 @@ export function createServices(ctx: EstateContext) {
     }),
   );
   add(createGroglog(provider, "groglog", { hostname: hostnames.groglog }));
+  add(
+    createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
+  );
 
   // What lady serves off the media drive. Shares are anonymous — `map to guest`
   // turns unknown users into `guestAccount`, which must own the files or every
