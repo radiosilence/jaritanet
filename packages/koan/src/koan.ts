@@ -105,6 +105,11 @@ export function createKoan(
                   },
                   // Served over HTTPS by Traefik.
                   { name: "KOAN_GRAPHQL__COOKIE_SECURE", value: "true" },
+                  // Share links are built on the address strangers reach.
+                  {
+                    name: "KOAN_SHARING__PUBLIC_URL",
+                    value: `https://${opts.hostname}`,
+                  },
                 ],
                 ports: [
                   { name: "api", containerPort: API_PORT },
