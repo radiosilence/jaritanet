@@ -127,9 +127,12 @@ export function createKoan(
                   initialDelaySeconds: 30,
                   periodSeconds: 30,
                 },
+                // Sized for a Subsonic client's full sync and a scan at once:
+                // at one core, a syncing phone throttled every other request
+                // to seconds. lady has six.
                 resources: {
-                  requests: { cpu: "50m", memory: "128Mi" },
-                  limits: { cpu: "1", memory: "1Gi" },
+                  requests: { cpu: "250m", memory: "128Mi" },
+                  limits: { cpu: "4", memory: "1Gi" },
                 },
                 securityContext: {
                   allowPrivilegeEscalation: false,
