@@ -57,6 +57,11 @@ export function createService(
     securityContext,
     strategy,
   } = ServiceArgsSchema.parse(args);
+  // These volumes are host directories holding real data (the music library
+  // among them), so nothing may ever delete one: Retain stops Kubernetes
+  // reclaiming a released volume, and retainOnDelete stops Pulumi deleting the
+  // objects when a service is removed from code. Clearing one out is a manual,
+  // deliberate act on the host.
   const pvs = Object.fromEntries(
     persistence.map(
       ({
@@ -97,12 +102,12 @@ export function createService(
                   ],
                 },
               },
-              persistentVolumeReclaimPolicy: "Delete",
+              persistentVolumeReclaimPolicy: "Retain",
               storageClassName,
               volumeMode: "Filesystem",
             },
           },
-          { provider },
+          { provider, retainOnDelete: true },
         ),
       ],
     ),
@@ -126,7 +131,7 @@ export function createService(
               volumeName: pvs[key]?.metadata.name,
             },
           },
-          { provider },
+          { provider, retainOnDelete: true },
         ),
       ]),
   );
