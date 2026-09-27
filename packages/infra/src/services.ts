@@ -32,6 +32,7 @@ import { createKoan } from "@jaritanet/koan";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createNavidrome } from "@jaritanet/navidrome";
 import { createQueenshead } from "@jaritanet/queenshead";
+import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
   type Exit,
@@ -41,8 +42,7 @@ import {
 import type * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import type * as z from "zod";
-import type { ZonesConfSchema } from "./schemas.ts";
+import type { Zone } from "@jaritanet/dns";
 import { MCPS } from "./mcps.ts";
 import { CLOUD_NODE, MEDIA_NODE } from "./nodes.ts";
 
@@ -66,7 +66,7 @@ const SLSK_LIMITS = { cpu: "2", memory: "1Gi" };
 export type EstateContext = {
   provider: k8s.Provider;
   namespace: pulumi.Input<string>;
-  zones: z.infer<typeof ZonesConfSchema>;
+  zones: Zone[];
   /** Where each service is published. A name with no entry is not published. */
   hostnames: Record<string, string>;
   /** Where A records point. Absent → no gateway, so no records are created. */
@@ -136,10 +136,7 @@ export function registration(d: Deployed, secret?: pulumi.Input<string>) {
  * derives the record's own name, so fixing one half alone would only move the
  * disagreement.
  */
-export function zoneFor(
-  zones: z.infer<typeof ZonesConfSchema>,
-  hostname: string,
-) {
+export function zoneFor(zones: Zone[], hostname: string) {
   return zones.find(
     (zone) => zone.name === hostname.split(".").slice(-2).join("."),
   );
@@ -187,6 +184,7 @@ export function createServices(ctx: EstateContext) {
       hostname: hostnames.queenshead,
     }),
   );
+  add(createGroglog(provider, "groglog", { hostname: hostnames.groglog }));
   add(
     createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
   );

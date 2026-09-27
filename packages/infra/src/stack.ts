@@ -77,6 +77,7 @@ export const hostnames: Record<string, string> = {
   auth: "auth.blit.cc",
   blit: "blit.cc",
   files: "files.radiosilence.dev",
+  groglog: "groglog.io",
   mariastew: "dl.blit.cc",
   koan: "koan.blit.cc",
   "koan-site": "koan.rocks",
@@ -198,10 +199,17 @@ export const zones = ZonesConfSchema.parse([
     modules: MAIL_MODULES,
   },
   {
+    // Mail only: support@ is the one address GrogLog publishes, on Fastmail so
+    // replies go out from it too. No Bluesky handle.
+    name: "groglog.io",
+    zoneId: "ca4fb3c87bb16171c80f339cb40e6350",
+    modules: ["fastmail"],
+  },
+  {
     // The kōan music player's website, at the apex. No mail modules: nothing
-    // sends or receives mail at this domain.
+    // sends or receives mail at this domain. No id: registered through
+    // Cloudflare, so the zone already exists and is looked up by name.
     name: "koan.rocks",
-    zoneId: "__KOAN_ROCKS_ZONE_ID__",
     modules: [],
   },
   {

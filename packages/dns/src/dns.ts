@@ -4,8 +4,36 @@ import type * as z from "zod";
 import type {
   BlueskyConfSchema,
   FastmailConfSchema,
-  ZoneConfSchema,
+  ZonesConfSchema,
 } from "./dns.schemas.ts";
+
+/** A zone as the records need it: with its id, known or still being looked up. */
+export type Zone = {
+  name: string;
+  modules: z.infer<typeof ZonesConfSchema>[number]["modules"];
+  zoneId: pulumi.Input<string>;
+};
+
+/**
+ * Gives every zone an id, looking up by name in the account any zone configured
+ * without one. A domain registered through Cloudflare already has its zone, so
+ * its id need not be copied out of the dashboard first. The lookup only reads:
+ * a name with no zone in the account fails the program rather than creating
+ * one.
+ */
+export function resolveZones(
+  zones: z.infer<typeof ZonesConfSchema>,
+  accountId: string,
+): Zone[] {
+  return zones.map((zone) => ({
+    ...zone,
+    zoneId:
+      zone.zoneId ??
+      cloudflare.getZoneOutput({
+        filter: { name: zone.name, account: { id: accountId } },
+      }).id,
+  }));
+}
 
 /**
  * Creates an A record pointing a service hostname at the gateway VPS IP.
@@ -14,7 +42,7 @@ import type {
  */
 export function createServiceRecord(
   vpsIp: pulumi.Output<string>,
-  zone: z.infer<typeof ZoneConfSchema>,
+  zone: Zone,
   hostname: string,
 ) {
   const parts = hostname.split(".");
@@ -34,7 +62,7 @@ export function createServiceRecord(
  * Fastmail DNS records — MX, DKIM, SPF, DMARC.
  */
 export function createFastmailRecords(
-  zone: z.infer<typeof ZoneConfSchema>,
+  zone: Zone,
   fastmail: z.infer<typeof FastmailConfSchema>,
 ) {
   for (const [key, value] of Object.entries({ in1: 10, in2: 20 })) {
@@ -80,7 +108,7 @@ export function createFastmailRecords(
  * Bluesky ATProto DID verification record.
  */
 export function createBlueskyRecords(
-  zone: z.infer<typeof ZoneConfSchema>,
+  zone: Zone,
   bluesky: z.infer<typeof BlueskyConfSchema>,
 ) {
   new cloudflare.DnsRecord(`${zone.name}-bs-did`, {

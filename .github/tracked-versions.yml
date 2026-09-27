@@ -229,6 +229,16 @@
   value: "sha-{version}"
   image: "ghcr.io/radiosilence/qhstrtfrd:sha-{version}"
 
+# GrogLog's website, built in the app's repository. It publishes an image for
+# every commit on main, so the head always has one.
+- app: groglog
+  repo: radiosilence/groglog
+  branch: main
+  file: packages/groglog/src/versions.ts
+  key: groglog
+  value: "sha-{version}"
+  image: "ghcr.io/radiosilence/groglog-site:sha-{version}"
+
 # kōan's website, built in the player's repository. It publishes an image for
 # every commit on main, so the head always has one, and its CI asks this
 # workflow to run once the image is pushed.
