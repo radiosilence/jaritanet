@@ -421,7 +421,7 @@ export default async function () {
       hostname: authHostname,
       githubClientId: authConf.github.clientId,
       githubClientSecret: pulumi.secret(authConf.github.clientSecret),
-      githubAllowed: authConf.github.allowed,
+      githubAllowed: authConf.github.allowed.join(","),
       // Hydra is stood up alongside the MCP gateway and reached at a bare
       // service name in the same namespace, so this is derived from that
       // deployment rather than configured twice.

@@ -261,6 +261,6 @@ export const auth = AuthConfSchema.parse({
   github: {
     clientId: "Ov23lig1BPAzKe4qmT4F",
     clientSecret: secrets.githubClientSecret,
-    allowed: "radiosilence",
+    allowed: ["radiosilence"],
   },
 });
