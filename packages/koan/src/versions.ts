@@ -3,7 +3,7 @@
  * published per commit on main, for pinning a build between releases by hand.
  */
 export const VERSIONS = {
-  koan: "ghcr.io/radiosilence/koan:v0.36.2",
+  koan: "ghcr.io/radiosilence/koan:v0.36.3",
 } as const;
 
 /**
