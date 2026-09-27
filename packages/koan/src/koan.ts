@@ -86,6 +86,9 @@ export function createKoan(
             props,
             opts: pulumi.mergeOptions(resourceOpts, {
               aliases: [pulumi.createUrn(previous, type)],
+              // The chart's Deployment has another selector, so it replaces the
+              // old one under the same name, which only works old-first.
+              deleteBeforeReplace: true,
             }),
           };
         },
