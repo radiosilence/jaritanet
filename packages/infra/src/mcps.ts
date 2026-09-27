@@ -155,16 +155,28 @@ export const MCPS: z.input<typeof McpSchema>[] = [
     graphqlPath: "/graphql",
     public: true,
   },
-  // koan over the music library, deployed beside Navidrome by
-  // `@jaritanet/koan` rather than by the gateway, since it needs the media
-  // node and its disks. Its MCP takes no credential; whoever the gateway lets
-  // in may browse the library and drive koan's queue.
+  // koan over the music library, deployed by `@jaritanet/koan` rather than
+  // by the gateway, since it needs the media node and its disks. Each user
+  // enters a koan account, and the MCP acts with that account's role.
   {
     id: "koan",
     name: "koan",
     url: "http://koan-internal:8081",
     path: "/mcp",
-    public: true,
+    fields: [
+      {
+        id: "username",
+        label: "koan username",
+        header: "X-Koan-Username",
+        secret: false,
+      },
+      {
+        id: "password",
+        label: "koan password",
+        header: "X-Koan-Password",
+        secret: true,
+      },
+    ],
   },
   // TfL needs no key at all — anonymous callers get 50 requests/minute, which
   // is the same data, not a degraded tier. A key raises that to 500, so the
