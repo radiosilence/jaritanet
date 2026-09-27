@@ -42,11 +42,35 @@ export const SambaShareSchema = z.object({
 export const SambaConfSchema = z.object({
   image: z
     .string()
-    .default("ghcr.io/servercontainers/samba:smbd-only-a3.24.1-s4.23.8-r0"),
-  /** `hosts allow` — the tailnet and the LAN, never the internet. */
+    .default("ghcr.io/servercontainers/samba:a3.24.1-s4.23.8-r0"),
+  /**
+   * The node interface avahi answers mDNS on.
+   *
+   * Required, because a hostNetwork pod sees every interface the node has:
+   * left to itself avahi publishes across `cilium_host` and each pod veth as
+   * well, announcing a share on links with nothing on the other end. Named
+   * rather than derived for the same reason the node label is — which
+   * interface faces the house is a fact about the machine.
+   */
+  lanInterface: z.string(),
+  /**
+   * `hosts allow` — the tailnet and the LAN, never the internet.
+   *
+   * Both address families, because avahi announces the node's IPv6 addresses
+   * alongside its IPv4 one and Apple clients prefer IPv6 when a name has both.
+   * `fe80::/10` is the LAN's link-local range and `fc00::/7` holds the tailnet's
+   * `fd7a:115c:a1e0::/48`; neither routes on the internet.
+   */
   allowedNetworks: z
     .array(z.string())
-    .default(["100.64.0.0/10", "192.168.0.0/16", "127.0.0.1"]),
+    .default([
+      "100.64.0.0/10",
+      "192.168.0.0/16",
+      "127.0.0.1",
+      "fe80::/10",
+      "fc00::/7",
+      "::1",
+    ]),
   /**
    * The account unknown users are mapped onto. It must own the media, or every
    * read fails — which is why this is named rather than defaulted to `nobody`.
