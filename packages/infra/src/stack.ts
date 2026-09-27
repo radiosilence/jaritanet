@@ -212,14 +212,6 @@ export const zones = ZonesConfSchema.parse([
     name: "koan.rocks",
     modules: ["fastmail"],
   },
-  {
-    // Somebody else's domain, hosted as a favour. No mail modules: their email
-    // is not ours to point anywhere, and adding MX records to a working mailbox
-    // is the one mistake here that would actually cost somebody something.
-    name: "queensheadstratford.london",
-    zoneId: "14d84661caade3ab45cf9d16f76102a1",
-    modules: [],
-  },
 ]);
 
 export const fastmail = FastmailConfSchema.parse({

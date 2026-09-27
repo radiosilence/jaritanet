@@ -192,9 +192,6 @@ importers:
       '@jaritanet/navidrome':
         specifier: workspace:*
         version: 0.0.0
-      '@jaritanet/queenshead':
-        specifier: workspace:*
-        version: 0.0.0
       '@jaritanet/remote':
         specifier: workspace:*
         version: 0.0.0
@@ -308,15 +305,6 @@ importers:
         version: 4.4.3
 
   packages/navidrome:
-    dependencies:
-      '@jaritanet/k8s':
-        specifier: workspace:*
-        version: 0.0.0
-      '@pulumi/kubernetes':
-        specifier: 4.30.0
-        version: 4.30.0(typescript@6.0.3)
-
-  packages/queenshead:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*

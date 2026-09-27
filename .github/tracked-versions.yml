@@ -219,16 +219,6 @@
   value: "sha-{version}"
   image: "ghcr.io/radiosilence/blit:sha-{version}"
 
-# Same reasoning as blit, and the same shape: a website following a branch, whose
-# CI asks this workflow to run once the image is pushed.
-- app: queenshead
-  repo: radiosilence/qhstrtfrd
-  branch: main
-  file: packages/queenshead/src/versions.ts
-  key: queenshead
-  value: "sha-{version}"
-  image: "ghcr.io/radiosilence/qhstrtfrd:sha-{version}"
-
 # GrogLog's website, built in the app's repository. It publishes an image for
 # every commit on main, so the head always has one.
 - app: groglog
