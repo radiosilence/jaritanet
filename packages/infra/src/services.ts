@@ -28,6 +28,7 @@ import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
+import { createKoan } from "@jaritanet/koan";
 import { createNavidrome } from "@jaritanet/navidrome";
 import { createQueenshead } from "@jaritanet/queenshead";
 import {
@@ -163,6 +164,13 @@ export function createServices(ctx: EstateContext) {
       node: MEDIA_NODE,
     }),
   );
+  // koan beside Navidrome, over the same library read-only: its own GraphQL
+  // and Subsonic at a hostname of its own, and MCP through the gateway.
+  if (hostnames.koan) {
+    add(
+      createKoan(provider, ns, { hostname: hostnames.koan, node: MEDIA_NODE }),
+    );
+  }
   add(
     createFiles(provider, "files", {
       hostname: hostnames.files,

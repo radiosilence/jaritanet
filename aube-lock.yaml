@@ -168,6 +168,9 @@ importers:
       '@jaritanet/k8s':
         specifier: workspace:*
         version: 0.0.0
+      '@jaritanet/koan':
+        specifier: workspace:*
+        version: 0.0.0
       '@jaritanet/metrics':
         specifier: workspace:*
         version: 0.0.0
@@ -246,6 +249,18 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+
+  packages/koan:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi':
+        specifier: 3.239.0
+        version: 3.239.0(typescript@6.0.3)
 
   packages/metrics:
     dependencies:
