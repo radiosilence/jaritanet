@@ -129,10 +129,11 @@ export function createKoan(
                 },
                 // Sized for a Subsonic client's full sync and a scan at once:
                 // at one core, a syncing phone throttled every other request
-                // to seconds. lady has six.
+                // to seconds. It inherits what Navidrome held (two cores, 4Gi)
+                // on top of its own.
                 resources: {
-                  requests: { cpu: "250m", memory: "128Mi" },
-                  limits: { cpu: "4", memory: "1Gi" },
+                  requests: { cpu: "250m", memory: "256Mi" },
+                  limits: { cpu: "6", memory: "5Gi" },
                 },
                 securityContext: {
                   allowPrivilegeEscalation: false,

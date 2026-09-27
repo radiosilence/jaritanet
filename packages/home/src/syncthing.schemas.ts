@@ -30,7 +30,7 @@ export const SyncthingFolderSchema = z.object({
  *
  * Runs as `uid`/`gid` rather than root, which matters more here than it looks:
  * syncthing *creates* files, and they have to land owned by whoever owns the
- * media or navidrome and samba will not be able to read what it writes.
+ * media or koan and samba will not be able to read what it writes.
  * `fsGroup` cannot do this — kubelet does not apply it to hostPath volumes — so
  * the process itself has to be the right user. Nothing here binds a privileged
  * port, so unlike samba there is no reason to start as root at all.

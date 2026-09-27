@@ -30,7 +30,6 @@ import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createKoan } from "@jaritanet/koan";
 import { createKoanSite } from "@jaritanet/koan-site";
-import { createNavidrome } from "@jaritanet/navidrome";
 import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
@@ -155,14 +154,8 @@ export function createServices(ctx: EstateContext) {
   };
 
   // --- The box that holds the disks ----------------------------------------
-  add(
-    createNavidrome(provider, "navidrome", {
-      hostname: hostnames.navidrome,
-      node: MEDIA_NODE,
-    }),
-  );
-  // koan beside Navidrome, over the same library read-only: its own GraphQL
-  // and Subsonic at a hostname of its own, and MCP through the gateway.
+  // koan over the library, read-only: its web UI, GraphQL and Subsonic at a
+  // hostname of its own, and MCP through the gateway.
   if (hostnames.koan) {
     add(
       createKoan(provider, ns, { hostname: hostnames.koan, node: MEDIA_NODE }),
@@ -212,7 +205,7 @@ export function createServices(ctx: EstateContext) {
   //
   // It runs as the media's owner rather than relying on fsGroup, which kubelet
   // does not apply to hostPath volumes — so what it writes stays readable by
-  // samba and navidrome.
+  // samba and koan.
   createSyncthing(
     provider,
     ns,
@@ -325,7 +318,7 @@ export function createServices(ctx: EstateContext) {
   // --- slsk -----------------------------------------------------------------
   // The Soulseek client. It writes into the music library, so like mariastew
   // it is not deployed without a way to authenticate. It runs where the library
-  // is, shares all of it, and files what it fetches into it — navidrome and
+  // is, shares all of it, and files what it fetches into it — koan and
   // syncthing pick new albums up from there like anything else.
   //
   // The importer reads the same beets config the laptop does, so an album
