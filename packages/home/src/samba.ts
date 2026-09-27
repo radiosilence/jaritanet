@@ -155,8 +155,8 @@ export function createSamba(
                     name: `GROUPID_${samba.guestAccount}`,
                     value: String(samba.guestGid),
                   },
-                  // Deletes the runit service. Anything non-empty counts as
-                  // set, including "".
+                  // Deletes the runit service. The image tests whether the
+                  // variable is set, so any value works, even "".
                   { name: "NETBIOS_DISABLE", value: "1" },
                   { name: "WSDD2_DISABLE", value: "1" },
                   { name: "AVAHI_INTERFACES", value: samba.lanInterface },
@@ -197,6 +197,9 @@ export function createSamba(
                       // smbd forks and drops to the guest account per session.
                       "SETUID",
                       "SETGID",
+                      // avahi chroots into /etc/avahi before dropping to its
+                      // own user, and exits at startup if it cannot keep this.
+                      "SYS_CHROOT",
                     ],
                   },
                 },
