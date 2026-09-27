@@ -200,6 +200,10 @@ export function createSamba(
                       // avahi chroots into /etc/avahi before dropping to its
                       // own user, and exits at startup if it cannot keep this.
                       "SYS_CHROOT",
+                      // avahi hands its runtime directory to its own user
+                      // before dropping root. The chown's result is ignored,
+                      // so without this it fails later on the ownership check.
+                      "CHOWN",
                     ],
                   },
                 },
