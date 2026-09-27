@@ -31,7 +31,6 @@ import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createKoan } from "@jaritanet/koan";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createNavidrome } from "@jaritanet/navidrome";
-import { createQueenshead } from "@jaritanet/queenshead";
 import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
@@ -176,14 +175,6 @@ export function createServices(ctx: EstateContext) {
     }),
   );
   add(createBlit(provider, "blit", { hostname: hostnames.blit }));
-  // Somebody else's pub, on somebody else's domain, served from the same node
-  // and the same base image as blit. Nothing about it is special enough to
-  // deserve its own anything.
-  add(
-    createQueenshead(provider, "queenshead", {
-      hostname: hostnames.queenshead,
-    }),
-  );
   add(createGroglog(provider, "groglog", { hostname: hostnames.groglog }));
   add(
     createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
