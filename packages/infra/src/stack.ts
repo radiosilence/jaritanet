@@ -77,8 +77,10 @@ export const hostnames: Record<string, string> = {
   auth: "auth.blit.cc",
   blit: "blit.cc",
   files: "files.radiosilence.dev",
+  groglog: "groglog.io",
   mariastew: "dl.blit.cc",
   koan: "koan.blit.cc",
+  "koan-site": "koan.rocks",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   navidrome: "music.blit.cc",
@@ -197,6 +199,20 @@ export const zones = ZonesConfSchema.parse([
     modules: MAIL_MODULES,
   },
   {
+    // Mail only: support@ is the one address GrogLog publishes, on Fastmail so
+    // replies go out from it too. No Bluesky handle.
+    name: "groglog.io",
+    zoneId: "ca4fb3c87bb16171c80f339cb40e6350",
+    modules: ["fastmail"],
+  },
+  {
+    // The kōan music player's website, at the apex, and mail through Fastmail.
+    // No id: registered through Cloudflare, so the zone already exists and is
+    // looked up by name.
+    name: "koan.rocks",
+    modules: ["fastmail"],
+  },
+  {
     // Somebody else's domain, hosted as a favour. No mail modules: their email
     // is not ours to point anywhere, and adding MX records to a working mailbox
     // is the one mistake here that would actually cost somebody something.
@@ -261,6 +277,6 @@ export const auth = AuthConfSchema.parse({
   github: {
     clientId: "Ov23lig1BPAzKe4qmT4F",
     clientSecret: secrets.githubClientSecret,
-    allowed: ["radiosilence"],
+    allowed: ["radiosilence", "mike-keefe"],
   },
 });

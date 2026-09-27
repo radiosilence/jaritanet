@@ -106,6 +106,15 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/groglog:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
+
   packages/hetzner:
     dependencies:
       '@jaritanet/remote':
@@ -156,6 +165,9 @@ importers:
       '@jaritanet/files':
         specifier: workspace:*
         version: 0.0.0
+      '@jaritanet/groglog':
+        specifier: workspace:*
+        version: 0.0.0
       '@jaritanet/hetzner':
         specifier: workspace:*
         version: 0.0.0
@@ -169,6 +181,9 @@ importers:
         specifier: workspace:*
         version: 0.0.0
       '@jaritanet/koan':
+        specifier: workspace:*
+        version: 0.0.0
+      '@jaritanet/koan-site':
         specifier: workspace:*
         version: 0.0.0
       '@jaritanet/metrics':
@@ -261,6 +276,15 @@ importers:
       '@pulumi/pulumi':
         specifier: 3.239.0
         version: 3.239.0(typescript@6.0.3)
+
+  packages/koan-site:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: 0.0.0
+      '@pulumi/kubernetes':
+        specifier: 4.30.0
+        version: 4.30.0(typescript@6.0.3)
 
   packages/metrics:
     dependencies:

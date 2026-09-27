@@ -2,6 +2,8 @@ export {
   createBlueskyRecords,
   createFastmailRecords,
   createServiceRecord,
+  resolveZones,
+  type Zone,
 } from "./dns.ts";
 export {
   BlueskyConfSchema,
