@@ -4,5 +4,5 @@
  * number to move.
  */
 export const VERSIONS = {
-  koanChart: "0.36.6",
+  koanChart: "0.36.7",
 } as const;
