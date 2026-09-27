@@ -206,11 +206,11 @@ export const zones = ZonesConfSchema.parse([
     modules: ["fastmail"],
   },
   {
-    // The kōan music player's website, at the apex. No mail modules: nothing
-    // sends or receives mail at this domain. No id: registered through
-    // Cloudflare, so the zone already exists and is looked up by name.
+    // The kōan music player's website, at the apex, and mail through Fastmail.
+    // No id: registered through Cloudflare, so the zone already exists and is
+    // looked up by name.
     name: "koan.rocks",
-    modules: [],
+    modules: ["fastmail"],
   },
   {
     // Somebody else's domain, hosted as a favour. No mail modules: their email
