@@ -201,7 +201,7 @@ export const zones = ZonesConfSchema.parse([
     // Mail only: support@ is the one address GrogLog publishes, on Fastmail so
     // replies go out from it too. No Bluesky handle.
     name: "groglog.io",
-    zoneId: "__GROGLOG_ZONE_ID__",
+    zoneId: "ca4fb3c87bb16171c80f339cb40e6350",
     modules: ["fastmail"],
   },
   {
