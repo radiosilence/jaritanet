@@ -29,6 +29,7 @@ import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createKoan } from "@jaritanet/koan";
+import { createKoanSite } from "@jaritanet/koan-site";
 import { createNavidrome } from "@jaritanet/navidrome";
 import { createQueenshead } from "@jaritanet/queenshead";
 import {
@@ -185,6 +186,9 @@ export function createServices(ctx: EstateContext) {
     createQueenshead(provider, "queenshead", {
       hostname: hostnames.queenshead,
     }),
+  );
+  add(
+    createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
   );
 
   // What lady serves off the media drive. Shares are anonymous — `map to guest`

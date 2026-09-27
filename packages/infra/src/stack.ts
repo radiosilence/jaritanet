@@ -79,6 +79,7 @@ export const hostnames: Record<string, string> = {
   files: "files.radiosilence.dev",
   mariastew: "dl.blit.cc",
   koan: "koan.blit.cc",
+  "koan-site": "koan.rocks",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   navidrome: "music.blit.cc",
@@ -195,6 +196,13 @@ export const zones = ZonesConfSchema.parse([
     name: "buttholes.live",
     zoneId: "1115a1e5006523692d61e49e672f6df0",
     modules: MAIL_MODULES,
+  },
+  {
+    // The kōan music player's website, at the apex. No mail modules: nothing
+    // sends or receives mail at this domain.
+    name: "koan.rocks",
+    zoneId: "__KOAN_ROCKS_ZONE_ID__",
+    modules: [],
   },
   {
     // Somebody else's domain, hosted as a favour. No mail modules: their email
