@@ -6,10 +6,12 @@ const DnsModuleEnum = z.enum(["bluesky", "fastmail"]);
 export const ZoneConfSchema = z.object({
   modules: z.array(DnsModuleEnum),
   name: Hostname,
-  // Cloudflare zone ids are 32 hex characters.
+  // Cloudflare zone ids are 32 hex characters. Omitted, the zone is looked up
+  // by name in the account; see `resolveZones`.
   zoneId: z
     .string()
-    .regex(/^[0-9a-f]{32}$/, "must be a 32-character Cloudflare zone id"),
+    .regex(/^[0-9a-f]{32}$/, "must be a 32-character Cloudflare zone id")
+    .optional(),
 });
 
 export const ZonesConfSchema = z.array(ZoneConfSchema);

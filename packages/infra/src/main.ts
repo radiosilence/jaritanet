@@ -3,6 +3,7 @@ import {
   createBlueskyRecords,
   createFastmailRecords,
   createServiceRecord,
+  resolveZones,
 } from "@jaritanet/dns";
 import {
   createCilium,
@@ -40,7 +41,7 @@ import {
   telegram,
   traefik,
   VPN_ENTRY_LABEL,
-  zones,
+  zones as zoneConfs,
 } from "./stack.ts";
 import { createEdge, EDGE_TAILNET_TAG } from "./edge.ts";
 import { createGateway } from "./gateway.ts";
@@ -54,6 +55,7 @@ import { createTailnetPolicy } from "./tailnet-policy.ts";
 
 export default async function () {
   warnUnlessCleanMain();
+  const zones = resolveZones(zoneConfs, cloudflare.accountId);
 
   let dnsTarget: pulumi.Output<string> | undefined;
   let gatewayProvider: string | undefined;
@@ -387,7 +389,7 @@ export default async function () {
   const estate: EstateContext = {
     provider,
     namespace: nsName,
-    zones: zones,
+    zones,
     hostnames: hostnames,
     dnsTarget,
     traefik: traefikRelease,
