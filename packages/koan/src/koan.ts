@@ -1,7 +1,7 @@
 import type { Deployed } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
-import { VERSIONS } from "./versions.ts";
+import { UNTRACKED, VERSIONS } from "./versions.ts";
 
 const NAME = "koan";
 const API_PORT = 4000;
@@ -67,7 +67,7 @@ export function createKoan(
             initContainers: [
               {
                 name: "state",
-                image: VERSIONS.alpine,
+                image: UNTRACKED.alpine,
                 command: [
                   "sh",
                   "-c",
