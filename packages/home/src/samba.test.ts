@@ -58,7 +58,7 @@ describe("smbConf", () => {
   it("restricts access to the tailnet and the LAN, never the internet", () => {
     // A hostNetwork pod bypasses the CNI, so no NetworkPolicy backs this up.
     expect(parse([music])).toContain(
-      "hosts allow = 100.64.0.0/10 192.168.0.0/16 127.0.0.1",
+      "hosts allow = 100.64.0.0/10 192.168.0.0/16 127.0.0.1 fe80::/10 fc00::/7 ::1",
     );
   });
 
