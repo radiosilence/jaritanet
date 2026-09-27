@@ -78,6 +78,7 @@ export const hostnames: Record<string, string> = {
   blit: "blit.cc",
   files: "files.radiosilence.dev",
   mariastew: "dl.blit.cc",
+  koan: "koan.blit.cc",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   navidrome: "music.blit.cc",
