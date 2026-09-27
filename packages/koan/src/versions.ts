@@ -3,6 +3,6 @@
  * runs, and `main` moves between releases.
  */
 export const VERSIONS = {
-  koan: "ghcr.io/radiosilence/koan:6097d533d0930c209e4d1c6c71ae9db8e15b2c02",
+  koan: "ghcr.io/radiosilence/koan:08e196f486d6737fc962052ee69aa18ae96c64e2",
   alpine: "alpine:3.21",
 } as const;
