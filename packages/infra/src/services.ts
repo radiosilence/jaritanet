@@ -31,6 +31,7 @@ import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createKoan } from "@jaritanet/koan";
 import { createNavidrome } from "@jaritanet/navidrome";
 import { createQueenshead } from "@jaritanet/queenshead";
+import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
   type Exit,
@@ -186,6 +187,7 @@ export function createServices(ctx: EstateContext) {
       hostname: hostnames.queenshead,
     }),
   );
+  add(createGroglog(provider, "groglog", { hostname: hostnames.groglog }));
 
   // What lady serves off the media drive. Shares are anonymous — `map to guest`
   // turns unknown users into `guestAccount`, which must own the files or every
