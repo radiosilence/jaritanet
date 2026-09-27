@@ -215,7 +215,9 @@ export const EdgeConfSchema = z.object({
 export const AuthConfSchema = AuthComponentConfSchema.extend({
   github: z
     .object({
-      allowed: z.string().default(""),
+      // GitHub logins allowed to sign in. The auth app takes them as one
+      // comma-separated variable; the join is done where it's handed over.
+      allowed: z.array(z.string()).default([]),
       clientId: z.string(),
       clientSecret: z.string(),
     })
