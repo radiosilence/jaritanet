@@ -1,15 +1,8 @@
 /**
- * koan follows its releases, bumped by the version updater. Its image is also
- * published per commit on main, for pinning a build between releases by hand.
+ * koan's chart, published with each koan release at the release's version.
+ * The chart pins the server image to the same version, so this is the only
+ * number to move.
  */
 export const VERSIONS = {
-  koan: "ghcr.io/radiosilence/koan:v0.36.3",
-} as const;
-
-/**
- * Not followed by the version updater. A minor-series tag already carries its
- * own patches, and the image only runs a `chown` before koan starts.
- */
-export const UNTRACKED = {
-  alpine: "alpine:3.21",
+  koanChart: "0.36.4",
 } as const;
