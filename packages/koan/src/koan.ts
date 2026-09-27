@@ -97,6 +97,9 @@ export function createKoan(
                     name: "KOAN_MCP_BIND",
                     value: `0.0.0.0:${KOAN_INTERNAL_PORT}`,
                   },
+                  // The gateway forwards each user's koan account; a request
+                  // without one is refused rather than run at a default role.
+                  { name: "KOAN_MCP_REQUIRE_LOGIN", value: "1" },
                   { name: "KOAN_LIBRARY__FOLDERS", value: '["/music"]' },
                   // koan refuses a Host it was not told about.
                   {
