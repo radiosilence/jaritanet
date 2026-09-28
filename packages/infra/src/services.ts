@@ -51,8 +51,11 @@ const MARIASTEW_LIMITS = { cpu: "500m", memory: "256Mi" };
 const ARIA2_LIMITS = { cpu: "4", memory: "2Gi" };
 const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
 // Hashing a library-sized share and holding thousands of peer connections is
-// real work; idle it is a few MB. See `resourceRequests`.
-const SLSK_LIMITS = { cpu: "2", memory: "1Gi" };
+// real work; idle it is a few MB. Imports burst: the pre-import decode check
+// and ReplayGain pass run over a whole album at once, and a hi-res album went
+// past 1Gi and was OOM-killed mid-import. The request stays a twentieth of
+// this (see `resourceRequests`), so the headroom is only taken when used.
+const SLSK_LIMITS = { cpu: "2", memory: "3Gi" };
 
 /**
  * What the stack has already built by the time services are created.
