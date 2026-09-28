@@ -36,6 +36,8 @@ const SecretsSchema = z.strictObject({
    */
   slskUsername: z.string().optional(),
   slskPassword: z.string().optional(),
+  /** Discogs personal access token, for slsk's importer (sift). */
+  discogsToken: z.string().optional(),
   /** Ubuntu Pro, for livepatch. Absent → patches still land on reboot. */
   ubuntuProToken: z.string().optional(),
   /** Comma-separated; a trailing `+` marks an admin. See `parseVpnUsers`. */
