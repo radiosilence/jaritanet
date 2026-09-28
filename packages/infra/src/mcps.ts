@@ -155,7 +155,7 @@ export const MCPS: z.input<typeof McpSchema>[] = [
     graphqlPath: "/graphql",
     public: true,
   },
-  // koan over the music library, deployed by `@jaritanet/koan` rather than
+  // koan over the music library, deployed by `@radiosilence/koan-pulumi` rather than
   // by the gateway, since it needs the media node and its disks. Each user
   // enters a koan account, and the MCP acts with that account's role.
   {

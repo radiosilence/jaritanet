@@ -222,15 +222,13 @@
   value: "sha-{version}"
   image: "ghcr.io/radiosilence/groglog-site:sha-{version}"
 
-# The kōan server, from the chart it publishes with each release. The chart is
-# pushed after the release is cut, so a release with no chart yet is possible
-# for the minute between them; `image` waits it out.
+# The kōan server. Same shape as mariastew: the repository publishes the
+# component at the release's version, before the release itself.
 - app: koan
   repo: radiosilence/koan
-  file: packages/koan/src/versions.ts
-  key: koanChart
+  manifest: packages/infra/package.json
+  package: "@radiosilence/koan-pulumi"
   value: "{version}"
-  image: "ghcr.io/radiosilence/charts/koan:{version}"
 
 # kōan's website, built in the player's repository. It publishes an image for
 # every commit on main, so the head always has one, and its CI asks this
