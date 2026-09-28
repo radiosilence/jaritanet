@@ -404,6 +404,7 @@ export default async function () {
       secrets.slskUsername && secrets.slskPassword
         ? { username: secrets.slskUsername, password: secrets.slskPassword }
         : undefined,
+    discogsToken: secrets.discogsToken,
   };
 
   const { routes: serviceRoutes, clients } = createServices(estate);

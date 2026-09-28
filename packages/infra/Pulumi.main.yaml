@@ -49,3 +49,5 @@ config:
       secure: AAABAIT+caDiU0i8W7iWehjiydozveuH//eXlE/UcxUI+7KuMDawMw==
     slskPassword:
       secure: AAABAML50uSF2syloEfauzv/V2HNuGe1a+bvH59MMNwcBkQ3lc9SliOzvkv3t45cSVgNSA==
+    discogsToken:
+      secure: AAABALAzn/3IQzfG35fpBV2V+KDT3ciGeJ2mXeH24uZKukiiUw1CGTNj81veh0azb4P3rfLAmUs3mJHzN/uNx8AXWFN6I7Mc

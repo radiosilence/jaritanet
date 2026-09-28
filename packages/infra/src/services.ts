@@ -87,6 +87,7 @@ export type EstateContext = {
   telegram?: { botToken: string; chatId: string };
   /** The Soulseek account slsk logs in with at start. */
   slskAccount?: { username: string; password: string };
+  discogsToken?: string;
 };
 
 /**
@@ -365,6 +366,7 @@ export function createServices(ctx: EstateContext) {
             username: pulumi.secret(ctx.slskAccount.username),
             password: pulumi.secret(ctx.slskAccount.password),
           },
+          discogsToken: ctx.discogsToken && pulumi.secret(ctx.discogsToken),
         },
       ),
       secret,
