@@ -88,6 +88,7 @@ export const hostnames: Record<string, string> = {
   // blocks the device from fetching its own subscription.
   "singbox-profiles": "p.radiosilence.dev",
   slsk: "slsk.blit.cc",
+  transmet: "transmetropolitan.blit.cc",
 };
 
 export const cloudflare = CloudflareConfSchema.parse({
