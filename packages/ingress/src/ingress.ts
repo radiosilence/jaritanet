@@ -57,6 +57,15 @@ export function createIngress(
             // was on a different machine something had to bridge that gap; co-located,
             // the gap does not exist.
             hostPort: 8443,
+            // xray relays with a PROXY protocol header carrying the real
+            // client (\`xver\` in @jaritanet/vpn), and its connections arrive
+            // from the node's cilium_host address, inside the pod range.
+            // Trusted there only: a connection straight to the hostPort from
+            // outside keeps its own address and cannot claim another. A
+            // trusted connection without a header is taken as it is.
+            proxyProtocol: {
+              trustedIPs: ["10.42.0.0/16"],
+            },
           },
         },
         // Per-route request rates, response codes and latencies — the other
