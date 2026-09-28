@@ -132,7 +132,11 @@ export function createXray(
                 realitySettings: {
                   show: false,
                   dest: xray.dest,
-                  xver: 0,
+                  // PROXY protocol v1 to the relay target, so it sees the real
+                  // client rather than this node. Only for our own Traefik on
+                  // loopback, which trusts it (@jaritanet/ingress); a decoy
+                  // site elsewhere would take the header for garbage.
+                  xver: /^(127\.|localhost:|\[::1\]:)/.test(xray.dest) ? 1 : 0,
                   serverNames: xray.serverNames,
                   privateKey: kp.privateKey,
                   shortIds: [sid],
