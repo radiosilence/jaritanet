@@ -347,8 +347,11 @@ export function createServices(ctx: EstateContext) {
 
   // --- transmet -------------------------------------------------------------
   // A comic reader whose image carries every page, so it needs no volume and
-  // runs on the VPS, next to the uplink, rather than on the media node.
+  // runs on the VPS, next to the uplink, rather than on the media node. Its
+  // password works without the provider, so sign-on is added when there is
+  // one rather than being a condition of deploying.
   if (hostnames.transmet && ctx.transmet) {
+    const secret = ctx.authHostname ? oidcSecret("transmet") : undefined;
     add(
       createTransmet(provider, ns, {
         hostname: hostnames.transmet,
@@ -358,7 +361,13 @@ export function createServices(ctx: EstateContext) {
           token: pulumi.secret(ctx.transmet.pullToken),
         },
         nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+        oidc: secret && {
+          issuer: `https://${ctx.authHostname}`,
+          clientId: "transmet",
+          clientSecret: secret,
+        },
       }),
+      secret,
     );
   }
 
