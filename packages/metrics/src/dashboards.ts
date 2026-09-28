@@ -583,6 +583,13 @@ const overview = dashboard(
  * sits in the network. Everything comes from its own `/metrics`, scraped from
  * the pod by annotation; the state gauges (`slsk_jobs`, `slsk_downloads`,
  * `slsk_uploads`) are read from its state at scrape time.
+ *
+ * Each deploy is a new pod, so every series is aggregated over `pod` and
+ * `instance`: without it a day's panel draws one line per pod. Counters the
+ * engine keeps start at zero with each process, which `increase()` rides
+ * over. Counters read from the database (`slsk_job_outcomes_total`,
+ * `slsk_lifetime_*`) start a new pod's series at their full value, so they are
+ * merged into one series before `increase()`, or a deploy reads as a spike.
  */
 const soulseek = dashboard(
   "jaritanet-soulseek",
@@ -592,50 +599,57 @@ const soulseek = dashboard(
       title: "Throughput",
       unit: "Bps",
       targets: [
-        ["rate(slsk_uploaded_bytes_total[$__rate_interval])", "upload"],
-        ["rate(slsk_downloaded_bytes_total[$__rate_interval])", "download"],
+        ["sum(rate(slsk_uploaded_bytes_total[$__rate_interval]))", "upload"],
+        [
+          "sum(rate(slsk_downloaded_bytes_total[$__rate_interval]))",
+          "download",
+        ],
       ],
     },
     {
       title: "Given back and taken",
       description:
-        "Totals since the process started; a restart resets them, which is when the lines drop.",
+        "Totals ever, kept in slsk's database, so a deploy does not reset them.",
       unit: "bytes",
       targets: [
-        ["slsk_uploaded_bytes_total", "uploaded"],
-        ["slsk_downloaded_bytes_total", "downloaded"],
+        ["max(slsk_lifetime_uploaded_bytes_total)", "uploaded"],
+        ["max(slsk_lifetime_downloaded_bytes_total)", "downloaded"],
       ],
     },
     {
       title: "Uploads by state",
       description:
         "Queued is other users waiting for a slot. A queue that only grows means too few slots, or too little upstream bandwidth.",
-      targets: [["slsk_uploads", "{{state}}"]],
+      targets: [["max by (state) (slsk_uploads)", "{{state}}"]],
     },
     {
       title: "Users served",
       description:
-        "Distinct users an upload has finished to since the process started.",
-      targets: [["slsk_upload_users", "users"]],
+        "Distinct users an upload has finished to in the last day, the last week, and ever.",
+      targets: [
+        ['max(slsk_served_users{window="24h"})', "last 24h"],
+        ['max(slsk_served_users{window="7d"})', "last 7 days"],
+        ['max(slsk_served_users{window="all"})', "ever"],
+      ],
     },
     {
       title: "Uploads finished and failed",
       targets: [
-        ["increase(slsk_uploads_completed_total[1h])", "finished / h"],
-        ["increase(slsk_uploads_failed_total[1h])", "failed / h"],
+        ["sum(increase(slsk_uploads_completed_total[1h]))", "finished / h"],
+        ["sum(increase(slsk_uploads_failed_total[1h]))", "failed / h"],
       ],
     },
     {
       title: "Downloads by state",
       description:
         "remote_queued is waiting in someone else's queue; starting is offered and waiting for their connection.",
-      targets: [["slsk_downloads", "{{state}}"]],
+      targets: [["max by (state) (slsk_downloads)", "{{state}}"]],
     },
     {
       title: "Albums by status",
       description:
         "review: the tagger could not choose a release. suspect: the spectrum says lossy or upsampled. Both wait for a person.",
-      targets: [["slsk_jobs", "{{status}}"]],
+      targets: [["max by (status) (slsk_jobs)", "{{status}}"]],
     },
     {
       title: "Why albums did not land",
@@ -643,7 +657,7 @@ const soulseek = dashboard(
         "Outcomes other than a clean import, by cause. A cause that keeps recurring is a fix to make in slsk-mcp; its triage query lists examples and the version that produced them.",
       targets: [
         [
-          'sum by (cause) (increase(slsk_job_outcomes_total{cause!=""}[1h]))',
+          'sum by (cause) (increase(max without (pod, instance) (slsk_job_outcomes_total{cause!=""})[1h:]))',
           "{{cause}}",
         ],
       ],
@@ -652,7 +666,7 @@ const soulseek = dashboard(
       title: "Albums imported",
       targets: [
         [
-          'sum(increase(slsk_job_outcomes_total{outcome="imported"}[1h])) or vector(0)',
+          'sum(increase(max without (pod, instance) (slsk_job_outcomes_total{outcome="imported"})[1h:])) or vector(0)',
           "imported / h",
         ],
       ],
@@ -660,8 +674,11 @@ const soulseek = dashboard(
     {
       title: "Downloads finished and failed",
       targets: [
-        ["increase(slsk_downloads_completed_total[1h])", "files finished / h"],
-        ["increase(slsk_downloads_failed_total[1h])", "files failed / h"],
+        [
+          "sum(increase(slsk_downloads_completed_total[1h]))",
+          "files finished / h",
+        ],
+        ["sum(increase(slsk_downloads_failed_total[1h]))", "files failed / h"],
       ],
     },
     {
@@ -670,13 +687,16 @@ const soulseek = dashboard(
         "Requests is every search that reached us; answered is those our shares matched. Dropped means a match was shed because too many answers were already in flight.",
       unit: "reqps",
       targets: [
-        ["rate(slsk_search_requests_total[$__rate_interval])", "received"],
-        ["rate(slsk_search_responses_total[$__rate_interval])", "answered"],
+        ["sum(rate(slsk_search_requests_total[$__rate_interval]))", "received"],
         [
-          "rate(slsk_search_responses_dropped_total[$__rate_interval])",
+          "sum(rate(slsk_search_responses_total[$__rate_interval]))",
+          "answered",
+        ],
+        [
+          "sum(rate(slsk_search_responses_dropped_total[$__rate_interval]))",
           "dropped",
         ],
-        ["rate(slsk_searches_sent_total[$__rate_interval])", "ours"],
+        ["sum(rate(slsk_searches_sent_total[$__rate_interval]))", "ours"],
       ],
     },
     {
@@ -685,27 +705,27 @@ const soulseek = dashboard(
         "Forwarded is searches passed down to children. Branch level 0 with a parent of 0 means we are a branch root, fed by the server directly.",
       targets: [
         [
-          "rate(slsk_distributed_forwarded_total[$__rate_interval])",
+          "sum(rate(slsk_distributed_forwarded_total[$__rate_interval]))",
           "forwarded / s",
         ],
-        ["slsk_distributed_children", "children"],
-        ["slsk_distributed_parent", "has parent"],
-        ["slsk_distributed_branch_level", "branch level"],
+        ["max(slsk_distributed_children)", "children"],
+        ["max(slsk_distributed_parent)", "has parent"],
+        ["max(slsk_distributed_branch_level)", "branch level"],
       ],
     },
     {
       title: "Shared library",
       targets: [
-        ["slsk_shared_files", "files"],
-        ["slsk_shared_folders", "folders"],
+        ["max(slsk_shared_files)", "files"],
+        ["max(slsk_shared_folders)", "folders"],
       ],
     },
     {
       title: "Connections, messages, wishes",
       targets: [
-        ["slsk_peer_connections", "peer connections"],
-        ["slsk_messages_unread", "unread messages"],
-        ["slsk_wishes_open", "open wishes"],
+        ["max(slsk_peer_connections)", "peer connections"],
+        ["max(slsk_messages_unread)", "unread messages"],
+        ["max(slsk_wishes_open)", "open wishes"],
       ],
     },
   ],
@@ -751,40 +771,54 @@ const soulseek = dashboard(
       title: "Logged in",
       description:
         "Red means the client is not on the network: displaced by another login, refused, or disconnected.",
-      target: ["slsk_logged_in", "logged in"],
+      target: ["max(slsk_logged_in)", "logged in"],
       thresholds: [0.5, 1],
       invert: true,
     },
     {
       title: "Files shared",
-      target: ["slsk_shared_files", "files"],
+      target: ["max(slsk_shared_files)", "files"],
       thresholds: [1, 1],
       invert: true,
     },
     {
       title: "Uploading now",
-      target: ["slsk_uploads_active", "active"],
+      target: ["max(slsk_uploads_active)", "active"],
       thresholds: [1000, 10000],
     },
     {
       title: "Upload queue",
       description: "Users waiting for a slot. Amber past 200, red past 1000.",
-      target: ["slsk_uploads_queued", "queued"],
+      target: ["max(slsk_uploads_queued)", "queued"],
       thresholds: [200, 1000],
     },
     {
       title: "Needs a person",
       description: "Albums in review or suspect.",
       target: [
-        'sum(slsk_jobs{status=~"review|suspect"}) or vector(0)',
+        'sum(max by (status) (slsk_jobs{status=~"review|suspect"})) or vector(0)',
         "albums",
       ],
       thresholds: [1, 10],
     },
     {
       title: "Failed albums",
-      target: ['sum(slsk_jobs{status="failed"}) or vector(0)', "albums"],
+      target: ['max(slsk_jobs{status="failed"}) or vector(0)', "albums"],
       thresholds: [1, 5],
+    },
+    {
+      title: "Given, ever",
+      description:
+        "Bytes sent to other users since slsk started keeping count.",
+      unit: "bytes",
+      target: ["max(slsk_lifetime_uploaded_bytes_total)", "given"],
+      thresholds: [Number.MAX_VALUE, Number.MAX_VALUE],
+    },
+    {
+      title: "Users served",
+      description: "Distinct users an upload has finished to, ever.",
+      target: ['max(slsk_served_users{window="all"})', "users"],
+      thresholds: [Number.MAX_VALUE, Number.MAX_VALUE],
     },
   ],
 );
