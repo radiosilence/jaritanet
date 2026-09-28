@@ -55,7 +55,7 @@ const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
 // and ReplayGain pass run over a whole album at once, and a hi-res album went
 // past 1Gi and was OOM-killed mid-import. The request stays a twentieth of
 // this (see `resourceRequests`), so the headroom is only taken when used.
-const SLSK_LIMITS = { cpu: "2", memory: "3Gi" };
+const SLSK_LIMITS = { cpu: "2", memory: "4Gi" };
 
 /**
  * What the stack has already built by the time services are created.
