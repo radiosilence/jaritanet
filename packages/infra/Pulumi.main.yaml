@@ -51,3 +51,7 @@ config:
       secure: AAABAML50uSF2syloEfauzv/V2HNuGe1a+bvH59MMNwcBkQ3lc9SliOzvkv3t45cSVgNSA==
     discogsToken:
       secure: AAABALAzn/3IQzfG35fpBV2V+KDT3ciGeJ2mXeH24uZKukiiUw1CGTNj81veh0azb4P3rfLAmUs3mJHzN/uNx8AXWFN6I7Mc
+    transmetPassword:
+      secure: AAABAD5HNcGSKi6U2AzteeR40mZuDrUPeI+QNmf7jM8pTqGlTj/NV7+Ytrb7MwMFGA==
+    transmetPullToken:
+      secure: AAABAJrKCAeWwOu4VwPUl7Wv+7Fov2Cmtv7yn/zPotiyIgFct+kYeiUk8HHiSKGO7nzQWDf4H0YEFg2OqOoHmB9CH0NKqfyz

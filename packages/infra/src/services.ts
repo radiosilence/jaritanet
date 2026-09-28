@@ -27,6 +27,7 @@ import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createKoan } from "@radiosilence/koan-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
+import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
 import { createKoanSite } from "@jaritanet/koan-site";
@@ -91,6 +92,8 @@ export type EstateContext = {
   /** The Soulseek account slsk logs in with at start. */
   slskAccount?: { username: string; password: string };
   discogsToken?: string;
+  /** The reader's password, and the token its private image is pulled with. */
+  transmet?: { password: string; pullToken: string };
 };
 
 /**
@@ -339,6 +342,23 @@ export function createServices(ctx: EstateContext) {
         },
       ),
       secret,
+    );
+  }
+
+  // --- transmet -------------------------------------------------------------
+  // A comic reader whose image carries every page, so it needs no volume and
+  // runs on the VPS, next to the uplink, rather than on the media node.
+  if (hostnames.transmet && ctx.transmet) {
+    add(
+      createTransmet(provider, ns, {
+        hostname: hostnames.transmet,
+        password: pulumi.secret(ctx.transmet.password),
+        registry: {
+          username: "radiosilence",
+          token: pulumi.secret(ctx.transmet.pullToken),
+        },
+        nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+      }),
     );
   }
 

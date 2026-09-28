@@ -225,6 +225,9 @@ importers:
       '@radiosilence/slsk-mcp-pulumi':
         specifier: 0.1.45
         version: 0.1.45(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
+      '@radiosilence/transmet-pulumi':
+        specifier: 0.1.0
+        version: 0.1.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))
       yaml:
         specifier: 2.9.0
         version: 2.9.0
@@ -877,6 +880,12 @@ packages:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
       zod: ^4
+
+  '@radiosilence/transmet-pulumi@0.1.0':
+    resolution: {gitHosted: true, integrity: sha512-07F0DAk13cUiIhmMfunNoNTkwjX4HjF7slpFsivHRNwEt8IqeqwjQR6Z9FssAmIfKkFGAn0PaaLwwF/Na+Uw7A==, tarball: https://npm.pkg.github.com/download/@radiosilence/transmet-pulumi/0.1.0/6765d3e2e581443eae0c8abbc6d90d12b8964e4b}
+    peerDependencies:
+      '@pulumi/kubernetes': ^4
+      '@pulumi/pulumi': ^3
 
   '@rolldown/binding-android-arm-eabi@1.2.6':
     resolution: {integrity: sha512-b+jTcARdTiFLI6jB4a5XjTm0RWd6KcRfQj/I2356fxUZemiho9zQLxo0RtCuMDAyKcLo6cEltkgbQp6d1+sjjQ==}
@@ -2593,6 +2602,11 @@ snapshots:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
       zod: 4.4.3
+
+  '@radiosilence/transmet-pulumi@0.1.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))':
+    dependencies:
+      '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
 
   '@rolldown/binding-android-arm-eabi@1.2.6':
     optional: true

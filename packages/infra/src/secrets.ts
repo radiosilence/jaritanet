@@ -36,6 +36,13 @@ const SecretsSchema = z.strictObject({
    */
   slskUsername: z.string().optional(),
   slskPassword: z.string().optional(),
+  /**
+   * The one password the Transmetropolitan reader asks for, and a classic
+   * token with `read:packages` the cluster pulls its private image with. Both
+   * absent → it is not deployed.
+   */
+  transmetPassword: z.string().optional(),
+  transmetPullToken: z.string().optional(),
   /** Discogs personal access token, for slsk's importer (sift). */
   discogsToken: z.string().optional(),
   /** Ubuntu Pro, for livepatch. Absent → patches still land on reboot. */
