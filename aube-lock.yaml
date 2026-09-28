@@ -180,9 +180,6 @@ importers:
       '@jaritanet/k8s':
         specifier: workspace:*
         version: 0.0.0
-      '@jaritanet/koan':
-        specifier: workspace:*
-        version: 0.0.0
       '@jaritanet/koan-site':
         specifier: workspace:*
         version: 0.0.0
@@ -216,6 +213,9 @@ importers:
       '@pulumi/tls':
         specifier: 5.4.0
         version: 5.4.0(typescript@6.0.3)
+      '@radiosilence/koan-pulumi':
+        specifier: 0.36.9
+        version: 0.36.9(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/mariastew-pulumi':
         specifier: 0.2.1
         version: 0.2.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
@@ -258,18 +258,6 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
-
-  packages/koan:
-    dependencies:
-      '@jaritanet/k8s':
-        specifier: workspace:*
-        version: 0.0.0
-      '@pulumi/kubernetes':
-        specifier: 4.30.0
-        version: 4.30.0(typescript@6.0.3)
-      '@pulumi/pulumi':
-        specifier: 3.239.0
-        version: 3.239.0(typescript@6.0.3)
 
   packages/koan-site:
     dependencies:
@@ -860,6 +848,13 @@ packages:
 
   '@pulumi/tls@5.4.0':
     resolution: {integrity: sha512-onLIie8deuZJHV8JkuDnY7nilIgGTr8HNyatg1FbgHikqo/HxU9yOwPM5Q7J0EAKtfHXuI9wkhnc4NReWIUfNg==}
+
+  '@radiosilence/koan-pulumi@0.36.9':
+    resolution: {gitHosted: true, integrity: sha512-zt7rHOrqrpzsK3UKpmaeUKhV4D5aXRi9OnUPFOcScV59pXndWbGTptLtZs2ZNa+RcAX8KJaUD4L+DH0n5BfVHg==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.36.9/2849b160666e90adce9ca3f35ae3a87ea132e523}
+    peerDependencies:
+      '@pulumi/kubernetes': ^4
+      '@pulumi/pulumi': ^3
+      zod: ^4
 
   '@radiosilence/mariastew-pulumi@0.2.1':
     resolution: {gitHosted: true, integrity: sha512-NgbSheDpbL2BeFz76tqYmL+9i3PviTyzRKJ+9vHlep7vIhQ9KTerVD4ir1IO9UoLpud+QbldH4+u7E9mDZgHbA==, tarball: https://npm.pkg.github.com/download/@radiosilence/mariastew-pulumi/0.2.1/2bbf0c3a5eaa8712e76e63b88f592a29e3518c22}
@@ -2572,6 +2567,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - ts-node
+
+  '@radiosilence/koan-pulumi@0.36.9(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
+    dependencies:
+      '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
+      zod: 4.4.3
 
   '@radiosilence/mariastew-pulumi@0.2.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
     dependencies:

@@ -25,10 +25,10 @@ import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
 import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
+import { createKoan } from "@radiosilence/koan-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA } from "@jaritanet/metrics";
-import { createKoan } from "@jaritanet/koan";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createGroglog } from "@jaritanet/groglog";
 import {
@@ -158,9 +158,28 @@ export function createServices(ctx: EstateContext) {
   // koan over the library, read-only: its web UI, GraphQL and Subsonic at a
   // hostname of its own, and MCP through the gateway.
   if (hostnames.koan) {
-    add(
-      createKoan(provider, ns, { hostname: hostnames.koan, node: MEDIA_NODE }),
-    );
+    adoptKoanChart();
+    createKoan(provider, ns, {
+      hostname: hostnames.koan,
+      library: { hostPath: "/mnt/kontent/music" },
+      state: { hostPath: "/var/lib/koan" },
+      nodeSelector: { "kubernetes.io/hostname": MEDIA_NODE },
+      // The ingress route backs onto `<prefix>-service`, and the MCP gateway
+      // is registered at koan-internal.
+      service: { name: "koan-service" },
+      mcp: { serviceName: "koan-internal" },
+      networkPolicy: {
+        // The node, for the probes: this CNI enforces policy on kubelet.
+        extraIngress: [
+          {
+            from: [{ ipBlock: { cidr: "192.168.0.0/16" } }],
+            ports: [{ protocol: "TCP", port: 4000 }],
+          },
+        ],
+      },
+    });
+    // The package names the Service outright; routes here name a prefix.
+    add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
   }
   add(
     createFiles(provider, "files", {
@@ -490,4 +509,25 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
   }
 
   return published;
+}
+
+/**
+ * koan's objects, as the Helm chart it used to be deployed from named them.
+ * Aliased so the move to the package updates them in place: the names and
+ * selector labels are the chart's, and a create would collide with them.
+ */
+const KOAN_CHART = "urn:pulumi:main::jaritanet::kubernetes:helm.sh/v4:Chart";
+const KOAN_PREVIOUS: Record<string, string> = {
+  "kubernetes:apps/v1:Deployment/koan": `${KOAN_CHART}$kubernetes:apps/v1:Deployment::koan:jaritanet/koan`,
+  "kubernetes:core/v1:Service/koan-service": `${KOAN_CHART}$kubernetes:core/v1:Service::koan:jaritanet/koan-service`,
+  "kubernetes:core/v1:Service/koan-internal": `${KOAN_CHART}$kubernetes:core/v1:Service::koan:jaritanet/koan-internal`,
+  "kubernetes:networking.k8s.io/v1:NetworkPolicy/koan-netpol": `${KOAN_CHART}$kubernetes:networking.k8s.io/v1:NetworkPolicy::koan:jaritanet/koan`,
+};
+
+function adoptKoanChart() {
+  pulumi.runtime.registerResourceTransform(({ type, name, props, opts }) => {
+    const previous = KOAN_PREVIOUS[`${type}/${name}`];
+    if (!previous) return undefined;
+    return { props, opts: pulumi.mergeOptions(opts, { aliases: [previous] }) };
+  });
 }
