@@ -26,7 +26,7 @@ export const VERSIONS = {
   caldav: "ghcr.io/radiosilence/caldav-cli:v0.6.4",
   fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.5.1",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.4",
-  tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.4",
+  tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.5",
 } as const;
 
 export const MCPS: z.input<typeof McpSchema>[] = [
