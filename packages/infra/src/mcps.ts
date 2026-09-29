@@ -23,7 +23,7 @@ import type * as z from "zod";
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  caldav: "ghcr.io/radiosilence/caldav-cli:v0.6.3",
+  caldav: "ghcr.io/radiosilence/caldav-cli:v0.6.4",
   fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.5.1",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.3",
   tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.4",
