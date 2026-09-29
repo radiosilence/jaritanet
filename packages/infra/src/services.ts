@@ -179,6 +179,9 @@ export function createServices(ctx: EstateContext) {
         )
       : undefined;
     createKoan(provider, ns, {
+      // koan 0.42.0's image, ahead of the package that would name it: the
+      // package is unchanged but for that pin. Drop with the package bump.
+      image: { tag: "v0.42.0" },
       ...(koanPush && {
         push: {
           existingSecret: "koan-apns",
