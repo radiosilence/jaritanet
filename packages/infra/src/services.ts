@@ -38,7 +38,7 @@ import {
   type SingboxNode,
   type VpnUser,
 } from "@jaritanet/vpn";
-import type * as k8s from "@pulumi/kubernetes";
+import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type { Zone } from "@jaritanet/dns";
@@ -92,6 +92,8 @@ export type EstateContext = {
   /** The Soulseek account slsk logs in with at start. */
   slskAccount?: { username: string; password: string };
   discogsToken?: string;
+  /** koan's APNs key: push to its iOS app. See `secrets.ts`. */
+  koanApnsKey?: string;
   /** The reader's password, and the token its private image is pulled with. */
   transmet?: { password: string; pullToken: string };
 };
@@ -165,7 +167,25 @@ export function createServices(ctx: EstateContext) {
   // hostname of its own, and MCP through the gateway.
   if (hostnames.koan) {
     adoptKoanChart();
+    // The key goes in a Secret the pod reads, never into the Deployment.
+    const koanPush = ctx.koanApnsKey
+      ? new k8s.core.v1.Secret(
+          "koan-apns",
+          {
+            metadata: { name: "koan-apns", namespace: ns },
+            stringData: { "apns-key": pulumi.secret(ctx.koanApnsKey) },
+          },
+          { provider },
+        )
+      : undefined;
     createKoan(provider, ns, {
+      ...(koanPush && {
+        push: {
+          existingSecret: "koan-apns",
+          keyId: "HRXQWC44VS",
+          teamId: "2256Q92VF2",
+        },
+      }),
       hostname: hostnames.koan,
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
