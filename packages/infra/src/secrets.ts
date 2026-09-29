@@ -45,6 +45,12 @@ const SecretsSchema = z.strictObject({
   transmetPullToken: z.string().optional(),
   /** Discogs personal access token, for slsk's importer (sift). */
   discogsToken: z.string().optional(),
+  /**
+   * koan's APNs auth key (the `.p8`, PEM), for the koan server to reach its
+   * iOS app once iOS has suspended it. Absent → phones are reached only while
+   * their app is linked.
+   */
+  koanApnsKey: z.string().optional(),
   /** Ubuntu Pro, for livepatch. Absent → patches still land on reboot. */
   ubuntuProToken: z.string().optional(),
   /** Comma-separated; a trailing `+` marks an admin. See `parseVpnUsers`. */

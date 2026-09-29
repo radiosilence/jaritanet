@@ -55,3 +55,5 @@ config:
       secure: AAABAD5HNcGSKi6U2AzteeR40mZuDrUPeI+QNmf7jM8pTqGlTj/NV7+Ytrb7MwMFGA==
     transmetPullToken:
       secure: AAABAJrKCAeWwOu4VwPUl7Wv+7Fov2Cmtv7yn/zPotiyIgFct+kYeiUk8HHiSKGO7nzQWDf4H0YEFg2OqOoHmB9CH0NKqfyz
+    koanApnsKey:
+      secure: AAABANdDTOtMADKc1mRzjntqftc2qm921GWTKabwLAp4Rwhyo/PhSSY6OyCADA2mOTAf9XerxQcV+VHP+sJ59l1NGN7RbMlJCrShrVlaASCquWaGgvP10HFhvPtBmWjQ2zylSnk6Fsc0Jf63yzi6jB7S5yajFUi4R9HgC0uRr9EAtvoZiG6Yd/HXpxj0yASKHtBbSpZ25fTUTemfW3/NzMGCn2h0Lx0tr8co287HvcdJSDIcA4250HA16YOouxbN+sAFBL99sd11cY9VN94VkIA//4QvbI2VvX7U3r/BoF7hiF1Jeevv+zCcgR5WE4xnaj6N/KBiOJlUIkQNaQrhq9rHPDKhJq7WheN1zmoILzHKn0mQq0kLy2qV2Xs405Sviw==
