@@ -426,6 +426,8 @@ export function createServices(ctx: EstateContext) {
           ),
           limits: SLSK_LIMITS,
           requests: resourceRequests(SLSK_LIMITS).requests,
+          // The most the client allows; its default is five.
+          uploadSlots: 100,
         },
         {
           hostname: hostnames.slsk,
