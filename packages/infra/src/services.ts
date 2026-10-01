@@ -435,14 +435,9 @@ export function createServices(ctx: EstateContext) {
           oidc: { issuer: `https://${ctx.authHostname}`, clientId: "slsk" },
           oidcClientSecret: secret,
           // Generated once and kept in state: a new seal key would orphan the
-          // stored credentials, and a new password would lock the pod out of
-          // its own database.
+          // stored credentials.
           sealKey: new random.RandomBytes("slsk-seal-key", { length: 32 })
             .base64,
-          databasePassword: new random.RandomPassword("slsk-database", {
-            length: 40,
-            special: false,
-          }).result,
           account: ctx.slskAccount && {
             username: pulumi.secret(ctx.slskAccount.username),
             password: pulumi.secret(ctx.slskAccount.password),
