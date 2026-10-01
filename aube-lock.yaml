@@ -214,8 +214,8 @@ importers:
         specifier: 5.4.0
         version: 5.4.0(typescript@6.0.3)
       '@radiosilence/koan-pulumi':
-        specifier: 0.46.0
-        version: 0.46.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
+        specifier: 0.46.1
+        version: 0.46.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/mariastew-pulumi':
         specifier: 0.2.1
         version: 0.2.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
@@ -852,8 +852,8 @@ packages:
   '@pulumi/tls@5.4.0':
     resolution: {integrity: sha512-onLIie8deuZJHV8JkuDnY7nilIgGTr8HNyatg1FbgHikqo/HxU9yOwPM5Q7J0EAKtfHXuI9wkhnc4NReWIUfNg==}
 
-  '@radiosilence/koan-pulumi@0.46.0':
-    resolution: {gitHosted: true, integrity: sha512-TFgoyN5Tqyu9QyuWwJzrvDGxgyXx6Y2FAuHEc5J/lP2e5uh6WBPgyUro4bfirH0tB5zEOHgM3EKGJ0C+A7tqgA==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.46.0/23ce3cc26bc7f6fad4e8ebe87829d3c6d5313bea}
+  '@radiosilence/koan-pulumi@0.46.1':
+    resolution: {gitHosted: true, integrity: sha512-BJIczggNWlslroE23rucime3ehFGhVl5qI2rYsO2FOlTWyYpwH4apTvBzJ/BzvCA4Kuq+/V/SvZ4e95qaaJ26w==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.46.1/205f8f21a404221af2c89f34d78730173ae1947d}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2577,7 +2577,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  '@radiosilence/koan-pulumi@0.46.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
+  '@radiosilence/koan-pulumi@0.46.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
     dependencies:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
