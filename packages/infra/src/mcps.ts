@@ -155,29 +155,6 @@ export const MCPS: z.input<typeof McpSchema>[] = [
     graphqlPath: "/graphql",
     public: true,
   },
-  // koan over the music library, deployed by `@radiosilence/koan-pulumi` rather than
-  // by the gateway, since it needs the media node and its disks. Each user
-  // enters a koan account, and the MCP acts with that account's role.
-  {
-    id: "koan",
-    name: "koan",
-    url: "http://koan-internal:8081",
-    path: "/mcp",
-    fields: [
-      {
-        id: "username",
-        label: "koan username",
-        header: "X-Koan-Username",
-        secret: false,
-      },
-      {
-        id: "password",
-        label: "koan password",
-        header: "X-Koan-Password",
-        secret: true,
-      },
-    ],
-  },
   // TfL needs no key at all — anonymous callers get 50 requests/minute, which
   // is the same data, not a degraded tier. A key raises that to 500, so the
   // field is offered and optional: the proxy treats a missing credential as
