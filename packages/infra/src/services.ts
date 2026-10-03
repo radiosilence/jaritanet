@@ -188,17 +188,11 @@ export function createServices(ctx: EstateContext) {
         },
       }),
       hostname: hostnames.koan,
-      // koan's own MCP and OAuth (radiosilence/koan#644), ahead of its release.
-      // Remove with the bump to the 0.50.0 package, along with `mcp` below.
-      image: { tag: "b41bf4d5634df5faff705115d0e72bad88a21448" },
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
       nodeSelector: { "kubernetes.io/hostname": MEDIA_NODE },
       // The ingress route backs onto `<prefix>-service`.
       service: { name: "koan-service" },
-      // The gateway-facing MCP listener. koan serves MCP on its API port from
-      // 0.50.0, whose package drops this option and rejects it.
-      mcp: { enabled: false },
       networkPolicy: {
         // The node, for the probes: this CNI enforces policy on kubelet.
         extraIngress: [
