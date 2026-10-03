@@ -163,8 +163,9 @@ export function createServices(ctx: EstateContext) {
   };
 
   // --- The box that holds the disks ----------------------------------------
-  // koan over the library, read-only: its web UI, GraphQL and Subsonic at a
-  // hostname of its own, and MCP through the gateway.
+  // koan over the library, read-only: its web UI, GraphQL, Subsonic and MCP at
+  // a hostname of its own. MCP clients sign in with koan accounts through
+  // koan's own OAuth, at https://<hostname>/mcp.
   if (hostnames.koan) {
     adoptKoanChart();
     // The key goes in a Secret the pod reads, never into the Deployment.
@@ -190,10 +191,11 @@ export function createServices(ctx: EstateContext) {
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
       nodeSelector: { "kubernetes.io/hostname": MEDIA_NODE },
-      // The ingress route backs onto `<prefix>-service`, and the MCP gateway
-      // is registered at koan-internal.
+      // The ingress route backs onto `<prefix>-service`.
       service: { name: "koan-service" },
-      mcp: { serviceName: "koan-internal" },
+      // The gateway-facing MCP listener. koan serves MCP on its API port from
+      // 0.50.0, whose package drops this option and rejects it.
+      mcp: { enabled: false },
       networkPolicy: {
         // The node, for the probes: this CNI enforces policy on kubelet.
         extraIngress: [
@@ -577,7 +579,6 @@ const KOAN_CHART = "urn:pulumi:main::jaritanet::kubernetes:helm.sh/v4:Chart";
 const KOAN_PREVIOUS: Record<string, string> = {
   "kubernetes:apps/v1:Deployment/koan": `${KOAN_CHART}$kubernetes:apps/v1:Deployment::koan:jaritanet/koan`,
   "kubernetes:core/v1:Service/koan-service": `${KOAN_CHART}$kubernetes:core/v1:Service::koan:jaritanet/koan-service`,
-  "kubernetes:core/v1:Service/koan-internal": `${KOAN_CHART}$kubernetes:core/v1:Service::koan:jaritanet/koan-internal`,
   "kubernetes:networking.k8s.io/v1:NetworkPolicy/koan-netpol": `${KOAN_CHART}$kubernetes:networking.k8s.io/v1:NetworkPolicy::koan:jaritanet/koan`,
 };
 
