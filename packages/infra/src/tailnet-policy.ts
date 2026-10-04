@@ -73,6 +73,15 @@ export function buildTailnetPolicy({
   // The gateway and every edge advertise the same tag, so the union arrives
   // with duplicates. Sorted so a reordered config is not a policy diff.
   const fleetTags = [...new Set(tags)].toSorted();
+  const dataplane = clusterPeers.map(
+    (peer) => [`${peer}:${KUBELET.port}`, KUBELET] as const,
+  );
+  if (podNetwork && clusterPeers.length) {
+    dataplane.push([
+      `${firstHost(podNetwork.cidr)}:${POD_PROBE.port}`,
+      POD_PROBE,
+    ]);
+  }
 
   return {
     tagOwners: Object.fromEntries(fleetTags.map((tag) => [tag, owners])),
@@ -94,22 +103,9 @@ export function buildTailnetPolicy({
     ...(podNetwork && {
       autoApprovers: { routes: { [podNetwork.cidr]: podNetwork.routers } },
     }),
-    tests: fleetTags.flatMap((tag) => [
-      ...clusterPeers.map((peer) => ({
-        src: tag,
-        proto: KUBELET.proto,
-        accept: [`${peer}:${KUBELET.port}`],
-      })),
-      ...(podNetwork && clusterPeers.length
-        ? [
-            {
-              src: tag,
-              proto: POD_PROBE.proto,
-              accept: [`${firstHost(podNetwork.cidr)}:${POD_PROBE.port}`],
-            },
-          ]
-        : []),
-    ]),
+    tests: fleetTags.flatMap((tag) =>
+      dataplane.map(([dst, { proto }]) => ({ src: tag, proto, accept: [dst] })),
+    ),
   };
 }
 
