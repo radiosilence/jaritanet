@@ -135,9 +135,16 @@ export function createIngress(
           type: "RollingUpdate",
           rollingUpdate: { maxUnavailable: 1, maxSurge: 0 },
         },
+        // No CPU limit. Every byte through the ingress pays for TLS here, so
+        // throughput is CPU-bound: capped at 250m, CFS throttled two periods in
+        // three during a single download and held the whole proxy to ~20 MB/s.
+        // The request still reserves a quarter core for scheduling.
         resources: {
-          limits: {
+          requests: {
             cpu: "250m",
+            memory: "256Mi",
+          },
+          limits: {
             memory: "256Mi",
           },
         },
