@@ -55,7 +55,19 @@ export function createCilium(
       values: {
         // Single node — the default of two operator replicas leaves one pending
         // forever, which looks like a broken cluster to anyone reading pods.
-        operator: { replicas: 1, prometheus: { enabled: true } },
+        operator: {
+          replicas: 1,
+          prometheus: { enabled: true },
+          rollOutPods: true,
+        },
+        /**
+         * Restart the agents when their config changes. Cilium reads
+         * `cilium-config` only at startup and the chart does not roll the
+         * DaemonSet by default, so a values change otherwise lands in the
+         * ConfigMap and nowhere else — the switch to native routing sat
+         * unapplied behind agents still tunnelling, with nothing reporting it.
+         */
+        rollOutCiliumPods: true,
         /**
          * Metrics, on by request rather than by default.
          *
