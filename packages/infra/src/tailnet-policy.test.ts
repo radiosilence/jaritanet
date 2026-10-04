@@ -5,6 +5,7 @@ const args = {
   clusterPeers: ["100.74.66.121"],
   owners: ["jc@blit.cc"],
   tags: ["tag:server", "tag:ci"],
+  podNetwork: { cidr: "10.42.0.0/16", routers: ["tag:server"] },
 };
 
 describe("buildTailnetPolicy", () => {
@@ -27,28 +28,33 @@ describe("buildTailnetPolicy", () => {
   });
 
   it("asserts every peer on what the cluster's dataplane needs", () => {
-    // Cilium carries pod traffic over the tailnet (#238), so a grant that drops
-    // these partitions the cluster instead of degrading access. The provider
-    // validates `tests` before applying, which is what makes that a failed
-    // deploy rather than a silent blackhole.
+    // Pod traffic crosses the tailnet, so a grant that drops these partitions
+    // the cluster instead of degrading access. The provider validates `tests`
+    // before applying, which is what makes that a failed deploy rather than a
+    // silent blackhole.
     expect(buildTailnetPolicy(args).tests).toEqual([
-      { src: "tag:ci", proto: "udp", accept: ["100.74.66.121:8472"] },
       { src: "tag:ci", proto: "tcp", accept: ["100.74.66.121:10250"] },
-      { src: "tag:server", proto: "udp", accept: ["100.74.66.121:8472"] },
+      { src: "tag:ci", proto: "tcp", accept: ["10.42.0.1:443"] },
       { src: "tag:server", proto: "tcp", accept: ["100.74.66.121:10250"] },
+      { src: "tag:server", proto: "tcp", accept: ["10.42.0.1:443"] },
     ]);
   });
 
-  it("asserts VXLAN over udp", () => {
-    // Tailscale evaluates a test as TCP unless told otherwise, so omitting
-    // `proto` here would assert a port nothing uses and pass against a policy
-    // that drops every packet Cilium sends.
-    const vxlan = buildTailnetPolicy(args).tests.filter((test) =>
-      test.accept.some((dst) => dst.endsWith(":8472")),
-    );
+  it("approves the pod network's routes for the cluster's tag alone", () => {
+    // Cluster nodes accept routes so they can reach each other's pods; this
+    // is what bounds what they can be handed.
+    expect(buildTailnetPolicy(args).autoApprovers).toEqual({
+      routes: { "10.42.0.0/16": ["tag:server"] },
+    });
+  });
 
-    expect(vxlan.length).toBeGreaterThan(0);
-    expect(vxlan.every((test) => test.proto === "udp")).toBe(true);
+  it("approves nothing without a pod network", () => {
+    const { podNetwork: _, ...noPods } = args;
+
+    expect(buildTailnetPolicy(noPods)).not.toHaveProperty("autoApprovers");
+    expect(
+      buildTailnetPolicy(noPods).tests.flatMap((test) => test.accept),
+    ).toEqual(["100.74.66.121:10250", "100.74.66.121:10250"]);
   });
 
   it("asserts nothing when no peer needs reaching", () => {

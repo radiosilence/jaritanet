@@ -455,9 +455,12 @@ Two profiles, one VPN slot (matters on iOS):
   survives censorship. Slower (relay hop + geography). Use when the native
   client can't connect.
 
-Load-bearing on the VPS side: `tailscale up --accept-routes=false`. With routes
-accepted, a peer advertising an exit node or routes swallows the VPS default
-route → the relay and every service riding it go dark.
+The VPS joins with `tailscale up --accept-routes=false`: a peer advertising
+routes must not swallow its default route, or the relay and every service riding
+it go dark. As a cluster node it then accepts routes after all, to reach the
+other nodes' pods (see Pod network over the tailnet); that is safe because
+the policy approves routes only inside the pod network and only from the
+cluster's tag.
 
 On the gateway this runs as a pod, which means the tailnet goes with the
 cluster. That is accepted rather than defended against: sshd on the public IP is
@@ -833,6 +836,30 @@ The reload is conditional on `ssh.service` being active: Ubuntu 24.04 activates
 sshd from `ssh.socket`, where each connection is a fresh process that reads the
 config anyway, and starting `ssh.service` there would fight the socket for `:22`.
 
+## Pod network over the tailnet
+
+The nodes reach each other only over the tailnet (lady is behind NAT with
+nothing forwarded), so that is what pod traffic crosses. It crosses natively:
+each node advertises its own podCIDR as a subnet route, the policy's
+`autoApprovers` approve it for the cluster's tag, every node accepts the others',
+and Cilium routes pods through the kernel to `tailscale0` with
+`routingMode: native`. `createTailnetRoutes` keeps that asserted on every node.
+
+It used to be VXLAN, and VXLAN halved throughput. The tun device takes TCP
+segmentation offload but not tunnelled GSO, so encapsulated traffic reached
+tailscaled one 1230-byte packet at a time, some fifty times the packet rate of
+the same bytes as host TCP. tailscaled could not drain the queue, the tun
+dropped about 17% of what was sent into it, and pod-to-pod TCP managed 29 MB/s
+where host-to-host over the same tunnel does 103 MB/s. Every service behind the
+ingress on the other node was capped by it.
+
+Three details hold it together. `--snat-subnet-routes=false` keeps a pod's
+own source address on arrival, which NetworkPolicy matches on. The pod MTU is
+the tunnel's 1280, stated rather than detected. And `--accept-routes` is now on
+for cluster nodes, which the VPS otherwise refuses (see Tailnet over the tunnel);
+the approval scope is what makes that safe, since a route outside the pod
+network or from another tag is never approved and so never accepted.
+
 ## Hardening notes
 
 Live tradeoffs worth knowing, not necessarily bugs:
@@ -907,17 +934,17 @@ Live tradeoffs worth knowing, not necessarily bugs:
 
 - **Cilium's packet marks collide with tailscaled's routing rules, and the
   collision selects victims by identity arithmetic.** Cilium stamps the
-  sender's security identity into skb mark bits 16–31 on overlay traffic;
+  sender's security identity into skb mark bits 16–31 on cross-node traffic;
   Tailscale claims mark `0x80000/0xff0000` as "bypass table 52" and routes
   matches via the main table — out the public interface. So a pod whose
-  identity is ≡ 8 (mod 256) has its cross-node VXLAN packets silently exit
+  identity is ≡ 8 (mod 256) had its cross-node packets silently exit
   eth0 toward CGNAT space: one pod unreachable between nodes while its
   neighbours answer, appearing and disappearing as identity allocation
   happens to land on a colliding value. CoreDNS drew identity 21000 (0x5208)
   and cluster DNS died for every pod on the agent node. Neither side has a
-  knob, so `createTailnetRule` (a DaemonSet) holds an `ip rule` at pref 5209
-  — one before the bypass rules — sending 100.64.0.0/10 to the tailnet table
-  regardless of mark. If cross-node traffic to *one specific pod* ever
+  knob, so `createTailnetRule` (a DaemonSet) holds `ip rule`s ahead of the
+  bypass rules — pref 5209 for 100.64.0.0/10, 5208 for the pod network —
+  sending both to the tailnet table regardless of mark. If cross-node traffic to *one specific pod* ever
   blackholes again, check that rule is present before anything else.
 
 - **hy2 uses adaptive congestion control (BBR) everywhere; Brutal is not

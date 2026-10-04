@@ -33,6 +33,12 @@ import type * as pulumi from "@pulumi/pulumi";
  * Turning that flag on is therefore a change to how Cilium bootstraps, not only
  * to how the kubeconfig is addressed.
  */
+/**
+ * The cluster's pod network: k3s's default `cluster-cidr`, which nothing here
+ * overrides. k3s gives each node a /24 of it as its podCIDR.
+ */
+export const POD_CIDR = "10.42.0.0/16";
+
 export function createCilium(
   provider: k8s.Provider,
   version: string,
@@ -76,26 +82,42 @@ export function createCilium(
         // than running its own allocator.
         ipam: { mode: "kubernetes" },
         /**
-         * Pod MTU, set rather than detected.
+         * Native routing: pod packets cross nodes as themselves, carried by the
+         * tailnet as subnet routes each node advertises for its own podCIDR
+         * (see createTailnetRoutes).
          *
-         * Cilium sizes this from the route to the other node, which here is the
-         * tailnet at 1280, and hands pods that same 1280 — without subtracting
-         * the VXLAN header it then adds. A full-size pod packet leaves at 1330
-         * on a 1280 link and is dropped, silently and with no ICMP to trigger
-         * path-MTU discovery, so it presents as a blackhole rather than an
-         * error: small requests answer normally and anything larger hangs.
+         * Not VXLAN, for throughput. The tailnet's tun device takes TCP
+         * segmentation offload but not tunnelled GSO, so VXLAN reached
+         * tailscaled as one 1230-byte packet at a time — some fifty times the
+         * packet rate of the same bytes as host TCP. tailscaled could not drain
+         * its queue at that rate, the tun dropped 17% of what was sent into it,
+         * and pod-to-pod TCP managed 29 MB/s over a tunnel that carries host
+         * traffic at 103 MB/s. Unencapsulated, pod TCP reaches the tun in
+         * offloaded batches like any other.
          *
-         * What that broke was not obvious from the symptom. CoreDNS on a node
-         * that has to cross the tunnel never finished listing services from the
-         * API server, so it stayed unready and every pod on that node resolved
-         * nothing at all.
-         *
-         * 1280 - 50 for VXLAN over IPv4. Anything that changes the underlay MTU
-         * or the tunnel protocol has to move this with it; there is no
-         * detection here to fall back on precisely because the detected value
-         * is the one that was wrong.
+         * `ipv4NativeRoutingCIDR` keeps pod-to-pod traffic unmasqueraded, so it
+         * arrives with the source address NetworkPolicy matches on.
          */
-        MTU: 1230,
+        routingMode: "native",
+        ipv4NativeRoutingCIDR: POD_CIDR,
+        /**
+         * Through the kernel's routing rather than BPF's FIB lookup. The route
+         * to another node's pods lives in tailscaled's table 52 behind policy
+         * rules, out a layer-3 device Cilium does not manage; the kernel stack
+         * is the path those rules were written for.
+         */
+        bpf: { hostLegacyRouting: true },
+        /**
+         * Pod MTU, set rather than detected: the tailnet's 1280.
+         *
+         * Detection was wrong under VXLAN — Cilium handed pods the tunnel's
+         * 1280 and then added its own header, and the oversized packets dropped
+         * with no ICMP to trigger path-MTU discovery. Small requests answered
+         * and anything larger hung; CoreDNS never finished listing services, so
+         * every pod on that node resolved nothing. Stated, so that failure does
+         * not depend on detection again.
+         */
+        MTU: 1280,
         kubeProxyReplacement: true,
         k8sServiceHost: apiHost,
         k8sServicePort: 6443,

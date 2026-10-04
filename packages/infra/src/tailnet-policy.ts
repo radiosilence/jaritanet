@@ -2,26 +2,19 @@ import * as tailscale from "@pulumi/tailscale";
 import type * as pulumi from "@pulumi/pulumi";
 
 /**
- * What the cluster's dataplane rides between nodes.
+ * What the cluster's dataplane needs from the policy.
  *
- * Cilium addresses both nodes by tailnet IP (#238), so these cross the tailnet
- * rather than a local network and the policy decides whether they arrive. VXLAN
- * carries pod-to-pod traffic; the kubelet port carries logs and exec, which is
- * what makes a partition look like a healthy cluster you cannot inspect.
+ * Cilium addresses both nodes by tailnet IP (#238) and routes pod traffic
+ * natively over the tailnet, so the policy decides whether either arrives. The
+ * kubelet port carries logs and exec, which is what makes a partition look like
+ * a healthy cluster you cannot inspect; the pod network carries everything
+ * else.
  *
- * The protocol is load-bearing, not decoration. Tailscale evaluates a test as
- * TCP unless told otherwise, so asserting VXLAN without `proto` tests a port
- * nothing uses and passes against a policy that drops every packet Cilium
- * actually sends.
- *
- * VXLAN's port is Cilium's default rather than something read back from the
- * cluster — `tunnel-port` is unset in `cilium-config`. Overriding it there
- * without changing it here would assert the wrong port.
+ * The protocol is stated rather than left to Tailscale's TCP default so a test
+ * says which traffic it asserts.
  */
-const CLUSTER_DATAPLANE = [
-  { port: 8472, proto: "udp" },
-  { port: 10250, proto: "tcp" },
-];
+const KUBELET = { port: 10250, proto: "tcp" };
+const POD_PROBE = { port: 443, proto: "tcp" };
 
 type TailnetPolicyArgs = {
   /** Tailnet IPs of nodes the cluster's dataplane must reach. */
@@ -30,6 +23,18 @@ type TailnetPolicyArgs = {
   owners: string[];
   /** Every tag any node in the fleet advertises. */
   tags: string[];
+  /**
+   * The cluster's pod network and the tags of the nodes that advertise it, one
+   * podCIDR each (see createTailnetRoutes).
+   */
+  podNetwork?: { cidr: string; routers: string[] };
+};
+
+/** An address inside `cidr`, for a test to name: its first host. */
+const firstHost = (cidr: string) => {
+  const octets = cidr.split("/")[0].split(".").map(Number);
+  octets[3] += 1;
+  return octets.join(".");
 };
 
 /**
@@ -50,6 +55,11 @@ type TailnetPolicyArgs = {
  * which is the argument for the policy living beside the code that depends on
  * it.
  *
+ * `autoApprovers` is what keeps the pod network free of a console step: a node
+ * advertising its podCIDR is approved on the spot, and only the cluster's own
+ * tag may, and only inside the pod network. Nodes accept routes because of it,
+ * so it is also what bounds what they can be handed.
+ *
  * Emitted as JSON, which is valid HuJSON. Comments are lost, so the reasoning
  * lives here instead — beside the code that derives a rule rather than beside a
  * literal copy of it.
@@ -58,10 +68,20 @@ export function buildTailnetPolicy({
   clusterPeers,
   owners,
   tags,
+  podNetwork,
 }: TailnetPolicyArgs) {
   // The gateway and every edge advertise the same tag, so the union arrives
   // with duplicates. Sorted so a reordered config is not a policy diff.
   const fleetTags = [...new Set(tags)].toSorted();
+  const dataplane = clusterPeers.map(
+    (peer) => [`${peer}:${KUBELET.port}`, KUBELET] as const,
+  );
+  if (podNetwork && clusterPeers.length) {
+    dataplane.push([
+      `${firstHost(podNetwork.cidr)}:${POD_PROBE.port}`,
+      POD_PROBE,
+    ]);
+  }
 
   return {
     tagOwners: Object.fromEntries(fleetTags.map((tag) => [tag, owners])),
@@ -80,14 +100,11 @@ export function buildTailnetPolicy({
       },
     ],
     nodeAttrs: [{ target: ["autogroup:member"], attr: ["funnel"] }],
-    tests: clusterPeers.flatMap((peer) =>
-      fleetTags.flatMap((tag) =>
-        CLUSTER_DATAPLANE.map(({ port, proto }) => ({
-          src: tag,
-          proto,
-          accept: [`${peer}:${port}`],
-        })),
-      ),
+    ...(podNetwork && {
+      autoApprovers: { routes: { [podNetwork.cidr]: podNetwork.routers } },
+    }),
+    tests: fleetTags.flatMap((tag) =>
+      dataplane.map(([dst, { proto }]) => ({ src: tag, proto, accept: [dst] })),
     ),
   };
 }
@@ -103,10 +120,10 @@ export function buildTailnetPolicy({
  * grant limiting what the gateway can talk to would have contained it without
  * anyone noticing the bug.
  *
- * It cuts the other way too, which the containment argument alone misses: since
- * #238 Cilium addresses both nodes by tailnet IP, so this policy carries pod
- * traffic between them. A grant that omits the node pair does not degrade
- * access, it partitions the cluster.
+ * It cuts the other way too, which the containment argument alone misses: pod
+ * traffic between nodes crosses the tailnet, so this policy carries it. A grant
+ * that omits the node pair or the pod network does not degrade access, it
+ * partitions the cluster.
  *
  * `overwriteExistingContent` is deliberately left false. The provider then
  * refuses to touch a policy it has not imported, so this cannot clobber a
