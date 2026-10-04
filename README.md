@@ -450,7 +450,6 @@ the cluster rather than your convenience.
 
 `tests` is what makes the second direction survivable: Tailscale validates it
 before applying, so a partitioning grant fails `pulumi up` rather than
-blackholing pods that all report healthy. `proto` is load-bearing there. Tests
-evaluate as TCP unless told otherwise and Cilium's VXLAN is UDP, so asserting
-`8472` without it tests a port nothing uses and passes against a policy that
-drops every packet Cilium sends.
+blackholing pods that all report healthy. The pod network is part of what it
+asserts: pods reach each other across nodes as tailnet subnet routes, which the
+policy's `autoApprovers` approve without a console step.

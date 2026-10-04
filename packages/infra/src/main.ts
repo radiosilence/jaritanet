@@ -8,7 +8,9 @@ import {
 import {
   createCilium,
   createK3sUpgrades,
+  createTailnetRoutes,
   createTailnetRule,
+  POD_CIDR,
 } from "@jaritanet/hetzner";
 import { createIngress, createRedirectMiddleware } from "@jaritanet/ingress";
 import {
@@ -20,6 +22,7 @@ import {
   parseVpnUsers,
   type SingboxNode,
   type VpnUser,
+  VPN_VERSIONS,
 } from "@jaritanet/vpn";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
@@ -196,22 +199,29 @@ export default async function () {
   // Tailnet policy as code — only once an OAuth client exists, so this is a
   // no-op until the secrets are set (and even then the provider refuses to
   // touch a policy nobody has imported).
-  if (tailnet.oauth && tailnet.name) {
-    createTailnetPolicy({
-      clientId: pulumi.secret(tailnet.oauth.clientId),
-      clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
-      tailnet: tailnet.name,
-      // Exits are the nodes the cluster's dataplane has to reach, and their
-      // tailnet address is already the one Cilium uses.
-      clusterPeers: exitConfs.map((exit) => exit.server),
-      owners: tailnet.tagOwners,
-      tags: [
-        ...(gatewayConf.tailnet ? [gatewayConf.tailnet.tag] : []),
-        ...(edges.length ? [EDGE_TAILNET_TAG] : []),
-        ...tailnet.extraTags,
-      ],
-    });
-  }
+  const tailnetPolicy =
+    tailnet.oauth && tailnet.name
+      ? createTailnetPolicy({
+          clientId: pulumi.secret(tailnet.oauth.clientId),
+          clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
+          tailnet: tailnet.name,
+          // Exits are the nodes the cluster's dataplane has to reach, and their
+          // tailnet address is already the one Cilium uses.
+          clusterPeers: exitConfs.map((exit) => exit.server),
+          owners: tailnet.tagOwners,
+          // Every cluster node advertises its podCIDR. Seeded nodes join under
+          // the gateway's tag, so that one tag covers them all.
+          podNetwork: gatewayConf.tailnet && {
+            cidr: POD_CIDR,
+            routers: [gatewayConf.tailnet.tag],
+          },
+          tags: [
+            ...(gatewayConf.tailnet ? [gatewayConf.tailnet.tag] : []),
+            ...(edges.length ? [EDGE_TAILNET_TAG] : []),
+            ...tailnet.extraTags,
+          ],
+        })
+      : undefined;
 
   // --- DNS: zone modules (fastmail, bluesky) ---
   for (const zone of zones) {
@@ -253,10 +263,21 @@ export default async function () {
   // The cluster has no CNI until this exists — k3s runs with
   // --flannel-backend=none so Cilium can own networking and the
   // NetworkPolicies in this repo finally mean something.
+  //
+  // Pod traffic crosses nodes as tailnet subnet routes, so those come first:
+  // Cilium routing natively before they exist partitions the cluster until
+  // they do. They need no CNI to be advertised — the DaemonSet is hostNetwork —
+  // and come after the policy, whose autoApprovers approve them.
+  const tailnetRoutes = createTailnetRoutes(
+    provider,
+    VPN_VERSIONS.tailscale,
+    tailnetPolicy ? [tailnetPolicy] : [],
+  );
   const cilium =
     gatewayK3s && gatewayConf.k3s && gatewayApiHost
       ? createCilium(provider, gatewayConf.k3s.ciliumVersion, gatewayApiHost, [
           gatewayK3s.install,
+          tailnetRoutes,
         ])
       : undefined;
 

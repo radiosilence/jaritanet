@@ -15,11 +15,18 @@ import { resourcePrefix, type SshConnection, type SystemdOpts } from "./ssh.ts";
  * no IP forwarding, NAT, or subnet-router advertisement is needed — being a
  * member is enough.
  *
- * `accept-routes=false` is load-bearing: a peer advertising an exit node or
- * routes must not be able to swallow the VPS default route, or the relay
- * (and every service riding it) goes dark. `--ssh=false` is explicit: the
- * gateway is managed purely by config and exposes no human SSH over the
- * tailnet (explicit rather than omitted so a re-run definitely clears it).
+ * `accept-routes=false` is the starting point: a peer advertising routes must
+ * not be able to swallow the VPS default route, or the relay (and every service
+ * riding it) goes dark. A cluster node then has it turned on by
+ * createTailnetRoutes, to reach the other nodes' pods, which is safe because
+ * the policy approves routes only inside the pod network and only from the
+ * cluster's tag. `--ssh=false` is explicit: the gateway is managed purely by
+ * config and exposes no human SSH over the tailnet.
+ *
+ * `--reset` because those prefs change after this runs. Without it a re-run
+ * refuses, since `tailscale up` demands every non-default pref be restated; with
+ * it the run returns the node to exactly these flags, and on a cluster node
+ * createTailnetRoutes re-asserts its own within 30 seconds.
  *
  * `authKey` is an OAuth client secret (`tskey-client-...`, auth_keys scope +
  * the tag), used directly as the auth key — those don't hit the 90-day
@@ -49,7 +56,7 @@ export DEBIAN_FRONTEND=noninteractive
 if ! command -v tailscale >/dev/null 2>&1; then
   curl -fsSL https://tailscale.com/install.sh | sh
 fi
-tailscale up \
+tailscale up --reset \
   --auth-key="${bareKey}?ephemeral=false&preauthorized=true" \
   --hostname="${tailnet.hostname}" \
   --advertise-tags="${tailnet.tag}" \
