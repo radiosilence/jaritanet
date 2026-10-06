@@ -34,7 +34,10 @@ export function createFiles(
       periodSeconds: 30,
       timeoutSeconds: 5,
     },
-    limits: { cpu: "100m", memory: "64Mi" },
+    resources: {
+      requests: { cpu: "10m", memory: "32Mi" },
+      limits: { memory: "1Gi" },
+    },
     persistence: [
       {
         name: "files",

@@ -1,4 +1,4 @@
-import { resourceRequests, sha256hex } from "@jaritanet/k8s";
+import { sha256hex } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
@@ -161,8 +161,8 @@ export function createAuth(
                   periodSeconds: 10,
                 },
                 resources: {
-                  limits: { cpu: "100m", memory: "64Mi" },
-                  ...resourceRequests({ cpu: "100m" }),
+                  requests: { cpu: "10m", memory: "32Mi" },
+                  limits: { memory: "1Gi" },
                 },
                 securityContext: { allowPrivilegeEscalation: false },
               },
@@ -250,10 +250,7 @@ export function createAuth(
                   initialDelaySeconds: 5,
                   periodSeconds: 10,
                 },
-                resources: {
-                  limits: conf.limits,
-                  ...resourceRequests(conf.limits),
-                },
+                resources: conf.resources,
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   readOnlyRootFilesystem: true,

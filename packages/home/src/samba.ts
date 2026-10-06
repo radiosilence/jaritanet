@@ -166,8 +166,8 @@ export function createSamba(
                 // a slower one. Memory is a real ceiling — samba forks per
                 // connection, and a handful of streams is the normal case.
                 resources: {
-                  requests: { cpu: "100m" },
-                  limits: { memory: "512Mi" },
+                  requests: { cpu: "100m", memory: "80Mi" },
+                  limits: { memory: "1Gi" },
                 },
                 volumeMounts: [
                   {

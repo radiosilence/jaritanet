@@ -180,12 +180,12 @@ export function createTailscale(
                 // intermittently slow. 100m is a floor for a relay that is
                 // mostly idle and occasionally carries a file copy.
                 //
-                // 256Mi: wireguard state is per-peer and this tailnet is small,
-                // but containerboot runs tailscaled plus its own supervision,
-                // and an OOM here takes the mesh down rather than a request.
+                // Wireguard state is per-peer and this tailnet is small, but
+                // containerboot runs tailscaled plus its own supervision, and
+                // an OOM here takes the mesh down rather than a request.
                 resources: {
-                  requests: { cpu: "100m" },
-                  limits: { memory: "256Mi" },
+                  requests: { cpu: "100m", memory: "64Mi" },
+                  limits: { memory: "1Gi" },
                 },
                 volumeMounts: [{ name: "tun", mountPath: "/dev/net/tun" }],
                 securityContext: {

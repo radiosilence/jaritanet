@@ -179,9 +179,9 @@ ${userpassBlock}
               // when 3478 is the port that works it bursts freely, it just does
               // not reserve capacity for the case that never comes.
               //
-              // 256Mi/128Mi: rathole was OOMKilled at 64Mi doing strictly less
-              // (no crypto, no congestion control, no per-connection QUIC
-              // state), so these are floors rather than generous ceilings.
+              // Memory is requested at the measured working set and limited
+              // at 1Gi: QUIC buffers scale with concurrent streams, and rathole
+              // was OOMKilled at 64Mi doing strictly less.
               resources:
                 port < 1024
                   ? // The primary port carries the daily-driver traffic; the
@@ -189,8 +189,14 @@ ${userpassBlock}
                     // back to and normally carry nothing. QUIC buffers scale
                     // with concurrent streams, hence the memory. No CPU limit,
                     // for the reason in xray.ts.
-                    { requests: { cpu: "750m" }, limits: { memory: "768Mi" } }
-                  : { requests: { cpu: "100m" }, limits: { memory: "256Mi" } },
+                    {
+                      requests: { cpu: "750m", memory: "32Mi" },
+                      limits: { memory: "1Gi" },
+                    }
+                  : {
+                      requests: { cpu: "100m", memory: "32Mi" },
+                      limits: { memory: "1Gi" },
+                    },
               volumeMounts: [
                 { name: "config", mountPath: "/etc/hysteria", readOnly: true },
               ],

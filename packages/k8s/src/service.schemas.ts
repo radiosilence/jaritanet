@@ -3,8 +3,8 @@ import { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import {
   HostVolumeSchema,
   ImageSchema,
-  LimitsSchema,
   PersistenceSchema,
+  ResourcesSchema,
   SecurityContextSchema,
   StrategySchema,
 } from "./schemas.ts";
@@ -64,7 +64,7 @@ export const ServiceArgsSchema = z.strictObject({
    */
   restrictIngress: z.boolean().default(false),
   image: ImageSchema,
-  limits: LimitsSchema.optional(),
+  resources: ResourcesSchema.optional(),
   persistence: z.array(PersistenceSchema).default([]),
   ports: z.array(z.tuple([z.number(), z.number()])).default([]),
   replicas: z.uint32().default(1),

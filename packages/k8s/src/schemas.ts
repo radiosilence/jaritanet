@@ -102,9 +102,31 @@ export const ImageSchema = z.strictObject({
   tag: z.string(),
 });
 
-export const LimitsSchema = z.strictObject({
-  cpu: Quantity.default("50m"),
-  memory: Quantity.default("64Mi"),
+/**
+ * A container's resources, stated per workload from what it uses.
+ *
+ * The request is what the scheduler subtracts from the node, so it is the
+ * container's measured working set (p90 over a week, rounded up) and no more:
+ * a reservation sized for a peak holds memory the rest of the cluster could
+ * have used. The limit is a ceiling for a burst or a leak, not a budget, so it
+ * is generous — at least 1Gi — and costs nothing until it is reached. Grafana
+ * was killed at a 512Mi limit with gigabytes free on the node, which is the
+ * failure a tight limit buys.
+ *
+ * Under real node pressure the kubelet reclaims the pods furthest over their
+ * request first. That is the accepted trade: a burst is borrowed, and anything
+ * that must not be the first to go — a database, the ingress, a VPN transport —
+ * has a request covering its largest observed working set rather than its
+ * typical one.
+ *
+ * There is no CPU limit. CPU is compressible, so a limit cannot protect a
+ * neighbour; it only throttles, and CFS throttling surfaces as stalled
+ * transfers and periodic latency rather than a clean slowdown. The request is
+ * what weights a container's share when the node is contended.
+ */
+export const ResourcesSchema = z.strictObject({
+  requests: z.strictObject({ cpu: Quantity, memory: Quantity }),
+  limits: z.strictObject({ memory: Quantity }),
 });
 
 export const StrategySchema = z.strictObject({

@@ -22,7 +22,7 @@ import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createSamba, createSyncthing } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
-import { type Deployed, resourceRequests, type Route } from "@jaritanet/k8s";
+import type { Deployed, Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createKoan } from "@radiosilence/koan-pulumi";
@@ -45,18 +45,14 @@ import type { Zone } from "@jaritanet/dns";
 import { MCPS } from "./mcps.ts";
 import { CLOUD_NODE, MEDIA_NODE } from "./nodes.ts";
 
-/** One binding each, because the requests below are derived from them. */
-const MCP_GATEWAY_LIMITS = { cpu: "250m", memory: "256Mi" };
-const MARIASTEW_LIMITS = { cpu: "500m", memory: "256Mi" };
-// aria2 hashes pieces, which is the only thing here that wants real CPU.
-const ARIA2_LIMITS = { cpu: "4", memory: "2Gi" };
+/**
+ * Each node's whole core count, as the CPU limit for the published charts.
+ * They default a CPU limit when none is given, and a CPU limit only throttles
+ * (see `ResourcesSchema`), so they get one that nothing can exceed.
+ */
+const MEDIA_CORES = "6";
+const CLOUD_CORES = "4";
 const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
-// Hashing a library-sized share and holding thousands of peer connections is
-// real work; idle it is a few MB. Imports burst: the pre-import decode check
-// and ReplayGain pass run over a whole album at once, and a hi-res album went
-// past 1Gi and was OOM-killed mid-import. The request stays a twentieth of
-// this (see `resourceRequests`), so the headroom is only taken when used.
-const SLSK_LIMITS = { cpu: "2", memory: "4Gi" };
 
 /**
  * What the stack has already built by the time services are created.
@@ -190,6 +186,12 @@ export function createServices(ctx: EstateContext) {
       hostname: hostnames.koan,
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
+      // The request covers the whole working set, which is mostly the mapped
+      // library database: koan is the last thing that should be reclaimed.
+      resources: {
+        requests: { cpu: "625m", memory: "3840Mi" },
+        limits: { cpu: MEDIA_CORES, memory: "6Gi" },
+      },
       nodeSelector: { "kubernetes.io/hostname": MEDIA_NODE },
       // The ingress route backs onto `<prefix>-service`.
       service: { name: "koan-service" },
@@ -274,15 +276,10 @@ export function createServices(ctx: EstateContext) {
         ns,
         {
           replicas: 2,
-          // Routes and terminates OAuth rather than serving a file, so more
-          // headroom than blit — but it measured 1m CPU idle, not 500m.
           // Hydra and its Postgres, together and off the home box.
           node: CLOUD_NODE,
-          limits: MCP_GATEWAY_LIMITS,
-          // The chart takes the numbers and states no policy about them: how
-          // much of a ceiling to reserve depends on what else shares the node,
-          // which is ours to know. See `resourceRequests`.
-          requests: resourceRequests(MCP_GATEWAY_LIMITS).requests,
+          limits: { cpu: CLOUD_CORES, memory: "1Gi" },
+          requests: { cpu: "10m", memory: "32Mi" },
           mcps: MCPS,
         },
         {
@@ -333,15 +330,11 @@ export function createServices(ctx: EstateContext) {
             { name: "tv", hostPath: "/mnt/kontent/tv" },
             { name: "movies", hostPath: "/mnt/kontent/movies" },
           ],
-          // The chart takes ceilings and states no policy about reserving
-          // them; that depends on what else shares the node, which is ours to
-          // know. Both were the chart's defaults, so they are stated here now
-          // rather than inherited.
-          limits: MARIASTEW_LIMITS,
-          requests: resourceRequests(MARIASTEW_LIMITS).requests,
+          limits: { cpu: MEDIA_CORES, memory: "1Gi" },
+          requests: { cpu: "10m", memory: "32Mi" },
           aria2: {
-            limits: ARIA2_LIMITS,
-            requests: resourceRequests(ARIA2_LIMITS).requests,
+            limits: { cpu: MEDIA_CORES, memory: "2Gi" },
+            requests: { cpu: "10m", memory: "32Mi" },
           },
         },
         {
@@ -380,6 +373,8 @@ export function createServices(ctx: EstateContext) {
           token: pulumi.secret(ctx.transmet.pullToken),
         },
         nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+        limits: { cpu: CLOUD_CORES, memory: "1Gi" },
+        requests: { cpu: "10m", memory: "32Mi" },
         oidc: secret && {
           issuer: `https://${ctx.authHostname}`,
           clientId: "transmet",
@@ -423,8 +418,11 @@ export function createServices(ctx: EstateContext) {
             new URL("./beets.yaml", import.meta.url),
             "utf8",
           ),
-          limits: SLSK_LIMITS,
-          requests: resourceRequests(SLSK_LIMITS).requests,
+          // Imports burst: the decode check and ReplayGain pass run over a
+          // whole album at once, and a hi-res album went past 1Gi and was
+          // OOM-killed mid-import.
+          limits: { cpu: MEDIA_CORES, memory: "4Gi" },
+          requests: { cpu: "1500m", memory: "608Mi" },
         },
         {
           hostname: hostnames.slsk,

@@ -242,18 +242,19 @@ export function createXray(
                 // must never be the thing that loses a scheduling contest.
                 //
                 // Memory keeps a real limit — it is not compressible, and OOM is
-                // better than swapping the whole cluster to death. 512Mi because
+                // better than swapping the whole cluster to death. 1Gi because
                 // buffers scale with concurrent streams: rathole, which only
-                // shuffles bytes, was OOMKilled at 64Mi and needed 256Mi, and
-                // this holds TLS state per connection on top of that.
+                // shuffles bytes, was OOMKilled at 64Mi, and this holds TLS
+                // state per connection on top of that. The request is what it
+                // measures with headroom, so the ceiling reserves nothing.
                 resources: {
                   // Re-encrypts every byte it relays, so this is the one
                   // genuinely CPU-bound workload here — ~920Mbit measured
                   // through the tunnel. No CPU limit deliberately: throttling
                   // surfaces as periodic stalls, not a slowdown. The request
                   // is what reserves share when something else bursts.
-                  requests: { cpu: "750m" },
-                  limits: { memory: "768Mi" },
+                  requests: { cpu: "750m", memory: "80Mi" },
+                  limits: { memory: "1Gi" },
                 },
                 volumeMounts: [
                   { name: "config", mountPath: "/etc/xray", readOnly: true },

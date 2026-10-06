@@ -96,7 +96,7 @@ export function createSyncthing(
                 // of files rather than their size — a large music library is
                 // many small files, which is the expensive shape.
                 resources: {
-                  requests: { cpu: "200m" },
+                  requests: { cpu: "200m", memory: "256Mi" },
                   limits: { memory: "1Gi" },
                 },
                 volumeMounts: [

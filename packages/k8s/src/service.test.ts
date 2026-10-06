@@ -135,16 +135,16 @@ describe("service template", () => {
     expect(service).toBeDefined();
   });
 
-  it("creates service with resource limits", async () => {
+  it("creates service with resources", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
       env: {},
       hostVolumes: [],
       httpPort: 80,
       image: { repository: "nginx", tag: "latest" },
-      limits: {
-        cpu: "500m",
-        memory: "512Mi",
+      resources: {
+        requests: { cpu: "10m", memory: "32Mi" },
+        limits: { memory: "1Gi" },
       },
       persistence: [],
       ports: [],

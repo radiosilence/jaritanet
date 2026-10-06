@@ -1,4 +1,4 @@
-import { AbsolutePath, LimitsSchema } from "@jaritanet/k8s";
+import { AbsolutePath, ResourcesSchema } from "@jaritanet/k8s";
 import * as z from "zod";
 
 /**
@@ -45,12 +45,22 @@ export const MetricsConfSchema = z.strictObject({
        * ConfigMaps on every start and do not depend on this.
        */
       hostPath: AbsolutePath.default("/var/lib/jaritanet/grafana"),
-      limits: LimitsSchema.default({ cpu: "500m", memory: "512Mi" }),
+      /**
+       * Week-long range queries on a 1m refresh are the peak, and they held it
+       * at a 512Mi limit until the readiness probe failed.
+       */
+      resources: ResourcesSchema.default({
+        requests: { cpu: "20m", memory: "640Mi" },
+        limits: { memory: "2Gi" },
+      }),
     })
     .prefault({}),
   nodeExporter: z
     .strictObject({
-      limits: LimitsSchema.default({ cpu: "200m", memory: "128Mi" }),
+      resources: ResourcesSchema.default({
+        requests: { cpu: "10m", memory: "32Mi" },
+        limits: { memory: "1Gi" },
+      }),
     })
     .prefault({}),
   /**
@@ -64,7 +74,10 @@ export const MetricsConfSchema = z.strictObject({
   storageNode: z.string().min(1),
   vmagent: z
     .strictObject({
-      limits: LimitsSchema.default({ cpu: "500m", memory: "256Mi" }),
+      resources: ResourcesSchema.default({
+        requests: { cpu: "10m", memory: "96Mi" },
+        limits: { memory: "1Gi" },
+      }),
       scrapeInterval: Duration.default("30s"),
     })
     .prefault({}),
@@ -77,7 +90,10 @@ export const MetricsConfSchema = z.strictObject({
        * first deploy the thing that creates it.
        */
       hostPath: AbsolutePath.default("/var/lib/jaritanet/victoria-metrics"),
-      limits: LimitsSchema.default({ cpu: "1", memory: "1Gi" }),
+      resources: ResourcesSchema.default({
+        requests: { cpu: "15m", memory: "416Mi" },
+        limits: { memory: "2Gi" },
+      }),
       retention: Retention.default("1y"),
     })
     .prefault({}),
