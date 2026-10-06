@@ -6,5 +6,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  groglog: "sha-4f4fdaa",
+  groglog: "sha-fa1a78e",
 } as const;
