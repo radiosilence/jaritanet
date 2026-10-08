@@ -20,6 +20,11 @@
 #          releases more than one thing — this one releases both its containers —
 #          because "the latest release" is otherwise repo-wide, and an entry would
 #          take the version of whatever released last.
+#   helmIndex, chart
+#          a Helm chart's repository index and the chart's name in it. Upstream
+#          can cut the GitHub release before publishing the chart, and a pin the
+#          repository does not serve fails every deploy, so the bump waits until
+#          the index lists the version. Stands in for `image` on a chart.
 #
 # {version} is the release tag with everything before its first digit stripped,
 # which covers both a leading `v` and a chart-name prefix. An entry puts back
@@ -32,6 +37,8 @@
   file: packages/ingress/src/versions.ts
   key: traefikChart
   value: "{version}"
+  helmIndex: https://traefik.github.io/charts/index.yaml
+  chart: traefik
 
 # Our own containers, released from this repo when their version file changes.
 #
