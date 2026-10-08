@@ -23,6 +23,7 @@ import { promisify } from "node:util";
 import { parse } from "yaml";
 import {
   applyTemplate,
+  chartServes,
   decide,
   normaliseVersion,
   parseImageRef,
@@ -94,6 +95,13 @@ async function imageExists(ref: string) {
     headers: { authorization: `Bearer ${token}`, accept: MANIFEST_ACCEPT },
   });
   return manifest.status === 200;
+}
+
+/** Whether the Helm repository's index lists the chart version. */
+async function chartListed(indexUrl: string, chart: string, version: string) {
+  const response = await fetch(indexUrl);
+  if (!response.ok) return false;
+  return chartServes(parse(await response.text()), chart, version);
 }
 
 /**
@@ -264,13 +272,19 @@ for (const entry of entries) {
   // A branch head is already the version; only a release tag needs unpicking.
   const version = entry.branch ? tag : normaliseVersion(tag);
   const next = applyTemplate(entry.value, version);
-  const ref = verifyRef(entry, version);
+  const chartRef =
+    entry.helmIndex && entry.chart ? `${entry.chart} ${version}` : undefined;
+  const ref = chartRef ?? verifyRef(entry, version);
   const decision = decide({
     tag,
     current: await current(entry),
     next,
     ref,
-    exists: ref ? await imageExists(ref) : true,
+    exists: chartRef
+      ? await chartListed(entry.helmIndex!, entry.chart!, version)
+      : ref
+        ? await imageExists(ref)
+        : true,
   });
 
   if (decision.kind === "problem") {

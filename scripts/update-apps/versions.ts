@@ -42,6 +42,14 @@ export const TrackedSchema = z.intersection(
     image: z.string().optional(),
     tagPrefix: z.string().optional(),
     /**
+     * A Helm repository's `index.yaml`, with `chart` the name in it. A chart's
+     * GitHub release can precede its publication to the repository, and a pin
+     * the repository does not serve fails every deploy, so the bump waits for
+     * the index to list the version.
+     */
+    helmIndex: z.string().url().optional(),
+    chart: z.string().optional(),
+    /**
      * Follow a branch's head rather than a release.
      *
      * For something released continuously: blit is a website, and a typo fix
@@ -148,6 +156,14 @@ export function parseImageRef(ref: string) {
  * the new value when that is already a full reference, so only entries writing
  * a bare tag need to spell `image` out; a Helm chart has none, and is skipped.
  */
+/** Whether a parsed Helm `index.yaml` lists this version of the chart. */
+export function chartServes(index: unknown, chart: string, version: string) {
+  const versions = (
+    index as { entries?: Record<string, { version?: string }[]> }
+  )?.entries?.[chart];
+  return Array.isArray(versions) && versions.some((v) => v.version === version);
+}
+
 export function verifyRef(entry: Tracked, version: string) {
   if (entry.image) return applyTemplate(entry.image, version);
   const next = applyTemplate(entry.value, version);

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import {
+  chartServes,
   applyTemplate,
   decide,
   normaliseVersion,
@@ -342,5 +343,22 @@ describe("rewriting a dependency", () => {
   it("reports a dependency that is not there", () => {
     expect(readDependency(manifest, "left-pad")).toBeUndefined();
     expect(writeDependency(manifest, "left-pad", "1.0.0")).toBeUndefined();
+  });
+});
+
+describe("chartServes", () => {
+  const index = { entries: { traefik: [{ version: "41.6.1" }] } };
+
+  it("accepts a version the index lists", () => {
+    expect(chartServes(index, "traefik", "41.6.1")).toBe(true);
+  });
+
+  it("rejects a released version the index lacks", () => {
+    expect(chartServes(index, "traefik", "41.7.0")).toBe(false);
+  });
+
+  it("rejects an unknown chart or a malformed index", () => {
+    expect(chartServes(index, "other", "41.6.1")).toBe(false);
+    expect(chartServes(null, "traefik", "41.6.1")).toBe(false);
   });
 });
