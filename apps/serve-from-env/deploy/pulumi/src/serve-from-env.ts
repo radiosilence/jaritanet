@@ -65,7 +65,10 @@ export function createServeFromEnv(
                 image: VERSIONS.serveFromEnv,
                 ports: [{ name: "http", containerPort: 8080 }],
                 envFrom: [{ secretRef: { name: secret.metadata.name } }],
-                resources: { limits: { cpu: "100m", memory: "64Mi" } },
+                resources: {
+                  requests: { cpu: "10m", memory: "32Mi" },
+                  limits: { memory: "1Gi" },
+                },
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   seccompProfile: { type: "RuntimeDefault" },

@@ -1,4 +1,4 @@
-import { resourceRequests, sha256hex } from "@jaritanet/k8s";
+import { sha256hex } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
@@ -115,10 +115,7 @@ export function createMetrics(
                   initialDelaySeconds: 5,
                   periodSeconds: 10,
                 },
-                resources: {
-                  limits: conf.vmsingle.limits,
-                  ...resourceRequests(conf.vmsingle.limits),
-                },
+                resources: conf.vmsingle.resources,
                 securityContext: { allowPrivilegeEscalation: false },
               },
             ],
@@ -222,10 +219,7 @@ export function createMetrics(
                     mountPropagation: "HostToContainer",
                   },
                 ],
-                resources: {
-                  limits: conf.nodeExporter.limits,
-                  ...resourceRequests(conf.nodeExporter.limits),
-                },
+                resources: conf.nodeExporter.resources,
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   readOnlyRootFilesystem: true,
@@ -373,10 +367,7 @@ export function createMetrics(
                   initialDelaySeconds: 5,
                   periodSeconds: 10,
                 },
-                resources: {
-                  limits: conf.vmagent.limits,
-                  ...resourceRequests(conf.vmagent.limits),
-                },
+                resources: conf.vmagent.resources,
                 securityContext: { allowPrivilegeEscalation: false },
               },
             ],
@@ -623,10 +614,7 @@ export function createMetrics(
                   initialDelaySeconds: 10,
                   periodSeconds: 10,
                 },
-                resources: {
-                  limits: conf.grafana.limits,
-                  ...resourceRequests(conf.grafana.limits),
-                },
+                resources: conf.grafana.resources,
                 securityContext: { allowPrivilegeEscalation: false },
               },
             ],

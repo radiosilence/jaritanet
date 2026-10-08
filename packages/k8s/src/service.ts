@@ -2,7 +2,6 @@ import * as k8s from "@pulumi/kubernetes";
 import type * as z from "zod";
 import type { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import { ServiceArgsSchema } from "./service.schemas.ts";
-import { resourceRequests } from "./util.ts";
 
 const annotations = {
   "pulumi.com/skipAwait": "false",
@@ -48,7 +47,7 @@ export function createService(
     hostVolumes,
     httpPort,
     image,
-    limits,
+    resources,
     networkPolicy,
     persistence,
     ports,
@@ -260,7 +259,7 @@ export function createService(
                     containerPort,
                   })),
                 ],
-                resources: { limits, ...resourceRequests(limits) },
+                resources,
                 // Sorted, so the rendered order is a property of the names
                 // rather than of how they happened to be written. Pulumi used
                 // to sort these on the way out of stack config, which meant

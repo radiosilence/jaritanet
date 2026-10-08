@@ -18,8 +18,10 @@ export function createGroglog(
     networkPolicy: true,
     replicas: 1,
     healthCheck: {},
-    // Matched to blit, which measured 1m CPU and 68Mi serving the same way.
-    limits: { cpu: "500m", memory: "192Mi" },
+    resources: {
+      requests: { cpu: "10m", memory: "96Mi" },
+      limits: { memory: "1Gi" },
+    },
     image: {
       repository: "ghcr.io/radiosilence/groglog-site",
       tag: VERSIONS.groglog,

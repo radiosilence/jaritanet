@@ -1,4 +1,4 @@
-import { LimitsSchema } from "@jaritanet/k8s";
+import { ResourcesSchema } from "@jaritanet/k8s";
 import * as z from "zod";
 
 /**
@@ -29,7 +29,10 @@ export const AuthConfSchema = z.strictObject({
    * worst node being up.
    */
   node: z.string().optional(),
-  limits: LimitsSchema.default({ cpu: "100m", memory: "64Mi" }),
+  resources: ResourcesSchema.default({
+    requests: { cpu: "10m", memory: "32Mi" },
+    limits: { memory: "1Gi" },
+  }),
   /**
    * Holds one nonce per login in flight, for ten minutes. Pinned like anything
    * else, and deliberately not persisted — see the deployment.

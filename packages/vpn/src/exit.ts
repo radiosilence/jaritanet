@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
-import { resourceRequests, sha256hex } from "@jaritanet/k8s";
+import { sha256hex } from "@jaritanet/k8s";
 import { VERSIONS } from "./versions.ts";
 
 /** An exit with its host port resolved (see deriveExitPort). */
@@ -13,8 +13,6 @@ export type ResolvedExit = {
   method: string;
   server: string;
 };
-
-const LIMITS = { cpu: "500m", memory: "128Mi" };
 
 /**
  * Deterministic host port from the exit name (djb2 → 20000–29999), so you
@@ -162,8 +160,8 @@ export function createExit(
                   },
                 ],
                 resources: {
-                  limits: LIMITS,
-                  ...resourceRequests(LIMITS),
+                  requests: { cpu: "10m", memory: "32Mi" },
+                  limits: { memory: "1Gi" },
                 },
               },
             ],

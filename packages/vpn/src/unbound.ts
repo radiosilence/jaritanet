@@ -115,8 +115,8 @@ forward-zone:
                 // the system. 50m is a floor for work that is mostly a cache
                 // hit.
                 resources: {
-                  requests: { cpu: "50m" },
-                  limits: { memory: "320Mi" },
+                  requests: { cpu: "50m", memory: "32Mi" },
+                  limits: { memory: "1Gi" },
                 },
                 volumeMounts: [
                   {

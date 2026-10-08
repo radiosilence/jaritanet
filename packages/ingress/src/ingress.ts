@@ -142,10 +142,10 @@ export function createIngress(
         resources: {
           requests: {
             cpu: "250m",
-            memory: "256Mi",
+            memory: "288Mi",
           },
           limits: {
-            memory: "256Mi",
+            memory: "1536Mi",
           },
         },
       },

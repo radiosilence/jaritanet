@@ -22,13 +22,13 @@ export function createBlit(
     // one goes, so deploys stay seamless.
     replicas: 1,
     healthCheck: {},
-    // Measured: 1m CPU and 68Mi for a static site. The old 1000m/1024Mi was a
-    // ceiling nobody had looked at, and since a limit without a request becomes
-    // the request, two replicas reserved half the node and the scheduler
-    // refused a VPN transport for lack of CPU. CPU is 5x the measurement:
-    // nano-web processes every file before it binds, which under 100m outlasted
-    // the liveness probe.
-    limits: { cpu: "500m", memory: "192Mi" },
+    // nano-web processes every file before it binds, which under a 100m CPU
+    // limit outlasted the liveness probe; with no CPU limit it takes what is
+    // idle.
+    resources: {
+      requests: { cpu: "10m", memory: "128Mi" },
+      limits: { memory: "1Gi" },
+    },
     image: { repository: "ghcr.io/radiosilence/blit", tag: VERSIONS.blit },
     httpPort: 3000,
   });

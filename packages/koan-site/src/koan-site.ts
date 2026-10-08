@@ -18,8 +18,10 @@ export function createKoanSite(
     networkPolicy: true,
     replicas: 1,
     healthCheck: {},
-    // Matched to blit, which measured 1m CPU and 68Mi serving the same way.
-    limits: { cpu: "500m", memory: "192Mi" },
+    resources: {
+      requests: { cpu: "90m", memory: "160Mi" },
+      limits: { memory: "1Gi" },
+    },
     image: {
       repository: "ghcr.io/radiosilence/koan-site",
       tag: VERSIONS.koanSite,
