@@ -692,8 +692,7 @@ it through an exit's IP would make it foreign traffic entering someone else's
 swarm from a datacentre range, and those get tracker-blocked far more readily
 than a residential one; and an exit's whole point is *selectable* egress
 location, which buys nothing here since the pod already runs on the node
-holding the disks it writes to — the same file-node label samba and syncthing
-use. Peers reach it on a fixed port the `mariastew-portmap` pod forwards from
+holding the disks it writes to — the same file-node label samba uses. Peers reach it on a fixed port the `mariastew-portmap` pod forwards from
 the house router over UPnP, renewing on half the lease because IGD mappings
 expire and do not survive a reboot. That pod is separate and host-network
 because UPnP discovery is an SSDP multicast the pod network does not carry, so

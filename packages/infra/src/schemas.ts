@@ -19,7 +19,7 @@ import {
 } from "@jaritanet/dns";
 import { AuthConfSchema as AuthComponentConfSchema } from "@jaritanet/auth";
 import { K3sConfSchema } from "@jaritanet/hetzner";
-import { SambaConfSchema, SyncthingConfSchema } from "@jaritanet/home";
+import { SambaConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
 import { MariastewConfSchema } from "@radiosilence/mariastew-pulumi";
 import {
@@ -47,7 +47,6 @@ export {
   McpSchema,
   MetricsConfSchema,
   SambaConfSchema,
-  SyncthingConfSchema,
   TailnetConfSchema,
   TraefikConfSchema,
   XrayConfSchema,

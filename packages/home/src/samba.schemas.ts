@@ -15,8 +15,8 @@ import { AbsolutePath } from "@jaritanet/k8s";
  *
  * It is also what keeps the container honest: a read-only export needs no uid
  * impersonation on writes and no ownership rewriting, which is where
- * containerised samba usually turns nasty. Things that write — the downloader,
- * syncthing — do so as their own workloads against their own volumes.
+ * containerised samba usually turns nasty. Things that write, such as the
+ * downloaders, do so as their own workloads against their own volumes.
  */
 export const SambaShareSchema = z.object({
   name: z.string(),
