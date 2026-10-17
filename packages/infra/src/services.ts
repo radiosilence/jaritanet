@@ -20,7 +20,7 @@ import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
 import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
-import { createSamba } from "@jaritanet/home";
+import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
 import type { Deployed, Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
@@ -218,6 +218,22 @@ export function createServices(ctx: EstateContext) {
   add(createGroglog(provider, "groglog", { hostname: hostnames.groglog }));
   add(
     createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
+  );
+
+  // The media drive is a btrfs RAID1 pool. Only music is snapshotted: the rest
+  // is replaceable, and a snapshot of the download directories would hold on
+  // to every finished torrent until it expired.
+  createBtrfsMaintenance(
+    provider,
+    ns,
+    {
+      mount: "/mnt/kontent",
+      snapshot: {
+        subvolume: "/mnt/kontent/music",
+        dir: "/mnt/kontent/.snapshots/music",
+      },
+    },
+    FILE_NODE_LABEL,
   );
 
   // What lady serves off the media drive. Shares are anonymous — `map to guest`

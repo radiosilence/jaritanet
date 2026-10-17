@@ -789,6 +789,30 @@ onto a different disk. Where a panel can key on `mountpoint` via
 not. Throughput has no mountpoint to key on, so those panels stay device-labelled
 and say so in the panel description.
 
+## Media storage on lady
+
+`/mnt/kontent` is one btrfs filesystem across lady's external drives, with
+data and metadata in RAID1, so every block exists on two different disks.
+Software sees one mount; adding a drive is `btrfs device add` followed by a
+balance, and nothing that reads the library changes. RAID1 tolerates mismatched
+sizes, and usable space is half the total unless one disk is larger than the
+rest combined.
+
+The pool is created and grown by hand. Those are one-off operations on a set of
+disks, and a `mkfs` that runs on every provision is one enumeration change away
+from formatting the library. A reprovisioned node needs nothing new: the pool
+travels with the drives, and the seed's fstab entry mounts it by its filesystem
+UUID, which every member shares.
+
+Two CronJobs keep it honest. A monthly scrub reads every block and repairs any
+copy that fails its checksum from the other. btrfs otherwise repairs only what
+something happens to read, and a disk that dropped off the USB bus for a moment
+comes back stale without saying so. A nightly read-only snapshot of
+`/mnt/kontent/music` (a subvolume, so it can be snapshotted alone) covers
+deletion, which a mirror copies instantly. The rest of the drive is replaceable
+and is not snapshotted. Neither is a backup: both copies share a machine, a
+power supply and a house.
+
 ## Break-glass SSH
 
 Each box's only key is the ED25519 pair Pulumi generates for it, which lives in
