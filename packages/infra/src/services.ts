@@ -20,7 +20,7 @@ import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
 import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
-import { createSamba, createSyncthing } from "@jaritanet/home";
+import { createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
 import type { Deployed, Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
@@ -250,20 +250,6 @@ export function createServices(ctx: EstateContext) {
     FILE_NODE_LABEL,
   );
 
-  // Which folders syncthing can reach; what is actually synced with whom is set
-  // in its own UI, which is state it keeps for itself. Not published, so the UI
-  // stays on :8384 over the LAN and the tailnet.
-  //
-  // It runs as the media's owner rather than relying on fsGroup, which kubelet
-  // does not apply to hostPath volumes — so what it writes stays readable by
-  // samba and koan.
-  createSyncthing(
-    provider,
-    ns,
-    { folders: [{ name: "music", hostPath: "/mnt/kontent/music" }] },
-    FILE_NODE_LABEL,
-  );
-
   // --- The MCP gateway ------------------------------------------------------
   // No identity provider, no gateway: the dashboard signs people in through it,
   // and one that cannot would front every backend with no way to say who is
@@ -396,8 +382,8 @@ export function createServices(ctx: EstateContext) {
   // --- slsk -----------------------------------------------------------------
   // The Soulseek client. It writes into the music library, so like mariastew
   // it is not deployed without a way to authenticate. It runs where the library
-  // is, shares all of it, and files what it fetches into it — koan and
-  // syncthing pick new albums up from there like anything else.
+  // is, shares all of it, and files what it fetches into it — koan picks
+  // new albums up from there like anything else.
   //
   // The importer reads the same beets config the laptop does, so an album
   // lands under the same path whichever machine fetched it.

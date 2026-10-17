@@ -2,7 +2,7 @@
   "name": "@jaritanet/home",
   "version": "0.0.0",
   "private": true,
-  "description": "Home fileserver workloads: SMB shares, sync and media tooling as cluster services",
+  "description": "Home fileserver workloads: SMB shares as cluster services",
   "license": "ISC",
   "author": "James Cleveland <jc@blit.cc>",
   "files": [

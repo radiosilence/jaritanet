@@ -70,8 +70,8 @@ export const ADMIN_SSH_KEY =
  * address.
  *
  * A name with no entry is built and not published, which is a real state: the
- * samba shares and syncthing's UI are reached on the LAN and the tailnet and
- * have no business having an address.
+ * samba shares are reached on the LAN and the tailnet and have no business
+ * having an address.
  */
 export const hostnames: Record<string, string> = {
   auth: "auth.blit.cc",
