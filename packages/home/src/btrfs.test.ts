@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { DAMAGE_AWK } from "./btrfs.ts";
+import { BtrfsMaintenanceConfSchema } from "./btrfs.schemas.ts";
+import { DAMAGE_AWK, scrubScript } from "./btrfs.ts";
 
 /**
  * The scrub's damage list is only as good as this parse of the kernel's own
@@ -48,5 +49,32 @@ describe("DAMAGE_AWK", () => {
         "BTRFS info (device sda1): scrub: finished on devid 1 with status: 0",
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("scrubScript", () => {
+  const conf = BtrfsMaintenanceConfSchema.parse({
+    mount: "/mnt/kontent",
+    snapshot: {
+      subvolume: "/mnt/kontent/music",
+      dir: "/mnt/kontent/.snapshots/music",
+    },
+  });
+
+  it("is valid sh", () => {
+    // Three layers of quoting (TypeScript, sh, awk) meet in this script, and
+    // a mistake in any of them is a syntax error on the node at 05:00.
+    expect(() =>
+      execFileSync("sh", ["-n"], { input: scrubScript(conf) }),
+    ).not.toThrow();
+  });
+
+  it("refuses a snapshot directory outside the mount", () => {
+    expect(() =>
+      scrubScript({
+        ...conf,
+        snapshot: { ...conf.snapshot, dir: "/srv/snaps" },
+      }),
+    ).toThrow("/srv/snaps is not under /mnt/kontent");
   });
 });

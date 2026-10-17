@@ -65,7 +65,9 @@ const under = (mount: string, path: string) => {
  * config on stdin rather than its arguments, which any process on the node
  * could read.
  */
-const scrubScript = (btrfs: z.infer<typeof BtrfsMaintenanceConfSchema>) => {
+export const scrubScript = (
+  btrfs: z.infer<typeof BtrfsMaintenanceConfSchema>,
+) => {
   const snapshots = under(btrfs.mount, btrfs.snapshot.dir);
   const subvolume = under(btrfs.mount, btrfs.snapshot.subvolume);
   return `set -u
