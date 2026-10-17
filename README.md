@@ -351,8 +351,8 @@ Pre-commit hooks (via Lefthook) run oxlint, oxfmt, and type checking.
 
 ## Automated Updates
 
-The `update-apps.yml` workflow runs daily against `.github/tracked-versions.yml`
-— currently Navidrome, the Traefik chart, and the four MCP servers. A release
+The `update-apps.yml` workflow runs daily against `.github/tracked-versions.yml`.
+A release
 tag is never trusted alone: the registry is asked whether the image actually
 published, including for entries already current, so a pin that stopped
 resolving is reported rather than discovered at the next pod restart.

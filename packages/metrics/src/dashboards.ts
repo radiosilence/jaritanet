@@ -472,7 +472,7 @@ const overview = dashboard(
       title: "Container CPU",
       busy: true,
       description:
-        "Cores. Navidrome transcoding is CPU-bound, so this is the other half of why a stream stutters — and the gateway has four cores for the whole estate.",
+        "Cores. Transcoding is CPU-bound, so this is the other half of why a stream stutters — and the gateway has four cores for the whole estate.",
       targets: [
         [
           `sum by (node, pod) (rate(container_cpu_usage_seconds_total{${REAL_CONTAINER}}[$__rate_interval]))`,
