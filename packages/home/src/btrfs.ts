@@ -12,17 +12,95 @@ const requireBtrfs = (mount: string) =>
   `[ "$(stat -f -c %T ${mount})" = btrfs ] || { echo "${mount} is not a mounted btrfs filesystem" >&2; exit 1; }`;
 
 /**
+ * Reads btrfs kernel messages and prints `<root> <path>` for every file
+ * reference in a block the scrub could not repair.
+ *
+ * The kernel logs each bad block twice: once per file reference, with the
+ * subvolume id and the path inside that subvolume, and once more saying
+ * whether it was fixed. Only the second says which outcome, and only the first
+ * names a file, so the two are joined on the block's logical address. Blocks
+ * that were repaired from a mirror are dropped.
+ */
+export const DAMAGE_AWK = `
+/unable to fixup/ {
+  if (match($0, /logical [0-9]+/)) bad[substr($0, RSTART + 8, RLENGTH - 8)] = 1
+  next
+}
+/\\(path: / {
+  if (!match($0, /logical [0-9]+/)) next
+  logical = substr($0, RSTART + 8, RLENGTH - 8)
+  if (!match($0, /root [0-9]+/)) next
+  root = substr($0, RSTART + 5, RLENGTH - 5)
+  path = $0
+  sub(/.*\\(path: /, "", path)
+  sub(/\\)$/, "", path)
+  refs[logical] = refs[logical] root " " path "\\n"
+}
+END { for (logical in bad) printf "%s", refs[logical] }
+`;
+
+/** `path` relative to `mount`, which must contain it. */
+const under = (mount: string, path: string) => {
+  if (!path.startsWith(`${mount}/`)) {
+    throw new Error(`${path} is not under ${mount}`);
+  }
+  return path.slice(mount.length + 1);
+};
+
+/**
  * Reads every block on every device and rewrites any copy whose checksum fails
  * from its mirror. btrfs repairs bad blocks only when something reads them, so
  * without this a mirror that fell behind during a USB dropout, or a block that
- * rotted on disk, is found only when the other copy is also needed. Exits
- * non-zero on uncorrectable errors, which fails the Job.
+ * rotted on disk, is found only when the other copy is also needed.
+ *
+ * Afterwards it lists the folders holding a file the scrub could not repair,
+ * since those are what has to be fetched again. A path under a snapshot is
+ * reported as its place in the live subvolume, because the snapshot shares the
+ * same blocks and the fix is the same. The kernel rate-limits these messages,
+ * so a badly damaged disk produces an incomplete list; the error counts in
+ * `btrfs scrub status` are not limited.
+ *
+ * The result goes to Telegram whether or not anything was found, so a month
+ * with no message means the scrub did not run. The token is written to curl's
+ * config on stdin rather than its arguments, which any process on the node
+ * could read.
  */
-const scrubScript = (btrfs: z.infer<typeof BtrfsMaintenanceConfSchema>) =>
-  `set -eu
+export const scrubScript = (
+  btrfs: z.infer<typeof BtrfsMaintenanceConfSchema>,
+) => {
+  const snapshots = under(btrfs.mount, btrfs.snapshot.dir);
+  const subvolume = under(btrfs.mount, btrfs.snapshot.subvolume);
+  return `set -u
 ${requireBtrfs(btrfs.mount)}
-exec ionice -c3 nice -n19 btrfs scrub start -B -d ${btrfs.mount}
+notify() {
+  [ -n "\${TELEGRAM_BOT_TOKEN:-}" ] || return 0
+  printf 'url = "https://api.telegram.org/bot%s/sendMessage"\\n' "$TELEGRAM_BOT_TOKEN" |
+    curl -sS -o /dev/null -K - --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \\
+      --data-urlencode "text=$(printf '%s' "$1" | head -c 4000)" ||
+    echo "telegram notification failed" >&2
+}
+since=$(date +%s)
+ionice -c3 nice -n19 btrfs scrub start -B -d ${btrfs.mount}
+status=$?
+damaged=$(journalctl -k -o cat --since "@$since" | awk '${DAMAGE_AWK}' |
+  while read -r root path; do
+    sub=$(btrfs inspect-internal subvolid-resolve "$root" ${btrfs.mount})
+    dirname "\${sub:+$sub/}$path"
+  done | sed 's#^${snapshots}/[^/]*#${subvolume}#' | sort -u)
+host=$(hostname)
+if [ -n "$damaged" ]; then
+  status=1
+  text=$(printf 'btrfs scrub of ${btrfs.mount} on %s found damage it could not repair. Affected folders:\\n%s' "$host" "$damaged")
+elif [ "$status" -ne 0 ]; then
+  text="btrfs scrub of ${btrfs.mount} on $host failed (exit $status). See the job log."
+else
+  text="btrfs scrub of ${btrfs.mount} on $host finished: $(btrfs scrub status ${btrfs.mount} | sed -n 's/^Error summary: *//p')"
+fi
+printf '%s\\n' "$text"
+notify "$text"
+exit "$status"
 `;
+};
 
 /**
  * Takes a read-only snapshot, then deletes all but the newest `keep`. Names
@@ -57,16 +135,38 @@ done
  * for hours, and a second one started alongside would only halve the speed of
  * both. The scrub starts at 05:00 so that it begins after the node's 04:00
  * unattended-upgrade reboot window rather than being cut off by it.
+ *
+ * `telegram` is optional; without it the scrub reports only to its own log.
  */
 export function createBtrfsMaintenance(
   provider: k8s.Provider,
   namespace: pulumi.Input<string>,
   btrfsArgs: z.input<typeof BtrfsMaintenanceConfSchema>,
   nodeLabel: string,
+  telegram?: { botToken: pulumi.Input<string>; chatId: string },
 ) {
   const btrfs = BtrfsMaintenanceConfSchema.parse(btrfsArgs);
 
-  const cronJob = (name: string, schedule: string, script: string) =>
+  const telegramSecret =
+    telegram &&
+    new k8s.core.v1.Secret(
+      "btrfs-scrub-telegram",
+      {
+        metadata: { name: "btrfs-scrub-telegram", namespace },
+        stringData: {
+          TELEGRAM_BOT_TOKEN: telegram.botToken,
+          TELEGRAM_CHAT_ID: telegram.chatId,
+        },
+      },
+      { provider },
+    );
+
+  const cronJob = (
+    name: string,
+    schedule: string,
+    script: string,
+    secret?: k8s.core.v1.Secret,
+  ) =>
     new k8s.batch.v1.CronJob(
       name,
       {
@@ -106,6 +206,9 @@ export function createBtrfsMaintenance(
                         requests: { cpu: "10m", memory: "16Mi" },
                         limits: { memory: "128Mi" },
                       },
+                      envFrom: secret
+                        ? [{ secretRef: { name: secret.metadata.name } }]
+                        : undefined,
                       securityContext: { privileged: true },
                     },
                   ],
@@ -118,6 +221,11 @@ export function createBtrfsMaintenance(
       { provider },
     );
 
-  cronJob("btrfs-scrub", btrfs.scrubSchedule, scrubScript(btrfs));
+  cronJob(
+    "btrfs-scrub",
+    btrfs.scrubSchedule,
+    scrubScript(btrfs),
+    telegramSecret,
+  );
   cronJob("btrfs-snapshot", btrfs.snapshot.schedule, snapshotScript(btrfs));
 }
