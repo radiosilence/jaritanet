@@ -83,7 +83,7 @@ export type EstateContext = {
   /** Entry nodes for the client profile — the gateway, then every edge. */
   singboxNodes: SingboxNode[];
   users: VpnUser[];
-  /** Shared bot: the profile server and mariastew both notify through it. */
+  /** Shared bot: the profile server, mariastew and the btrfs scrub notify through it. */
   telegram?: { botToken: string; chatId: string };
   /** The Soulseek account slsk logs in with at start. */
   slskAccount?: { username: string; password: string };
@@ -234,6 +234,10 @@ export function createServices(ctx: EstateContext) {
       },
     },
     FILE_NODE_LABEL,
+    ctx.telegram && {
+      botToken: pulumi.secret(ctx.telegram.botToken),
+      chatId: ctx.telegram.chatId,
+    },
   );
 
   // What lady serves off the media drive. Shares are anonymous — `map to guest`

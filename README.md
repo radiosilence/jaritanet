@@ -245,7 +245,7 @@ deployment *is* lives in `packages/infra/src/stack.ts` as TypeScript, and
 | `secrets.vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 | `secrets.tailnetAuthKey` | No | Joins the gateway and edges to the tailnet — enables the relay |
 | `secrets.tailnetOauthClientSecret` | No | Manages the tailnet policy file as code. Unset = policy stays hand-managed |
-| `secrets.telegramBotToken` / `telegramChatId` | No | Shared bot + chat: the profile server notifies on a URL rotation, mariastew on a download finishing. Absent → neither sends anything |
+| `secrets.telegramBotToken` / `telegramChatId` | No | Shared bot + chat: the profile server notifies on a URL rotation, mariastew on a download finishing, the btrfs scrub with its monthly result. Absent → none of them sends anything |
 
 Everything else — the gateway's shape, the zones, the exits, the tailnet's
 non-secret half, and every service — is stated in `stack.ts` and
