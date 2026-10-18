@@ -5,7 +5,7 @@
  * readable and the queries stay reviewable — an exported dashboard is several
  * thousand lines of editor state around a dozen expressions, and a diff on it
  * says nothing. Anything built in the UI on top of these is Grafana's own state
- * and lives in its volume; these four are rebuilt from the ConfigMap on every
+ * and lives in its volume; these are rebuilt from the ConfigMap on every
  * start, which is what makes them safe to change here.
  */
 
@@ -76,8 +76,24 @@ type Stat = {
 const STAT_HEIGHT = 4;
 
 /**
+ * A list rather than a number: one row per series, showing only the labels in
+ * `columns`. For answers that are names — which folders are damaged — where a
+ * count would say how many and leave the reader to go and find out which.
+ */
+type Table = {
+  title: string;
+  description?: string;
+  expr: string;
+  columns: string[];
+  /** Shown in place of an empty table, so empty reads as good news. */
+  noValue: string;
+};
+
+const TABLE_HEIGHT = 6;
+
+/**
  * Two panels per row, eight rows high, in declaration order, under a row of
- * stats if there are any.
+ * stats and then full-width tables if there are any.
  *
  * `$__rate_interval` rather than a fixed window: Grafana sizes it from the
  * panel's own resolution and the scrape interval, so a zoomed-out panel does
@@ -89,8 +105,10 @@ function dashboard(
   title: string,
   panels: Panel[],
   stats: Stat[] = [],
+  tables: Table[] = [],
 ) {
-  const top = stats.length ? STAT_HEIGHT : 0;
+  const statsHeight = stats.length ? STAT_HEIGHT : 0;
+  const top = statsHeight + tables.length * TABLE_HEIGHT;
   return {
     uid,
     title,
@@ -142,6 +160,30 @@ function dashboard(
         },
         targets: [
           { expr: stat.target[0], legendFormat: stat.target[1], refId: "A" },
+        ],
+      })),
+      ...tables.map((table, i) => ({
+        type: "table",
+        id: 200 + i,
+        title: table.title,
+        ...(table.description && { description: table.description }),
+        gridPos: {
+          h: TABLE_HEIGHT,
+          w: 24,
+          x: 0,
+          y: statsHeight + i * TABLE_HEIGHT,
+        },
+        datasource: { type: "prometheus", uid: DATASOURCE_UID },
+        fieldConfig: { defaults: { noValue: table.noValue }, overrides: [] },
+        options: { showHeader: true },
+        targets: [
+          { expr: table.expr, instant: true, format: "table", refId: "A" },
+        ],
+        transformations: [
+          {
+            id: "filterFieldsByName",
+            options: { include: { names: table.columns } },
+          },
         ],
       })),
       ...panels.map((panel, i) => ({
@@ -823,10 +865,138 @@ const soulseek = dashboard(
   ],
 );
 
+/**
+ * btrfs data share kept as two or more copies. Below 1 means some data exists
+ * once: a conversion still running, or a pool that has lost its redundancy.
+ */
+const REDUNDANT_SHARE =
+  'sum by (node) (node_btrfs_used_bytes{block_group_type="data",mode=~"raid1.*|raid10"}) / sum by (node) (node_btrfs_used_bytes{block_group_type="data"})';
+
+/**
+ * The btrfs pools and the jobs that look after them. The filesystem figures
+ * come from node-exporter's btrfs collector; the scrub and snapshot figures
+ * are written by those jobs into its textfile directory, since a CronJob has
+ * no process left to scrape once it exits. Those are blank until each job has
+ * run once.
+ */
+const storage = dashboard(
+  "jaritanet-storage",
+  "Storage",
+  [
+    {
+      title: "Data by profile",
+      unit: "bytes",
+      description:
+        "During a conversion to RAID1, single falls as RAID1 rises, which makes this the balance's progress bar. Once it is done only RAID1 should remain; single reappearing means data that exists on one disk only.",
+      targets: [
+        [
+          'sum by (node, mode) (node_btrfs_used_bytes{block_group_type="data"})',
+          "{{node}} {{mode}}",
+        ],
+      ],
+    },
+    {
+      title: "Unallocated per disk",
+      unit: "bytes",
+      description: `Space btrfs has not yet given to any chunk, per disk. RAID1 needs room on two disks for every new chunk, so the second-emptiest disk is the real limit. ${DEVICE_LABEL_CAVEAT}`,
+      targets: [
+        ["node_btrfs_device_unused_bytes", "{{node}} {{btrfs_dev_device}}"],
+      ],
+    },
+    {
+      title: "Disk errors",
+      description: `Read, write, flush, corruption and generation errors btrfs has counted per disk since the counters were last reset. They only go up; any step is worth a look, and a climbing one is a cable or a disk on its way out. ${DEVICE_LABEL_CAVEAT}`,
+      targets: [
+        [
+          "sum by (node, btrfs_dev_device, type) (node_btrfs_device_errors_total)",
+          "{{node}} {{btrfs_dev_device}} {{type}}",
+        ],
+      ],
+    },
+    {
+      title: "Last scrub's errors",
+      description:
+        "Corrected errors were repaired from the other copy. Uncorrectable ones were bad on every copy, and the folders holding them are listed above.",
+      targets: [["btrfs_scrub_errors", "{{mount}} {{kind}}"]],
+    },
+    {
+      title: "Snapshots kept",
+      description:
+        "Read-only snapshots on disk. Flat at the retention count is normal; zero means there is nothing to restore from.",
+      targets: [["btrfs_snapshots", "{{subvolume}}"]],
+    },
+  ],
+  [
+    {
+      title: "Redundant data",
+      unit: "percentunit",
+      decimals: 1,
+      invert: true,
+      description:
+        "Share of data stored on two disks. Anything under 100% exists on one disk only.",
+      target: [REDUNDANT_SHARE, "{{node}}"],
+      thresholds: [0.99, 1],
+    },
+    {
+      title: "Disk errors",
+      description: `Worst disk's btrfs error count. ${DEVICE_LABEL_CAVEAT}`,
+      target: [
+        "topk(1, sum by (node, btrfs_dev_device) (node_btrfs_device_errors_total))",
+        "{{btrfs_dev_device}}",
+      ],
+      thresholds: [1, 10],
+    },
+    {
+      title: "Damaged folders",
+      description:
+        "Folders holding a file the last scrub could not repair. Each one needs fetching again.",
+      target: ["count(btrfs_scrub_damaged_folder) or vector(0)", "folders"],
+      thresholds: [0.5, 1],
+    },
+    {
+      title: "Since last scrub",
+      unit: "s",
+      description:
+        "The scrub runs monthly. Past five weeks it has stopped running. Blank until the first one finishes.",
+      target: ["time() - max(btrfs_scrub_last_run_timestamp_seconds)", "ago"],
+      thresholds: [35 * 24 * 3600, 40 * 24 * 3600],
+    },
+    {
+      title: "Since last snapshot",
+      unit: "s",
+      description:
+        "Snapshots are nightly. Past a day and a bit, one was missed.",
+      target: ["time() - max(btrfs_snapshot_last_timestamp_seconds)", "ago"],
+      thresholds: [26 * 3600, 50 * 3600],
+    },
+    {
+      title: "Fullest pool",
+      unit: "percent",
+      description:
+        "btrfs needs free space to balance into, including the balance that adds a disk. Add one before red.",
+      target: [
+        'topk(1, 100 - (node_filesystem_avail_bytes{fstype="btrfs"} / node_filesystem_size_bytes{fstype="btrfs"} * 100))',
+        "{{mountpoint}}",
+      ],
+      thresholds: [80, 90],
+    },
+  ],
+  [
+    {
+      title: "Damaged folders",
+      description:
+        "Folders holding a file the last scrub found bad on every copy. Fetch each one again; restoring from a snapshot will not help, because a snapshot shares the damaged blocks.",
+      expr: "btrfs_scrub_damaged_folder",
+      columns: ["folder"],
+      noValue: "Nothing damaged at the last scrub",
+    },
+  ],
+);
+
 /** Filename → dashboard JSON, as Grafana's file provisioner wants it. */
 export function dashboardFiles() {
   return Object.fromEntries(
-    [overview, disks, nodes, edge, soulseek].map((d) => [
+    [overview, disks, nodes, edge, soulseek, storage].map((d) => [
       `${d.uid}.json`,
       JSON.stringify(d, null, 2),
     ]),

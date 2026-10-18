@@ -813,6 +813,15 @@ deletion, which a mirror copies instantly. The rest of the drive is replaceable
 and is not snapshotted. Neither is a backup: both copies share a machine, a
 power supply and a house.
 
+Both jobs leave their result in node-exporter's textfile directory, because a
+finished Job has no process left to scrape and its log is gone after three
+runs. The Grafana "Storage" dashboard combines those with node-exporter's own
+btrfs collector: how much data is redundant (which doubles as a balance's
+progress bar), per-disk error counters, time since the last scrub and
+snapshot, and a table of folders the last scrub could not repair. Those
+folders have to be fetched again; a snapshot shares the damaged blocks and
+cannot restore them.
+
 ## Break-glass SSH
 
 Each box's only key is the ED25519 pair Pulumi generates for it, which lives in

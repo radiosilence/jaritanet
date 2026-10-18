@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { BtrfsMaintenanceConfSchema } from "./btrfs.schemas.ts";
-import { DAMAGE_AWK, scrubScript } from "./btrfs.ts";
+import { DAMAGE_AWK, scrubScript, snapshotScript } from "./btrfs.ts";
 
 /**
  * The scrub's damage list is only as good as this parse of the kernel's own
@@ -61,12 +61,27 @@ describe("scrubScript", () => {
     },
   });
 
-  it("is valid sh", () => {
+  it("is valid sh, with and without metrics", () => {
     // Three layers of quoting (TypeScript, sh, awk) meet in this script, and
     // a mistake in any of them is a syntax error on the node at 05:00.
-    expect(() =>
-      execFileSync("sh", ["-n"], { input: scrubScript(conf) }),
-    ).not.toThrow();
+    for (const c of [conf, { ...conf, metricsDir: "/var/lib/textfile" }]) {
+      expect(() =>
+        execFileSync("sh", ["-n"], { input: scrubScript(c) }),
+      ).not.toThrow();
+    }
+  });
+
+  it("escapes folder names into valid label values", () => {
+    // The sed program the script uses, run against a name with both of the
+    // characters that would otherwise end the label value early.
+    const sed = /sed '\/\^\$\/d; ([^']+)'/.exec(
+      scrubScript({ ...conf, metricsDir: "/var/lib/textfile" }),
+    )?.[1];
+    expect(sed).toBeDefined();
+    const escaped = execFileSync("sed", [sed!], {
+      input: 'music/"Weird Al"/back\\slash\n',
+    }).toString();
+    expect(escaped).toBe('music/\\"Weird Al\\"/back\\\\slash\n');
   });
 
   it("refuses a snapshot directory outside the mount", () => {
@@ -76,5 +91,22 @@ describe("scrubScript", () => {
         snapshot: { ...conf.snapshot, dir: "/srv/snaps" },
       }),
     ).toThrow("/srv/snaps is not under /mnt/kontent");
+  });
+});
+
+describe("snapshotScript", () => {
+  it("is valid sh, with and without metrics", () => {
+    const conf = BtrfsMaintenanceConfSchema.parse({
+      mount: "/mnt/kontent",
+      snapshot: {
+        subvolume: "/mnt/kontent/music",
+        dir: "/mnt/kontent/.snapshots/music",
+      },
+    });
+    for (const c of [conf, { ...conf, metricsDir: "/var/lib/textfile" }]) {
+      expect(() =>
+        execFileSync("sh", ["-n"], { input: snapshotScript(c) }),
+      ).not.toThrow();
+    }
   });
 });

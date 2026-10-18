@@ -39,6 +39,29 @@ export const DAMAGE_AWK = `
 END { for (logical in bad) printf "%s", refs[logical] }
 `;
 
+/**
+ * Escapes a line for use as a Prometheus label value. Folder names come from
+ * the library, and a quote or backslash left raw makes node-exporter reject
+ * the whole file.
+ */
+const PROM_ESCAPE = String.raw`s/\\/\\\\/g; s/"/\\"/g`;
+
+/**
+ * Shell that writes `body`'s output to `<dir>/<name>.prom`, or nothing when no
+ * directory is configured. Written beside and then renamed, because
+ * node-exporter reads the directory whenever it is scraped and a half-written
+ * file is a parse error; the temporary name does not end in `.prom`, so it is
+ * never read.
+ */
+const promFile = (dir: string | undefined, name: string, body: string) =>
+  dir
+    ? `mkdir -p ${dir}
+{
+${body}
+} > ${dir}/${name}.prom.$$ && mv -f ${dir}/${name}.prom.$$ ${dir}/${name}.prom
+`
+    : "";
+
 /** `path` relative to `mount`, which must contain it. */
 const under = (mount: string, path: string) => {
   if (!path.startsWith(`${mount}/`)) {
@@ -98,7 +121,24 @@ else
 fi
 printf '%s\\n' "$text"
 notify "$text"
-exit "$status"
+raw=$(btrfs scrub status -R ${btrfs.mount})
+field() { printf '%s\\n' "$raw" | sed -n "s/^[[:space:]]*$1: *//p"; }
+${promFile(
+  btrfs.metricsDir,
+  "btrfs_scrub",
+  `printf '# TYPE btrfs_scrub_last_run_timestamp_seconds gauge\\nbtrfs_scrub_last_run_timestamp_seconds{mount="%s"} %s\\n' ${btrfs.mount} "$(date +%s)"
+printf '# TYPE btrfs_scrub_success gauge\\nbtrfs_scrub_success{mount="%s"} %s\\n' ${btrfs.mount} "$([ "$status" -eq 0 ] && echo 1 || echo 0)"
+echo '# TYPE btrfs_scrub_errors gauge'
+for kind in corrected uncorrectable; do
+  value=$(field "\${kind}_errors")
+  [ -z "$value" ] || printf 'btrfs_scrub_errors{mount="%s",kind="%s"} %s\\n' ${btrfs.mount} "$kind" "$value"
+done
+echo '# TYPE btrfs_scrub_damaged_folder gauge'
+printf '%s\\n' "$damaged" | sed '/^$/d; ${PROM_ESCAPE}' |
+  while IFS= read -r folder; do
+    printf 'btrfs_scrub_damaged_folder{mount="%s",folder="%s"} 1\\n' ${btrfs.mount} "$folder"
+  done`,
+)}exit "$status"
 `;
 };
 
@@ -108,7 +148,9 @@ exit "$status"
  * `btrfs subvolume delete`, which refuses anything that is not a subvolume, so
  * a stray file in the directory is left alone rather than removed.
  */
-const snapshotScript = (btrfs: z.infer<typeof BtrfsMaintenanceConfSchema>) => {
+export const snapshotScript = (
+  btrfs: z.infer<typeof BtrfsMaintenanceConfSchema>,
+) => {
   const { subvolume, dir, keep } = btrfs.snapshot;
   return `set -eu
 ${requireBtrfs(btrfs.mount)}
@@ -117,7 +159,12 @@ btrfs subvolume snapshot -r ${subvolume} ${dir}/$(date -u +%Y-%m-%dT%H%M%SZ)
 ls -1 ${dir} | sort | head -n -${keep} | while read -r name; do
   btrfs subvolume delete ${dir}/"$name"
 done
-`;
+${promFile(
+  btrfs.metricsDir,
+  "btrfs_snapshot",
+  `printf '# TYPE btrfs_snapshot_last_timestamp_seconds gauge\\nbtrfs_snapshot_last_timestamp_seconds{subvolume="%s"} %s\\n' ${subvolume} "$(date +%s)"
+printf '# TYPE btrfs_snapshots gauge\\nbtrfs_snapshots{subvolume="%s"} %s\\n' ${subvolume} "$(ls -1 ${dir} | wc -l)"`,
+)}`;
 };
 
 /**

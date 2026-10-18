@@ -16,6 +16,13 @@ import { VERSIONS, VM_AGENT_IMAGE, VM_SINGLE_IMAGE } from "./versions.ts";
 const VMSINGLE = "metrics-vmsingle";
 const VMAGENT = "metrics-vmagent";
 const NODE_EXPORTER = "metrics-node-exporter";
+
+/**
+ * Where node-exporter's textfile collector reads `*.prom` files on each node.
+ * Jobs that run on the host and have a result worth graphing, but no process
+ * left to scrape once they exit, write there.
+ */
+export const TEXTFILE_DIR = "/var/lib/node-exporter/textfile";
 const SECRETS_NAME = "metrics-secrets";
 
 /**
@@ -202,6 +209,7 @@ export function createMetrics(
                   // is about.
                   "--path.rootfs=/host/root",
                   "--web.listen-address=:9100",
+                  "--collector.textfile.directory=/textfile",
                   "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/credentials/.+|var/lib/kubelet/.+)($|/)",
                   "--collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$",
                 ],
@@ -218,6 +226,7 @@ export function createMetrics(
                     // watch is the normal case, not an edge one.
                     mountPropagation: "HostToContainer",
                   },
+                  { name: "textfile", mountPath: "/textfile", readOnly: true },
                 ],
                 resources: conf.nodeExporter.resources,
                 securityContext: {
@@ -232,6 +241,12 @@ export function createMetrics(
               { name: "proc", hostPath: { path: "/proc" } },
               { name: "sys", hostPath: { path: "/sys" } },
               { name: "root", hostPath: { path: "/" } },
+              // Created on every node, so a node with nothing writing there
+              // reports an empty directory rather than a collector error.
+              {
+                name: "textfile",
+                hostPath: { path: TEXTFILE_DIR, type: "DirectoryOrCreate" },
+              },
             ],
           },
         },
