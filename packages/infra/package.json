@@ -28,7 +28,7 @@
     "@pulumi/tls": "5.4.0",
     "@radiosilence/koan-pulumi": "0.64.0",
     "@radiosilence/mariastew-pulumi": "0.2.1",
-    "@radiosilence/mcp-gateway-pulumi": "0.9.2",
+    "@radiosilence/mcp-gateway-pulumi": "0.9.3",
     "@radiosilence/slsk-mcp-pulumi": "0.2.0",
     "@radiosilence/transmet-pulumi": "0.3.4",
     "yaml": "2.9.0",
