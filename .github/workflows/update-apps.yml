@@ -50,6 +50,10 @@ jobs:
 
       - name: Setup Environment
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+        with:
+          # mise.toml also carries Rust and Pulumi for other jobs; this one only
+          # runs a Node script and, for dependency bumps, aube.
+          install_args: node aube
 
       # `.npmrc` names a token file rather than an ${ENV}, because aube refuses
       # to expand environment variables in auth settings a project controls.
