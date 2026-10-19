@@ -21,6 +21,12 @@ export const BtrfsMaintenanceConfSchema = z.object({
     schedule: z.string().default("0 3 * * *"),
   }),
   timeZone: z.string().default("Europe/London"),
+  /**
+   * node-exporter's textfile directory on the node. When set, each job leaves
+   * its result there as Prometheus metrics, so the outcome is on a dashboard
+   * rather than only in a Job log that is gone after three runs.
+   */
+  metricsDir: AbsolutePath.optional(),
   /** Only used to run `nsenter`; everything else is the host's own binaries. */
   image: z.string().default("busybox:1.37.0"),
 });

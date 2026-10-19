@@ -29,7 +29,7 @@ import { createKoan } from "@radiosilence/koan-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
-import { createMetrics, GRAFANA } from "@jaritanet/metrics";
+import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createGroglog } from "@jaritanet/groglog";
 import {
@@ -232,6 +232,7 @@ export function createServices(ctx: EstateContext) {
         subvolume: "/mnt/kontent/music",
         dir: "/mnt/kontent/.snapshots/music",
       },
+      metricsDir: TEXTFILE_DIR,
     },
     FILE_NODE_LABEL,
     ctx.telegram && {
