@@ -700,17 +700,51 @@ jobs:
         run: |
           set -euo pipefail
           tags=()
-          held=$(docker buildx imagetools inspect "$IMAGE:main" --format '{{json .Image}}' 2>/dev/null \
-            | jq -r '[.. | objects | .config.Labels?["org.opencontainers.image.revision"]? // empty][0] // empty' || true)
+          # Fails closed: only a missing tag or label, a commit history no
+          # longer leads to (404, or diverged after a force-push), or this
+          # commit being ahead moves `main`. Any other error fails the step
+          # after three attempts, rather than risk moving it backwards.
+          attempt() {
+            local n
+            for n in 1 2 3; do
+              "$@" && return 0
+              [ "$n" = 3 ] || sleep $((n * 10))
+            done
+            return 1
+          }
+          read_tag() {
+            if docker buildx imagetools inspect "$IMAGE:main" --format '{{json .Image}}' > tag.json 2> tag.err; then
+              held=$(jq -r '[.. | objects | .config.Labels?["org.opencontainers.image.revision"]? // empty][0] // empty' tag.json)
+            elif grep -qF "$IMAGE:main: not found" tag.err; then
+              held=
+            else
+              cat tag.err >&2
+              return 1
+            fi
+          }
+          compare() {
+            if gh api "repos/$GITHUB_REPOSITORY/compare/$held...$GITHUB_SHA" --jq .status > compare.out 2> compare.err; then
+              status=$(cat compare.out)
+            elif grep -q 'HTTP 404' compare.err; then
+              status=gone
+            else
+              cat compare.err >&2
+              return 1
+            fi
+          }
+          attempt read_tag || { echo "::error::cannot read $IMAGE:main"; exit 1; }
           status=ahead
           if [ -n "$held" ] && [ "$held" != "$GITHUB_SHA" ]; then
-            status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$held...$GITHUB_SHA" --jq .status)
+            attempt compare || { echo "::error::cannot compare $held with $GITHUB_SHA"; exit 1; }
           fi
-          if [ "$status" = ahead ]; then
-            tags+=(-t "$IMAGE:main" -t "$IMAGE:latest")
-          else
-            echo "::notice::main holds $held, which this commit does not descend from ($status); leaving main and latest"
-          fi
+          case "$status" in
+            ahead) tags+=(-t "$IMAGE:main" -t "$IMAGE:latest") ;;
+            gone|diverged)
+              echo "::notice::main holds $held, which history no longer leads to ($status); retagging"
+              tags+=(-t "$IMAGE:main" -t "$IMAGE:latest")
+              ;;
+            *) echo "::notice::main holds $held, which this commit does not descend from ($status); leaving main and latest" ;;
+          esac
           # A prerelease gets its exact version and nothing else: moving `2` or
           # `2.1` onto an rc is how people end up running one by accident.
           if [ "$RELEASE" = true ]; then
