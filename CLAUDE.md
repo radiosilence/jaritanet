@@ -256,7 +256,9 @@ touching branch protection.
    update leaves the stack locked with pending operations. For the same reason
    runs on `main` queue rather than cancel each other, which also keeps deploys
    in commit order; a run still waiting when a newer push arrives is superseded
-   by it. `deleteUnreachable` on a manual run drops Kubernetes resources whose
+   by it. A manual run, or a re-run of an older run, deploys only while its
+   commit is still `main`'s head, so it cannot roll back a newer deploy.
+   `deleteUnreachable` on a manual run drops Kubernetes resources whose
    cluster is gone.
 2. **Promote** — each container CI built is pushed in CI as
    `sha-<commit>`, in parallel with the checks; CD moves `main` and `latest` onto

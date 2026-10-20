@@ -33,6 +33,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # `mise run` otherwise installs every tool in mise.toml before a task, which
+  # would undo each job's `install_args`.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
 # A pull request's newer push cancels its older run. Pushes to main queue in
 # one group and are never cancelled once running: the run may be part-way
 # through `pulumi up`, and an interrupted update leaves the stack locked with
@@ -219,16 +224,26 @@ jobs:
             echo "releases=$(jq -c 'map(select(.release))' <<< "$apps")"
           } | tee -a "$GITHUB_OUTPUT"
 
-  lint:
-    name: Lint
+  # lint, format, typecheck and the tests are independent, so each is a leg of
+  # its own and one failing does not hide the others.
+  ts:
+    name: TypeScript (${{ matrix.name }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: changes
     if: needs.changes.outputs.ts == 'true'
     permissions:
       contents: read
       # @radiosilence/*-pulumi come from GitHub Packages.
       packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Lint, task: lint }
+          - { name: Format, task: "fmt:check" }
+          - { name: Type Check, task: typecheck }
+          - { name: Test, task: test }
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -236,7 +251,7 @@ jobs:
       - name: Setup Environment
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
         with:
-          # What every TypeScript job runs on. Naming them is also what lets
+          # What these jobs run on. Naming them is also what lets
           # shared_inputs.py tell a Rust or Pulumi bump in mise.toml from one
           # that reaches these jobs.
           install_args: node aube
@@ -255,113 +270,17 @@ jobs:
           run-install: true
           install-args: --frozen-lockfile
 
-      - name: Lint
-        run: mise run lint
-
-  format:
-    name: Format
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    needs: changes
-    if: needs.changes.outputs.ts == 'true'
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Environment
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
-        with:
-          install_args: node aube
-
-      - name: Authenticate to GitHub Packages
-        run: mise run auth
+      - name: ${{ matrix.name }}
+        run: mise run "$TASK"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Dependencies
-        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
-        with:
-          node-version: auto
-          run-install: true
-          install-args: --frozen-lockfile
-
-      - name: Format Check
-        run: mise run fmt:check
-
-  typecheck:
-    name: Type Check
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    needs: changes
-    if: needs.changes.outputs.ts == 'true'
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Environment
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
-        with:
-          install_args: node aube
-
-      - name: Authenticate to GitHub Packages
-        run: mise run auth
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Dependencies
-        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
-        with:
-          node-version: auto
-          run-install: true
-          install-args: --frozen-lockfile
-
-      - name: Type Check
-        run: mise run typecheck
-
-  test:
-    name: Test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.ts == 'true'
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Environment
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
-        with:
-          install_args: node aube
-
-      - name: Authenticate to GitHub Packages
-        run: mise run auth
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Dependencies
-        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
-        with:
-          node-version: auto
-          run-install: true
-          install-args: --frozen-lockfile
-
-      - name: Run Tests
-        run: mise run test
+          TASK: ${{ matrix.task }}
 
       # The unit tests validate profile *shape* against sing-box's published
       # (latest) schema. This runs the real binary of the oldest core the fleet
       # is on, which is the only thing that answers "will the devices accept
       # this" — the question July's outage turned on.
       - name: Check profiles against the minimum sing-box core
+        if: matrix.task == 'test'
         run: mise run check:profiles
 
   # `pulumi preview --refresh` against the live stack, posted on the pull
@@ -380,12 +299,13 @@ jobs:
       contents: read
       packages: read
       pull-requests: write
-    env:
-      STACK: radiosilence/jaritanet/main
-      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
     steps:
-      # A pull request from a fork is given no secrets.
+      # A pull request from a fork is given no secrets. The token is on the
+      # steps that read it only, not the install, whose lifecycle scripts come
+      # from the lockfile the pull request controls.
       - id: token
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
           if [ -n "$PULUMI_ACCESS_TOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -424,6 +344,9 @@ jobs:
         run: |
           set -o pipefail
           pulumi preview --non-interactive --diff --refresh -s "$STACK" 2>&1 | tee preview.txt
+        env:
+          STACK: radiosilence/jaritanet/main
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
       # Truncated from the top: the resource summary a preview is read for sits
       # at the end, and GitHub refuses a body beyond 65536 characters.
@@ -562,7 +485,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [changes, binary]
-    if: ${{ !cancelled() && needs.changes.outputs.images != '[]' && (needs.binary.result == 'success' || needs.binary.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.images != '[]' && (needs.binary.result == 'success' || needs.binary.result == 'skipped') }}
     permissions:
       contents: read
       packages: write
@@ -635,7 +558,7 @@ jobs:
     name: Checks
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [changes, lint, format, typecheck, test, preview, rust, binary, image]
+    needs: [changes, ts, preview, rust, binary, image]
     if: always()
     permissions: {}
     steps:
@@ -655,9 +578,10 @@ jobs:
   # job here states the results it depends on rather than relying on the
   # default, which would skip it whenever any job upstream was skipped.
 
-  # One `pulumi up` for everything. In a group of its own and never cancelled,
-  # so a manual run's deploy and a push's never overlap and neither is
-  # interrupted part-way.
+  # One `pulumi up` for everything. In a group of its own and never cancelled
+  # while running, so a manual run's deploy and a push's never overlap and
+  # neither is interrupted part-way. GitHub keeps one deploy waiting per group:
+  # a third arriving replaces the waiting one, which shows as cancelled.
   deploy:
     name: Deploy
     runs-on: ubuntu-24.04
@@ -671,20 +595,45 @@ jobs:
       contents: read
       packages: read
     steps:
+      # Pushes to main run one at a time in commit order, so a push's first
+      # attempt always deploys the newest tree. A manual run, or a re-run of an
+      # older push's run, could follow a newer deploy and roll it back, so
+      # those deploy only while their commit is still main's head.
+      - id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          if [ "$EVENT" = push ] && [ "$ATTEMPT" = 1 ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main is at $head, past this commit; not deploying an older tree"
+          fi
+
       - name: Checkout
+        if: steps.current.outputs.deploy == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Environment
+        if: steps.current.outputs.deploy == 'true'
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
         with:
           install_args: node aube pulumi
 
       - name: Authenticate to GitHub Packages
+        if: steps.current.outputs.deploy == 'true'
         run: mise run auth
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
+        if: steps.current.outputs.deploy == 'true'
         uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
         with:
           node-version: auto
@@ -694,6 +643,7 @@ jobs:
       # Fails rather than skips without the token: a main that silently stops
       # deploying is worse than a red run.
       - name: Deploy
+        if: steps.current.outputs.deploy == 'true'
         working-directory: packages/infra
         run: pulumi up --yes --non-interactive --refresh -s "$STACK"
         env:
@@ -718,6 +668,11 @@ jobs:
     timeout-minutes: 10
     needs: [changes, checks, image]
     if: ${{ !cancelled() && needs.checks.result == 'success' && needs.image.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    # The read of what `main` holds and the retag are one step; this keeps a
+    # manual run's and a push's from interleaving between the two.
+    concurrency:
+      group: promote-${{ matrix.app }}
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
