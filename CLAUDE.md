@@ -229,8 +229,9 @@ touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 so a skipped job means the change does not reach it, not that something was
 missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
-covered by the next. A manual run, a change under `.github/`, or a diff that
-cannot be worked out runs everything. Markdown never counts.
+covered by the next. A manual run, a change under `.github/`, a push whose
+last passed commit cannot be found, or a diff that cannot be worked out runs
+everything. Markdown never counts.
 
 `aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
 where the change reaches: `.github/scripts/shared_inputs.py` follows the
@@ -259,7 +260,8 @@ touching branch protection.
    cluster is gone.
 2. **Promote** — each container CI built is pushed in CI as
    `sha-<commit>`, in parallel with the checks; CD moves `main` and `latest` onto
-   it. Nothing deploys a commit tag.
+   it when this commit descends from the one `main` holds (its revision label),
+   so they only move forward. Nothing deploys a commit tag.
 3. **Release** — see below.
 
 **Pulumi preview** runs on pull requests that reach the stack: `pulumi preview
@@ -299,8 +301,10 @@ Actions cache.
 The containers are versioned and released from here, so the updater can track
 them like any upstream. The version lives in each app's `Cargo.toml`, or
 `apps/files/VERSION`; changing it is the release. `changes` decides once whether
-each container releases: a push that changes its version, when that version is
-not out yet; or a manual run on `main`, which releases any version not out yet
+each container releases: a push whose version differs from the last passed
+commit's, when that version is not out yet (runs on `main` never overlap, so a
+release whose run failed or was superseded is picked up by the next); or a
+manual run on `main`, which releases any version not out yet
 and is how a failed release is retried. The release then tags the image with the
 version (and `<major>.<minor>`, `<major>` for a stable one), cuts
 `<app>-v<version>` after the image exists, and the updater moves the pin. Tags

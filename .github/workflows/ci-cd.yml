@@ -75,14 +75,13 @@ jobs:
       - id: filter
         env:
           EVENT: ${{ github.event_name }}
-          HEAD_REF: ${{ github.head_ref }}
           GH_TOKEN: ${{ github.token }}
         # The domains a change touches, from its diff. A pull request's is
         # against its base. A push's is against the last commit on main whose
         # run passed, so a push whose run was superseded or failed still
-        # reaches CD with the next; without one in recent history, the commit
-        # before. A manual run, or a diff that cannot be worked out, runs
-        # everything.
+        # reaches CD with the next; a re-run of that commit's own run diffs
+        # against its parent. A manual run, a push whose base cannot be found,
+        # or a diff that cannot be worked out, runs everything.
         #
         # Allowlists, so the question is "did any source of this domain
         # change?" rather than "was everything recognisably irrelevant?". The
@@ -97,20 +96,28 @@ jobs:
 
           base=HEAD^1
           if [ "$EVENT" = "push" ]; then
+            base=
             passed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci-cd.yml --branch main --event push \
-              --status success --limit 1 --json headSha --jq '.[0].headSha' 2>/dev/null || true)
-            if [ -n "$passed" ] && [ "$passed" != "$(git rev-parse HEAD)" ] && git fetch -q --deepen=100 origin main && git merge-base --is-ancestor "$passed" HEAD; then
+              --status success --limit 1 --json headSha --jq '.[0].headSha // empty' || true)
+            if [ "$passed" = "$(git rev-parse HEAD)" ]; then
+              base=HEAD^1
+            elif [ -n "$passed" ] && git fetch -q --deepen=200 origin main && git merge-base --is-ancestor "$passed" HEAD; then
               base=$passed
             fi
           fi
 
           # Whether each container releases, the one answer every release job
           # reads, worked out before and apart from the domains. A pull request
-          # releases nothing; one that changes a version (or a `release-*`
-          # branch) is marked so it builds that container. A push releases a
-          # container when it changes the version and that version is not out
-          # yet. A manual run on main, which is how a failed release is
-          # retried, releases whatever version is not out yet.
+          # releases nothing; one that changes a version is marked so it builds
+          # that container. A push releases a container when it changes the
+          # version and that version is not out yet. A manual run on main,
+          # which is how a failed release is retried, releases whatever version
+          # is not out yet.
+          #
+          # "Changes the version" is against the push's base, not its parent:
+          # runs on main never overlap (see `concurrency`), so the base's run
+          # has finished, and a release run that failed, or was superseded
+          # while it waited, is released by the next run instead of dropped.
           version_of() {
             case $1 in
               files) git show "$2:apps/files/VERSION" 2>/dev/null | tr -d '[:space:]' ;;
@@ -129,13 +136,12 @@ jobs:
               exit 1
             fi
             bumped=false
-            if [ "$(version_of "$app" "$base")" != "$version" ]; then
+            if [ "$(version_of "$app" "${base:-HEAD^1}")" != "$version" ]; then
               bumped=true
             fi
             release=false
             case "$EVENT" in
               pull_request)
-                case "$HEAD_REF" in release-*) bumped=true ;; esac
                 release=$bumped
                 ;;
               *)
@@ -143,12 +149,13 @@ jobs:
                 # stops the run: guessing either way releases twice or never.
                 if [ "$GITHUB_REF" = refs/heads/main ] && { [ "$EVENT" = workflow_dispatch ] || [ "$bumped" = true ]; }; then
                   if ! out=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$app-v$version" 2>&1); then
-                    if printf '%s' "$out" | grep -q 'HTTP 404'; then
-                      release=true
-                    else
-                      echo "::error::cannot tell whether $app-v$version is released: $out"
-                      exit 1
-                    fi
+                    case "$out" in
+                      *"HTTP 404"*) release=true ;;
+                      *)
+                        echo "::error::cannot tell whether $app-v$version is released: $out"
+                        exit 1
+                        ;;
+                    esac
                   fi
                 fi
                 ;;
@@ -157,8 +164,10 @@ jobs:
               'map(if .app == $app then . + {version: $version, release: $release} else . end)' <<< "$apps")
           done
 
-          touches() { printf '%s\n' "$changed" | grep -vE '\.md$' | grep -vE "${2:-^$}" | grep -qE "$1"; }
-          if [ "$EVENT" != "workflow_dispatch" ] && changed=$(git diff --name-only "$base" HEAD); then
+          # Counted rather than `grep -q`, which can stop reading early and
+          # fail the stage before it under pipefail.
+          touches() { [ "$(printf '%s\n' "$changed" | grep -vE '\.md$' | grep -vE "${2:-^$}" | grep -cE "$1")" -gt 0 ]; }
+          if [ "$EVENT" != "workflow_dispatch" ] && [ -n "$base" ] && changed=$(git diff --name-only "$base" HEAD); then
             echo "changes since $(git rev-parse --short "$base"):"
             printf '%s\n' "$changed" | sed 's/^/  /'
             # The lockfile and mise.toml count for a domain only when the
@@ -699,7 +708,10 @@ jobs:
 
   # Each image CI pushed, retagged: `main` and `latest` on every passing push,
   # and on a release its version, and for a stable one `<major>.<minor>` and
-  # `<major>`. Retagging needs no rebuild, and repeats safely.
+  # `<major>`. Retagging needs no rebuild, and repeats safely. `main` and
+  # `latest` only move forward: to this commit when it descends from the one
+  # `main` holds now (its revision label), since a manual run can finish
+  # after a later push's.
   promote:
     name: Promote (${{ matrix.app }})
     runs-on: ubuntu-24.04
@@ -729,9 +741,21 @@ jobs:
           IMAGE: ghcr.io/radiosilence/${{ matrix.image }}
           VERSION: ${{ matrix.version }}
           RELEASE: ${{ matrix.release }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tags=(-t "$IMAGE:main" -t "$IMAGE:latest")
+          tags=()
+          held=$(docker buildx imagetools inspect "$IMAGE:main" --format '{{json .Image}}' 2>/dev/null \
+            | jq -r '[.. | objects | .config.Labels?["org.opencontainers.image.revision"]? // empty][0] // empty' || true)
+          status=ahead
+          if [ -n "$held" ] && [ "$held" != "$GITHUB_SHA" ]; then
+            status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$held...$GITHUB_SHA" --jq .status)
+          fi
+          if [ "$status" = ahead ]; then
+            tags+=(-t "$IMAGE:main" -t "$IMAGE:latest")
+          else
+            echo "::notice::main holds $held, which this commit does not descend from ($status); leaving main and latest"
+          fi
           # A prerelease gets its exact version and nothing else: moving `2` or
           # `2.1` onto an rc is how people end up running one by accident.
           if [ "$RELEASE" = true ]; then
@@ -746,7 +770,9 @@ jobs:
                 ;;
             esac
           fi
-          docker buildx imagetools create "${tags[@]}" "$IMAGE:sha-${GITHUB_SHA::7}"
+          if [ ${#tags[@]} -gt 0 ]; then
+            docker buildx imagetools create "${tags[@]}" "$IMAGE:sha-${GITHUB_SHA::7}"
+          fi
 
   # After the image's version tag, so a release never names an image that does
   # not exist: the updater reads these releases and moves the pin.
