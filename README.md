@@ -226,7 +226,7 @@ reaches the stack in the first place.
 
 | Secret | Workflow | Purpose |
 |---|---|---|
-| `PULUMI_ACCESS_TOKEN` | `ci-cd`, `preview` | Pulumi Cloud state |
+| `PULUMI_ACCESS_TOKEN` | `ci-cd` (`preview`, `deploy`) | Pulumi Cloud state |
 | `APP_PRIVATE_KEY` | `update-apps` | GitHub App key for version-bump commits (pairs with the `APP_ID` repo variable) |
 
 ### Stack configuration

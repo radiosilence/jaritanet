@@ -219,70 +219,106 @@ each relying party knowing how identity works is the thing being removed.
 
 ### CI/CD (`ci-cd.yml`)
 
-Triggered on pushes and pull requests affecting package files, manually via `workflow_dispatch`, or as a reusable workflow (`workflow_call`, with the Pulumi/Cloudflare/Hetzner secrets):
+One workflow for pull requests, pushes to `main` and manual runs, in two halves
+so CD ships what CI built in the same run.
 
-1. **Test** - Type checks, lints, runs vitest suite
-2. **Deploy** (main branch only) - a single `pulumi up` deploying everything
+**CI runs per domain.** `changes` works out from the diff which domains a change
+touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
+`deploy` (the Pulumi program and everything it imports), and one per container
+(`auth`, `serve_from_env`, `files`). Each job runs under an `if:` on its domain,
+so a skipped job means the change does not reach it, not that something was
+missed. A pull request is diffed against its base; a push against the last
+`main` commit whose run passed, so a push whose run was superseded or failed is
+covered by the next. A manual run, a change under `.github/`, or a diff that
+cannot be worked out runs everything. Markdown never counts.
 
-### Preview (`preview.yml`)
+`aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
+where the change reaches: `.github/scripts/shared_inputs.py` follows the
+lockfile from `packages/infra` through its workspace links (a dev-tool bump at
+the root runs the checks but not a deploy), and reads which mise tools and
+tasks each domain's jobs install and run. If it fails, the change counts.
 
-Runs `pulumi preview --refresh` on infra PRs and posts the diff as a PR comment — read-only, surfaces resource **replacements** (e.g. the gateway VPS) before merge. The refresh is what makes it call the cloud APIs, so a credential revoked since the last deploy fails here rather than mid-deploy.
+**Adding a domain** is an output of `changes`, an allowlist of paths in its
+script (plus anything `shared_inputs.py` should follow), an `if:` on the jobs it
+gates, and those jobs in `checks`' `needs`. A new container is one entry in the
+`apps` table there, with a `Dockerfile` in `apps/<name>/`.
 
-Both verbs enter `packages/infra/src/deploy.ts` (Pulumi Automation API), which applies stack config from the environment and then previews or updates. Sharing an entrypoint is the point: a preview produced by different machinery than the deploy predicts nothing. Config is written to the checked-out `Pulumi.main.yaml` rather than the shared stack, so one PR's injected hostnames never reach another's preview.
+**`Checks` is the gate.** It needs every CI job, runs `if: always()`, and fails
+on any result other than `success` or `skipped`. It is the only status the
+ruleset should require, so jobs can be added, renamed or skipped without
+touching branch protection.
+
+**CD runs on `main` after `Checks`**, and never on a pull request:
+
+1. **Deploy** — `pulumi up --refresh`, when the change reaches the stack. It
+   is in a concurrency group of its own and is never cancelled: an interrupted
+   update leaves the stack locked with pending operations. For the same reason
+   runs on `main` queue rather than cancel each other, which also keeps deploys
+   in commit order; a run still waiting when a newer push arrives is superseded
+   by it. `deleteUnreachable` on a manual run drops Kubernetes resources whose
+   cluster is gone.
+2. **Promote** — each container CI built is pushed in CI as
+   `sha-<commit>`, in parallel with the checks; CD moves `main` and `latest` onto
+   it. Nothing deploys a commit tag.
+3. **Release** — see below.
+
+**Pulumi preview** runs on pull requests that reach the stack: `pulumi preview
+--refresh`, posted as a PR comment and edited in place on each push. It surfaces
+resource **replacements** (the gateway VPS) before merge, and the refresh is what
+makes it call the cloud APIs, so a credential revoked since the last deploy
+fails here rather than mid-deploy. It is the only CI job holding a Pulumi token
+and a write scope (`pull-requests`), and skips with a notice when a fork's
+pull request is given no secrets.
+
+#### Containers
+
+Each container is built only when its app changes; a pin bump in
+`apps/<x>/deploy/` is a deploy, not a new image.
+
+The Rust apps (`auth`, `serve-from-env`) carry a `rust` job — fmt, clippy,
+`cargo test` — on the floating `rust = "1"` from `mise.toml`, where a compiler
+bump breaking is the point. Alongside it, `binary` compiles the release build on
+a runner of each architecture (`ubuntu-24.04`, `ubuntu-24.04-arm`) with the
+toolchain that ships pinned. **The compile happens on the runner, not in the
+Dockerfile.** A `cargo build` inside a Dockerfile is one atomic layer, so a
+single crate moving in `Cargo.lock` recompiles all of them — measured on
+`mariastew` at 168s of dependencies against 15s of its own code. Cargo's own
+cache has the right granularity, and the only place it survives between runs is
+the runner, under `Swatinem/rust-cache`. The image then only copies the binary
+in: `image` assembles `dist/<arch>/<app>` and builds both architectures on one
+runner, with nothing to emulate. The price is that these Dockerfiles do not
+build from a bare checkout; each says how to reproduce the build locally. The
+files image is nginx with one `RUN`, which runs emulated for arm64 and stays in
+the registry layer cache.
+
+Caches are written from `main` only (`save-if`). A branch's cache is invisible
+to every other branch and still evicts from the repository's 10GB, which is how
+`main` ends up cold. Docker's layer cache lives in GHCR (`:buildcache`), not the
+Actions cache.
+
+The containers are versioned and released from here, so the updater can track
+them like any upstream. The version lives in each app's `Cargo.toml`, or
+`apps/files/VERSION`; changing it is the release. `changes` decides once whether
+each container releases: a push that changes its version, when that version is
+not out yet; or a manual run on `main`, which releases any version not out yet
+and is how a failed release is retried. The release then tags the image with the
+version (and `<major>.<minor>`, `<major>` for a stable one), cuts
+`<app>-v<version>` after the image exists, and the updater moves the pin. Tags
+are output, not input — nothing reads one to decide what to build. Several
+containers releasing from one repo is why tracked entries need `tagPrefix`:
+"the latest release" is otherwise repo-wide.
 
 ### App Version Updates (`update-apps.yml`)
 
-Daily check for new releases of the components listed in `.github/tracked-versions.yml`. Uses a GitHub App token so version bump commits trigger the CI/CD pipeline.
+Daily check for new releases of the components listed in `.github/tracked-versions.yml`. Uses a GitHub App token so version bump commits trigger `ci-cd.yml`.
+
+It stays a workflow of its own because it is not part of the change pipeline: it produces commits rather than checking them. Its pushes reach `main` like any other, and `ci-cd.yml` checks and deploys them.
 
 The workflow only supplies tokens; the work is `scripts/update-apps/`, with the decisions it makes — tag normalisation, image reference parsing, and whether an entry moved — isolated in `versions.ts` where they are unit tested. A release tag is never trusted on its own: the registry is asked whether the image actually published, including for entries already up to date, so a pin that stopped resolving is reported rather than waiting for the next pod restart to find it.
 
 A missing image fails the run only when it is the *pinned* one — that is a live deployment referencing something that no longer exists. A newer release whose image has not published yet warns and leaves the entry alone: several upstreams build their container separately from the release it tracks, so lag is their normal operation and there is nothing here to act on. Failing on it left the workflow permanently red, which costs the alarm rather than fixing anything.
 
 Rewrites go through the YAML document API and mutate the existing scalar, so a bump changes exactly one line and leaves comments and quoting alone.
-
-### Container Builds (`build-*-container.yml`)
-
-Builds and publishes each container on changes to its own directory, one job per
-architecture on a runner of that architecture (via `blit-workflows`) rather than
-emulating arm64 under QEMU.
-
-Each Rust one carries a `check` job — fmt, clippy, `cargo test` — which the
-publish depends on, so no image is built from code that does not pass. It gates
-the publish and not the compile: the compile is the long pole, so it starts at
-once and the check runs beside it, where putting it in front would add the
-check to the critical path of every green run to save a compile on a red one.
-
-It lives here rather than in `ci-cd.yml` because that is what makes it fire on
-the crate's own path filter — as a matrix job in the infra pipeline it
-recompiled all three crates for a change that touched no Rust, and gated
-nothing. The toolchains differ on purpose: `check` takes the floating
-`rust = "1"` from `mise.toml`, where a compiler bump breaking is the point,
-while the compile pins the version that ships.
-
-**Where the compile happens is the difference between the two Rust shapes.** A
-`cargo build` inside a Dockerfile is one atomic layer, so a single crate moving
-in `Cargo.lock` recompiles all of them — measured on `mariastew` at 168s of
-dependencies against 15s of its own code. Neither the stub-`main` layer nor
-`cargo-chef` subdivides that; they reorder it. Cargo's own cache does have the
-right granularity, and the only place it survives between runs is the runner, so
-`auth` compiles there under `Swatinem/rust-cache` and hands the
-binary to `build-publish-container.yml` as an artefact (`context-artifact`),
-leaving its Dockerfile a `COPY` into a base image. The price is that it no
-longer builds from a bare checkout. mariastew does the same in its own
-repository. `serve-from-env` still
-compiles inline at 46 crates, where a second job shape costs more than it saves.
-
-Caches are written from `main` only (`save-if`). A branch's cache is invisible
-to every other branch and still evicts from the repository's 10GB, which is how
-`main` ends up cold — the one state this is all meant to avoid.
-
-Our containers are versioned and released from here, so the updater can track
-them like any upstream. The version lives in each app's `Cargo.toml`, or
-`apps/files/VERSION`; changing it is the release. CI publishes the image, cuts
-`<app>-v<version>`, and the updater moves the pin. Tags are output, not input —
-nothing reads one to decide what to build. Several containers releasing from one
-repo is why tracked entries need `tagPrefix`: "the latest release" is otherwise
-repo-wide.
 
 ## Container Services
 
