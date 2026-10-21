@@ -47,7 +47,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -65,7 +65,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -74,7 +74,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -86,7 +86,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -95,7 +95,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/cloudflare':
         specifier: 6.15.0
         version: 6.15.0(typescript@6.0.3)
@@ -110,7 +110,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -119,7 +119,7 @@ importers:
     dependencies:
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@6.0.3)
@@ -140,7 +140,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -155,43 +155,43 @@ importers:
     dependencies:
       '@jaritanet/auth':
         specifier: workspace:*
-        version: link:../../apps/auth/deploy/pulumi
+        version: 0.0.0
       '@jaritanet/blit':
         specifier: workspace:*
-        version: link:../blit
+        version: 0.0.0
       '@jaritanet/dns':
         specifier: workspace:*
-        version: link:../dns
+        version: 0.0.0
       '@jaritanet/files':
         specifier: workspace:*
-        version: link:../../apps/files/deploy/pulumi
+        version: 0.0.0
       '@jaritanet/groglog':
         specifier: workspace:*
-        version: link:../groglog
+        version: 0.0.0
       '@jaritanet/hetzner':
         specifier: workspace:*
-        version: link:../hetzner
+        version: 0.0.0
       '@jaritanet/home':
         specifier: workspace:*
-        version: link:../home
+        version: 0.0.0
       '@jaritanet/ingress':
         specifier: workspace:*
-        version: link:../ingress
+        version: 0.0.0
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@jaritanet/koan-site':
         specifier: workspace:*
-        version: link:../koan-site
+        version: 0.0.0
       '@jaritanet/metrics':
         specifier: workspace:*
-        version: link:../metrics
+        version: 0.0.0
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: 0.0.0
       '@jaritanet/vpn':
         specifier: workspace:*
-        version: link:../vpn
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@6.0.3)
@@ -216,6 +216,9 @@ importers:
       '@radiosilence/koan-pulumi':
         specifier: 0.66.4
         version: 0.66.4(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
+      '@radiosilence/koan-relay-pulumi':
+        specifier: 0.1.1
+        version: 0.1.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/mariastew-pulumi':
         specifier: 0.2.1
         version: 0.2.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
@@ -239,7 +242,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -266,7 +269,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -275,7 +278,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.30.0
         version: 4.30.0(typescript@6.0.3)
@@ -298,13 +301,13 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: 0.0.0
       '@jaritanet/serve-from-env':
         specifier: workspace:*
-        version: link:../../apps/serve-from-env/deploy/pulumi
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@6.0.3)
@@ -332,7 +335,7 @@ importers:
     dependencies:
       '@jaritanet/vpn':
         specifier: workspace:*
-        version: link:../packages/vpn
+        version: 0.0.0
       yaml:
         specifier: 2.9.0
         version: 2.9.0
@@ -854,6 +857,13 @@ packages:
 
   '@radiosilence/koan-pulumi@0.66.4':
     resolution: {gitHosted: true, integrity: sha512-P3NLLvUCQWVu514Ynp6P/6+9L3LAXH71Xwwxb3qwcuywcdgqXUZz6nJEbUaN5ohqd+eXPEblwkjjItIwtR/sng==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.66.4/21da14095d645f7ba2b66fb1c2a0270e131d60e7}
+    peerDependencies:
+      '@pulumi/kubernetes': ^4
+      '@pulumi/pulumi': ^3
+      zod: ^4
+
+  '@radiosilence/koan-relay-pulumi@0.1.1':
+    resolution: {gitHosted: true, integrity: sha512-INQHbt9eGBq73AB0x9LuJ7ExY4LPDnVIyRTjN3Rc7dXEicMMHD3+mW0KLYf2yaKwcW+mJruoGzcAI3Z2mEb1qQ==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-relay-pulumi/0.1.1/8c90152bfce2aceda435d6c091b2738657f94d96}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2578,6 +2588,12 @@ snapshots:
       - ts-node
 
   '@radiosilence/koan-pulumi@0.66.4(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
+    dependencies:
+      '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
+      zod: 4.4.3
+
+  '@radiosilence/koan-relay-pulumi@0.1.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
     dependencies:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)

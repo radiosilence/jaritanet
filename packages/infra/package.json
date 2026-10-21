@@ -27,6 +27,7 @@
     "@pulumi/tailscale": "^0.29.0",
     "@pulumi/tls": "5.4.0",
     "@radiosilence/koan-pulumi": "0.66.4",
+    "@radiosilence/koan-relay-pulumi": "0.1.1",
     "@radiosilence/mariastew-pulumi": "0.2.1",
     "@radiosilence/mcp-gateway-pulumi": "0.9.5",
     "@radiosilence/slsk-mcp-pulumi": "0.5.2",

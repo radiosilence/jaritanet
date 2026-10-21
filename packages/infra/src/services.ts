@@ -26,6 +26,7 @@ import type { Deployed, Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createKoan } from "@radiosilence/koan-pulumi";
+import { createPushRelay } from "@radiosilence/koan-relay-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
@@ -207,6 +208,83 @@ export function createServices(ctx: EstateContext) {
     });
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
+  }
+  // The push relay, for koan servers without Apple's key. On the gateway: it
+  // is public, and the home uplink dropping should not stop every phone's
+  // pushes.
+  if (hostnames["koan-push-relay"] && ctx.koanApnsKey) {
+    // Generated once and kept in state. The token key is never rotated: the
+    // relay's revocation table is keyed by it. A new handle key is added
+    // beside this one, never in its place.
+    const relayKey = (id: string) =>
+      new random.RandomBytes(`koan-push-relay-${id}`, { length: 32 }).base64;
+    new k8s.core.v1.Secret(
+      "koan-push-relay",
+      {
+        metadata: { name: "koan-push-relay", namespace: ns },
+        stringData: {
+          "token-key": relayKey("token-key"),
+          "handle-key-1": relayKey("handle-key-1"),
+          "apns-key": pulumi.secret(ctx.koanApnsKey),
+        },
+      },
+      { provider },
+    );
+    // Floods stop at Traefik, per caller address, before they reach the
+    // relay: a little above the relay's own per-address allowances, which
+    // still apply behind these. Traefik reads the caller from Xray's PROXY
+    // header, so `depth: 0` is the real client.
+    const relayMiddleware = (name: string, spec: object) =>
+      new k8s.apiextensions.CustomResource(
+        `koan-push-relay-${name}`,
+        {
+          apiVersion: "traefik.io/v1alpha1",
+          kind: "Middleware",
+          metadata: { name: `koan-push-relay-${name}`, namespace: ns },
+          spec,
+        },
+        { provider, dependsOn: ctx.traefik ? [ctx.traefik] : [] },
+      );
+    const bySource = { ipStrategy: { depth: 0 } };
+    relayMiddleware("rate", {
+      rateLimit: {
+        average: 150,
+        period: "1s",
+        burst: 300,
+        sourceCriterion: bySource,
+      },
+    });
+    relayMiddleware("in-flight", {
+      inFlightReq: { amount: 100, sourceCriterion: bySource },
+    });
+    // The team key the koan server uses. Sandbox only, which reaches only
+    // development builds, until registration requires App Attest: until then
+    // anyone can make the relay prove a made-up token to Apple, and that
+    // should reach no gateway release builds depend on.
+    const apnsKey = { keyId: "HRXQWC44VS", secretKey: "apns-key" };
+    const relay = createPushRelay(provider, ns, hostnames["koan-push-relay"], {
+      existingSecret: "koan-push-relay",
+      apns: { teamId: "2256Q92VF2", sandbox: apnsKey },
+      store: { hostPath: "/var/lib/koan-push-relay" },
+      nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+      // Generous while there are few devices and the behaviour of real
+      // servers is unknown: five times the relay's per-server and
+      // per-device defaults. The proof and refused-token limits stay at the
+      // relay's own, since those are what stand between made-up tokens and
+      // Apple's view of the key.
+      limits: {
+        handleAlertsPerHour: 30,
+        handleWakesPerHour: 60,
+        deviceAlertsPerHour: 100,
+        deviceWakesPerHour: 150,
+      },
+    });
+    add({
+      routes: relay.routes.map((route) => ({
+        ...route,
+        middlewares: ["koan-push-relay-rate", "koan-push-relay-in-flight"],
+      })),
+    });
   }
   add(
     createFiles(provider, "files", {
@@ -559,7 +637,11 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
       route.hostname,
       ctx.namespace,
       ctx.traefik,
-      { paths: route.paths, priority: route.priority },
+      {
+        paths: route.paths,
+        priority: route.priority,
+        middlewares: route.middlewares,
+      },
     );
     published[route.service] = {
       hostname: route.hostname,
