@@ -12,6 +12,16 @@ import {
   type SingboxNode,
 } from "./singbox.ts";
 
+// Unguessable path per user, derived from the secret base slug — stable across
+// deploys so a subscription keeps working, unguessable without the base. Same
+// scheme the file server used, so existing URLs keep their shape.
+const pathFor = (slug: string, name: string) =>
+  `/${crypto
+    .createHash("sha256")
+    .update(`${slug}:${name}`)
+    .digest("hex")
+    .slice(0, 32)}.json`;
+
 /**
  * Serves each user's sing-box profile, from a Secret, in the cluster.
  *
@@ -49,16 +59,6 @@ export function createProfileServer(
   },
 ) {
   const app = "singbox-profiles";
-
-  // Unguessable path per user, derived from the secret base slug — stable
-  // across deploys so a subscription keeps working, unguessable without the
-  // base. Same scheme the file server used, so existing URLs keep their shape.
-  const pathFor = (slug: string, name: string) =>
-    `/${crypto
-      .createHash("sha256")
-      .update(`${slug}:${name}`)
-      .digest("hex")
-      .slice(0, 32)}.json`;
 
   const routes = pulumi
     .all([

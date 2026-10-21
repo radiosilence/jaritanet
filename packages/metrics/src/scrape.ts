@@ -19,6 +19,8 @@ export const NODE_NAME = "%{NODE_NAME}";
 export const NODE_IP = "%{NODE_IP}";
 export const NAMESPACE = "%{NAMESPACE}";
 
+const onThisNode = (port: number) => [{ targets: [`${NODE_IP}:${port}`] }];
+
 /**
  * What one agent scrapes: its own node, and nothing else.
  *
@@ -39,8 +41,6 @@ export const NAMESPACE = "%{NAMESPACE}";
  * happens to write would silently be the only one scraped.
  */
 export function scrapeConfig(scrapeInterval: string) {
-  const onThisNode = (port: number) => [{ targets: [`${NODE_IP}:${port}`] }];
-
   // The kubelet serves its own metrics and cAdvisor's on one port, behind one
   // certificate signed by a CA pods are not given. Verification therefore
   // cannot succeed; the bearer token is what authenticates the caller, and the
