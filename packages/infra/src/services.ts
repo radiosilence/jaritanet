@@ -26,12 +26,12 @@ import type { Deployed, Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createKoan } from "@radiosilence/koan-pulumi";
+import { createPushRelay } from "@radiosilence/koan-relay-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
 import { createKoanSite } from "@jaritanet/koan-site";
-import { createKoanPushRelay } from "@jaritanet/koan-push-relay";
 import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
@@ -213,15 +213,31 @@ export function createServices(ctx: EstateContext) {
   // is public, and the home uplink dropping should not stop every phone's
   // pushes.
   if (hostnames["koan-push-relay"] && ctx.koanApnsKey) {
-    add(
-      createKoanPushRelay(provider, "koan-push-relay", {
-        hostname: hostnames["koan-push-relay"],
-        node: CLOUD_NODE,
-        apns: {
-          teamId: "2256Q92VF2",
-          keyId: "HRXQWC44VS",
-          key: pulumi.secret(ctx.koanApnsKey),
+    // Generated once and kept in state. The token key is never rotated: the
+    // relay's revocation table is keyed by it. A new handle key is added
+    // beside this one, never in its place.
+    const relayKey = (id: string) =>
+      new random.RandomBytes(`koan-push-relay-${id}`, { length: 32 }).base64;
+    new k8s.core.v1.Secret(
+      "koan-push-relay",
+      {
+        metadata: { name: "koan-push-relay", namespace: ns },
+        stringData: {
+          "token-key": relayKey("token-key"),
+          "handle-key-1": relayKey("handle-key-1"),
+          "apns-key": pulumi.secret(ctx.koanApnsKey),
         },
+      },
+      { provider },
+    );
+    // The team key the koan server uses, for both gateways.
+    const apnsKey = { keyId: "HRXQWC44VS", secretKey: "apns-key" };
+    add(
+      createPushRelay(provider, ns, hostnames["koan-push-relay"], {
+        existingSecret: "koan-push-relay",
+        apns: { teamId: "2256Q92VF2", production: apnsKey, sandbox: apnsKey },
+        store: { hostPath: "/var/lib/koan-push-relay" },
+        nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
       }),
     );
   }
