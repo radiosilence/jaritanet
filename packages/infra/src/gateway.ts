@@ -11,6 +11,7 @@ import {
   createTailscaleSystemd,
   createXraySystemd,
   type VpnUser,
+  UPSTREAM_ROOTS,
 } from "@jaritanet/vpn";
 import * as command from "@pulumi/command";
 import * as hcloud from "@pulumi/hcloud";
@@ -156,7 +157,9 @@ export function createGateway(
         connection,
         create: `${remotePreamble}
 export DEBIAN_FRONTEND=noninteractive
-apt-get update && apt-get install -y unbound ca-certificates
+apt-get update && apt-get install -y unbound
+cat > /etc/unbound/jaritanet-roots.pem << 'EOF'
+${UPSTREAM_ROOTS}EOF
 cat > /etc/unbound/unbound.conf.d/jaritanet.conf << 'EOF'
 server:
   interface: 127.0.0.1
@@ -176,7 +179,7 @@ server:
   qname-minimisation: yes
   hide-identity: yes
   hide-version: yes
-  tls-cert-bundle: "/etc/ssl/certs/ca-certificates.crt"
+  tls-cert-bundle: "/etc/unbound/jaritanet-roots.pem"
 forward-zone:
   name: "."
   forward-tls-upstream: yes
@@ -185,7 +188,7 @@ forward-zone:
 EOF
 systemctl enable unbound
 systemctl restart unbound`,
-        triggers: ["unbound-v2"],
+        triggers: ["unbound-v2", UPSTREAM_ROOTS],
       },
       { dependsOn: [server] },
     );

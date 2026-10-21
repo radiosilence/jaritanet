@@ -952,13 +952,16 @@ Live tradeoffs worth knowing, not necessarily bugs:
     handshake from observers, but every admin holds the obfs password, so
     without the pin any one of them could sit in the middle and collect the
     others' hy2 passwords. Gateway and edge certs are both minted by Pulumi.
-  - **unbound** trusts only SSL.com's two roots for its DoT upstream
-    (`packages/vpn/src/unbound-roots.pem`), and **auth** only the two USERTrust
-    roots GitHub chains to (`apps/auth/roots.pem`, compiled into the binary).
-    Each holds the issuing CA's ECC and RSA roots, so a key-type change at that
-    CA is survived; a change of CA is not, and fails closed — DNS upstream errors
-    (serve-expired carries the cache for a day) or GitHub logins fail. The fix
-    is replacing the file.
+  - **unbound** trusts only SSL.com's roots for its DoT upstream
+    (`packages/vpn/src/unbound-roots.pem`, used by both the pod and the
+    SSH-installed unit), and **auth** only Sectigo's USERTrust and Public Server
+    Authentication roots, which GitHub chains to (`apps/auth/roots.pem`,
+    compiled into the binary). Each holds the issuing CA's current roots in both
+    key types, so a reissue or a dropped cross-sign within that CA is survived.
+    AAA Certificate Services, the root that cross-signed the eMudhra
+    intermediates, is in neither. A change of CA is not survived and fails
+    closed: DNS upstream errors (serve-expired carries the cache for a day) or
+    GitHub logins fail. The fix is replacing the file.
   - **Still on public PKI:** profile downloads (the device's trust store),
     tailscaled's control plane, and the vendor installers the edges `curl`.
 - **SSH (22) is open to the world.** Key-only ED25519, so it is authenticated,

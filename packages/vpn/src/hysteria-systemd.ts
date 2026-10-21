@@ -84,6 +84,7 @@ mkdir -p /etc/hysteria`,
     {
       connection,
       create: pulumi.interpolate`${remotePreamble}
+(
 umask 077
 cat > /etc/hysteria/cert.pem << 'PEM_EOF'
 ${cert.certPem}
@@ -91,6 +92,7 @@ PEM_EOF
 cat > /etc/hysteria/key.pem << 'PEM_EOF'
 ${key.privateKeyPem}
 PEM_EOF
+)
 chown hysteria:hysteria /etc/hysteria/key.pem /etc/hysteria/cert.pem 2>/dev/null || true
 
 # Every listener is the same server on a different port, so the config is
@@ -148,7 +150,10 @@ done`,
   );
 
   return {
-    certificate: cert.certPem,
+    // Through `config`, so no profile pins this cert before the box serves it.
+    certificate: pulumi
+      .all([cert.certPem, config.stdout])
+      .apply(([pem]) => pem),
     config,
     obfsPassword: obfsPassword.result,
     passwords,

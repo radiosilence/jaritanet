@@ -145,11 +145,15 @@ ${userpassBlock}
         template: {
           metadata: {
             labels: { app },
-            // Hysteria reads its config once at exec, so a rotated password in
-            // the Secret would otherwise never reach the running process.
+            // Hysteria reads its config and cert once at exec, so a rotated
+            // password or a reissued cert in the Secret would otherwise never
+            // reach the running process — and a pinned cert the server is not
+            // serving fails every client.
             annotations: {
               "jaritanet/config": sha256hex(
-                pulumi.all(Object.values(configs)).apply((c) => c.join()),
+                pulumi
+                  .all([...Object.values(configs), cert.certPem])
+                  .apply((c) => c.join()),
               ).apply((h) => h.slice(0, 16)),
             },
           },

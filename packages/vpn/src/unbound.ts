@@ -6,14 +6,14 @@ import * as pulumi from "@pulumi/pulumi";
 import { VERSIONS } from "./versions.ts";
 
 /**
- * The only roots unbound trusts for its upstream: the CA that issues
- * cloudflare-dns.com, in both of its key types. A full public bundle would let
+ * The only roots unbound trusts for its upstream: SSL.com, which issues
+ * cloudflare-dns.com, in both key types and both generations. A full public bundle would let
  * any of a hundred-odd CAs, or a compromised intermediate cross-signed by one,
  * forge the resolver for every client of the tunnel. Cloudflare changing CA
  * fails closed — every upstream query errors and serve-expired carries the
  * cache for a day — so the remedy is replacing this file, not widening it.
  */
-const UPSTREAM_ROOTS = readFileSync(
+export const UPSTREAM_ROOTS = readFileSync(
   join(import.meta.dirname, "unbound-roots.pem"),
   "utf8",
 );
