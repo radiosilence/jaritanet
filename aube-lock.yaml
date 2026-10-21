@@ -180,9 +180,6 @@ importers:
       '@jaritanet/k8s':
         specifier: workspace:*
         version: 0.0.0
-      '@jaritanet/koan-push-relay':
-        specifier: workspace:*
-        version: 0.0.0
       '@jaritanet/koan-site':
         specifier: workspace:*
         version: 0.0.0
@@ -217,17 +214,20 @@ importers:
         specifier: 5.4.0
         version: 5.4.0(typescript@6.0.3)
       '@radiosilence/koan-pulumi':
-        specifier: 0.66.2
-        version: 0.66.2(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
+        specifier: 0.66.3
+        version: 0.66.3(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
+      '@radiosilence/koan-relay-pulumi':
+        specifier: 0.1.0
+        version: 0.1.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/mariastew-pulumi':
         specifier: 0.2.1
         version: 0.2.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/mcp-gateway-pulumi':
-        specifier: 0.9.3
-        version: 0.9.3(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)
+        specifier: 0.9.5
+        version: 0.9.5(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)
       '@radiosilence/slsk-mcp-pulumi':
-        specifier: 0.5.1
-        version: 0.5.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
+        specifier: 0.5.2
+        version: 0.5.2(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)
       '@radiosilence/transmet-pulumi':
         specifier: 0.3.4
         version: 0.3.4(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))
@@ -264,21 +264,6 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
-
-  packages/koan-push-relay:
-    dependencies:
-      '@jaritanet/k8s':
-        specifier: workspace:*
-        version: 0.0.0
-      '@pulumi/kubernetes':
-        specifier: 4.30.0
-        version: 4.30.0(typescript@6.0.3)
-      '@pulumi/pulumi':
-        specifier: 3.239.0
-        version: 3.239.0(typescript@6.0.3)
-      '@pulumi/random':
-        specifier: 4.20.0
-        version: 4.20.0(typescript@6.0.3)
 
   packages/koan-site:
     dependencies:
@@ -870,8 +855,15 @@ packages:
   '@pulumi/tls@5.4.0':
     resolution: {integrity: sha512-onLIie8deuZJHV8JkuDnY7nilIgGTr8HNyatg1FbgHikqo/HxU9yOwPM5Q7J0EAKtfHXuI9wkhnc4NReWIUfNg==}
 
-  '@radiosilence/koan-pulumi@0.66.2':
-    resolution: {gitHosted: true, integrity: sha512-7n5RxV1SFCD/VOCnW0WW4uKvawjyV0Dt8wLuQHuGQjo6TkOMwJCKZCzEIwRllomQr0oQjwSKriLzE2Lov8dauA==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.66.2/244dffd0e5944eaf75262fd9e43c1413f681ba4d}
+  '@radiosilence/koan-pulumi@0.66.3':
+    resolution: {gitHosted: true, integrity: sha512-M32ecHtknOJ6+V/t+/dWGR2HGWnwSVoTT4x84gjJrxJmkcpO/qlkr7MQmU+bnBBlCRwDHNn5PU22QWGFPM63ew==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.66.3/3bc00b61630705d5c19dc740a84d4336de4e2d98}
+    peerDependencies:
+      '@pulumi/kubernetes': ^4
+      '@pulumi/pulumi': ^3
+      zod: ^4
+
+  '@radiosilence/koan-relay-pulumi@0.1.0':
+    resolution: {gitHosted: true, integrity: sha512-W081cic4tROSe+2ViU/FFn32IZlCu1A/ah0OvqA7OwkDdZSuVGzvfKn+ObrGfR4x6RIT3EfCDtQvPOv56R+7qQ==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-relay-pulumi/0.1.0/21f21d41102bcc35780f4bc6a60dfebcecfbb2b5}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -884,16 +876,16 @@ packages:
       '@pulumi/pulumi': ^3
       zod: ^4
 
-  '@radiosilence/mcp-gateway-pulumi@0.9.3':
-    resolution: {gitHosted: true, integrity: sha512-9fSAu57j/Cb+OfyeugdN4HTtX9VgF3QH3rzrAv+/yD7+qPPSGVJba7Qi6lf+FSg21/fyxJsMkVkRGe6tXb8QRw==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.9.3/01b191106e1c06c9f260de8da92e60bac46bd872}
+  '@radiosilence/mcp-gateway-pulumi@0.9.5':
+    resolution: {gitHosted: true, integrity: sha512-uMUq4SjZKVGStYr4hDeoR/oWS/78f+C2yLueW5bM3+SHYkPe4/T1H2CCaswiEOK+aqCWESdt4/5xd9+WCmnlmA==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.9.5/13ae879c64f9900b13c0da80c33dcc6c99027555}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
       '@pulumi/random': ^4
       zod: ^4
 
-  '@radiosilence/slsk-mcp-pulumi@0.5.1':
-    resolution: {gitHosted: true, integrity: sha512-sjLwZNRmgS3d7hhkCPTmU7NRBx1OC5VeoX7Dy7M9ROvvSx+N0kieN9U8dCiZ9nBApXQblAfwSGg2k5RQ9r3BxA==, tarball: https://npm.pkg.github.com/download/@radiosilence/slsk-mcp-pulumi/0.5.1/70f9939122fb3d62a46cb1f6d714e0e6c1335576}
+  '@radiosilence/slsk-mcp-pulumi@0.5.2':
+    resolution: {gitHosted: true, integrity: sha512-EMXS4bITf24wlXyKaS6WADRPaPshxv+HArRAYW5jSYSnzvl5OELzCYzmwpUL9vhcmjrHhmFsTSvK4RsPfG235Q==, tarball: https://npm.pkg.github.com/download/@radiosilence/slsk-mcp-pulumi/0.5.2/13101f957906c8e61329db812bd4f86045b3c6e4}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2595,7 +2587,13 @@ snapshots:
       - supports-color
       - ts-node
 
-  '@radiosilence/koan-pulumi@0.66.2(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
+  '@radiosilence/koan-pulumi@0.66.3(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
+    dependencies:
+      '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
+      '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
+      zod: 4.4.3
+
+  '@radiosilence/koan-relay-pulumi@0.1.0(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
     dependencies:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
@@ -2607,7 +2605,7 @@ snapshots:
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
       zod: 4.4.3
 
-  '@radiosilence/mcp-gateway-pulumi@0.9.3(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)':
+  '@radiosilence/mcp-gateway-pulumi@0.9.5(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(@pulumi/random@4.20.0)(zod@4.4.3)':
     dependencies:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
@@ -2615,7 +2613,7 @@ snapshots:
       yaml: 2.9.0
       zod: 4.4.3
 
-  '@radiosilence/slsk-mcp-pulumi@0.5.1(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
+  '@radiosilence/slsk-mcp-pulumi@0.5.2(@pulumi/kubernetes@4.30.0)(@pulumi/pulumi@3.239.0(typescript@6.0.3))(zod@4.4.3)':
     dependencies:
       '@pulumi/kubernetes': 4.30.0(typescript@6.0.3)
       '@pulumi/pulumi': 3.239.0(typescript@6.0.3)
