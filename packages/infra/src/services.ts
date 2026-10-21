@@ -31,6 +31,7 @@ import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
 import { createKoanSite } from "@jaritanet/koan-site";
+import { createKoanPushRelay } from "@jaritanet/koan-push-relay";
 import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
@@ -207,6 +208,22 @@ export function createServices(ctx: EstateContext) {
     });
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
+  }
+  // The push relay, for koan servers without Apple's key. On the gateway: it
+  // is public, and the home uplink dropping should not stop every phone's
+  // pushes.
+  if (hostnames["koan-push-relay"] && ctx.koanApnsKey) {
+    add(
+      createKoanPushRelay(provider, "koan-push-relay", {
+        hostname: hostnames["koan-push-relay"],
+        node: CLOUD_NODE,
+        apns: {
+          teamId: "2256Q92VF2",
+          keyId: "HRXQWC44VS",
+          key: pulumi.secret(ctx.koanApnsKey),
+        },
+      }),
+    );
   }
   add(
     createFiles(provider, "files", {
