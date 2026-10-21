@@ -237,11 +237,10 @@
   package: "@radiosilence/koan-pulumi"
   value: "{version}"
 
-# kōan's push relay, released apart from the server under tags of its own,
-# with the component at the relay's version.
+# kōan's push relay. Same shape as slsk-mcp: the repository publishes the
+# component at the release's version, before the release itself.
 - app: koan-push-relay
-  repo: radiosilence/koan
-  tagPrefix: koan-push-relay-v
+  repo: radiosilence/koan-push-relay
   manifest: packages/infra/package.json
   package: "@radiosilence/koan-relay-pulumi"
   value: "{version}"
