@@ -36,6 +36,7 @@ const node = {
   server: "1.2.3.4",
   hysteria: {
     altPorts: [3478, 4500],
+    certificate: "pem",
     obfsPassword: "obfs",
     passwords: { jc: "jc-hy2" },
     port: 443,

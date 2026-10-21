@@ -283,7 +283,9 @@ their consumers want opposite things.
 **unbound serves VPN clients.** Their profile points DNS at `127.0.0.1:53` with
 a detour through the tunnel, so the query arrives at the *gateway's* loopback:
 nothing on the local network sees it, and unbound forwards upstream to
-Cloudflare over DoT. No lookup is ever in the clear, at either end. It also
+Cloudflare over DoT, trusting only the roots that issue Cloudflare's resolver
+certificate (see Trust anchors below). No lookup is ever in the clear, at
+either end. It also
 caches with prefetch and serve-expired, so a client miss is answered from a
 warm, Germany-local cache in one tunnel RTT rather than a fresh recursion from
 wherever the client is. Xray resolves destinations through it too, which is what
@@ -936,9 +938,29 @@ Live tradeoffs worth knowing, not necessarily bugs:
   anomaly than a global one when pointed at a German IP, since SNI and
   destination plainly disagree — they earn their place by surviving category
   filters, not by being convincing to a firewall that checks.
-- **hy2 uses `insecure=1` + a self-signed cert.** Fine in practice — Salamander
-  wraps the whole handshake so the cert never appears on the wire, and the obfs
-  password gates access — but there's no cert pinning.
+- **Trust anchors are pinned wherever we control the client.** A public CA
+  bundle trusts a hundred-odd organisations and everything they cross-sign, and
+  the clients here (unbound, rustls, sing-box) do not consult the CRLSet or
+  OneCRL lists browsers use to block a compromised intermediate. Eight
+  eMudhra intermediates, cross-signed by a Sectigo root, shipped with private
+  keys recoverable from their public certificates; any client trusting that
+  root accepted certificates anyone could forge. So:
+  - **REALITY** authenticates the server by the x25519 key in the profile; no
+    CA is involved.
+  - **hy2** pins the server's self-signed certificate in the profile
+    (`tls.certificate`) rather than skipping verification. Salamander hides the
+    handshake from observers, but every admin holds the obfs password, so
+    without the pin any one of them could sit in the middle and collect the
+    others' hy2 passwords. Gateway and edge certs are both minted by Pulumi.
+  - **unbound** trusts only SSL.com's two roots for its DoT upstream
+    (`packages/vpn/src/unbound-roots.pem`), and **auth** only the two USERTrust
+    roots GitHub chains to (`apps/auth/roots.pem`, compiled into the binary).
+    Each holds the issuing CA's ECC and RSA roots, so a key-type change at that
+    CA is survived; a change of CA is not, and fails closed — DNS upstream errors
+    (serve-expired carries the cache for a day) or GitHub logins fail. The fix
+    is replacing the file.
+  - **Still on public PKI:** profile downloads (the device's trust store),
+    tailscaled's control plane, and the vendor installers the edges `curl`.
 - **SSH (22) is open to the world.** Key-only ED25519, so it is authenticated,
   but reachable. Tailnet-gating it would shrink the attack surface and adds
   lockout risk on a box whose whole job is being reachable — and the tailnet is

@@ -6,6 +6,7 @@ const node = {
   server: "1.2.3.4",
   hysteria: {
     altPorts: [3478],
+    certificate: "pem",
     obfsPassword: "obfs",
     passwords: { jc: "jc-hy2" },
     port: 443,
@@ -123,6 +124,21 @@ describe("buildProfile hy2 ports", () => {
     expect(outs.find((o) => o.tag === "hy2-primary-3478")?.server_port).toBe(
       3478,
     );
+  });
+
+  it("pins the server's own certificate on every port and never skips verification", () => {
+    const p = buildProfile(admin, [node], "ts.net");
+    const hy2s = (
+      p.outbounds as {
+        type: string;
+        tls?: { certificate?: string; insecure?: boolean };
+      }[]
+    ).filter((o) => o.type === "hysteria2");
+    expect(hy2s).toHaveLength(2);
+    for (const o of hy2s) {
+      expect(o.tls?.certificate).toBe("pem");
+      expect(o.tls?.insecure).toBeUndefined();
+    }
   });
 
   it("puts alt ports in the urltest, so a blocked port fails over unattended", () => {

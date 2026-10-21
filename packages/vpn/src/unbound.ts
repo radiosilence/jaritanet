@@ -1,6 +1,22 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { sha256hex } from "@jaritanet/k8s";
 import * as k8s from "@pulumi/kubernetes";
-import type * as pulumi from "@pulumi/pulumi";
+import * as pulumi from "@pulumi/pulumi";
 import { VERSIONS } from "./versions.ts";
+
+/**
+ * The only roots unbound trusts for its upstream: the CA that issues
+ * cloudflare-dns.com, in both of its key types. A full public bundle would let
+ * any of a hundred-odd CAs, or a compromised intermediate cross-signed by one,
+ * forge the resolver for every client of the tunnel. Cloudflare changing CA
+ * fails closed — every upstream query errors and serve-expired carries the
+ * cache for a day — so the remedy is replacing this file, not widening it.
+ */
+const UPSTREAM_ROOTS = readFileSync(
+  join(import.meta.dirname, "unbound-roots.pem"),
+  "utf8",
+);
 
 /**
  * The gateway's caching DNS resolver, as a pod rather than an apt install.
@@ -27,12 +43,7 @@ export function createUnbound(
   entryLabel: string,
   dependsOn: pulumi.Resource[] = [],
 ) {
-  const config = new k8s.core.v1.ConfigMap(
-    "unbound-config",
-    {
-      metadata: { name: "unbound", namespace },
-      data: {
-        "unbound.conf": `server:
+  const conf = `server:
   interface: 127.0.0.1
   port: 53
   do-ip6: no
@@ -56,14 +67,18 @@ export function createUnbound(
   chroot: ""
   directory: "/etc/unbound"
   logfile: ""
-  tls-cert-bundle: "/etc/ssl/certs/ca-certificates.crt"
+  tls-cert-bundle: "/etc/unbound/roots.pem"
 forward-zone:
   name: "."
   forward-tls-upstream: yes
   forward-addr: 1.1.1.1@853#cloudflare-dns.com
   forward-addr: 1.0.0.1@853#cloudflare-dns.com
-`,
-      },
+`;
+  const config = new k8s.core.v1.ConfigMap(
+    "unbound-config",
+    {
+      metadata: { name: "unbound", namespace },
+      data: { "unbound.conf": conf, "roots.pem": UPSTREAM_ROOTS },
     },
     { provider },
   );
@@ -85,7 +100,13 @@ forward-zone:
         template: {
           metadata: {
             labels: { app: "unbound" },
-            annotations: { "jaritanet/config": config.metadata.name },
+            // subPath mounts never see a ConfigMap update, so a changed config
+            // or root set reaches unbound only through a restart.
+            annotations: {
+              "jaritanet/config": sha256hex(
+                pulumi.output(conf + UPSTREAM_ROOTS),
+              ).apply((h) => h.slice(0, 16)),
+            },
           },
           spec: {
             // See above: 127.0.0.1 has to mean the *host's* loopback.
@@ -123,6 +144,12 @@ forward-zone:
                     name: "config",
                     mountPath: "/etc/unbound/unbound.conf",
                     subPath: "unbound.conf",
+                    readOnly: true,
+                  },
+                  {
+                    name: "config",
+                    mountPath: "/etc/unbound/roots.pem",
+                    subPath: "roots.pem",
                     readOnly: true,
                   },
                 ],

@@ -13,16 +13,8 @@
 # out to nothing, so there is no userland here for anything to find.
 FROM scratch
 
-# VALIDATED, DO NOT "SIMPLIFY" THIS AWAY:
-# reqwest's "rustls" feature pulls in rustls-platform-verifier, which reads the
-# system trust store and does NOT fall back to the webpki roots compiled into
-# the binary. Every login calls GitHub, and without a CA bundle on disk the TLS
-# client fails at construction rather than at request time — so there is no
-# request log to debug it from. Alpine's base image already carries the bundle
-# (`ca-certificates-bundle`), so this is a copy out of it rather than a stage
-# that installs anything — and a base that stopped shipping it fails the build
-# rather than the first login.
-COPY --from=alpine:3.24 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+# No CA bundle: the binary carries the only roots it trusts (roots.pem, via
+# `tls_certs_only`), so the image has no trust store for a base to get wrong.
 
 # --chmod because actions/upload-artifact does not preserve modes, so the
 # binary arrives in the context without its exec bit.

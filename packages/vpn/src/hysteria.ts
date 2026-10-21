@@ -27,9 +27,10 @@ import { VERSIONS } from "./versions.ts";
  * rotate. Why several ports at all is in HysteriaConfSchema: no single UDP port
  * survives every network, so the client urltests all of them.
  *
- * The cert is cosmetic — clients trust it via `insecure` with a pinned SNI —
- * but it has to exist, so Pulumi generates it for the same reason it generates
- * everything else here.
+ * The cert is self-signed and pinned: every profile carries it as the only
+ * certificate its hy2 outbounds accept, so no public CA can vouch for an
+ * impostor and the obfs password, which every admin holds, is not enough to sit
+ * in the middle and collect the others' passwords.
  *
  * On offload and crypto: QUIC's fast paths here are UDP GSO/GRO (`UDP_SEGMENT`
  * / `UDP_GRO` via setsockopt) and `sendmmsg`/`recvmmsg`, all of which the
@@ -221,5 +222,5 @@ ${userpassBlock}
     { provider, dependsOn },
   );
 
-  return { obfsPassword, passwords };
+  return { certificate: cert.certPem, obfsPassword, passwords };
 }
