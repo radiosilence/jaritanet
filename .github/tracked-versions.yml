@@ -237,9 +237,11 @@
   package: "@radiosilence/koan-pulumi"
   value: "{version}"
 
-# kōan's push relay, released with the server at the same version.
+# kōan's push relay, released apart from the server under tags of its own,
+# with the component at the relay's version.
 - app: koan-push-relay
   repo: radiosilence/koan
+  tagPrefix: koan-push-relay-v
   manifest: packages/infra/package.json
   package: "@radiosilence/koan-relay-pulumi"
   value: "{version}"

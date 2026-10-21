@@ -993,10 +993,99 @@ const storage = dashboard(
   ],
 );
 
+/**
+ * kōan's push relay. What it is doing, without anything it handles: it logs no
+ * token, handle or caller, so these counts and its breakers are the whole view.
+ * A held gateway is the thing to look at first: Apple is refusing the relay's
+ * key, and nothing but one probe a minute reaches Apple until it clears.
+ */
+const pushRelay = dashboard(
+  "jaritanet-push-relay",
+  "Push relay",
+  [
+    {
+      title: "Requests by route and outcome",
+      description:
+        "limited is a quota; unavailable is the relay or Apple unable to take it now, a held gateway included; gone is a revoked, expired or uninstalled device.",
+      unit: "reqps",
+      busy: true,
+      targets: [
+        [
+          "sum by (route, outcome) (rate(koan_relay_requests_total[$__rate_interval]))",
+          "{{route}} {{outcome}}",
+        ],
+      ],
+    },
+    {
+      title: "Pushes Apple accepted, by kind",
+      unit: "reqps",
+      targets: [
+        [
+          "sum by (kind) (rate(koan_relay_pushes_sent_total[$__rate_interval]))",
+          "{{kind}}",
+        ],
+      ],
+    },
+    {
+      title: "Proofs at registration",
+      description:
+        "Refused is a token Apple has never issued: a made-up registration, or a stale one. A rising refused line is someone probing the relay.",
+      targets: [
+        [
+          "sum by (answer) (increase(koan_relay_proofs_total[1h]))",
+          "{{answer}} / h",
+        ],
+      ],
+    },
+    {
+      title: "Waiting on Apple",
+      targets: [["max(koan_relay_apns_in_flight)", "in flight"]],
+    },
+    {
+      title: "Revocations held",
+      description:
+        "Devices in the revocation table: revoked by the app, or found gone by Apple. Kept a year.",
+      targets: [["max(koan_relay_revocations)", "devices"]],
+    },
+    {
+      title: "Callers counted",
+      description:
+        "Entries the quota limiters hold, swept as they idle. Near the relay's max_tracked, callers it has no count for are refused.",
+      targets: [
+        ["max(koan_relay_tracked_devices)", "devices"],
+        ["max(koan_relay_tracked_callers)", "callers"],
+      ],
+    },
+  ],
+  [
+    {
+      title: "Production gateway held",
+      description:
+        "1: Apple refuses the relay's credential on the production gateway, so TestFlight and App Store phones get nothing. See the relay's log.",
+      target: ["max(koan_relay_production_held)", "production"],
+      thresholds: [0.5, 0.5],
+    },
+    {
+      title: "Sandbox gateway held",
+      description: "1: the same, for development builds.",
+      target: ["max(koan_relay_sandbox_held)", "sandbox"],
+      thresholds: [0.5, 0.5],
+    },
+    {
+      title: "Refused proofs, last hour",
+      target: [
+        'sum(increase(koan_relay_proofs_total{answer="refused"}[1h])) or vector(0)',
+        "refused",
+      ],
+      thresholds: [10, 100],
+    },
+  ],
+);
+
 /** Filename → dashboard JSON, as Grafana's file provisioner wants it. */
 export function dashboardFiles() {
   return Object.fromEntries(
-    [overview, disks, nodes, edge, soulseek, storage].map((d) => [
+    [overview, disks, nodes, edge, soulseek, storage, pushRelay].map((d) => [
       `${d.uid}.json`,
       JSON.stringify(d, null, 2),
     ]),

@@ -238,6 +238,17 @@ export function createServices(ctx: EstateContext) {
         apns: { teamId: "2256Q92VF2", production: apnsKey, sandbox: apnsKey },
         store: { hostPath: "/var/lib/koan-push-relay" },
         nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+        // Generous while there are few devices and the behaviour of real
+        // servers is unknown: five times the relay's per-server and
+        // per-device defaults. The proof and refused-token limits stay at the
+        // relay's own, since those are what stand between made-up tokens and
+        // Apple's view of the key.
+        limits: {
+          handleAlertsPerHour: 30,
+          handleWakesPerHour: 60,
+          deviceAlertsPerHour: 100,
+          deviceWakesPerHour: 150,
+        },
       }),
     );
   }
