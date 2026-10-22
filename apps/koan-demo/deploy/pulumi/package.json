@@ -14,8 +14,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@pulumi/kubernetes": "4.30.0",
-    "@pulumi/pulumi": "3.239.0",
+    "@pulumi/kubernetes": "4.34.2",
+    "@pulumi/pulumi": "3.270.0",
     "@radiosilence/koan-pulumi": "0.67.1"
   }
 }

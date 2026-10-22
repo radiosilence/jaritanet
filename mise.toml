@@ -1,7 +1,9 @@
 [tools]
+actionlint = "1.7.12"
 aube = "1"
 node = "24"
 pulumi = "latest"
+shellcheck = "0.11.0"
 # rustfmt and clippy are not in the minimal profile mise installs by default,
 # and the container workflows' check jobs need both.
 rust = { version = "1", components = "rustfmt,clippy" }
@@ -39,6 +41,10 @@ run = "aube install"
 description = "Lint with oxlint"
 run = "oxlint"
 
+[tasks."lint:workflows"]
+description = "Lint the GitHub Actions workflows with actionlint (and shellcheck for their scripts)"
+run = "actionlint"
+
 [tasks."lint:fix"]
 description = "Lint and auto-fix"
 run = "oxlint --fix"
@@ -66,7 +72,7 @@ description = "Everything CI checks"
 # No `run` of its own. These four are independent, so mise fans them out across
 # its job pool instead of running a list in an order nothing requires — and a
 # failure stops the dependents rather than the whole file.
-depends = ["lint", "fmt:check", "typecheck", "test"]
+depends = ["lint", "lint:workflows", "fmt:check", "typecheck", "test"]
 [tasks."check:profiles"]
 description = "Validate every profile shape against the real sing-box binary (needs docker)"
 run = "./scripts/check-profiles.ts"

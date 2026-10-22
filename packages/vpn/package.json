@@ -18,13 +18,13 @@
     "@jaritanet/remote": "workspace:*",
     "@jaritanet/serve-from-env": "workspace:*",
     "@pulumi/command": "1.2.1",
-    "@pulumi/kubernetes": "4.30.0",
-    "@pulumi/pulumi": "3.239.0",
-    "@pulumi/random": "4.20.0",
-    "@pulumi/tls": "5.4.0",
-    "zod": "4.4.3"
+    "@pulumi/kubernetes": "4.34.2",
+    "@pulumi/pulumi": "3.270.0",
+    "@pulumi/random": "4.21.4",
+    "@pulumi/tls": "5.6.2",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "ajv": "^8.20.0"
+    "ajv": "8.20.0"
   }
 }
