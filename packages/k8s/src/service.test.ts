@@ -4,6 +4,38 @@ import * as pulumi from "@pulumi/pulumi";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ServiceArgsSchema } from "./service.schemas.ts";
 
+const nginxArgs = (over: Record<string, unknown> = {}) =>
+  ServiceArgsSchema.parse({
+    image: { repository: "nginx", tag: "latest" },
+    httpPort: 4533,
+    ...over,
+  });
+
+const withVolumes = (over: Record<string, unknown> = {}) =>
+  ServiceArgsSchema.parse({
+    image: { repository: "navidrome", tag: "1" },
+    httpPort: 4533,
+    persistence: [
+      {
+        name: "music",
+        storage: "2Ti",
+        hostPath: "/mnt/music",
+        mountPath: "/music",
+        readOnly: true,
+        nodeAffinityHostname: "lady",
+      },
+      {
+        name: "data",
+        storage: "20Gi",
+        hostPath: "/home/nd/data",
+        mountPath: "/data",
+        readOnly: false,
+        nodeAffinityHostname: "lady",
+      },
+    ],
+    ...over,
+  });
+
 describe("service template", () => {
   let mockProvider: k8s.Provider;
   const created: pulumi.runtime.MockResourceArgs[] = [];
@@ -156,32 +188,32 @@ describe("service template", () => {
     expect(service).toBeDefined();
   });
 
-  describe("hardening", () => {
-    const args = (over: Record<string, unknown> = {}) =>
-      ServiceArgsSchema.parse({
-        image: { repository: "nginx", tag: "latest" },
-        httpPort: 4533,
-        ...over,
-      });
-    const find = (type: string, name: string) =>
-      created.find((r) => r.type.endsWith(type) && r.name === name);
-    // Registration is async even under mocks, and resolving the returned
-    // Service's urn is not enough — the Deployment and NetworkPolicy register
-    // after it. So wait for the resource under test to actually appear.
-    const waitFor = async (type: string, name: string) => {
-      for (let i = 0; i < 100; i++) {
-        const found = find(type, name);
-        if (found) return found;
-        // Sequential is the point — polling for something to appear.
-        // oxlint-disable-next-line no-await-in-loop
-        await sleep(5);
-      }
-      throw new Error(`${name} was never registered`);
-    };
+  const find = (type: string, name: string) =>
+    created.find((r) => r.type.endsWith(type) && r.name === name);
+  // Registration is async even under mocks, and resolving the returned
+  // Service's urn is not enough — the Deployment and NetworkPolicy register
+  // after it. So wait for the resource under test to actually appear.
+  const waitFor = async (type: string, name: string) => {
+    for (let i = 0; i < 100; i++) {
+      const found = find(type, name);
+      if (found) return found;
+      // Sequential is the point — polling for something to appear.
+      // oxlint-disable-next-line no-await-in-loop
+      await sleep(5);
+    }
+    throw new Error(`${name} was never registered`);
+  };
+  const podSpec = async (name: string) =>
+    (await waitFor("Deployment", `${name}-deployment`)).inputs.spec.template
+      .spec;
 
+  const securityContext = async (name: string) =>
+    (await podSpec(name)).containers[0].securityContext;
+
+  describe("hardening", () => {
     it("never mounts a service account token", async () => {
       const { createService } = await import("./service.ts");
-      createService(mockProvider, "plain", args());
+      createService(mockProvider, "plain", nginxArgs());
 
       const deployment = await waitFor("Deployment", "plain-deployment");
       expect(
@@ -191,8 +223,12 @@ describe("service template", () => {
 
     it("confines egress only where asked, and never to private space", async () => {
       const { createService } = await import("./service.ts");
-      createService(mockProvider, "open", args());
-      createService(mockProvider, "confined", args({ networkPolicy: true }));
+      createService(mockProvider, "open", nginxArgs());
+      createService(
+        mockProvider,
+        "confined",
+        nginxArgs({ networkPolicy: true }),
+      );
 
       const { inputs } = await waitFor("NetworkPolicy", "confined-netpol");
       await waitFor("Deployment", "open-deployment");
@@ -223,7 +259,7 @@ describe("service template", () => {
       createService(
         mockProvider,
         "fenced",
-        args({ networkPolicy: true, restrictIngress: true }),
+        nginxArgs({ networkPolicy: true, restrictIngress: true }),
       );
 
       const { spec } = (await waitFor("NetworkPolicy", "fenced-netpol")).inputs;
@@ -240,7 +276,11 @@ describe("service template", () => {
 
     it("leaves ingress alone unless asked", async () => {
       const { createService } = await import("./service.ts");
-      createService(mockProvider, "egressonly", args({ networkPolicy: true }));
+      createService(
+        mockProvider,
+        "egressonly",
+        nginxArgs({ networkPolicy: true }),
+      );
 
       const { spec } = (await waitFor("NetworkPolicy", "egressonly-netpol"))
         .inputs;
@@ -250,30 +290,6 @@ describe("service template", () => {
 
     it("fixes ownership of writable mounts, never read-only ones", async () => {
       const { createService } = await import("./service.ts");
-      const withVolumes = (over: Record<string, unknown> = {}) =>
-        ServiceArgsSchema.parse({
-          image: { repository: "navidrome", tag: "1" },
-          httpPort: 4533,
-          persistence: [
-            {
-              name: "music",
-              storage: "2Ti",
-              hostPath: "/mnt/music",
-              mountPath: "/music",
-              readOnly: true,
-              nodeAffinityHostname: "lady",
-            },
-            {
-              name: "data",
-              storage: "20Gi",
-              hostPath: "/home/nd/data",
-              mountPath: "/data",
-              readOnly: false,
-              nodeAffinityHostname: "lady",
-            },
-          ],
-          ...over,
-        });
 
       createService(mockProvider, "asroot", withVolumes());
       createService(
@@ -282,14 +298,10 @@ describe("service template", () => {
         withVolumes({ securityContext: { runAsUser: 1001, runAsGroup: 1002 } }),
       );
 
-      const spec = async (name: string) =>
-        (await waitFor("Deployment", `${name}-deployment`)).inputs.spec.template
-          .spec;
-
       // Nothing to fix when the pod runs as whatever the image says.
-      expect((await spec("asroot")).initContainers).toBeUndefined();
+      expect((await podSpec("asroot")).initContainers).toBeUndefined();
 
-      const init = (await spec("asuser")).initContainers[0];
+      const init = (await podSpec("asuser")).initContainers[0];
       const cmd = init.command[2];
       expect(cmd).toContain("/data");
       // A recursive chown across a 2Ti library on every start would be a
@@ -302,17 +314,19 @@ describe("service template", () => {
 
     it("drops capabilities only where asked", async () => {
       const { createService } = await import("./service.ts");
-      createService(mockProvider, "caps", args());
-      createService(mockProvider, "nocaps", args({ dropCapabilities: true }));
+      createService(mockProvider, "caps", nginxArgs());
+      createService(
+        mockProvider,
+        "nocaps",
+        nginxArgs({ dropCapabilities: true }),
+      );
 
-      const sc = async (name: string) =>
-        (await waitFor("Deployment", `${name}-deployment`)).inputs.spec.template
-          .spec.containers[0].securityContext;
-
-      expect((await sc("caps")).capabilities).toBeUndefined();
-      expect((await sc("nocaps")).capabilities).toEqual({ drop: ["ALL"] });
+      expect((await securityContext("caps")).capabilities).toBeUndefined();
+      expect((await securityContext("nocaps")).capabilities).toEqual({
+        drop: ["ALL"],
+      });
       // Applied regardless — it costs nothing and breaks nothing.
-      expect((await sc("caps")).seccompProfile).toEqual({
+      expect((await securityContext("caps")).seccompProfile).toEqual({
         type: "RuntimeDefault",
       });
     });

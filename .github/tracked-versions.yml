@@ -63,6 +63,14 @@
   value: "{version}"
   image: "ghcr.io/radiosilence/jaritanet-files:{version}"
 
+- app: koan demo
+  repo: radiosilence/jaritanet
+  tagPrefix: koan-demo-v
+  file: apps/koan-demo/deploy/pulumi/src/versions.ts
+  key: koanDemo
+  value: "{version}"
+  image: "ghcr.io/radiosilence/koan-demo:{version}"
+
 # Its own repository now, publishing the component that deploys it — so this
 # follows a dependency and the image is that package's business. No tagPrefix
 # either: one repository releasing one thing needs no way to say which.
@@ -235,6 +243,14 @@
   repo: radiosilence/koan
   manifest: packages/infra/package.json
   package: "@radiosilence/koan-pulumi"
+  value: "{version}"
+
+# kōan's push relay. Same shape as slsk-mcp: the repository publishes the
+# component at the release's version, before the release itself.
+- app: koan-push-relay
+  repo: radiosilence/koan-push-relay
+  manifest: packages/infra/package.json
+  package: "@radiosilence/koan-relay-pulumi"
   value: "{version}"
 
 # kōan's website, built in the player's repository. It publishes an image for

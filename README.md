@@ -226,7 +226,7 @@ reaches the stack in the first place.
 
 | Secret | Workflow | Purpose |
 |---|---|---|
-| `PULUMI_ACCESS_TOKEN` | `ci-cd`, `preview` | Pulumi Cloud state |
+| `PULUMI_ACCESS_TOKEN` | `ci-cd` (`preview`, `deploy`) | Pulumi Cloud state |
 | `APP_PRIVATE_KEY` | `update-apps` | GitHub App key for version-bump commits (pairs with the `APP_ID` repo variable) |
 
 ### Stack configuration
@@ -337,7 +337,7 @@ new one. Run `pro detach --assume-yes` on it first.
 
 ```bash
 mise run setup       # Toolchain, dependencies and git hooks
-mise run check       # Lint, format, typecheck and test — in parallel
+mise run check       # Lint, actionlint, format, typecheck and test — in parallel
 mise run lint:fix    # Lint and auto-fix
 mise run fmt         # Format with oxfmt
 mise run preview     # Preview the stack

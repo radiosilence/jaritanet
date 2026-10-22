@@ -148,6 +148,7 @@ export default async function () {
     if (gw.hysteria && gatewayConf.hysteria) {
       hysteria = {
         altPorts: gatewayConf.hysteria.altPorts,
+        certificate: gw.hysteria.certificate,
         obfsPassword: gw.hysteria.obfsPassword,
         passwords: gw.hysteria.passwords,
         port: gatewayConf.hysteria.port,
@@ -181,6 +182,7 @@ export default async function () {
         server: e.vpsIp,
         hysteria: {
           altPorts: edge.hysteria.altPorts,
+          certificate: e.hysteria.certificate,
           obfsPassword: e.hysteria.obfsPassword,
           passwords: e.hysteria.passwords,
           port: edge.hysteria.port,
@@ -379,6 +381,7 @@ export default async function () {
       );
       hysteria = {
         altPorts: gatewayConf.hysteria.altPorts,
+        certificate: t.certificate,
         obfsPassword: t.obfsPassword,
         passwords: t.passwords,
         port: gatewayConf.hysteria.port,

@@ -81,6 +81,8 @@ export const hostnames: Record<string, string> = {
   mariastew: "dl.blit.cc",
   koan: "koan.blit.cc",
   "koan-site": "koan.rocks",
+  "koan-push-relay": "push.koan.rocks",
+  "koan-demo": "demo.koan.rocks",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   // Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials",

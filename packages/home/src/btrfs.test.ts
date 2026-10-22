@@ -14,7 +14,7 @@ const damage = (log: string[]) =>
     .trim()
     .split("\n")
     .filter(Boolean)
-    .sort();
+    .toSorted();
 
 const ref = (logical: number, root: number, path: string) =>
   `BTRFS warning (device sda1): checksum error at logical ${logical} on dev /dev/sda1, physical 1048576, root ${root}, inode 4242, offset 0, length 4096, links 1 (path: ${path})`;

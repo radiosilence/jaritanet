@@ -1,3 +1,5 @@
+import type * as pulumi from "@pulumi/pulumi";
+
 /**
  * What a service constructor hands back to the stack that composed it.
  *
@@ -25,6 +27,8 @@ export type Route = {
    */
   paths?: string[];
   priority?: number;
+  /** Traefik Middlewares, by name in the route's namespace, run in order. */
+  middlewares?: pulumi.Input<string>[];
 };
 
 /**

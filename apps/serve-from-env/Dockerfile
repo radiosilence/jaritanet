@@ -1,26 +1,18 @@
-# Static musl build so the runtime image can be scratch: the content lives in
-# the environment and nothing shells out, so there is no reason to ship a
-# userland for an attacker to find.
-FROM rust:1.97-alpine AS build
-
-RUN apk add --no-cache musl-dev
-WORKDIR /src
-
-# Dependencies first, against a stub main, so editing the source doesn't rebuild
-# them.
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && \
-    cargo build --release --locked && \
-    rm -rf src
-
-COPY src ./src
-# Cargo would otherwise reuse the stub's artefact — same crate, and the only
-# newer input is a path it has already built.
-RUN touch src/main.rs && cargo build --release --locked
-
+# A static musl binary on scratch: the content lives in the environment and
+# nothing shells out, so there is no reason to ship a userland for an attacker
+# to find.
+#
+# Compiled by CI's `binary` job rather than here, as `auth` is: a `cargo build`
+# inside a Dockerfile is one atomic layer, and an arm64 one would run emulated.
+# The context is a directory holding `<arch>/serve-from-env` for each target
+# architecture, which CI assembles in `dist/`. Reproduced locally:
+#
+#   docker buildx build -f apps/serve-from-env/Dockerfile --platform linux/amd64 dist
 FROM scratch
 
-COPY --from=build /src/target/release/serve-from-env /serve-from-env
+# --chmod because actions/upload-artifact does not preserve modes.
+ARG TARGETARCH
+COPY --chmod=755 ${TARGETARCH}/serve-from-env /serve-from-env
 
 USER 65534:65534
 EXPOSE 8080

@@ -22,14 +22,19 @@ import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
-import type { Deployed, Route } from "@jaritanet/k8s";
+import { sha256hex, type Deployed, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
-import { createKoan } from "@radiosilence/koan-pulumi";
+import {
+  createKoan,
+  VERSIONS as KOAN_VERSIONS,
+} from "@radiosilence/koan-pulumi";
+import { createPushRelay } from "@radiosilence/koan-relay-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
+import { createKoanDemo } from "@jaritanet/koan-demo";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createGroglog } from "@jaritanet/groglog";
 import {
@@ -164,25 +169,9 @@ export function createServices(ctx: EstateContext) {
   // koan's own OAuth, at https://<hostname>/mcp.
   if (hostnames.koan) {
     adoptKoanChart();
-    // The key goes in a Secret the pod reads, never into the Deployment.
-    const koanPush = ctx.koanApnsKey
-      ? new k8s.core.v1.Secret(
-          "koan-apns",
-          {
-            metadata: { name: "koan-apns", namespace: ns },
-            stringData: { "apns-key": pulumi.secret(ctx.koanApnsKey) },
-          },
-          { provider },
-        )
-      : undefined;
+    // Pushes to the apps go through the relay below, as every koan server's
+    // do; the chart's default leaves push on.
     createKoan(provider, ns, {
-      ...(koanPush && {
-        push: {
-          existingSecret: "koan-apns",
-          keyId: "HRXQWC44VS",
-          teamId: "2256Q92VF2",
-        },
-      }),
       hostname: hostnames.koan,
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
@@ -207,6 +196,108 @@ export function createServices(ctx: EstateContext) {
     });
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
+  }
+  // koan's public demo. On the gateway, so signing in to it does not depend on
+  // the home uplink.
+  if (hostnames["koan-demo"]) {
+    add(
+      createKoanDemo(provider, ns, {
+        hostname: hostnames["koan-demo"],
+        koanImage: KOAN_VERSIONS.koan,
+        node: CLOUD_NODE,
+        cpuLimit: CLOUD_CORES,
+      }),
+    );
+  }
+  // The push relay every koan server pushes to the apps through, this one's
+  // included: only it holds Apple's key. On the gateway: it
+  // is public, and the home uplink dropping should not stop every phone's
+  // pushes.
+  if (hostnames["koan-push-relay"] && ctx.koanApnsKey) {
+    // Generated once and kept in state. The token key is never rotated: the
+    // relay's revocation table is keyed by it. A new handle key is added
+    // beside this one, never in its place.
+    const apnsPem = pulumi.secret(ctx.koanApnsKey);
+    const relayKey = (id: string) =>
+      new random.RandomBytes(`koan-push-relay-${id}`, { length: 32 }).base64;
+    new k8s.core.v1.Secret(
+      "koan-push-relay",
+      {
+        metadata: { name: "koan-push-relay", namespace: ns },
+        stringData: {
+          "token-key": relayKey("token-key"),
+          "handle-key-1": relayKey("handle-key-1"),
+          "apns-key": apnsPem,
+        },
+      },
+      { provider },
+    );
+    // The relay reads its APNs key once, at start, so the pod carries the
+    // key's hash and a rotated key replaces it.
+    const keyHash = sha256hex(apnsPem);
+    pulumi.runtime.registerResourceTransform(({ type, name, props, opts }) => {
+      if (
+        type !== "kubernetes:apps/v1:Deployment" ||
+        name !== "koan-push-relay"
+      )
+        return undefined;
+      const template = props.spec.template;
+      template.metadata.annotations = {
+        ...template.metadata.annotations,
+        "jaritanet.radiosilence.dev/apns-key": keyHash,
+      };
+      return { props, opts };
+    });
+    // Floods stop at Traefik, per caller address, before they reach the
+    // relay: a little above the relay's own per-address allowances, which
+    // still apply behind these. Traefik's default source is the remote
+    // address, which Xray's PROXY header makes the real client.
+    const relayMiddleware = (name: string, spec: object) =>
+      new k8s.apiextensions.CustomResource(
+        `koan-push-relay-${name}`,
+        {
+          apiVersion: "traefik.io/v1alpha1",
+          kind: "Middleware",
+          metadata: { name: `koan-push-relay-${name}`, namespace: ns },
+          spec,
+        },
+        { provider, dependsOn: ctx.traefik ? [ctx.traefik] : [] },
+      ).metadata.name;
+    const middlewares = [
+      relayMiddleware("rate", {
+        rateLimit: { average: 150, period: "1s", burst: 300 },
+      }),
+      relayMiddleware("in-flight", { inFlightReq: { amount: 100 } }),
+    ];
+    // The team key the koan server uses, on both gateways: production for
+    // TestFlight and App Store builds, sandbox for development builds. A
+    // production registration needs an App Attest assertion (the chart's
+    // default), so a made-up token cannot reach the gateway release builds
+    // depend on.
+    const apnsKey = { keyId: "HRXQWC44VS", secretKey: "apns-key" };
+    const relay = createPushRelay(provider, ns, hostnames["koan-push-relay"], {
+      existingSecret: "koan-push-relay",
+      apns: { teamId: "2256Q92VF2", production: apnsKey, sandbox: apnsKey },
+      store: { hostPath: "/var/lib/koan-push-relay" },
+      nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+      // Generous while there are few devices and the behaviour of real
+      // servers is unknown: five times the relay's per-server and
+      // per-device defaults. The proof and refused-token limits stay at the
+      // relay's own, since those are what stand between made-up tokens and
+      // Apple's view of the key.
+      limits: {
+        handleAlertsPerHour: 30,
+        handleWakesPerHour: 60,
+        deviceAlertsPerHour: 100,
+        deviceWakesPerHour: 150,
+      },
+    });
+    add({
+      routes: relay.routes.map((route) => ({
+        ...route,
+        middlewares,
+      })),
+    });
   }
   add(
     createFiles(provider, "files", {
@@ -559,7 +650,11 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
       route.hostname,
       ctx.namespace,
       ctx.traefik,
-      { paths: route.paths, priority: route.priority },
+      {
+        paths: route.paths,
+        priority: route.priority,
+        middlewares: route.middlewares,
+      },
     );
     published[route.service] = {
       hostname: route.hostname,
