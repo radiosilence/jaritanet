@@ -1,21 +1,26 @@
 #!/bin/sh
 # Fetches what library.tsv lists into the directory named by $1, checking each
-# file against its SHA-256. Tracks are written with the manifest's tags in
-# place of their own, and without embedded pictures: FLAC stream-copied, so
-# its audio is untouched, everything else encoded from it. Covers sit beside
-# the tracks as files.
+# file against its SHA-256, $JOBS files at a time. Tracks are written with the
+# manifest's tags in place of their own, and without embedded pictures: FLAC
+# stream-copied, so its audio is untouched, everything else encoded from it.
+# Covers sit beside the tracks as files.
 set -eu
-out=$1
-manifest=${2:-library.tsv}
 tab=$(printf '\t')
-src=$(mktemp)
-grep -v '^#' "$manifest" | while IFS="$tab" read -r url sha path enc artist album_artist album year genre track title; do
+
+if [ "${1:-}" = --one ]; then
+  out=$2
+  line=$(grep -v '^#' "$3" | sed -n "${4}p")
+  IFS="$tab" read -r url sha path enc artist album_artist album year genre track title <<EOF
+$line
+EOF
+  src=$(mktemp)
+  trap 'rm -f "$src"' EXIT
   curl -fsSL --retry 5 --retry-all-errors -o "$src" "$url"
   echo "$sha  $src" | sha256sum -c - >/dev/null
   dest="$out/$path"
   mkdir -p "$(dirname "$dest")"
   case $enc in
-    file) cp "$src" "$dest"; continue ;;
+    file) cp "$src" "$dest"; echo "$path"; exit 0 ;;
     flac) codec="-c:a copy" ;;
     opus) codec="-c:a libopus -b:a 160k" ;;
     aac) codec="-c:a aac -b:a 256k" ;;
@@ -29,5 +34,9 @@ grep -v '^#' "$manifest" | while IFS="$tab" read -r url sha path enc artist albu
     -metadata album="$album" -metadata date="$year" -metadata genre="$genre" \
     -metadata track="$track" -metadata title="$title" "$dest"
   echo "$path"
-done
-rm -f "$src"
+  exit 0
+fi
+
+manifest=${2:-library.tsv}
+grep -v '^#' "$manifest" | awk '{ print NR }' |
+  xargs -P "${JOBS:-8}" -I {} sh "$0" --one "$1" "$manifest" {}

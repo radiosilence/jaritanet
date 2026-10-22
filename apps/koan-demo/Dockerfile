@@ -2,7 +2,10 @@
 # lists, fetched, checked and tagged by build.sh, with their covers, the
 # sample playlists and CREDITS.md. koan's chart copies /music into the demo's
 # pod with this image's `cp`.
-FROM alpine:3.22 AS build
+#
+# The music is the same for every architecture, so it is made once, natively
+# on the builder, rather than once per platform under emulation.
+FROM --platform=$BUILDPLATFORM alpine:3.22 AS build
 RUN apk add --no-cache curl ffmpeg
 WORKDIR /src
 COPY library.tsv build.sh ./
