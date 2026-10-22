@@ -8,10 +8,10 @@ const PORT = 4000;
 /**
  * koan's public demo, for visitors and App Review: koan in demo mode
  * (`server.demo`, everyone signs in as demo/demo) over the music this app's
- * image holds, reset at the top of every hour.
+ * image holds, reset every day at midnight UTC.
  *
- * The reset is the container ending: koan runs under `timeout` until the
- * hour, and its state lives in the container's own writable layer rather
+ * The reset is the container ending: koan runs under `timeout` until
+ * midnight UTC, and its state lives in the container's own writable layer rather
  * than a volume, so the restart kubelet makes starts from nothing. koan
  * indexes /music at start-up. No CronJob, so nothing needs leave to restart
  * the Deployment.
@@ -57,7 +57,7 @@ export function createKoanDemo(
                 command: [
                   "sh",
                   "-c",
-                  `exec timeout "$(( 3600 - $(date +%s) % 3600 ))" koan --headless --bind 0.0.0.0 --port ${PORT}`,
+                  `exec timeout "$(( 86400 - $(date +%s) % 86400 ))" koan --headless --bind 0.0.0.0 --port ${PORT}`,
                 ],
                 env: [
                   // In the container's own layer, which the image leaves
