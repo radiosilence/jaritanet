@@ -1,6 +1,6 @@
 {
   "name": "Not Played Yet",
-  "comment": "Fills in as the hour goes on",
+  "comment": "Fills in as the day goes on",
   "all": [{ "is": { "playcount": 0 } }],
   "sort": "random",
   "limit": 25
