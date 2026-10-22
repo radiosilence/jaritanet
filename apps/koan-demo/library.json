@@ -1,0 +1,563 @@
+{
+  "albums": [
+    {
+      "folder": "Kimiko Ishizaka/Open Goldberg Variations (2012)",
+      "album": "J.S. Bach: “Open” Goldberg Variations, BWV 988",
+      "album_artists": [
+        "Kimiko Ishizaka"
+      ],
+      "date": "2012",
+      "genre": "Classical",
+      "release_type": [
+        "album"
+      ],
+      "composer": "Johann Sebastian Bach",
+      "licence": "CC0 1.0",
+      "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source": "https://archive.org/details/OpenGoldbergVariations",
+      "encoding": "flac",
+      "cover": {
+        "url": "https://archive.org/download/OpenGoldbergVariations/cover.jpg",
+        "sha256": "f3934fbc5ce7d2a35e5d52185f1d0095b5c1e0dfce36e8490b05a9edfaf78dd4",
+        "name": "cover.jpg"
+      },
+      "track_total": 32,
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Aria",
+          "url": "https://archive.org/download/OpenGoldbergVariations/Kimiko%20Ishizaka%20-%20J.S.%20Bach-%20-Open-%20Goldberg%20Variations%2C%20BWV%20988%20%28Piano%29%20-%2001%20Aria.flac",
+          "sha256": "ea6b2443f39a017ca9ca7306287a02c0e6df078c711b0a5dbe33adcb2784d89f"
+        },
+        {
+          "track": 2,
+          "title": "Variatio 1 a 1 Clav.",
+          "url": "https://archive.org/download/OpenGoldbergVariations/Kimiko%20Ishizaka%20-%20J.S.%20Bach-%20-Open-%20Goldberg%20Variations%2C%20BWV%20988%20%28Piano%29%20-%2002%20Variatio%201%20a%201%20Clav..flac",
+          "sha256": "5c1bd5952691c2ebc8b5bdc0b47158df490ee8579b90977019db7fb59548b7ca"
+        },
+        {
+          "track": 31,
+          "title": "Aria da Capo è Fine",
+          "url": "https://archive.org/download/OpenGoldbergVariations/KimikoIshizaka-J.s.Bach--open-GoldbergVariationsBwv988piano-31AriaDaCapoEFine.flac",
+          "sha256": "f5cab0de2e2d9055442d4af8fcacea2c30deb3a9456b7f40ce70c812395f0758"
+        }
+      ]
+    },
+    {
+      "folder": "Stellardrone/Light Years (2013)",
+      "album": "Light Years",
+      "album_artists": [
+        "Stellardrone"
+      ],
+      "date": "2013",
+      "genre": "Ambient",
+      "label": "Energostatic Records",
+      "release_type": [
+        "album"
+      ],
+      "licence": "CC BY 3.0",
+      "licence_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source": "https://archive.org/details/Stellardrone-LightYears",
+      "encoding": "flac",
+      "cover": {
+        "url": "https://archive.org/download/Stellardrone-LightYears/cover.jpg",
+        "sha256": "e71c7b2232bf8edf82c6f3bb0ccd1a1a8ec5f169d2d890de7db1892e534d6d7b",
+        "name": "cover.jpg"
+      },
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Red Giant",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2001%20Red%20Giant.flac",
+          "sha256": "7c5a1d4a0b11527d24a419b5cb5a2a0de35efc812912c03de5dbf0bb3a619c8d"
+        },
+        {
+          "track": 2,
+          "title": "Airglow",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2002%20Airglow.flac",
+          "sha256": "6ce2ad85232ba778a5732e6b9320fe1d38bd6eed18a49e592949414154b8aca0"
+        },
+        {
+          "track": 3,
+          "title": "Eternity",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2003%20Eternity.flac",
+          "sha256": "c76b0bc49fe5ba970b17f192834f6c04cfcc0e35d7b78ce55dcb3fa24c1883e7"
+        },
+        {
+          "track": 4,
+          "title": "Light Years",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2004%20Light%20Years.flac",
+          "sha256": "f5c47a68212c5870ee9497614e7fc3b6d63bbe39a89a5818051e96a725767368"
+        },
+        {
+          "track": 5,
+          "title": "In Time",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2005%20In%20Time.flac",
+          "sha256": "f767432f41ddf84499227efbd0d7f032c3d2ce45cfd135db4b22455e91e97e7a"
+        },
+        {
+          "track": 6,
+          "title": "Cepheid",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2006%20Cepheid.flac",
+          "sha256": "0fbcfaa25fec57f2413bb6e74f4df0ea6f38c23711f8f18cd56bdec0f53eaef8"
+        },
+        {
+          "track": 7,
+          "title": "Comet Halley",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2007%20Comet%20Halley.flac",
+          "sha256": "9f5cf366d5ad5374693a37d8ec0b7b9a6ed9c6bcb345d5bb9449886af072ce72"
+        },
+        {
+          "track": 8,
+          "title": "Ultra Deep Field",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2008%20Ultra%20Deep%20Field.flac",
+          "sha256": "9b4dc3f636dd6bb9733fd3a3dc217ee7255c3d8f60e85e59abd2b659e82b31f0"
+        },
+        {
+          "track": 9,
+          "title": "Eternity (Reprise)",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2009%20Eternity%20%28Reprise%29.flac",
+          "sha256": "c5860bcf122e2a145519df148dfc77d3d99be537c2ebbdf3431cd082b9991cbd"
+        },
+        {
+          "track": 10,
+          "title": "Messier 45",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2010%20Messier%2045.flac",
+          "sha256": "5db0b080297e53ca20ffb8637335a719b07dc521c616359bfe05bc2a58183a95"
+        }
+      ]
+    },
+    {
+      "folder": "Monsieur LowTec/Great LowTec Xperience (2005)",
+      "album": "Great LowTec Xperience",
+      "album_artists": [
+        "Monsieur LowTec"
+      ],
+      "date": "2005",
+      "genre": "Trance",
+      "label": "Oisoft Rekords",
+      "release_type": [
+        "album",
+        "dj-mix"
+      ],
+      "licence": "CC BY 2.5",
+      "licence_url": "https://creativecommons.org/licenses/by/2.5/",
+      "source": "https://archive.org/details/MonsieurLowtec",
+      "encoding": "flac",
+      "cover": {
+        "file": "covers/monsieur-lowtec.jpg",
+        "name": "cover.jpg"
+      },
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Ha You're Sweet",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_01_Ha_Youre_sweet.flac",
+          "sha256": "0e9a2dcd4636fd1669b1208a2686a515aa92fe19381f93387dd9ac1f84535453"
+        },
+        {
+          "track": 2,
+          "title": "Come On",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_02_Come_on.flac",
+          "sha256": "474b78136e12828aaf953a94767d635535be6fbeffdc957f466f391fabef67b6"
+        },
+        {
+          "track": 3,
+          "title": "Oi",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_03_Oi.flac",
+          "sha256": "a9c06e78059683ca449d4b8a3a0013a921e1cab884deaefb23bc77888a29f3b4"
+        },
+        {
+          "track": 4,
+          "title": "Raah",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_04_Raah.flac",
+          "sha256": "390ce08122492d1255ee303fdce3bfe9d964d2fd85aff89fb2df417d87cc4287"
+        },
+        {
+          "track": 5,
+          "title": "Sorry",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_05_Sorry.flac",
+          "sha256": "5fbbd646dfc2bfcd184cd72b97866d9c36176ba4953cde0ff3399ba4c284ede6"
+        },
+        {
+          "track": 6,
+          "title": "Tagada",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_06_tagada.flac",
+          "sha256": "cf2e30e9e9986f92c8145d614094c9c253a66acd4248206764d12d425d927427"
+        },
+        {
+          "track": 7,
+          "title": "Tiuuu",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_07_Tiuuu.flac",
+          "sha256": "330cae5905b82217ed3532740c4ad48a784dbb81657be6f1caf1a5cf5718461a"
+        },
+        {
+          "track": 8,
+          "title": "You're Sweet",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_08_Youre_sweet.flac",
+          "sha256": "8dba11513aebacc436fec12500a3c6cafb1fb441b1fd332e815fdd1d6bd6b5b2"
+        },
+        {
+          "track": 9,
+          "title": "Dig",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_09_dig.flac",
+          "sha256": "f7ed57400779476b1f219e3537524353c2f1195b32c4481ec3bd96e7aaae29c8"
+        }
+      ]
+    },
+    {
+      "folder": "Josh Woodward/Addressed to the Stars (2016)",
+      "album": "Addressed to the Stars",
+      "album_artists": [
+        "Josh Woodward"
+      ],
+      "date": "2016",
+      "genre": "Indie Folk",
+      "release_type": [
+        "album"
+      ],
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://archive.org/details/pandacd-706-addressed-to-the-stars",
+      "encoding": "aac",
+      "cover": {
+        "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/folder.jpg",
+        "sha256": "bfeb9f7b859cec9358eba79ccc4ecd732df994718c6dc2214392f4c728b3ea26",
+        "name": "cover.jpg"
+      },
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Release",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/01%20-%20Josh%20Woodward%20-%20Release.flac",
+          "sha256": "29f4a00266a7e8d9edd13471d7b07096be98ae7847e1b6974e6e85603710ed56"
+        },
+        {
+          "track": 2,
+          "title": "Knock",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/02%20-%20Josh%20Woodward%20-%20Knock.flac",
+          "sha256": "a8a2ab160b4d1120f6705cac383e0890d29593e60991db6af4a3672870dce387"
+        },
+        {
+          "track": 3,
+          "title": "After the Flames",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/03%20-%20Josh%20Woodward%20-%20After%20the%20Flames.flac",
+          "sha256": "141710e17f848db714992bd999b249778c68a432249f8bc41c9b156552515784"
+        },
+        {
+          "track": 4,
+          "title": "My Favorite Regret",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/04%20-%20Josh%20Woodward%20-%20My%20Favorite%20Regret.flac",
+          "sha256": "78a4f3b26786ebbcc200aef22c3ead392e337a6a49cc689e5bb1322d4eb9326f"
+        },
+        {
+          "track": 5,
+          "title": "Perfect",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/05%20-%20Josh%20Woodward%20-%20Perfect.flac",
+          "sha256": "afc3c9455bc1cafdc1cc05ec4543b017313fa772d7dccbbb88467755329c9a1f"
+        },
+        {
+          "track": 6,
+          "title": "The Nest",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/06%20-%20Josh%20Woodward%20-%20The%20Nest.flac",
+          "sha256": "8ccee509f4c77831fefdf5a5a55334c9f80bdc5301b750e21149cce2f97310cc"
+        },
+        {
+          "track": 7,
+          "title": "Words Fall Apart",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/07%20-%20Josh%20Woodward%20-%20Words%20Fall%20Apart.flac",
+          "sha256": "96402ab63f1a0fac7a503102c6f244d53efcf50123cc4b32494078edefc44852"
+        },
+        {
+          "track": 8,
+          "title": "With a Whimper",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/08%20-%20Josh%20Woodward%20-%20With%20a%20Whimper.flac",
+          "sha256": "913a7d898e67aad569b193c04bda2ea8b054345492df34ce33c78fd8b425e134"
+        },
+        {
+          "track": 9,
+          "title": "Bloom",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/09%20-%20Josh%20Woodward%20-%20Bloom.flac",
+          "sha256": "bb51dfd865e2351bb418399fb1a77ae488915e2132eab963eea27d590cfe0d12"
+        },
+        {
+          "track": 10,
+          "title": "Too Many Valleys",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/10%20-%20Josh%20Woodward%20-%20Too%20Many%20Valleys.flac",
+          "sha256": "701e3aad4fe141910c954650ae88f550ef30d04a2744e186c3e4e3e9c2bf27b9"
+        },
+        {
+          "track": 11,
+          "title": "Aimless",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/11%20-%20Josh%20Woodward%20-%20Aimless.flac",
+          "sha256": "1bc77073f5905599f3135a9ed9e139fa738320994bf1f8ef077755b3c63a592d"
+        },
+        {
+          "track": 12,
+          "title": "Princess",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/12%20-%20Josh%20Woodward%20-%20Princess.flac",
+          "sha256": "be1bdc9c08b9cb21328f212c1ebfe359ee23ebfc1afe616975bb30751e2239e7"
+        },
+        {
+          "track": 13,
+          "title": "Orbit",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/13%20-%20Josh%20Woodward%20-%20Orbit.flac",
+          "sha256": "00a8b555c0b53a68eeffba7bb3f2cf054d274161b8e725466e075cf30fffecb9"
+        },
+        {
+          "track": 14,
+          "title": "Show Me",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/14%20-%20Josh%20Woodward%20-%20Show%20Me.flac",
+          "sha256": "982344d212ded90be6ba1cb05efc5457b612d4fe52e9a3758474c2b79b57de6f"
+        }
+      ]
+    },
+    {
+      "folder": "Broke For Free/Directionless EP (2011)",
+      "album": "Directionless EP",
+      "album_artists": [
+        "Broke For Free"
+      ],
+      "date": "2011",
+      "genre": "Electronic",
+      "release_type": [
+        "ep"
+      ],
+      "licence": "CC BY 3.0",
+      "licence_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source": "https://archive.org/details/DirectionlessEP",
+      "encoding": "mp3",
+      "cover": {
+        "url": "https://archive.org/download/DirectionlessEP/cover.jpg",
+        "sha256": "99b66195ac98c27d749c16ea0731a3725e54c5b50403537cd2e1218c3d68d70c",
+        "name": "cover.jpg"
+      },
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Night Owl",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2001%20Night%20Owl.flac",
+          "sha256": "47abef8b0d710e4bcdf40a656490822eeb02c0eb535080abb2fdfefb31e6ad63"
+        },
+        {
+          "track": 2,
+          "title": "My Always Mood",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2002%20My%20Always%20Mood.flac",
+          "sha256": "20badeb6a1baaa32dfcc3d50afb06eba2a594643b375b747c6e433e506b8756a"
+        },
+        {
+          "track": 3,
+          "title": "Day Bird",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2003%20Day%20Bird.flac",
+          "sha256": "23719a31c5ebb21b9bc649778a56aa0992a44c21828df901b6da887fd13fb3d1"
+        },
+        {
+          "track": 4,
+          "title": "My Luck",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2004%20My%20Luck.flac",
+          "sha256": "c001e8fe8959cc93d750570508ae49e3c0c76f390ed90a16f651ae84315bef0f"
+        },
+        {
+          "track": 5,
+          "title": "Mell's Parade",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2005%20Mell%27s%20Parade.flac",
+          "sha256": "c0a49cdecc2d05b6d46e0eb06f956b8559a731797b182bd052e5aab3e9400f22"
+        },
+        {
+          "track": 6,
+          "title": "Only Instrumental",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2006%20Only%20Instrumental.flac",
+          "sha256": "dfed1779fa07dec8a30656e929daad6b9d7b6d2016ef896d2160aaf79578140a"
+        }
+      ]
+    },
+    {
+      "folder": "Chud011 & rolemusic/Collider (2014)",
+      "album": "Collider",
+      "album_artists": [
+        "Chud011",
+        "rolemusic"
+      ],
+      "date": "2014",
+      "genre": "Chiptune",
+      "release_type": [
+        "ep"
+      ],
+      "licence": "CC BY 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://archive.org/details/Collider",
+      "encoding": "opus",
+      "cover": {
+        "url": "https://archive.org/download/Collider/00_collider_cover_art.png",
+        "sha256": "dec35d130c04d5a512632de1226a2aea99bf568101f224fdb92deb36538f56b7",
+        "name": "cover.png"
+      },
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Quantum Field Theory",
+          "artists": [
+            "Chud011"
+          ],
+          "url": "https://archive.org/download/Collider/01_chud011_-_quantum_field_theory.flac",
+          "sha256": "1b214ef3dd4301a9ee780518751e5f5af1a1c15820ea1be0ac760bec681506fc"
+        },
+        {
+          "track": 2,
+          "title": "Phonon",
+          "artists": [
+            "Chud011",
+            "rolemusic"
+          ],
+          "url": "https://archive.org/download/Collider/02_chud011_and_rolemusic_-_phonon.flac",
+          "sha256": "6f7e449eafa3e8aaa946bdc0c2be4d702a3ebd4e093641be8e0624f2ef8f4b64"
+        },
+        {
+          "track": 3,
+          "title": "Enthalpy",
+          "artists": [
+            "rolemusic"
+          ],
+          "url": "https://archive.org/download/Collider/03_rolemusic_-_enthalpy.flac",
+          "sha256": "f7fc53a54926579628ed009695e36bf70a319244bbb0939e5390d91ac89b499b"
+        },
+        {
+          "track": 4,
+          "title": "Lepton",
+          "artists": [
+            "rolemusic"
+          ],
+          "url": "https://archive.org/download/Collider/04_rolemusic_-_lepton.flac",
+          "sha256": "4c4626e63eead27efeb7e0925929774ebf5cb48aa828136fda505ac446a60faa"
+        },
+        {
+          "track": 5,
+          "title": "Spinor Field",
+          "artists": [
+            "Chud011",
+            "rolemusic"
+          ],
+          "url": "https://archive.org/download/Collider/05_chud011_and_rolemusic_-_spinor_field.flac",
+          "sha256": "7a994942be48693c5ed5f2e308c19011a6f0fc09445b7f2d0b15ecd9cff4b0b4"
+        },
+        {
+          "track": 6,
+          "title": "Afocal System",
+          "artists": [
+            "Chud011"
+          ],
+          "url": "https://archive.org/download/Collider/06_chud011_-_afocal_system.flac",
+          "sha256": "d6893228adfb15f034f20707ae0d77f7f337ef8ec5454b7c6809493d9eaa307a"
+        }
+      ]
+    },
+    {
+      "folder": "Various Artists/kōan Demo Sampler (2026)",
+      "album": "kōan Demo Sampler",
+      "album_artists": [
+        "Various Artists"
+      ],
+      "date": "2026",
+      "genre": "Various",
+      "release_type": [
+        "album",
+        "compilation"
+      ],
+      "compilation": true,
+      "source": "https://demo.koan.rocks",
+      "encoding": "mp3",
+      "cover": {
+        "file": "covers/koan-demo-sampler.jpg",
+        "name": "cover.jpg"
+      },
+      "tracks": [
+        {
+          "track": 1,
+          "title": "Day Bird",
+          "url": "https://archive.org/download/DirectionlessEP/Broke%20For%20Free%20-%20Directionless%20EP%20-%2003%20Day%20Bird.flac",
+          "sha256": "23719a31c5ebb21b9bc649778a56aa0992a44c21828df901b6da887fd13fb3d1",
+          "artists": [
+            "Broke For Free"
+          ],
+          "genre": "Electronic",
+          "licence": "CC BY 3.0",
+          "licence_url": "https://creativecommons.org/licenses/by/3.0/",
+          "source": "https://archive.org/details/DirectionlessEP",
+          "copyright_year": "2011"
+        },
+        {
+          "track": 2,
+          "title": "Knock",
+          "url": "https://archive.org/download/pandacd-706-addressed-to-the-stars/02%20-%20Josh%20Woodward%20-%20Knock.flac",
+          "sha256": "a8a2ab160b4d1120f6705cac383e0890d29593e60991db6af4a3672870dce387",
+          "artists": [
+            "Josh Woodward"
+          ],
+          "genre": "Indie Folk",
+          "licence": "CC BY 4.0",
+          "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+          "source": "https://archive.org/details/pandacd-706-addressed-to-the-stars",
+          "copyright_year": "2016"
+        },
+        {
+          "track": 3,
+          "title": "Comet Halley",
+          "url": "https://archive.org/download/Stellardrone-LightYears/Stellardrone%20-%20Light%20Years%20-%2007%20Comet%20Halley.flac",
+          "sha256": "9f5cf366d5ad5374693a37d8ec0b7b9a6ed9c6bcb345d5bb9449886af072ce72",
+          "artists": [
+            "Stellardrone"
+          ],
+          "genre": "Ambient",
+          "licence": "CC BY 3.0",
+          "licence_url": "https://creativecommons.org/licenses/by/3.0/",
+          "source": "https://archive.org/details/Stellardrone-LightYears",
+          "copyright_year": "2013"
+        },
+        {
+          "track": 4,
+          "title": "Phonon",
+          "url": "https://archive.org/download/Collider/02_chud011_and_rolemusic_-_phonon.flac",
+          "sha256": "6f7e449eafa3e8aaa946bdc0c2be4d702a3ebd4e093641be8e0624f2ef8f4b64",
+          "artists": [
+            "Chud011",
+            "rolemusic"
+          ],
+          "genre": "Chiptune",
+          "licence": "CC BY 4.0",
+          "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+          "source": "https://archive.org/details/Collider",
+          "copyright_year": "2014"
+        },
+        {
+          "track": 5,
+          "title": "Come On",
+          "url": "https://archive.org/download/MonsieurLowtec/MonsieurLowtec_2005_GreatLowTecXperience_02_Come_on.flac",
+          "sha256": "474b78136e12828aaf953a94767d635535be6fbeffdc957f466f391fabef67b6",
+          "artists": [
+            "Monsieur LowTec"
+          ],
+          "genre": "Trance",
+          "licence": "CC BY 2.5",
+          "licence_url": "https://creativecommons.org/licenses/by/2.5/",
+          "source": "https://archive.org/details/MonsieurLowtec",
+          "copyright_year": "2005"
+        },
+        {
+          "track": 6,
+          "title": "Variatio 1 a 1 Clav.",
+          "url": "https://archive.org/download/OpenGoldbergVariations/Kimiko%20Ishizaka%20-%20J.S.%20Bach-%20-Open-%20Goldberg%20Variations%2C%20BWV%20988%20%28Piano%29%20-%2002%20Variatio%201%20a%201%20Clav..flac",
+          "sha256": "5c1bd5952691c2ebc8b5bdc0b47158df490ee8579b90977019db7fb59548b7ca",
+          "artists": [
+            "Kimiko Ishizaka"
+          ],
+          "genre": "Classical",
+          "licence": "CC0 1.0",
+          "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "source": "https://archive.org/details/OpenGoldbergVariations",
+          "copyright_year": "2012",
+          "composer": "Johann Sebastian Bach"
+        }
+      ]
+    }
+  ]
+}
