@@ -337,7 +337,7 @@ new one. Run `pro detach --assume-yes` on it first.
 
 ```bash
 mise run setup       # Toolchain, dependencies and git hooks
-mise run check       # Lint, format, typecheck and test — in parallel
+mise run check       # Lint, actionlint, format, typecheck and test — in parallel
 mise run lint:fix    # Lint and auto-fix
 mise run fmt         # Format with oxfmt
 mise run preview     # Preview the stack

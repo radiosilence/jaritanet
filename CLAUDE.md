@@ -29,10 +29,11 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run test` - Run tests (vitest on Node — Pulumi needs Node's v8)
 - `mise run lint` - Lint code with oxlint
 - `mise run lint:fix` - Lint and auto-fix with oxlint
+- `mise run lint:workflows` - Lint `.github/workflows` with actionlint, which runs shellcheck over the `run` scripts
 - `mise run fmt` - Format code with oxfmt
 - `mise run fmt:check` - Check formatting with oxfmt
 - `mise run preview` / `mise run up` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
-- `mise run check` - Lint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
+- `mise run check` - Lint, actionlint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
 - `./scripts/update-apps/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
 ### Git Hooks

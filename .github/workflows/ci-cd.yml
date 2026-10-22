@@ -552,13 +552,24 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
           cache-to: ${{ env.PUSH == 'true' && format('type=registry,ref={0}:buildcache,mode=max', env.IMAGE) || '' }}
 
+  # Workflow syntax, expressions and the shell in `run` steps (the image bundles
+  # shellcheck). Runs for every change: it takes seconds.
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Lint the workflows
+        run: docker run --rm --volume "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+
   # The one status the ruleset requires. Skipped jobs are domains the change
   # does not touch and pass; anything failed or cancelled fails it.
   checks:
     name: Checks
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [changes, ts, preview, rust, binary, image]
+    needs: [changes, actionlint, ts, preview, rust, binary, image]
     if: always()
     permissions: {}
     steps:
