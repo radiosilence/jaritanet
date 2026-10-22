@@ -32,12 +32,22 @@ const MIN_CORE = "v1.14.0-alpha.47";
 const IMAGE = `ghcr.io/sagernet/sing-box:${MIN_CORE}`;
 
 // Well-formed rather than real: `check` initialises outbounds, so a REALITY
-// key has to be 32 bytes of base64url and a UUID has to parse.
+// key has to be 32 bytes of base64url, a UUID has to parse and the pinned hy2
+// certificate has to be a PEM certificate.
 const node = {
   name: "primary",
   server: "1.2.3.4",
   hysteria: {
     altPorts: [3478, 4500],
+    certificate: `-----BEGIN CERTIFICATE-----
+MIIBQTCB6KADAgECAgkA/0yZM3FAWr4wCgYIKoZIzj0EAwIwFzEVMBMGA1UEAwwM
+d3d3LmJpbmcuY29tMCAXDTI2MTAyMTExNDMwOFoYDzIxMjYwOTI3MTE0MzA4WjAX
+MRUwEwYDVQQDDAx3d3cuYmluZy5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AAT+EIeW4b1uncVX98gFcfgrKnnu4CGAOGw5R3dWEshggK1fS18epQOqTtvoGubc
+ZTqenf+jPBJI0jkCOqYPAI4woxswGTAXBgNVHREEEDAOggx3d3cuYmluZy5jb20w
+CgYIKoZIzj0EAwIDSAAwRQIhAMcWK5G+jfX0oRLFHoMy2SHjMPDYgOo/8O37eeNV
+hQ2uAiARvbMllWO/lUT1EV3lKn/SLI2+hROeHL6EGKFHgosE0w==
+-----END CERTIFICATE-----`,
     obfsPassword: "obfs-password",
     passwords: { guest1: "guest-pw", jc: "admin-pw" },
     port: 443,

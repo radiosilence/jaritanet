@@ -4,8 +4,9 @@ import { Hostname, Port } from "@jaritanet/k8s";
 /**
  * Hysteria2 (QUIC/UDP) on the entry node. Loss-tolerant congestion control
  * keeps it smooth on lossy/jittery links where the TCP-based Reality path melts
- * down; Salamander obfuscation hides the QUIC from DPI. `sni` is cosmetic
- * (clients trust the self-signed cert via insecure).
+ * down; Salamander obfuscation hides the QUIC from DPI. `sni` is the
+ * name in the self-signed cert that every profile pins, so no public CA is
+ * involved.
  *
  * `altPorts` are additional listeners, and the point is that no single UDP
  * port survives every network. Inspecting middleboxes (FortiGate et al) block

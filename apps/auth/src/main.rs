@@ -126,7 +126,14 @@ async fn main() -> Result<()> {
 
     let store = Store::connect(&config.redis_url).await?;
 
+    // The only TLS this client speaks is to GitHub, so it trusts only the roots
+    // GitHub chains to rather than a system bundle: a compromised intermediate
+    // under any other CA cannot impersonate GitHub to the login flow. GitHub
+    // changing CA fails every login until roots.pem is replaced.
+    let roots = reqwest::Certificate::from_pem_bundle(include_bytes!("../roots.pem"))
+        .context("parsing roots.pem")?;
     let http = reqwest::Client::builder()
+        .tls_certs_only(roots)
         .timeout(Duration::from_secs(15))
         .build()
         .context("building the HTTP client")?;
