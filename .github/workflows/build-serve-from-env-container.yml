@@ -59,7 +59,7 @@ jobs:
           echo "version $version, release $release"
 
   # Gates the publish, so no image is built from code that does not pass. On the
-  # floating `rust = "1"` from mise.toml, where a compiler bump breaking is the
+  # floating `rust = "stable"` from mise.toml, where a compiler bump breaking is the
   # point; the Dockerfile pins its own for what ships.
   check:
     name: Check

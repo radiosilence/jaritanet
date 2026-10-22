@@ -61,7 +61,7 @@ jobs:
   # Gates the publish, not the compile. `binary` is the long pole, so it starts
   # at once and this runs alongside it; putting it in front would add the check
   # to the critical path of every green run to save a compile on a red one. On
-  # the floating `rust = "1"` from mise.toml rather than the toolchain `binary`
+  # the floating `rust = "stable"` from mise.toml rather than the toolchain `binary`
   # pins: a compiler bump breaking is the point here, and precisely not the
   # point there.
   check:
@@ -123,7 +123,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # stable
         with:
-          # Pinned, because this is what ships — the floating `rust = "1"` in
+          # Pinned, because this is what ships — the floating `rust = "stable"` in
           # mise.toml covers clippy and the tests, where a compiler bump
           # breaking is the point.
           toolchain: "1.97"

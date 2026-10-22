@@ -256,7 +256,7 @@ It lives here rather than in `ci-cd.yml` because that is what makes it fire on
 the crate's own path filter — as a matrix job in the infra pipeline it
 recompiled all three crates for a change that touched no Rust, and gated
 nothing. The toolchains differ on purpose: `check` takes the floating
-`rust = "1"` from `mise.toml`, where a compiler bump breaking is the point,
+`rust = "stable"` from `mise.toml`, where a compiler bump breaking is the point,
 while the compile pins the version that ships.
 
 **Where the compile happens is the difference between the two Rust shapes.** A
