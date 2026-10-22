@@ -117,7 +117,18 @@ export function createKoanDemo(
         },
       },
     },
-    options,
+    // Replaced rather than patched when its volumes change: a server-side
+    // patch merges a volume's new source into the old one under another
+    // field manager, which the API refuses. Deleted first, as the name is the
+    // same; a demo can be down for the seconds that takes.
+    {
+      ...options,
+      replaceOnChanges: [
+        "spec.template.spec.volumes",
+        "spec.template.spec.initContainers",
+      ],
+      deleteBeforeReplace: true,
+    },
   );
 
   new k8s.core.v1.Service(
