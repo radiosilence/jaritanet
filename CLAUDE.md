@@ -283,7 +283,7 @@ Each container is built only when its app changes; a pin bump in
 `apps/<x>/deploy/` is a deploy, not a new image.
 
 The Rust apps (`auth`, `serve-from-env`) carry a `rust` job — fmt, clippy,
-`cargo test` — on the floating `rust = "1"` from `mise.toml`, where a compiler
+`cargo test` — on the floating `rust = "stable"` from `mise.toml`, where a compiler
 bump breaking is the point. Alongside it, `binary` compiles the release build on
 a runner of each architecture (`ubuntu-24.04`, `ubuntu-24.04-arm`) with the
 toolchain that ships pinned. **The compile happens on the runner, not in the

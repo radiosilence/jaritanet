@@ -6,7 +6,7 @@ pulumi = "latest"
 shellcheck = "0.11.0"
 # rustfmt and clippy are not in the minimal profile mise installs by default,
 # and the container workflows' check jobs need both.
-rust = { version = "1", components = "rustfmt,clippy" }
+rust = { version = "stable", components = "rustfmt,clippy" }
 
 [env]
 # oxlint, oxfmt, tsc and vitest are workspace binaries. On PATH, a task can name
