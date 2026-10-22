@@ -22,7 +22,7 @@ import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
-import type { Deployed, Route } from "@jaritanet/k8s";
+import { sha256hex, type Deployed, type Route } from "@jaritanet/k8s";
 import { createMariastew } from "@radiosilence/mariastew-pulumi";
 import { createMcpGateway } from "@radiosilence/mcp-gateway-pulumi";
 import { createKoan } from "@radiosilence/koan-pulumi";
@@ -201,6 +201,7 @@ export function createServices(ctx: EstateContext) {
     // Generated once and kept in state. The token key is never rotated: the
     // relay's revocation table is keyed by it. A new handle key is added
     // beside this one, never in its place.
+    const apnsPem = pulumi.secret(ctx.koanApnsKey);
     const relayKey = (id: string) =>
       new random.RandomBytes(`koan-push-relay-${id}`, { length: 32 }).base64;
     new k8s.core.v1.Secret(
@@ -210,15 +211,31 @@ export function createServices(ctx: EstateContext) {
         stringData: {
           "token-key": relayKey("token-key"),
           "handle-key-1": relayKey("handle-key-1"),
-          "apns-key": pulumi.secret(ctx.koanApnsKey),
+          "apns-key": apnsPem,
         },
       },
       { provider },
     );
+    // The relay reads its APNs key once, at start, so the pod carries the
+    // key's hash and a rotated key replaces it.
+    const keyHash = sha256hex(apnsPem);
+    pulumi.runtime.registerResourceTransform(({ type, name, props, opts }) => {
+      if (
+        type !== "kubernetes:apps/v1:Deployment" ||
+        name !== "koan-push-relay"
+      )
+        return undefined;
+      const template = props.spec.template;
+      template.metadata.annotations = {
+        ...template.metadata.annotations,
+        "jaritanet.radiosilence.dev/apns-key": keyHash,
+      };
+      return { props, opts };
+    });
     // Floods stop at Traefik, per caller address, before they reach the
     // relay: a little above the relay's own per-address allowances, which
-    // still apply behind these. Traefik reads the caller from Xray's PROXY
-    // header, so `depth: 0` is the real client.
+    // still apply behind these. Traefik's default source is the remote
+    // address, which Xray's PROXY header makes the real client.
     const relayMiddleware = (name: string, spec: object) =>
       new k8s.apiextensions.CustomResource(
         `koan-push-relay-${name}`,
@@ -229,19 +246,13 @@ export function createServices(ctx: EstateContext) {
           spec,
         },
         { provider, dependsOn: ctx.traefik ? [ctx.traefik] : [] },
-      );
-    const bySource = { ipStrategy: { depth: 0 } };
-    relayMiddleware("rate", {
-      rateLimit: {
-        average: 150,
-        period: "1s",
-        burst: 300,
-        sourceCriterion: bySource,
-      },
-    });
-    relayMiddleware("in-flight", {
-      inFlightReq: { amount: 100, sourceCriterion: bySource },
-    });
+      ).metadata.name;
+    const middlewares = [
+      relayMiddleware("rate", {
+        rateLimit: { average: 150, period: "1s", burst: 300 },
+      }),
+      relayMiddleware("in-flight", { inFlightReq: { amount: 100 } }),
+    ];
     // The team key the koan server uses, on both gateways: production for
     // TestFlight and App Store builds, sandbox for development builds. A
     // production registration needs an App Attest assertion (the chart's
@@ -268,7 +279,7 @@ export function createServices(ctx: EstateContext) {
     add({
       routes: relay.routes.map((route) => ({
         ...route,
-        middlewares: ["koan-push-relay-rate", "koan-push-relay-in-flight"],
+        middlewares,
       })),
     });
   }

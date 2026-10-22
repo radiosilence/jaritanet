@@ -186,7 +186,11 @@ export function createIngressRoute(
   // IngressRoute is a kind the Traefik chart installs. Without this the CRD may
   // not exist yet: "no matches for kind IngressRoute in version traefik.io/v1alpha1".
   traefik?: pulumi.Resource,
-  routing?: { paths?: string[]; priority?: number; middlewares?: string[] },
+  routing?: {
+    paths?: string[];
+    priority?: number;
+    middlewares?: pulumi.Input<string>[];
+  },
 ) {
   const match = routeMatch(hostname, routing?.paths);
   // Carried by both routes: without it, two services sharing a hostname would
