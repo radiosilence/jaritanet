@@ -165,25 +165,9 @@ export function createServices(ctx: EstateContext) {
   // koan's own OAuth, at https://<hostname>/mcp.
   if (hostnames.koan) {
     adoptKoanChart();
-    // The key goes in a Secret the pod reads, never into the Deployment.
-    const koanPush = ctx.koanApnsKey
-      ? new k8s.core.v1.Secret(
-          "koan-apns",
-          {
-            metadata: { name: "koan-apns", namespace: ns },
-            stringData: { "apns-key": pulumi.secret(ctx.koanApnsKey) },
-          },
-          { provider },
-        )
-      : undefined;
+    // Pushes to the apps go through the relay below, as every koan server's
+    // do; the chart's default leaves push on.
     createKoan(provider, ns, {
-      ...(koanPush && {
-        push: {
-          existingSecret: "koan-apns",
-          keyId: "HRXQWC44VS",
-          teamId: "2256Q92VF2",
-        },
-      }),
       hostname: hostnames.koan,
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
@@ -209,7 +193,8 @@ export function createServices(ctx: EstateContext) {
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
   }
-  // The push relay, for koan servers without Apple's key. On the gateway: it
+  // The push relay every koan server pushes to the apps through, this one's
+  // included: only it holds Apple's key. On the gateway: it
   // is public, and the home uplink dropping should not stop every phone's
   // pushes.
   if (hostnames["koan-push-relay"] && ctx.koanApnsKey) {
