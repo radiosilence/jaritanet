@@ -66,6 +66,9 @@ export function createKoanDemo(
                   { name: "KOAN_SERVER__DEMO", value: "true" },
                   { name: "KOAN_SUBSONIC__ENABLED", value: "true" },
                   { name: "KOAN_LIBRARY__FOLDERS", value: '["/music"]' },
+                  // The sample playlists are files in the library; this
+                  // shows them to the demo account (koan 0.67.2 on).
+                  { name: "KOAN_LIBRARY__PUBLIC_PLAYLISTS", value: "true" },
                   {
                     name: "KOAN_GRAPHQL__ALLOWED_HOSTS",
                     value: `["${opts.hostname}"]`,
