@@ -165,25 +165,8 @@ export function createServices(ctx: EstateContext) {
   // koan's own OAuth, at https://<hostname>/mcp.
   if (hostnames.koan) {
     adoptKoanChart();
-    // The key goes in a Secret the pod reads, never into the Deployment.
-    const koanPush = ctx.koanApnsKey
-      ? new k8s.core.v1.Secret(
-          "koan-apns",
-          {
-            metadata: { name: "koan-apns", namespace: ns },
-            stringData: { "apns-key": pulumi.secret(ctx.koanApnsKey) },
-          },
-          { provider },
-        )
-      : undefined;
+    // Pushes go through the relay below, which holds Apple's key.
     createKoan(provider, ns, {
-      ...(koanPush && {
-        push: {
-          existingSecret: "koan-apns",
-          keyId: "HRXQWC44VS",
-          teamId: "2256Q92VF2",
-        },
-      }),
       hostname: hostnames.koan,
       library: { hostPath: "/mnt/kontent/music" },
       state: { hostPath: "/var/lib/koan" },
@@ -208,6 +191,29 @@ export function createServices(ctx: EstateContext) {
     });
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
+  }
+  // koan's public demo, for visitors and App Review: everyone signs in as
+  // demo/demo, the music comes in an image, and the state is wiped on the hour
+  // (the chart's demo mode). On the gateway, so signing in does not depend on
+  // the home uplink.
+  if (hostnames["koan-demo"]) {
+    createKoan(provider, ns, {
+      name: "koan-demo",
+      hostname: hostnames["koan-demo"],
+      demo: { enabled: true },
+      resources: {
+        requests: { cpu: "50m", memory: "192Mi" },
+        limits: { cpu: CLOUD_CORES, memory: "1Gi" },
+      },
+      nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
+      service: { name: "koan-demo-service" },
+      networkPolicy: {
+        // kubelet's probes. The API is public anyway, so the port is open to
+        // the cluster rather than to a guessed node address.
+        extraIngress: [{ ports: [{ protocol: "TCP", port: 4000 }] }],
+      },
+    });
+    add({ routes: [{ service: "koan-demo", hostname: hostnames["koan-demo"] }] });
   }
   // The push relay, for koan servers without Apple's key. On the gateway: it
   // is public, and the home uplink dropping should not stop every phone's
