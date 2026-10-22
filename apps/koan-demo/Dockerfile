@@ -1,16 +1,15 @@
-# The music koan's public demo plays, under /music: the releases library.tsv
-# lists, fetched, checked and tagged by build.sh, with their covers, the
-# sample playlists and CREDITS.md. koan's chart copies /music into the demo's
-# pod with this image's `cp`.
+# The music koan's public demo plays, under /music: the releases library.json
+# lists, fetched, checked and tagged by build.py, with their covers, the sample
+# playlists and CREDITS.md. The demo mounts it as an image volume.
 #
 # The music is the same for every architecture, so it is made once, natively
 # on the builder, rather than once per platform under emulation.
 FROM --platform=$BUILDPLATFORM alpine:3.22 AS build
-RUN apk add --no-cache curl ffmpeg
+RUN apk add --no-cache ca-certificates ffmpeg python3 py3-mutagen
 WORKDIR /src
-COPY library.tsv build.sh ./
-RUN sh build.sh /music
-COPY ["covers/monsieur-lowtec.jpg", "/music/Monsieur LowTec/Great LowTec Xperience (2005)/cover.jpg"]
+COPY library.json build.py ./
+COPY covers/ covers/
+RUN python3 build.py library.json /music
 COPY playlists/ /music/Playlists/
 COPY CREDITS.md /music/
 RUN chmod -R a+rX /music
