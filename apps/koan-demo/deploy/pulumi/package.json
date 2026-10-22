@@ -1,0 +1,16 @@
+{
+  "name": "@jaritanet/koan-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "koan's public demo server: its music image and its configuration",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

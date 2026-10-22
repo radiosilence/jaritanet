@@ -67,6 +67,7 @@ jobs:
       auth: ${{ steps.filter.outputs.auth }}
       serve_from_env: ${{ steps.filter.outputs.serve_from_env }}
       files: ${{ steps.filter.outputs.files }}
+      koan_demo: ${{ steps.filter.outputs.koan_demo }}
       rust: ${{ steps.filter.outputs.rust }}
       binaries: ${{ steps.filter.outputs.binaries }}
       images: ${{ steps.filter.outputs.images }}
@@ -97,7 +98,7 @@ jobs:
         # command rather than an answer, so every question is asked in a
         # condition.
         run: |
-          ts=true deploy=true auth=true serve_from_env=true files=true
+          ts=true deploy=true auth=true serve_from_env=true files=true koan_demo=true
 
           base=HEAD^1
           if [ "$EVENT" = "push" ]; then
@@ -125,14 +126,15 @@ jobs:
           # while it waited, is released by the next run instead of dropped.
           version_of() {
             case $1 in
-              files) git show "$2:apps/files/VERSION" 2>/dev/null | tr -d '[:space:]' ;;
+              files | koan-demo) git show "$2:apps/$1/VERSION" 2>/dev/null | tr -d '[:space:]' ;;
               *) git show "$2:apps/$1/Cargo.toml" 2>/dev/null | sed -n 's/^version = "\(.*\)"/\1/p' | head -1 ;;
             esac
           }
           apps='[
             {"app": "auth", "image": "auth", "rust": true},
             {"app": "serve-from-env", "image": "serve-from-env", "rust": true},
-            {"app": "files", "image": "jaritanet-files", "rust": false}
+            {"app": "files", "image": "jaritanet-files", "rust": false},
+            {"app": "koan-demo", "image": "koan-demo", "rust": false}
           ]'
           for app in $(jq -r '.[].app' <<< "$apps"); do
             version=$(version_of "$app" HEAD)
@@ -196,16 +198,18 @@ jobs:
             touches '^apps/auth/|^\.github/' '^apps/auth/deploy/' || [ "$inputs_rust" = true ] || auth=false
             touches '^apps/serve-from-env/|^\.github/' '^apps/serve-from-env/deploy/' || [ "$inputs_rust" = true ] || serve_from_env=false
             touches '^apps/files/|^\.github/' '^apps/files/deploy/' || files=false
+            touches '^apps/koan-demo/|^\.github/' '^apps/koan-demo/deploy/' || koan_demo=false
           fi
 
           # A release builds what it ships, whatever the diff says.
-          on=$(jq -c --argjson auth "$auth" --argjson sfe "$serve_from_env" --argjson files "$files" \
-            'map(.app as $app | select(.release or ({"auth": $auth, "serve-from-env": $sfe, "files": $files} | .[$app])))' <<< "$apps")
+          on=$(jq -c --argjson auth "$auth" --argjson sfe "$serve_from_env" --argjson files "$files" --argjson demo "$koan_demo" \
+            'map(.app as $app | select(.release or ({"auth": $auth, "serve-from-env": $sfe, "files": $files, "koan-demo": $demo} | .[$app])))' <<< "$apps")
           for app in $(jq -r '.[].app' <<< "$on"); do
             case $app in
               auth) auth=true ;;
               serve-from-env) serve_from_env=true ;;
               files) files=true ;;
+              koan-demo) koan_demo=true ;;
             esac
           done
           {
@@ -214,6 +218,7 @@ jobs:
             echo "auth=$auth"
             echo "serve_from_env=$serve_from_env"
             echo "files=$files"
+            echo "koan_demo=$koan_demo"
             echo "rust=$(jq -c 'map(select(.rust))' <<< "$on")"
             echo "binaries=$(jq -c '[.[] | select(.rust) | {app} + (
               {arch: "amd64", runner: "ubuntu-24.04", target: "x86_64-unknown-linux-musl"},

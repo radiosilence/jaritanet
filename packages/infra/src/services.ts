@@ -31,6 +31,7 @@ import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
+import { koanDemo } from "@jaritanet/koan-demo";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createGroglog } from "@jaritanet/groglog";
 import {
@@ -192,6 +193,18 @@ export function createServices(ctx: EstateContext) {
     });
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
+  }
+  // koan's public demo. On the gateway, so signing in to it does not depend on
+  // the home uplink.
+  if (hostnames["koan-demo"]) {
+    const demo = koanDemo({
+      hostname: hostnames["koan-demo"],
+      node: CLOUD_NODE,
+      cpuLimit: CLOUD_CORES,
+    });
+    createKoan(provider, ns, demo);
+    // The package names the Service outright; routes here name a prefix.
+    add({ routes: [{ service: "koan-demo", hostname: demo.hostname }] });
   }
   // The push relay every koan server pushes to the apps through, this one's
   // included: only it holds Apple's key. On the gateway: it

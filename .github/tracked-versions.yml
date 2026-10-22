@@ -63,6 +63,14 @@
   value: "{version}"
   image: "ghcr.io/radiosilence/jaritanet-files:{version}"
 
+- app: koan demo
+  repo: radiosilence/jaritanet
+  tagPrefix: koan-demo-v
+  file: apps/koan-demo/deploy/pulumi/src/versions.ts
+  key: koanDemo
+  value: "{version}"
+  image: "ghcr.io/radiosilence/koan-demo:{version}"
+
 # Its own repository now, publishing the component that deploys it — so this
 # follows a dependency and the image is that package's business. No tagPrefix
 # either: one repository releasing one thing needs no way to say which.

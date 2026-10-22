@@ -70,6 +70,8 @@ importers:
         specifier: 4.34.2
         version: 4.34.2
 
+  apps/koan-demo/deploy/pulumi: {}
+
   apps/serve-from-env/deploy/pulumi:
     dependencies:
       '@jaritanet/k8s':
@@ -180,6 +182,9 @@ importers:
       '@jaritanet/k8s':
         specifier: workspace:*
         version: link:../k8s
+      '@jaritanet/koan-demo':
+        specifier: workspace:*
+        version: link:../../apps/koan-demo/deploy/pulumi
       '@jaritanet/koan-site':
         specifier: workspace:*
         version: link:../koan-site

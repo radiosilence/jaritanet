@@ -15,6 +15,7 @@
     "@jaritanet/home": "workspace:*",
     "@jaritanet/ingress": "workspace:*",
     "@jaritanet/k8s": "workspace:*",
+    "@jaritanet/koan-demo": "workspace:*",
     "@jaritanet/koan-site": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
     "@jaritanet/remote": "workspace:*",
