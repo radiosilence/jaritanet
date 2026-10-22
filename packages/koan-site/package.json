@@ -15,6 +15,6 @@
   },
   "dependencies": {
     "@jaritanet/k8s": "workspace:*",
-    "@pulumi/kubernetes": "4.30.0"
+    "@pulumi/kubernetes": "4.34.2"
   }
 }

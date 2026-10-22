@@ -16,9 +16,9 @@
   "dependencies": {
     "@jaritanet/remote": "workspace:*",
     "@pulumi/command": "1.2.1",
-    "@pulumi/hcloud": "1.35.0",
-    "@pulumi/kubernetes": "4.30.0",
-    "@pulumi/pulumi": "3.239.0",
-    "zod": "4.4.3"
+    "@pulumi/hcloud": "1.43.1",
+    "@pulumi/kubernetes": "4.34.2",
+    "@pulumi/pulumi": "3.270.0",
+    "zod": "4.6.7"
   }
 }
