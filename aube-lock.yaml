@@ -70,17 +70,7 @@ importers:
         specifier: 4.34.2
         version: 4.34.2
 
-  apps/koan-demo/deploy/pulumi:
-    dependencies:
-      '@pulumi/kubernetes':
-        specifier: 4.34.2
-        version: 4.34.2
-      '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0
-      '@radiosilence/koan-pulumi':
-        specifier: 0.67.1
-        version: 0.67.1(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)
+  apps/koan-demo/deploy/pulumi: {}
 
   apps/serve-from-env/deploy/pulumi:
     dependencies:

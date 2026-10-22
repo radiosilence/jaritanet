@@ -7,7 +7,7 @@ RUN apk add --no-cache curl ffmpeg
 WORKDIR /src
 COPY library.tsv build.sh ./
 RUN sh build.sh /music
-COPY covers/monsieur-lowtec.jpg ["/music/Monsieur LowTec/Great LowTec Xperience (2005)/cover.jpg"]
+COPY ["covers/monsieur-lowtec.jpg", "/music/Monsieur LowTec/Great LowTec Xperience (2005)/cover.jpg"]
 COPY playlists/ /music/Playlists/
 COPY CREDITS.md /music/
 RUN chmod -R a+rX /music
