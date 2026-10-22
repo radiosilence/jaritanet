@@ -31,7 +31,7 @@
     "@radiosilence/koan-relay-pulumi": "0.1.2",
     "@radiosilence/mariastew-pulumi": "0.2.1",
     "@radiosilence/mcp-gateway-pulumi": "0.9.5",
-    "@radiosilence/slsk-mcp-pulumi": "0.6.0",
+    "@radiosilence/slsk-mcp-pulumi": "0.8.0",
     "@radiosilence/transmet-pulumi": "0.3.4",
     "yaml": "2.9.1",
     "zod": "4.6.7"
