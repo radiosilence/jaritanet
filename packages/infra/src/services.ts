@@ -31,6 +31,7 @@ import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
+import { createKoanDemo } from "@jaritanet/koan-demo";
 import { createKoanSite } from "@jaritanet/koan-site";
 import { createGroglog } from "@jaritanet/groglog";
 import {
@@ -192,28 +193,16 @@ export function createServices(ctx: EstateContext) {
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });
   }
-  // koan's public demo, for visitors and App Review: everyone signs in as
-  // demo/demo, the music comes in an image, and the state is wiped on the hour
-  // (the chart's demo mode). On the gateway, so signing in does not depend on
+  // koan's public demo. On the gateway, so signing in to it does not depend on
   // the home uplink.
   if (hostnames["koan-demo"]) {
-    createKoan(provider, ns, {
-      name: "koan-demo",
-      hostname: hostnames["koan-demo"],
-      demo: { enabled: true },
-      resources: {
-        requests: { cpu: "50m", memory: "192Mi" },
-        limits: { cpu: CLOUD_CORES, memory: "1Gi" },
-      },
-      nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
-      service: { name: "koan-demo-service" },
-      networkPolicy: {
-        // kubelet's probes. The API is public anyway, so the port is open to
-        // the cluster rather than to a guessed node address.
-        extraIngress: [{ ports: [{ protocol: "TCP", port: 4000 }] }],
-      },
-    });
-    add({ routes: [{ service: "koan-demo", hostname: hostnames["koan-demo"] }] });
+    add(
+      createKoanDemo(provider, ns, {
+        hostname: hostnames["koan-demo"],
+        node: CLOUD_NODE,
+        cpuLimit: CLOUD_CORES,
+      }),
+    );
   }
   // The push relay, for koan servers without Apple's key. On the gateway: it
   // is public, and the home uplink dropping should not stop every phone's
