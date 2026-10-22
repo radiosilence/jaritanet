@@ -1,18 +1,16 @@
-# The music koan's public demo plays: freely licensed releases listed in
-# library.tsv (folder, file, URL, SHA-256), fetched and checked at build, under
-# /music. koan's chart copies /music into the demo's pod with this image's `cp`.
-# CREDITS.md names each release, its artist and its licence.
-FROM alpine:3.22 AS fetch
-RUN apk add --no-cache curl
-COPY library.tsv /library.tsv
-RUN set -eu; tab="$(printf '\t')"; \
-    grep -v '^#' /library.tsv | while IFS="$tab" read -r dir file url sha; do \
-      mkdir -p "/music/$dir"; \
-      curl -fsSL --retry 5 --retry-all-errors -o "/music/$dir/$file" "$url"; \
-      echo "$sha  /music/$dir/$file" | sha256sum -c -; \
-    done; \
-    chmod -R a+rX /music
+# The music koan's public demo plays, under /music: the releases library.tsv
+# lists, fetched, checked and tagged by build.sh, with their covers, the
+# sample playlists and CREDITS.md. koan's chart copies /music into the demo's
+# pod with this image's `cp`.
+FROM alpine:3.22 AS build
+RUN apk add --no-cache curl ffmpeg
+WORKDIR /src
+COPY library.tsv build.sh ./
+RUN sh build.sh /music
+COPY covers/monsieur-lowtec.jpg ["/music/Monsieur LowTec/Great LowTec Xperience (2005)/cover.jpg"]
+COPY playlists/ /music/Playlists/
+COPY CREDITS.md /music/
+RUN chmod -R a+rX /music
 
 FROM busybox:1.37
-COPY --from=fetch /music /music
-COPY CREDITS.md /music/CREDITS.md
+COPY --from=build /music /music

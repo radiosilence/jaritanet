@@ -1,0 +1,6 @@
+{
+  "name": "Hi-Res",
+  "comment": "Lossless above CD quality",
+  "all": [{ "is": { "filetype": "FLAC" } }, { "gt": { "samplerate": 44100 } }],
+  "sort": "album,tracknumber"
+}

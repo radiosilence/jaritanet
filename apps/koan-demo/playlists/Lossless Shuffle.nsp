@@ -1,0 +1,7 @@
+{
+  "name": "Lossless Shuffle",
+  "comment": "Twenty FLAC tracks, drawn afresh",
+  "all": [{ "is": { "filetype": "FLAC" } }],
+  "sort": "random",
+  "limit": 20
+}
