@@ -1,1 +1,1 @@
-export { koanDemo } from "./koan-demo.ts";
+export { createKoanDemo } from "./koan-demo.ts";
