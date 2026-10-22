@@ -16,6 +16,8 @@ export type SingboxNode = {
   server: pulumi.Input<string>;
   hysteria: {
     altPorts: number[];
+    /** The server's self-signed cert, PEM: the only one its outbounds accept. */
+    certificate: pulumi.Input<string>;
     obfsPassword: pulumi.Input<string>;
     passwords: Record<string, pulumi.Input<string>>;
     port: number;
@@ -35,6 +37,7 @@ export type ResolvedNode = {
   server: string;
   hysteria: {
     altPorts: number[];
+    certificate: string;
     obfsPassword: string;
     passwords: Record<string, string>;
     port: number;
@@ -87,7 +90,11 @@ const hy2 = (n: ResolvedNode, password: string, port: number) => ({
   server_port: port,
   password,
   obfs: { type: "salamander", password: n.hysteria.obfsPassword },
-  tls: { enabled: true, server_name: n.hysteria.sni, insecure: true },
+  tls: {
+    enabled: true,
+    server_name: n.hysteria.sni,
+    certificate: n.hysteria.certificate,
+  },
 });
 const hy2Ports = (n: ResolvedNode) => [n.hysteria.port, ...n.hysteria.altPorts];
 const hy2Tags = (n: ResolvedNode) => hy2Ports(n).map((p) => hy2Tag(n, p));

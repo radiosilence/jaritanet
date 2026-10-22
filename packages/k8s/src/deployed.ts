@@ -25,6 +25,8 @@ export type Route = {
    */
   paths?: string[];
   priority?: number;
+  /** Traefik Middlewares, by name in the route's namespace, run in order. */
+  middlewares?: string[];
 };
 
 /**

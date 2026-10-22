@@ -15,7 +15,7 @@ export { resourcePrefix, type SshConnection } from "./ssh.ts";
 export { createTailscale } from "./tailscale.ts";
 export { TailnetConfSchema } from "./tailscale.schemas.ts";
 export { createTailscaleSystemd } from "./tailscale-systemd.ts";
-export { createUnbound } from "./unbound.ts";
+export { UPSTREAM_ROOTS, createUnbound } from "./unbound.ts";
 export { VERSIONS as VPN_VERSIONS } from "./versions.ts";
 export { parseVpnUsers, type VpnUser, VpnUserSchema } from "./users.ts";
 export { createXray, GUEST_DENY_CIDRS } from "./xray.ts";

@@ -237,6 +237,14 @@
   package: "@radiosilence/koan-pulumi"
   value: "{version}"
 
+# kōan's push relay. Same shape as slsk-mcp: the repository publishes the
+# component at the release's version, before the release itself.
+- app: koan-push-relay
+  repo: radiosilence/koan-push-relay
+  manifest: packages/infra/package.json
+  package: "@radiosilence/koan-relay-pulumi"
+  value: "{version}"
+
 # kōan's website, built in the player's repository. It publishes an image for
 # every commit on main, so the head always has one, and its CI asks this
 # workflow to run once the image is pushed.
