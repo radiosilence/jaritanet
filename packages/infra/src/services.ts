@@ -257,14 +257,15 @@ export function createServices(ctx: EstateContext) {
     relayMiddleware("in-flight", {
       inFlightReq: { amount: 100, sourceCriterion: bySource },
     });
-    // The team key the koan server uses. Sandbox only, which reaches only
-    // development builds, until registration requires App Attest: until then
-    // anyone can make the relay prove a made-up token to Apple, and that
-    // should reach no gateway release builds depend on.
+    // The team key the koan server uses, on both gateways: production for
+    // TestFlight and App Store builds, sandbox for development builds. A
+    // production registration needs an App Attest assertion (the chart's
+    // default), so a made-up token cannot reach the gateway release builds
+    // depend on.
     const apnsKey = { keyId: "HRXQWC44VS", secretKey: "apns-key" };
     const relay = createPushRelay(provider, ns, hostnames["koan-push-relay"], {
       existingSecret: "koan-push-relay",
-      apns: { teamId: "2256Q92VF2", sandbox: apnsKey },
+      apns: { teamId: "2256Q92VF2", production: apnsKey, sandbox: apnsKey },
       store: { hostPath: "/var/lib/koan-push-relay" },
       nodeSelector: { "kubernetes.io/hostname": CLOUD_NODE },
       // Generous while there are few devices and the behaviour of real
