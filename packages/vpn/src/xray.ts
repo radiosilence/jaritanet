@@ -30,6 +30,29 @@ export const GUEST_DENY_CIDRS = [
 ];
 
 /**
+ * The private destinations the `direct` freedom outbound may dial, as its
+ * `finalRules`.
+ *
+ * Since Xray 26, freedom blackholes every private and loopback destination
+ * (Xray's built-in private list, which includes 127/8, 100.64/10 and fc00::/7)
+ * for connections from a vless inbound, unless a `finalRules` entry matches
+ * first. The rules run in order and the first match decides; only when none
+ * matches does the built-in private block apply, so anything not listed here
+ * stays blackholed.
+ *
+ * The client profile (singbox.ts) needs two of them at the entry: its
+ * `gw-cache` resolver, which is unbound on the gateway's own loopback, and the
+ * tailnet, which carries MagicDNS (100.100.100.100), every exit and the
+ * profile's tailnet route. The tailnet ranges must match that route. Guests
+ * reach neither: their routing rule blackholes GUEST_DENY_CIDRS before freedom
+ * is chosen.
+ */
+export const FREEDOM_FINAL_RULES = [
+  { action: "allow", network: "tcp,udp", port: "53", ip: ["127.0.0.1/32"] },
+  { action: "allow", ip: ["100.64.0.0/10", "fd7a:115c:a1e0::/48"] },
+];
+
+/**
  * Xray-core (VLESS-Vision-REALITY), in the cluster on the node it fronts.
  *
  * Behaviourally the same inbound as the systemd unit in xray-systemd.ts — same
@@ -153,7 +176,11 @@ export function createXray(
             },
           ],
           outbounds: [
-            { protocol: "freedom", tag: "direct" },
+            {
+              protocol: "freedom",
+              tag: "direct",
+              settings: { finalRules: FREEDOM_FINAL_RULES },
+            },
             { protocol: "blackhole", tag: "block" },
           ],
           routing: {

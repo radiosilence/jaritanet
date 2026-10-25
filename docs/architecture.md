@@ -422,6 +422,14 @@ it in the background (no lookup ever blocks on a stale hit), and `cache_file`
 (`store_dns`) persists that cache across restarts — so a cold app launch
 resolves recently-seen names from disk (~0ms).
 
+Over REALITY that loopback dial only works because Xray is told to allow it.
+Since Xray 26 the freedom outbound blackholes private and loopback destinations
+for vless clients unless a `finalRules` entry matches first, so `gw-cache`
+timed out there while working over Hysteria2. `FREEDOM_FINAL_RULES` (xray.ts)
+allows `127.0.0.1:53` and the tailnet ranges the profile routes, and nothing
+else; every other private address stays blocked, and guests are blackholed by
+their routing rule before freedom is reached.
+
 **No cleartext DNS anywhere in the chain.** The client↔gateway leg is plain UDP
 but rides the encrypted tunnel (DoH's per-query TLS/HTTP2 framing would be
 redundant there), and unbound forwards upstream to Cloudflare over DoT (:853), so
