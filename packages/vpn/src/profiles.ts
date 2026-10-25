@@ -70,7 +70,11 @@ export function createProfileServer(
       : []),
   ];
   const entries = users.flatMap((user) =>
-    variants.map((v) => ({ user, ...v, key: `${user.name}${v.suffix}` })),
+    variants.map(({ suffix, client }) => ({
+      user,
+      client,
+      key: `${user.name}${suffix}`,
+    })),
   );
 
   const routes = pulumi

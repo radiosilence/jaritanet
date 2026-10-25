@@ -31,6 +31,16 @@ const exits = [
 
 const tags = (p: ReturnType<typeof buildProfile>) =>
   (p.outbounds as { tag: string }[]).map((o) => o.tag);
+const outs = (p: ReturnType<typeof buildProfile>) =>
+  p.outbounds as {
+    tag: string;
+    outbounds?: string[];
+    server?: string;
+    uuid?: string;
+    domain_resolver?: string;
+    tls?: { server_name?: string };
+    transport?: Record<string, string>;
+  }[];
 
 describe("buildProfile roles", () => {
   it("gives an admin hy2 + reality with their own UUID, plus the exit axis", () => {
@@ -223,16 +233,6 @@ describe("buildProfile XHTTP variant", () => {
     ...node,
     xhttp: { host: "cdn.example.com", path: "/secret" },
   };
-  const outs = (p: ReturnType<typeof buildProfile>) =>
-    p.outbounds as {
-      tag: string;
-      outbounds?: string[];
-      server?: string;
-      uuid?: string;
-      domain_resolver?: string;
-      tls?: { server_name?: string };
-      transport?: Record<string, string>;
-    }[];
 
   // A sing-box core rejects the transport, and every device fetches this
   // variant, so a node serving XHTTP must not change it at all.
