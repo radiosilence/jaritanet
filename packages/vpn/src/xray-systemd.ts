@@ -6,7 +6,7 @@ import type * as z from "zod";
 import type { XrayConfSchema } from "./xray.schemas.ts";
 import type { VpnUser } from "./users.ts";
 import { resourcePrefix, type SshConnection, type SystemdOpts } from "./ssh.ts";
-import { GUEST_DENY_CIDRS } from "./xray.ts";
+import { FREEDOM_FINAL_RULES, GUEST_DENY_CIDRS } from "./xray.ts";
 import { XRAY_VERSION } from "./versions.ts";
 
 /**
@@ -151,7 +151,7 @@ cat > /usr/local/etc/xray/config.json << XRAY_EOF
     }
   ],
   "outbounds": [
-    { "protocol": "freedom", "tag": "direct" },
+    { "protocol": "freedom", "tag": "direct", "settings": { "finalRules": ${JSON.stringify(FREEDOM_FINAL_RULES)} } },
     { "protocol": "blackhole", "tag": "block" }
   ],
   "routing": {
@@ -167,6 +167,7 @@ systemctl restart xray`,
         clientsJson,
         guestsList,
         GUEST_DENY_CIDRS.join(),
+        JSON.stringify(FREEDOM_FINAL_RULES),
         shortId.hex,
         xray.serverNames.join(),
         xray.dest,
