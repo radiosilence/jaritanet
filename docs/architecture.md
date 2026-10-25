@@ -324,8 +324,73 @@ flowchart TD
 ```
 
 A censor's active probe lands in the `no` branch: it gets a real TLS session to
-the real service and sees a legitimate cert, indistinguishable from any other
-visitor. That's what makes REALITY hard to fingerprint.
+the real service, indistinguishable from any other visitor. That's what makes
+REALITY hard to fingerprint. The certificate it sees is only a matching one for
+a server name Traefik serves itself, which is why the first REALITY name is
+`koan.rocks` (see Hardening notes); a probe sending a borrowed name gets
+Traefik's default certificate.
+
+The same fallback is what lets a CDN reach the origin: Cloudflare connects to
+`:443` with the CDN hostname as its SNI, REALITY does not accept that name, and
+the connection lands at Traefik like any visitor's.
+
+## CDN-fronted XHTTP
+
+Off by default. Every entry above shares one address, so blocking that address
+ends all of them; the threat model's answer is an entry that reaches the box
+through a CDN, whose edge addresses a censor cannot block without blocking a
+large share of the web. Setting `gateway.xray.xhttp.hostname` in
+`packages/infra/src/stack.ts` turns it on:
+
+```
+client -> Cloudflare edge (TLS, Cloudflare's certificate)
+       -> origin :443 -> Xray REALITY (SNI not accepted, falls back)
+       -> Traefik (TLS, Let's Encrypt certificate for the hostname)
+       -> secret path -> Xray VLESS + XHTTP inbound on :10443
+```
+
+What that deploys: a second VLESS inbound in the Xray pod, with XHTTP in
+`packet-up` mode on a random path held in Pulumi state, listening on the node
+(the Hetzner firewall keeps the port off the internet); a Service and an
+IngressRoute sending that hostname and path to it; and a **proxied** Cloudflare
+record for the hostname, the only proxied record in the stack. Users and guest
+rules are those of the REALITY inbound, since it is the same Xray.
+
+The client side is not sing-box. `xhttp` is an sbr transport that sing-box
+lacks, and a sing-box core rejects a profile containing it, so the profile
+every device fetches never carries it. Instead each user gets a second profile,
+`buildProfile(..., "sbr")`, at its own path, announced in the same Telegram
+message as `<name>.sbr`. It holds every leaf of the ordinary profile plus
+`xhttp-primary`, last in the urltest because it is the slowest path. Its server
+is the CDN hostname, resolved by the network's own resolver (`local`), since
+every other resolver in the profile needs the tunnel. `check:profiles` and
+`singbox.schema.test.ts` test only the sing-box profile.
+
+To enable it:
+
+1. Pick a new hostname in one of the configured zones that no service uses (the
+   deploy refuses one that does). Like the REALITY name, it is what a filter
+   rates, so not a name under `blit.cc`.
+2. Set `xhttp: { hostname: "<it>" }` under `gateway.xray`. The deploy makes the
+   record proxied (orange cloud); nothing else in the zone changes.
+3. In Cloudflare, set the zone's SSL/TLS mode to **Full (strict)**, or scope it
+   to that hostname with a configuration rule. Cloudflare then verifies
+   Traefik's Let's Encrypt certificate rather than trusting whatever answers.
+   Flexible would send the tunnel to the origin over plain HTTP.
+4. Leave REALITY's `limitFallbackUpload` and `limitFallbackDownload` unset, or
+   set them well above the tunnel's throughput: every byte of this entry
+   arrives through REALITY's fallback.
+
+What it costs, plainly. Cloudflare terminates TLS, so it sees each client's IP
+address, when and how much they send, the hostname, the secret path and every
+HTTP header. VLESS has no encryption of its own: inside that TLS session the
+VLESS header (with the user's UUID) and the tunnelled bytes are in the clear to
+Cloudflare. Traffic the user's app already encrypts (HTTPS, most apps) stays
+encrypted; anything plaintext inside the tunnel, such as DNS to the gateway
+cache or plain HTTP, is readable by Cloudflare. Cloudflare's addresses are not
+blocked in China, but on some Chinese ISPs connections to them are throttled
+or degraded, so expect this entry to be slow there and to be a fallback rather
+than a daily driver.
 
 ## Transport protocols
 
@@ -544,7 +609,7 @@ under it, so you pick a location and can drill in to force one exact path.
 A leaf is named for the thing a hostile network blocks individually, which
 differs by transport: hy2 varies by **port** (`hy2-<node>-443`, `-3478`,
 `-4500`) since its SNI is cosmetic and never reaches the wire, while REALITY
-varies by **SNI** (`reality-<node>-google`, `-bing`, …) on TCP/443 alone, since
+varies by **SNI** (`reality-<node>-koan`, `-bing`, …) on TCP/443 alone, since
 the name it claims is the whole disguise. Tags carry the node prefix because
 they must be globally unique; the grouping is what you navigate. (`exit-select`
 — the egress axis — is separate; see below.)
@@ -554,7 +619,8 @@ fronts no site of its own, so there's no own-domain to break by forwarding
 probe traffic away. `edge.reality` defaults to `www.microsoft.com` — a real,
 universally-reachable TLS site — and is overridable per edge. The primary must
 keep `dest` pointed at its own backend to serve real visitors on the same
-`:443`, so only its SNI borrows an untouchable name; see Hardening notes.
+`:443`, so its default SNI is a name that backend really serves, and only its
+fallback SNIs borrow untouchable names; see Hardening notes.
 
 Every edge is also a tailnet member, so any of them relays `100.x` into the
 mesh — the same censorship-resistant tailnet path works whichever location you
@@ -906,46 +972,61 @@ network or from another tag is never approved and so never accepted.
 
 Live tradeoffs worth knowing, not necessarily bugs:
 
-- **The primary's SNI and its `dest` are deliberately different things, and the
-  mismatch is the tradeoff.** REALITY has a single `dest` fallback, and every
-  non-proxy TCP/443 connection (i.e. every real public visitor to the site) is
-  forwarded there, so `dest` must stay the home Traefik backend or public access
-  breaks — the primary cannot reverse-proxy its own domain on :443 while also
-  relaying probes to someone else's server. The SNI has no such constraint, and
-  pinning it to our own domain turned out to be the more dangerous half:
-  content-filtering middleboxes choose what to TLS-intercept from the SNI's
-  reputation category, FortiGuard rates `blit.cc` as "Other Adult Materials",
-  and any FortiGate running adult filtering (pubs, trains, schools, hotels)
-  therefore forges a cert for it and every REALITY handshake dies with
-  `x509: certificate signed by unknown authority`. A one-page CV site gives the
-  classifier nothing to overturn that with. So the SNI borrows names from
-  categories no filter dares block. What it costs is the decoy's realism — an
-  active prober who connects with a borrowed SNI gets Traefik's default cert
-  rather than a matching chain, and a passive observer sees, say, a Google
-  ClientHello aimed at a Hetzner IP that has never been Google. That trades
-  well: mis-rating by an automated category database is a routine, observed
-  failure, while deliberate probing of this box is not. Against an adversary who
-  probes, the fix is an SNI dispatcher on :443 (own domains → Traefik,
-  everything else → REALITY with a matching external `dest`), not a return to
-  the own-domain SNI. (Edges have neither problem — they front no site, so their
-  `dest` *is* the site they mimic. The only threat none of this beats is
-  allowlist-style censorship.)
-- **One borrowed identity isn't enough, so `serverNames` is a list.** The ways a
-  decoy dies don't overlap: a category filter forges whatever it rates as adult,
-  while a national firewall blocks the biggest names outright. `www.google.co.uk`
-  is camouflage in a British pub and a red flag in China, where `www.bing.com`
-  and `www.apple.com` still pass. The server accepts every name on the list —
-  keys, shortIds and `dest` are shared — and the client carries one outbound per
-  name inside its urltest, so it settles on an identity the local network
-  tolerates without anyone touching a setting. This is also what finally gives
-  **guests** unattended failover: they are reality-only, so before the list a
-  single intercepted SNI was a total outage for them. Two costs to keep in mind.
-  Each name is another probe every urltest interval, on top of one per hy2 port,
-  so the list should stay short rather than exhaustive. And a name whose real
-  service lives in one country (`www.baidu.com`, `vk.com`) is a *stronger*
-  anomaly than a global one when pointed at a German IP, since SNI and
-  destination plainly disagree — they earn their place by surviving category
-  filters, not by being convincing to a firewall that checks.
+- **The primary's default SNI is one of our own names, and only one that
+  survives category filters.** REALITY has a single `dest` fallback, and every
+  non-proxy TCP/443 connection (every real public visitor to the site) is
+  forwarded there, so `dest` must stay the local Traefik or public access
+  breaks. That makes our own names the only SNIs `dest` can answer
+  consistently: with `koan.rocks` the ClientHello names a domain whose A record
+  is this box, and a prober who connects with that SNI gets Traefik's real
+  Let's Encrypt certificate for it and the real kōan site. SNI, IP and
+  certificate all agree. A borrowed name cannot do that here: a probe with
+  `www.microsoft.com` gets Traefik's default certificate, and a passive observer
+  sees a Microsoft ClientHello aimed at a Hetzner address that has never been
+  Microsoft. Both are now checked for routinely. The GFW replays and probes
+  suspected proxy servers ([GFW Report, IMC 2020](https://gfw.report/publications/imc20/en/)),
+  nDPI flags an SNI that does not belong to the destination address
+  ([ntop](https://www.ntop.org/when-snis-cannot-be-trusted/)), and the leaked
+  Geedge tooling sells that class of check to several states
+  ([GFW Report](https://gfw.report/blog/geedge_and_mesa_leak/en/)).
+
+  Own names were avoided before for a reason that still holds, and it decides
+  *which* own name. Content-filtering middleboxes choose what to TLS-intercept
+  from the SNI's reputation category; FortiGuard rates `blit.cc` "Other Adult
+  Materials", so any FortiGate running adult filtering (pubs, trains, schools,
+  hotels) forges a certificate for it and every REALITY handshake dies with
+  `x509: certificate signed by unknown authority`. `blit.cc` is therefore never
+  a server name. `koan.rocks` is a separate domain with an ordinary product site
+  behind it, which is what a classifier rates on. If it is mis-rated anyway, its
+  leaf fails on that network and the urltest uses a borrowed name, which is
+  what the rest of the list is for. The cost of the own name is that this leaf
+  is tied to our domain: blocking `koan.rocks` (or this address) blocks it,
+  while the borrowed names die only with the address. (Edges front no site, so
+  their `dest` *is* the external site they mimic and none of this applies. The
+  only threat none of this beats is allowlist-style censorship.)
+- **One identity isn't enough, so `serverNames` is a list.** The ways a decoy
+  dies don't overlap: a category filter forges whatever it rates as adult, while
+  a national firewall blocks the biggest names outright. The server accepts
+  every name on the list — keys, shortIds and `dest` are shared — and the client
+  carries one outbound per name inside its urltest, so it settles on an identity
+  the local network tolerates without anyone touching a setting. The first name
+  is the default: before the first probe completes the urltest uses its first
+  member, and afterwards it moves only when another beats the current one by
+  more than the tolerance, which REALITY leaves on one address rarely do. This
+  is also what gives **guests** unattended failover: they are reality-only, so
+  with one name a single intercepted SNI was a total outage for them.
+
+  The borrowed names are the ones China does not block: `www.microsoft.com`,
+  `www.apple.com`, `www.bing.com`, `www.baidu.com`. `www.google.co.uk` and
+  `vk.com` were on the list and are not any more: both are blocked in China by
+  SNI, so each urltest round sent this address a ClientHello for a name the
+  firewall resets on sight: a leaf that cannot work there and stands out. In a
+  British pub Microsoft and Apple are as untouchable as Google was. Two costs
+  remain. Each name is another probe every urltest interval, on top of one per
+  hy2 port, so the list should stay short. And a name whose real service lives
+  in one country (`www.baidu.com`) is a *stronger* anomaly than a global one
+  when pointed at a German IP; it earns its place by surviving category filters,
+  not by being convincing to a firewall that checks.
 - **Trust anchors are pinned wherever we control the client.** A public CA
   bundle trusts a hundred-odd organisations and everything they cross-sign, and
   the clients here (unbound, rustls, sing-box) do not consult the CRLSet or

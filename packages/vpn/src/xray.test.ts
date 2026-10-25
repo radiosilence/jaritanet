@@ -1,6 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { buildProfile } from "./singbox.ts";
 import { FREEDOM_FINAL_RULES } from "./xray.ts";
+import { XrayConfSchema } from "./xray.schemas.ts";
+
+describe("XrayConfSchema", () => {
+  const serverNames = ["koan.rocks", "www.microsoft.com", "www.bing.com"];
+
+  it("leaves the CDN-fronted XHTTP inbound off unless asked for", () => {
+    expect(XrayConfSchema.parse({ serverNames }).xhttp).toBeUndefined();
+  });
+
+  it("defaults the XHTTP inbound's port and checks its hostname", () => {
+    expect(
+      XrayConfSchema.parse({
+        serverNames,
+        xhttp: { hostname: "cdn.koan.rocks" },
+      }).xhttp,
+    ).toEqual({ hostname: "cdn.koan.rocks", port: 10443 });
+    expect(() =>
+      XrayConfSchema.parse({ serverNames, xhttp: { hostname: "Not A Host" } }),
+    ).toThrow();
+  });
+
+  // An own name beside a borrowed one is still one outbound per first label.
+  it("rejects server names whose first labels collide", () => {
+    expect(() =>
+      XrayConfSchema.parse({ serverNames: ["koan.rocks", "www.koan.com"] }),
+    ).toThrow(/distinct first labels/);
+  });
+});
 
 const node = {
   name: "primary",

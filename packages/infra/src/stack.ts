@@ -122,29 +122,37 @@ export const gateway = GatewayConfSchema.parse({
   // xray shares :443; traffic that doesn't match a client falls back to `dest`
   // (Traefik's local https port), so real visitors still get the site.
   //
-  // The server names are DELIBERATELY not our own domains. Content-filtering
-  // middleboxes decide what to TLS-intercept from the SNI's reputation
-  // category, and a sparse personal domain is one bad rating away from having
-  // every REALITY handshake forged out from under it — blit.cc is rated "Other
-  // Adult Materials" by FortiGuard, which killed the tunnel on every filtered
-  // guest network. A category no filter dares touch is worth more here than an
-  // SNI matching dest's cert; see docs/architecture.md.
+  // The first server name is one of ours that Traefik serves with its own
+  // Let's Encrypt certificate. koan.rocks resolves to this box, so SNI, address
+  // and certificate agree, and a probe sending that SNI gets the real kōan
+  // website rather than Traefik's default certificate. Being first, it is the
+  // client's default.
   //
-  // A list because no one borrowed identity is safe everywhere: google is
-  // camouflage in a British pub and blocked outright in China, where bing and
-  // apple still pass. First entry is the client's default; the rest are extra
-  // outbounds in its urltest, so it finds the identity the local network
-  // tolerates without anyone touching a setting.
+  // Not just any of our names. Content-filtering middleboxes decide what to
+  // TLS-intercept from the SNI's reputation category, and a sparse personal
+  // domain is one bad rating away from having every REALITY handshake forged
+  // out from under it — blit.cc is rated "Other Adult Materials" by FortiGuard,
+  // which killed the tunnel on every filtered guest network. koan.rocks is a
+  // separate domain with an ordinary product site behind it. Should it be
+  // mis-rated as well, the borrowed names after it are the urltest's fallback;
+  // see docs/architecture.md.
+  //
+  // The borrowed names are the ones China does not block. Google and VK are
+  // blocked there by SNI, so offering them aimed a blocked name at this
+  // address on every probe; Microsoft, Apple, Bing and Baidu pass.
   xray: {
     serverNames: [
-      "www.google.co.uk",
+      hostnames["koan-site"],
       "www.microsoft.com",
       "www.apple.com",
       "www.bing.com",
       "www.baidu.com",
-      "vk.com",
     ],
     dest: "127.0.0.1:8443",
+    // XHTTP behind Cloudflare, for when this address is blocked outright.
+    // Enabled by `xhttp: { hostname: "<a new name in one of the zones>" }`,
+    // after the Cloudflare side is done; see docs/architecture.md,
+    // "CDN-fronted XHTTP".
   },
   // Hysteria2 (QUIC/UDP) on 443/udp — the fast, loss-tolerant daily driver.
   // Empty and present anyway: the key is what deploys it, and everything about

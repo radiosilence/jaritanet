@@ -38,12 +38,15 @@ export function resolveZones(
 /**
  * Creates an A record pointing a service hostname at the gateway VPS IP.
  * Unlike the old tunnel setup, these are plain A records with proxied: false
- * — the server handles TLS itself via Traefik.
+ * — the server handles TLS itself via Traefik. `proxied` is for the one name a
+ * CDN is meant to front (the XHTTP entry), where putting Cloudflare's edge in
+ * front of the origin is the point.
  */
 export function createServiceRecord(
   vpsIp: pulumi.Output<string>,
   zone: Zone,
   hostname: string,
+  proxied = false,
 ) {
   const parts = hostname.split(".");
   const name = parts.length === 2 ? "@" : parts.slice(0, -2).join(".");
@@ -51,7 +54,7 @@ export function createServiceRecord(
   return new cloudflare.DnsRecord(`${hostname}-a-record`, {
     content: vpsIp,
     name,
-    proxied: false,
+    proxied,
     ttl: 1,
     type: "A",
     zoneId: zone.zoneId,
