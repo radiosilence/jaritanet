@@ -82,6 +82,9 @@ describe("buildProfile roles", () => {
     expect(t).not.toContain("exit-select");
     expect(t).not.toContain("exit-home");
     expect(p.route.final).toBe("entry-select");
+    // Xray blackholes loopback for guests, so the gateway cache can't answer.
+    expect(p.dns.final).toBe("cf-doh");
+    expect(p.route.default_domain_resolver).toBe("cf-doh");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
       (o) => o.tag === "reality-primary-koan",

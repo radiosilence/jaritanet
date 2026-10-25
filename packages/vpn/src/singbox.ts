@@ -222,6 +222,9 @@ export function buildProfile(
   client: "sing-box" | "sbr" = "sing-box",
 ) {
   const isAdmin = user.role === "admin";
+  // Guests resolve over DoH: Xray blackholes 127.0.0.0/8 for them before any
+  // freedom allow rule applies, so the gateway cache never answers a guest.
+  const resolver = isAdmin ? "gw-cache" : "cf-doh";
   // Guests get no exit axis — the ss PSK is never in their profile anyway.
   const effExits = isAdmin ? exits : [];
   const xhttpNodes = client === "sbr" ? nodes.filter((n) => n.xhttp) : [];
@@ -364,7 +367,7 @@ export function buildProfile(
         ...(xhttpNodes.length ? [{ type: "local", tag: "local" }] : []),
       ],
       rules: [{ domain_suffix: [magicdnsSuffix], server: "ts-dns" }],
-      final: "gw-cache",
+      final: resolver,
       strategy: "ipv4_only",
       // Optimistic cache (1.14+): serve an expired entry instantly and refresh
       // it in the background, so an expired lookup never blocks on a tunnel RTT.
@@ -403,7 +406,7 @@ export function buildProfile(
     ],
     outbounds,
     route: {
-      default_domain_resolver: "gw-cache",
+      default_domain_resolver: resolver,
       rules: [
         { action: "sniff" },
         { protocol: "dns", action: "hijack-dns" },
