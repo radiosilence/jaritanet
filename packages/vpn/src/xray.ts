@@ -130,9 +130,24 @@ export function createXray(
   // as a domain, and a guest pointing an A record into the tailnet walks past.
   const guests = users.filter((u) => u.role === "guest").map((u) => u.name);
 
+  // The path is what keeps the XHTTP inbound from answering anyone who finds
+  // the CDN hostname, so it lives in state rather than in the repository.
+  const xhttpPath = xray.xhttp
+    ? new random.RandomString("xray-xhttp-path", {
+        length: 24,
+        special: false,
+        keepers,
+      }).result.apply((s) => `/${s}`)
+    : undefined;
+
   const config = pulumi
-    .all([keypair, shortId.hex, pulumi.all(users.map((u) => uuids[u.name]))])
-    .apply(([kp, sid, ids]) =>
+    .all([
+      keypair,
+      shortId.hex,
+      pulumi.all(users.map((u) => uuids[u.name])),
+      xhttpPath ?? "",
+    ])
+    .apply(([kp, sid, ids, path]) =>
       JSON.stringify(
         {
           log: { loglevel: "warning" },
@@ -174,6 +189,38 @@ export function createXray(
                 routeOnly: true,
               },
             },
+            // Reached only through Traefik, which terminates the CDN's TLS
+            // and forwards the secret path here in the clear. All interfaces
+            // because Traefik is a pod and dials the node's address, not its
+            // loopback; the cloud firewall keeps the port off the internet.
+            // No `flow`: Vision needs the raw TLS stream, which XHTTP is not.
+            // The same users under the same emails, so the guest rule below
+            // applies here as it does to REALITY.
+            ...(xray.xhttp
+              ? [
+                  {
+                    listen: "0.0.0.0",
+                    port: xray.xhttp.port,
+                    protocol: "vless",
+                    settings: {
+                      clients: users.map((u, i) => ({
+                        id: ids[i],
+                        email: u.name,
+                      })),
+                      decryption: "none",
+                    },
+                    streamSettings: {
+                      network: "xhttp",
+                      xhttpSettings: { path, mode: "packet-up" },
+                    },
+                    sniffing: {
+                      enabled: true,
+                      destOverride: ["http", "tls", "quic"],
+                      routeOnly: true,
+                    },
+                  },
+                ]
+              : []),
           ],
           outbounds: [
             {
@@ -308,11 +355,29 @@ export function createXray(
     { provider, dependsOn },
   );
 
+  // What Traefik routes the CDN hostname's secret path to. The pod is
+  // hostNetwork, so its endpoint is the node's address and the inbound's port.
+  // Named `<x>-service` because that is what createIngressRoute dials.
+  if (xray.xhttp) {
+    new k8s.core.v1.Service(
+      "xray-xhttp",
+      {
+        metadata: { name: "xray-xhttp-service", namespace },
+        spec: {
+          selector: { app },
+          ports: [{ port: 80, targetPort: xray.xhttp.port }],
+        },
+      },
+      { provider },
+    );
+  }
+
   return {
     // Not a secret, and a stack output: clients need it to dial the inbound.
     // Without unsecret it inherits the seed's secretness through the derivation.
     publicKey: pulumi.unsecret(keypair.apply((kp) => kp.publicKey)),
     shortId: shortId.hex,
     uuids,
+    xhttpPath,
   };
 }

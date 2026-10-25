@@ -60,6 +60,23 @@ export function createProfileServer(
 ) {
   const app = "singbox-profiles";
 
+  // Each user's profile, plus an sbr variant when a node has an entry only sbr
+  // can dial (see buildProfile). `.sbr` cannot collide with a user's own path:
+  // user names exclude dots.
+  const variants = [
+    { suffix: "", client: "sing-box" as const },
+    ...(nodes.some((n) => n.xhttp)
+      ? [{ suffix: ".sbr", client: "sbr" as const }]
+      : []),
+  ];
+  const entries = users.flatMap((user) =>
+    variants.map(({ suffix, client }) => ({
+      user,
+      client,
+      key: `${user.name}${suffix}`,
+    })),
+  );
+
   const routes = pulumi
     .all([
       pulumi.output(nodes),
@@ -69,14 +86,15 @@ export function createProfileServer(
     .apply(([resolved, resolvedExits, slug]) =>
       JSON.stringify(
         Object.fromEntries(
-          users.map((user) => [
-            pathFor(slug, user.name),
+          entries.map((e) => [
+            pathFor(slug, e.key),
             JSON.stringify(
               buildProfile(
-                user,
+                e.user,
                 resolved as ResolvedNode[],
                 opts.magicdnsSuffix,
                 resolvedExits as ResolvedExit[],
+                e.client,
               ),
               null,
               2,
@@ -98,14 +116,12 @@ export function createProfileServer(
 
   if (opts.telegram) {
     notifyProfileUrls(
-      users.map((user) => ({
-        name: user.name,
-        role: user.role,
+      entries.map((e) => ({
+        name: e.key,
+        role: e.user.role,
         url: pulumi
           .output(opts.slug)
-          .apply(
-            (slug) => `https://${opts.hostname}${pathFor(slug, user.name)}`,
-          ),
+          .apply((slug) => `https://${opts.hostname}${pathFor(slug, e.key)}`),
       })),
       opts.telegram,
       routesHash,

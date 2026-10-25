@@ -12,7 +12,11 @@ import {
   createTailnetRule,
   POD_CIDR,
 } from "@jaritanet/hetzner";
-import { createIngress, createRedirectMiddleware } from "@jaritanet/ingress";
+import {
+  createIngress,
+  createIngressRoute,
+  createRedirectMiddleware,
+} from "@jaritanet/ingress";
 import {
   createExit,
   createHysteria,
@@ -53,6 +57,7 @@ import {
   createServices,
   type EstateContext,
   publishRoutes,
+  zoneFor,
 } from "./services.ts";
 import { createTailnetPolicy } from "./tailnet-policy.ts";
 
@@ -79,6 +84,7 @@ export default async function () {
   // cluster. Same shapes either way, so the client profile cannot tell.
   let reality: SingboxNode["reality"] | undefined;
   let hysteria: SingboxNode["hysteria"] | undefined;
+  let xhttp: SingboxNode["xhttp"];
 
   // sing-box nodes for the edges. The primary is prepended once its transports
   // are known, so it leads the picker.
@@ -367,6 +373,36 @@ export default async function () {
         shortId: t.shortId,
         uuids: t.uuids,
       };
+
+      // The CDN-fronted entry: a proxied record, so the name resolves to the
+      // CDN's edge, and a route on the secret path to the XHTTP inbound. The
+      // CDN reaches the origin on :443 like any visitor, with an SNI REALITY
+      // does not accept, so it falls through to Traefik. See
+      // docs/architecture.md, "CDN-fronted XHTTP".
+      const cdn = gatewayConf.xray.xhttp;
+      if (cdn && t.xhttpPath && dnsTarget) {
+        if (Object.values(hostnames).includes(cdn.hostname)) {
+          throw new Error(
+            `xray.xhttp.hostname ${cdn.hostname} is a service's hostname: the CDN must front a name of its own`,
+          );
+        }
+        const zone = zoneFor(zones, cdn.hostname);
+        if (!zone) {
+          throw new Error(
+            `xray.xhttp.hostname ${cdn.hostname} is in no configured zone, so nothing can make it proxied`,
+          );
+        }
+        createServiceRecord(dnsTarget, zone, cdn.hostname, true);
+        createIngressRoute(
+          provider,
+          "xray-xhttp",
+          cdn.hostname,
+          nsName,
+          traefikRelease,
+          { paths: [t.xhttpPath.apply((p) => `PathPrefix(\`${p}\`)`)] },
+        );
+        xhttp = { host: cdn.hostname, path: t.xhttpPath };
+      }
     }
 
     if (gatewayConf.hysteria) {
@@ -403,7 +439,7 @@ export default async function () {
   // one). It leads the list so it heads the entry picker.
   const singboxNodes: SingboxNode[] = [
     ...(gatewayIp && reality && hysteria
-      ? [{ name: "primary", server: gatewayIp, hysteria, reality }]
+      ? [{ name: "primary", server: gatewayIp, hysteria, reality, xhttp }]
       : []),
     ...edgeNodes,
   ];

@@ -14,7 +14,7 @@ const node = {
   },
   reality: {
     publicKey: "pk",
-    serverNames: ["www.google.co.uk", "www.bing.com"],
+    serverNames: ["koan.rocks", "www.bing.com"],
     shortId: "sid",
     uuids: { guest1: "uuid-guest1", jc: "uuid-jc" },
   },
@@ -31,6 +31,16 @@ const exits = [
 
 const tags = (p: ReturnType<typeof buildProfile>) =>
   (p.outbounds as { tag: string }[]).map((o) => o.tag);
+const outs = (p: ReturnType<typeof buildProfile>) =>
+  p.outbounds as {
+    tag: string;
+    outbounds?: string[];
+    server?: string;
+    uuid?: string;
+    domain_resolver?: string;
+    tls?: { server_name?: string };
+    transport?: Record<string, string>;
+  }[];
 
 describe("buildProfile roles", () => {
   it("gives an admin hy2 + reality with their own UUID, plus the exit axis", () => {
@@ -42,13 +52,13 @@ describe("buildProfile roles", () => {
     );
     const t = tags(p);
     expect(t).toContain("hy2-primary-443");
-    expect(t).toContain("reality-primary-google");
+    expect(t).toContain("reality-primary-koan");
     expect(t).toContain("exit-select");
     expect(t).toContain("exit-home");
     expect(p.route.final).toBe("exit-select");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
-      (o) => o.tag === "reality-primary-google",
+      (o) => o.tag === "reality-primary-koan",
     );
     expect(realityOut?.uuid).toBe("uuid-jc");
 
@@ -67,14 +77,17 @@ describe("buildProfile roles", () => {
       exits,
     );
     const t = tags(p);
-    expect(t).toContain("reality-primary-google");
+    expect(t).toContain("reality-primary-koan");
     expect(t).not.toContain("hy2-primary-443");
     expect(t).not.toContain("exit-select");
     expect(t).not.toContain("exit-home");
     expect(p.route.final).toBe("entry-select");
+    // Xray blackholes loopback for guests, so the gateway cache can't answer.
+    expect(p.dns.final).toBe("cf-doh");
+    expect(p.route.default_domain_resolver).toBe("cf-doh");
 
     const realityOut = (p.outbounds as { tag: string; uuid?: string }[]).find(
-      (o) => o.tag === "reality-primary-google",
+      (o) => o.tag === "reality-primary-koan",
     );
     expect(realityOut?.uuid).toBe("uuid-guest1");
 
@@ -149,7 +162,7 @@ describe("buildProfile hy2 ports", () => {
     expect(auto?.outbounds).toEqual([
       "hy2-primary-443",
       "hy2-primary-3478",
-      "reality-primary-google",
+      "reality-primary-koan",
       "reality-primary-bing",
     ]);
   });
@@ -174,7 +187,7 @@ describe("buildProfile REALITY identities", () => {
   const guest = { name: "guest1", role: "guest" } as const;
   const oneSni = {
     ...node,
-    reality: { ...node.reality, serverNames: ["www.google.co.uk"] },
+    reality: { ...node.reality, serverNames: ["koan.rocks"] },
   };
 
   it("gives each SNI its own outbound on the same credentials", () => {
@@ -183,10 +196,10 @@ describe("buildProfile REALITY identities", () => {
       uuid?: string;
       tls?: { server_name?: string };
     }[];
-    const first = outs.find((o) => o.tag === "reality-primary-google");
+    const first = outs.find((o) => o.tag === "reality-primary-koan");
     const second = outs.find((o) => o.tag === "reality-primary-bing");
 
-    expect(first?.tls?.server_name).toBe("www.google.co.uk");
+    expect(first?.tls?.server_name).toBe("koan.rocks");
     expect(second?.tls?.server_name).toBe("www.bing.com");
     // Same inbound, so the credentials must not diverge with the identity.
     expect(second?.uuid).toBe("uuid-jc");
@@ -200,7 +213,7 @@ describe("buildProfile REALITY identities", () => {
     );
     // Reality-only, but no longer a single point of failure.
     expect(auto?.outbounds).toEqual([
-      "reality-primary-google",
+      "reality-primary-koan",
       "reality-primary-bing",
     ]);
     expect(tags(p)).not.toContain("hy2-primary-443");
@@ -212,6 +225,67 @@ describe("buildProfile REALITY identities", () => {
     const entry = (p.outbounds as { tag: string; default?: string }[]).find(
       (o) => o.tag === "entry-select",
     );
-    expect(entry?.default).toBe("reality-primary-google");
+    expect(entry?.default).toBe("reality-primary-koan");
+  });
+});
+
+describe("buildProfile XHTTP variant", () => {
+  const admin = { name: "jc", role: "admin" } as const;
+  const guest = { name: "guest1", role: "guest" } as const;
+  const cdnNode = {
+    ...node,
+    xhttp: { host: "cdn.example.com", path: "/secret" },
+  };
+
+  // A sing-box core rejects the transport, and every device fetches this
+  // variant, so a node serving XHTTP must not change it at all.
+  it("leaves the sing-box profile exactly as it is", () => {
+    for (const user of [admin, guest]) {
+      expect(buildProfile(user, [cdnNode], "ts.net")).toEqual(
+        buildProfile(user, [node], "ts.net"),
+      );
+    }
+  });
+
+  it("dials the CDN hostname over XHTTP with the user's REALITY UUID", () => {
+    const p = buildProfile(admin, [cdnNode], "ts.net", [], "sbr");
+    const out = outs(p).find((o) => o.tag === "xhttp-primary");
+    expect(out?.server).toBe("cdn.example.com");
+    expect(out?.tls?.server_name).toBe("cdn.example.com");
+    expect(out?.transport).toEqual({
+      type: "xhttp",
+      path: "/secret",
+      mode: "packet-up",
+      host: "cdn.example.com",
+    });
+    expect(out?.uuid).toBe("uuid-jc");
+  });
+
+  // Every other resolver detours through the tunnel, which this leaf may be
+  // the only way into.
+  it("resolves the CDN hostname outside the tunnel", () => {
+    const p = buildProfile(guest, [cdnNode], "ts.net", [], "sbr");
+    const out = outs(p).find((o) => o.tag === "xhttp-primary");
+    expect(out?.domain_resolver).toBe("local");
+    expect(p.dns.servers).toContainEqual({ type: "local", tag: "local" });
+  });
+
+  it("puts XHTTP last in the urltest, for admins and guests alike", () => {
+    const auto = (user: typeof admin | typeof guest) =>
+      outs(buildProfile(user, [cdnNode], "ts.net", [], "sbr")).find(
+        (o) => o.tag === "auto",
+      )?.outbounds;
+    expect(auto(admin)?.at(-1)).toBe("xhttp-primary");
+    expect(auto(guest)).toEqual([
+      "reality-primary-koan",
+      "reality-primary-bing",
+      "xhttp-primary",
+    ]);
+  });
+
+  it("adds nothing for a node without XHTTP", () => {
+    expect(buildProfile(admin, [node], "ts.net", [], "sbr")).toEqual(
+      buildProfile(admin, [node], "ts.net"),
+    );
   });
 });

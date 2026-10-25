@@ -187,12 +187,16 @@ export function createIngressRoute(
   // not exist yet: "no matches for kind IngressRoute in version traefik.io/v1alpha1".
   traefik?: pulumi.Resource,
   routing?: {
-    paths?: string[];
+    // Inputs, so a path held in state (the XHTTP entry's) never has to be
+    // written down to be routed.
+    paths?: pulumi.Input<string>[];
     priority?: number;
     middlewares?: pulumi.Input<string>[];
   },
 ) {
-  const match = routeMatch(hostname, routing?.paths);
+  const match = pulumi
+    .all(routing?.paths ?? [])
+    .apply((paths) => routeMatch(hostname, paths));
   // Carried by both routes: without it, two services sharing a hostname would
   // publish the same `Host()` rule on the http entrypoint and Traefik would
   // pick between two identical redirects.

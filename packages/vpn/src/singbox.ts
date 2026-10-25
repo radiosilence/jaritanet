@@ -29,6 +29,8 @@ export type SingboxNode = {
     shortId: pulumi.Input<string>;
     uuids: Record<string, pulumi.Input<string>>;
   };
+  /** The CDN-fronted XHTTP entry, when the node serves one (sbr profiles only). */
+  xhttp?: { host: string; path: pulumi.Input<string> };
 };
 
 /** The same shape with Outputs resolved to plain strings (for JSON.stringify). */
@@ -49,6 +51,7 @@ export type ResolvedNode = {
     shortId: string;
     uuids: Record<string, string>;
   };
+  xhttp?: { host: string; path: string };
 };
 
 /** A selectable egress exit — a Shadowsocks proxy reached via the entry gateway. */
@@ -125,6 +128,32 @@ const reality = (n: ResolvedNode, uuid: string, sni: string) => ({
     },
   },
 });
+// VLESS over XHTTP through a CDN. `xhttp` is an sbr extension, not a sing-box
+// transport, so only the sbr variant of a profile carries this. The server is
+// the CDN hostname, which resolves to the CDN's edge rather than the node, and
+// it resolves through `local`: every other resolver detours through the tunnel,
+// and this outbound may be the only way into it. No `flow`, since Vision needs
+// the raw TLS stream.
+const xhttpTag = (n: ResolvedNode) => `xhttp-${n.name}`;
+const xhttp = (
+  cdn: NonNullable<ResolvedNode["xhttp"]>,
+  n: ResolvedNode,
+  uuid: string,
+) => ({
+  type: "vless",
+  tag: xhttpTag(n),
+  server: cdn.host,
+  server_port: 443,
+  uuid,
+  domain_resolver: "local",
+  tls: { enabled: true, server_name: cdn.host },
+  transport: {
+    type: "xhttp",
+    path: cdn.path,
+    mode: "packet-up",
+    host: cdn.host,
+  },
+});
 const urltest = (tag: string, outbounds: string[]) => ({
   type: "urltest",
   tag,
@@ -177,29 +206,50 @@ const selector = (tag: string, outbounds: string[], def: string) => ({
  * reality-only with direct egress (no hy2, no exits) — and their exit/tailnet
  * access is additionally blackholed server-side, so the profile shape is a
  * convenience, not the security boundary.
+ *
+ * `client` picks the dialect. `sing-box` (the default, and what every device
+ * is handed) is plain sing-box. `sbr` adds each node's CDN-fronted XHTTP leaf,
+ * last in its urltest as the slowest path, and the `local` resolver it needs;
+ * a sing-box core rejects that profile outright, which is why it is a separate
+ * variant rather than an extra leaf in the one everyone fetches. Guests get the
+ * leaf too: it is the same Xray, matching the same per-user guest rule.
  */
 export function buildProfile(
   user: VpnUser,
   nodes: ResolvedNode[],
   magicdnsSuffix: string,
   exits: ResolvedExit[] = [],
+  client: "sing-box" | "sbr" = "sing-box",
 ) {
   const isAdmin = user.role === "admin";
+  // Guests resolve over DoH: Xray blackholes 127.0.0.0/8 for them before any
+  // freedom allow rule applies, so the gateway cache never answers a guest.
+  const resolver = isAdmin ? "gw-cache" : "cf-doh";
   // Guests get no exit axis — the ss PSK is never in their profile anyway.
   const effExits = isAdmin ? exits : [];
+  const xhttpNodes = client === "sbr" ? nodes.filter((n) => n.xhttp) : [];
+  const xhttpTags = (n: ResolvedNode) =>
+    xhttpNodes.includes(n) ? [xhttpTag(n)] : [];
 
   // Transports available to this user per node: reality always; hy2 admin-only.
   const autoTags = (n: ResolvedNode) =>
-    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+    isAdmin
+      ? [...hy2Tags(n), ...realityTags(n), ...xhttpTags(n)]
+      : [...realityTags(n), ...xhttpTags(n)];
   // Leaf outbounds in picker order — the manual drill-in under a node's group.
   const entryTags = (n: ResolvedNode) =>
-    isAdmin ? [...hy2Tags(n), ...realityTags(n)] : realityTags(n);
+    isAdmin
+      ? [...hy2Tags(n), ...realityTags(n), ...xhttpTags(n)]
+      : [...realityTags(n), ...xhttpTags(n)];
   const pickTags = (n: ResolvedNode) => [`auto-${n.name}`, ...entryTags(n)];
 
   const outbounds: Record<string, unknown>[] = [];
   for (const n of nodes) {
     for (const sni of n.reality.serverNames) {
       outbounds.push(reality(n, n.reality.uuids[user.name], sni));
+    }
+    if (n.xhttp && xhttpNodes.includes(n)) {
+      outbounds.push(xhttp(n.xhttp, n, n.reality.uuids[user.name]));
     }
     if (isAdmin) {
       // hy2's server auth is `userpass`, so the client's password must be
@@ -312,9 +362,12 @@ export function buildProfile(
           server: "100.100.100.100",
           detour: "entry-select",
         },
+        // The network's own resolver, for the XHTTP leaf's CDN hostname only:
+        // nothing else names it, and it must not need the tunnel to resolve.
+        ...(xhttpNodes.length ? [{ type: "local", tag: "local" }] : []),
       ],
       rules: [{ domain_suffix: [magicdnsSuffix], server: "ts-dns" }],
-      final: "gw-cache",
+      final: resolver,
       strategy: "ipv4_only",
       // Optimistic cache (1.14+): serve an expired entry instantly and refresh
       // it in the background, so an expired lookup never blocks on a tunnel RTT.
@@ -353,7 +406,7 @@ export function buildProfile(
     ],
     outbounds,
     route: {
-      default_domain_resolver: "gw-cache",
+      default_domain_resolver: resolver,
       rules: [
         { action: "sniff" },
         { protocol: "dns", action: "hijack-dns" },

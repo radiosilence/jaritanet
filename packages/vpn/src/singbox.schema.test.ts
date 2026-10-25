@@ -44,12 +44,17 @@ const node = {
   },
   reality: {
     publicKey: "pk",
-    serverNames: ["www.google.co.uk", "www.bing.com", "www.apple.com"],
+    serverNames: ["koan.rocks", "www.bing.com", "www.apple.com"],
     shortId: "sid",
     uuids: { guest1: "uuid-guest1", jc: "uuid-jc" },
   },
 };
 const edge = { ...node, name: "helsinki", server: "5.6.7.8" };
+// XHTTP is sbr-only; the sing-box variant of a node serving it must stay valid.
+const cdnNode = {
+  ...node,
+  xhttp: { host: "cdn.example.com", path: "/secret" },
+};
 const exits = [
   {
     name: "home",
@@ -66,6 +71,7 @@ describe("delivered profiles are valid sing-box configs", () => {
     ["guest, one node", { name: "guest1", role: "guest" }, [node]],
     ["admin, several nodes", { name: "jc", role: "admin" }, [node, edge]],
     ["guest, several nodes", { name: "guest1", role: "guest" }, [node, edge]],
+    ["admin, node serving XHTTP", { name: "jc", role: "admin" }, [cdnNode]],
   ] as const)("%s", (_label, user, nodes) => {
     const { ok, errors } = check(
       buildProfile(user, [...nodes], "ts.net", exits),
