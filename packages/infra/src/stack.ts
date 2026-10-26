@@ -85,6 +85,7 @@ export const hostnames: Record<string, string> = {
   "koan-demo": "demo.koan.rocks",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
+  "sbr-site": "sbr.blit.cc",
   // Deliberately not on blit.cc: FortiGuard rates it "Other Adult Materials",
   // so a filtered network — exactly the network a VPN profile is wanted on —
   // blocks the device from fetching its own subscription.

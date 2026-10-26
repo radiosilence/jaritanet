@@ -1,0 +1,20 @@
+{
+  "name": "@jaritanet/sbr-site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "sbr.blit.cc",
+  "license": "ISC",
+  "author": "James Cleveland <jc@blit.cc>",
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@jaritanet/k8s": "workspace:*",
+    "@pulumi/kubernetes": "4.34.2"
+  }
+}

@@ -201,6 +201,9 @@ importers:
       '@jaritanet/remote':
         specifier: workspace:*
         version: link:../remote
+      '@jaritanet/sbr-site':
+        specifier: workspace:*
+        version: link:../sbr-site
       '@jaritanet/vpn':
         specifier: workspace:*
         version: link:../vpn
@@ -308,6 +311,15 @@ importers:
         version: 4.6.7
 
   packages/remote: {}
+
+  packages/sbr-site:
+    dependencies:
+      '@jaritanet/k8s':
+        specifier: workspace:*
+        version: link:../k8s
+      '@pulumi/kubernetes':
+        specifier: 4.34.2
+        version: 4.34.2
 
   packages/vpn:
     dependencies:
