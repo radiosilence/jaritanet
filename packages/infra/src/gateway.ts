@@ -72,6 +72,11 @@ export function createGateway(
       inboundRule("SSH", 22),
       inboundRule("HTTP", 80),
       inboundRule("HTTPS", 443),
+      // tailscaled's direct-connection port. Without it, peers behind NAT
+      // often fail to punch through and fall back to a DERP relay, which
+      // caps throughput; the cluster's own traffic to the home node rides
+      // the tailnet too.
+      inboundRule("Tailscale direct connections", 41641, "udp"),
       // Only when the API server has no tailnet to hide behind. With Tailscale
       // configured the kubeconfig points at a MagicDNS name and 6443 never
       // needs a public rule at all — so adding the Pi (and its tailnet) closes
