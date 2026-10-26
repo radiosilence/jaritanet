@@ -19,6 +19,7 @@
     "@jaritanet/koan-site": "workspace:*",
     "@jaritanet/metrics": "workspace:*",
     "@jaritanet/remote": "workspace:*",
+    "@jaritanet/sbr-site": "workspace:*",
     "@jaritanet/vpn": "workspace:*",
     "@pulumi/command": "1.2.1",
     "@pulumi/hcloud": "1.43.1",

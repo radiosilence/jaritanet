@@ -36,6 +36,7 @@ import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
 import { createKoanDemo } from "@jaritanet/koan-demo";
 import { createKoanSite } from "@jaritanet/koan-site";
+import { createSbrSite } from "@jaritanet/sbr-site";
 import { createGroglog } from "@jaritanet/groglog";
 import {
   createProfileServer,
@@ -310,6 +311,7 @@ export function createServices(ctx: EstateContext) {
   add(
     createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
   );
+  add(createSbrSite(provider, "sbr-site", { hostname: hostnames["sbr-site"] }));
 
   // The media drive is a btrfs RAID1 pool. Only music is snapshotted: the rest
   // is replaceable, and a snapshot of the download directories would hold on

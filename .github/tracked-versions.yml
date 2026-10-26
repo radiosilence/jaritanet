@@ -264,6 +264,16 @@
   value: "sha-{version}"
   image: "ghcr.io/radiosilence/koan-site:sha-{version}"
 
+# sbr's website and its app's privacy policy, built in the sbr repository the
+# same way as koan-site.
+- app: sbr-site
+  repo: radiosilence/sbr
+  branch: main
+  file: packages/sbr-site/src/versions.ts
+  key: sbrSite
+  value: "sha-{version}"
+  image: "ghcr.io/radiosilence/sbr-site:sha-{version}"
+
 # Deliberately absent, and each said so where it is pinned, in an `UNTRACKED`
 # const beside the `VERSIONS` the updater does read: Hydra (a major bump needs
 # a database migration), and postgres and redis (major tags that carry their
