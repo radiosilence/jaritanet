@@ -89,16 +89,10 @@ export function buildTailnetPolicy({
     // separate act with its own reasoning (#239) — representation and
     // behaviour do not change in the same step.
     acls: [{ action: "accept", src: ["*"], dst: ["*:*"] }],
-    // Tailscale SSH, which reaches only devices with an owner. Both servers are
-    // tagged and so have none; break-glass is sshd on the public IP.
-    ssh: [
-      {
-        action: "check",
-        src: ["autogroup:member"],
-        dst: ["autogroup:self"],
-        users: ["autogroup:nonroot", "root"],
-      },
-    ],
+    // No Tailscale SSH anywhere: an empty list denies it on every node, so a
+    // device that turns the SSH server on gains nothing. Servers are managed
+    // by config, and break-glass is sshd on the public IP.
+    ssh: [],
     nodeAttrs: [{ target: ["autogroup:member"], attr: ["funnel"] }],
     ...(podNetwork && {
       autoApprovers: { routes: { [podNetwork.cidr]: podNetwork.routers } },
