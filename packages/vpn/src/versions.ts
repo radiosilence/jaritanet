@@ -31,3 +31,6 @@ export const VERSIONS = {
  * cores, which is what a second entry here would eventually do.
  */
 export const XRAY_VERSION = VERSIONS.xray.split(":")[1];
+
+/** The bare Tailscale version, for hosts that run tailscaled under systemd. */
+export const TAILSCALE_VERSION = VERSIONS.tailscale.split(":v")[1];

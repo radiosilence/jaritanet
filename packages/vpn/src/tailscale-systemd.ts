@@ -4,6 +4,7 @@ import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TailnetConfSchema } from "./tailscale.schemas.ts";
 import { resourcePrefix, type SshConnection, type SystemdOpts } from "./ssh.ts";
+import { TAILSCALE_VERSION } from "./versions.ts";
 
 /**
  * Joins the gateway VPS to the tailnet so it can relay client traffic into
@@ -47,6 +48,27 @@ export function createTailscaleSystemd(
   // parse it. Stripping is cheap; the failure is not, because it leaves the box
   // off the tailnet — which is now what pod networking rides on.
   const bareKey = pulumi.output(authKey).apply((k) => k.split("?")[0]);
+
+  // Pinned to the same release as the container image, so a security fix the
+  // updater picks up reaches the hosts too; the install script alone leaves a
+  // host on whatever was current when it was built. Separate from `up` so a
+  // version bump restarts tailscaled without resetting the node's prefs.
+  const install = new command.remote.Command(
+    `${p}tailscale-install`,
+    {
+      connection,
+      create: `${remotePreamble}
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v tailscale >/dev/null 2>&1; then
+  curl -fsSL https://tailscale.com/install.sh | sh
+fi
+apt-get update -qq
+apt-get install -y -qq "tailscale=${TAILSCALE_VERSION}"`,
+      triggers: [`v${TAILSCALE_VERSION}`],
+    },
+    { dependsOn },
+  );
+
   return new command.remote.Command(
     `${p}tailscale-up`,
     {
@@ -67,6 +89,6 @@ tailscale up --reset \
       // to force a re-run (e.g. after rotating the key or changing flags).
       triggers: ["tailscale-v2", tailnet.hostname, tailnet.tag],
     },
-    { dependsOn },
+    { dependsOn: [install] },
   );
 }
