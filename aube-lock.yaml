@@ -50,13 +50,13 @@ importers:
         version: link:../../../../packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4
+        version: 4.21.4(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -68,16 +68,16 @@ importers:
         version: link:../../../../packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
 
   apps/koan-demo/deploy/pulumi:
     dependencies:
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
 
   apps/serve-from-env/deploy/pulumi:
     dependencies:
@@ -86,10 +86,10 @@ importers:
         version: link:../../../../packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
 
   packages/blit:
     dependencies:
@@ -98,7 +98,7 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
 
   packages/dns:
     dependencies:
@@ -107,10 +107,10 @@ importers:
         version: link:../k8s
       '@pulumi/cloudflare':
         specifier: 6.23.1
-        version: 6.23.1
+        version: 6.23.1(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -122,7 +122,7 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
 
   packages/hetzner:
     dependencies:
@@ -131,16 +131,16 @@ importers:
         version: link:../remote
       '@pulumi/command':
         specifier: 1.2.1
-        version: 1.2.1
+        version: 1.2.1(typescript@7.0.2)
       '@pulumi/hcloud':
         specifier: 1.43.1
-        version: 1.43.1
+        version: 1.43.1(typescript@7.0.2)
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -152,10 +152,10 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -209,43 +209,43 @@ importers:
         version: link:../vpn
       '@pulumi/command':
         specifier: 1.2.1
-        version: 1.2.1
+        version: 1.2.1(typescript@7.0.2)
       '@pulumi/hcloud':
         specifier: 1.43.1
-        version: 1.43.1
+        version: 1.43.1(typescript@7.0.2)
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4
+        version: 4.21.4(typescript@7.0.2)
       '@pulumi/tailscale':
         specifier: 0.29.2
-        version: 0.29.2
+        version: 0.29.2(typescript@7.0.2)
       '@pulumi/tls':
         specifier: 5.6.2
-        version: 5.6.2
+        version: 5.6.2(typescript@7.0.2)
       '@radiosilence/koan-pulumi':
         specifier: 0.67.7
-        version: 0.67.7(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)
+        version: 0.67.7(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/koan-relay-pulumi':
         specifier: 0.1.2
-        version: 0.1.2(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)
+        version: 0.1.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/mariastew-pulumi':
         specifier: 0.3.0
-        version: 0.3.0(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)
+        version: 0.3.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/mcp-gateway-pulumi':
         specifier: 0.9.6
-        version: 0.9.6(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(@pulumi/random@4.21.4)(zod@4.6.7)
+        version: 0.9.6(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/slsk-mcp-pulumi':
-        specifier: 0.8.3
-        version: 0.8.3(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)
+        specifier: 0.8.4
+        version: 0.8.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/transmet-pulumi':
         specifier: 0.3.4
-        version: 0.3.4(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)
+        version: 0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -260,10 +260,10 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -272,10 +272,10 @@ importers:
     dependencies:
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -287,7 +287,7 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
 
   packages/metrics:
     dependencies:
@@ -296,13 +296,13 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4
+        version: 4.21.4(typescript@7.0.2)
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -319,7 +319,7 @@ importers:
         version: link:../k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
 
   packages/vpn:
     dependencies:
@@ -334,19 +334,19 @@ importers:
         version: link:../../apps/serve-from-env/deploy/pulumi
       '@pulumi/command':
         specifier: 1.2.1
-        version: 1.2.1
+        version: 1.2.1(typescript@7.0.2)
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2
+        version: 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi':
         specifier: 3.270.0
-        version: 3.270.0
+        version: 3.270.0(typescript@7.0.2)
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4
+        version: 4.21.4(typescript@7.0.2)
       '@pulumi/tls':
         specifier: 5.6.2
-        version: 5.6.2
+        version: 5.6.2(typescript@7.0.2)
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -917,8 +917,8 @@ packages:
       '@pulumi/random': ^4
       zod: ^4
 
-  '@radiosilence/slsk-mcp-pulumi@0.8.3':
-    resolution: {gitHosted: true, integrity: sha512-r/Q2bGqX9p3GT6IklY9jp0ht3ZSOqnZVjR9v0O6Lw/R4WIf4fIZ3csPK58wfA6MID+5nK7OrY6D5NFH7s2/aIA==, tarball: https://npm.pkg.github.com/download/@radiosilence/slsk-mcp-pulumi/0.8.3/f60ed43b6ee784c5d182fed112d95781396b161b}
+  '@radiosilence/slsk-mcp-pulumi@0.8.4':
+    resolution: {gitHosted: true, integrity: sha512-OAAaYeji6D7Bsf7n0tlHG3RoaUfSTfsAIeMxRKErfLZdAiZvDmI3w6lQkm9ZPsG7BIx3c4VWNHz5chba7HHcyw==, tarball: https://npm.pkg.github.com/download/@radiosilence/slsk-mcp-pulumi/0.8.4/f890408bbc812132f9cbf9f75415fc5db271ec4d}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2601,33 +2601,33 @@ snapshots:
 
   '@protobufjs/utf8@1.1.2': {}
 
-  '@pulumi/cloudflare@6.23.1':
+  '@pulumi/cloudflare@6.23.1(typescript@7.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/command@1.2.1':
+  '@pulumi/command@1.2.1(typescript@7.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/hcloud@1.43.1':
+  '@pulumi/hcloud@1.43.1(typescript@7.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/kubernetes@4.34.2':
+  '@pulumi/kubernetes@4.34.2(typescript@7.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
       glob: 12.0.0
       shell-quote: 1.12.0
     transitivePeerDependencies:
@@ -2635,7 +2635,7 @@ snapshots:
       - ts-node
       - typescript
 
-  '@pulumi/pulumi@3.270.0':
+  '@pulumi/pulumi@3.270.0(typescript@7.0.2)':
     dependencies:
       '@grpc/grpc-js': 1.14.6
       '@logdna/tail-file': 2.2.0
@@ -2662,69 +2662,71 @@ snapshots:
       semver: 7.8.5
       source-map-support: 0.5.21
       upath: 1.2.0
+    optionalDependencies:
+      typescript: 7.0.2
     transitivePeerDependencies:
       - supports-color
 
-  '@pulumi/random@4.21.4':
+  '@pulumi/random@4.21.4(typescript@7.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.270.0
-    transitivePeerDependencies:
-      - supports-color
-      - ts-node
-      - typescript
-
-  '@pulumi/tailscale@0.29.2':
-    dependencies:
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/tls@5.6.2':
+  '@pulumi/tailscale@0.29.2(typescript@7.0.2)':
     dependencies:
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@radiosilence/koan-pulumi@0.67.7(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)':
+  '@pulumi/tls@5.6.2(typescript@7.0.2)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+    transitivePeerDependencies:
+      - supports-color
+      - ts-node
+      - typescript
+
+  '@radiosilence/koan-pulumi@0.67.7(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
+    dependencies:
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/koan-relay-pulumi@0.1.2(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)':
+  '@radiosilence/koan-relay-pulumi@0.1.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/mariastew-pulumi@0.3.0(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)':
+  '@radiosilence/mariastew-pulumi@0.3.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/mcp-gateway-pulumi@0.9.6(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(@pulumi/random@4.21.4)(zod@4.6.7)':
+  '@radiosilence/mcp-gateway-pulumi@0.9.6(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2
-      '@pulumi/pulumi': 3.270.0
-      '@pulumi/random': 4.21.4
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/random': 4.21.4(typescript@7.0.2)
       yaml: 2.9.1
       zod: 4.6.7
 
-  '@radiosilence/slsk-mcp-pulumi@0.8.3(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)(zod@4.6.7)':
+  '@radiosilence/slsk-mcp-pulumi@0.8.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.270.0)':
+  '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2
-      '@pulumi/pulumi': 3.270.0
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     optional: true
