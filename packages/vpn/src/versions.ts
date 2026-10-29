@@ -18,7 +18,7 @@ export const VERSIONS = {
    */
   hysteria: "docker.io/tobyxdd/hysteria:v2.13.0",
   ssRust: "ghcr.io/shadowsocks/ssserver-rust:v1.25.0",
-  tailscale: "ghcr.io/tailscale/tailscale:v1.104.2",
+  tailscale: "ghcr.io/tailscale/tailscale:v1.104.4",
   unbound: "docker.io/klutchell/unbound:v1.26.2",
   xray: "ghcr.io/xtls/xray-core:26.10.21",
 } as const;
