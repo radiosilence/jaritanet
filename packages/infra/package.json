@@ -28,7 +28,7 @@
     "@pulumi/random": "4.21.4",
     "@pulumi/tailscale": "0.29.2",
     "@pulumi/tls": "5.6.2",
-    "@radiosilence/koan-pulumi": "0.67.7",
+    "@radiosilence/koan-pulumi": "0.67.8",
     "@radiosilence/koan-relay-pulumi": "0.1.2",
     "@radiosilence/mariastew-pulumi": "0.3.0",
     "@radiosilence/mcp-gateway-pulumi": "0.9.6",
