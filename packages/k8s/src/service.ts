@@ -121,7 +121,7 @@ export function createService(
             accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
             resources: { requests: { storage } },
             storageClassName,
-            volumeName: pvs[key]?.metadata.name,
+            volumeName: pvs[key].metadata.name,
           },
         },
         { provider, retainOnDelete: true },

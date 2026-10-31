@@ -65,11 +65,6 @@ export default async function () {
   warnUnlessCleanMain();
   const zones = resolveZones(zoneConfs, cloudflare.accountId);
 
-  // The primary gateway's transport parameters, from its pods.
-  let reality: SingboxNode["reality"] | undefined;
-  let hysteria: SingboxNode["hysteria"] | undefined;
-  let xhttp: SingboxNode["xhttp"];
-
   // sing-box nodes for the edges. The primary is prepended once its transports
   // are known, so it leads the picker.
   const edgeNodes: SingboxNode[] = [];
@@ -119,7 +114,6 @@ export default async function () {
     magicdnsSuffix: tailnet.magicdnsSuffix,
     tailnetAuthKey: tailnet.authKey,
   });
-  const dnsTarget = gw.vpsIp;
   // Ordering for the transport DaemonSets: the node must carry the entry label
   // before a DaemonSet has anywhere to schedule.
   const transportDeps = [gw.vpnEntryLabel];
@@ -309,77 +303,82 @@ export default async function () {
   //
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
-  {
-    createUnbound(provider, nsName, VPN_ENTRY_LABEL, transportDeps);
+  createUnbound(provider, nsName, VPN_ENTRY_LABEL, transportDeps);
 
-    if (gatewayConf.xray) {
-      const t = createXray(
-        provider,
-        nsName,
-        gatewayConf.xray,
-        users,
-        VPN_ENTRY_LABEL,
-        gatewayConf.credentialRotation,
-        transportDeps,
+  // The primary gateway's transport parameters, from its pods.
+  const xrayConf = gatewayConf.xray;
+  const xray =
+    xrayConf &&
+    createXray(
+      provider,
+      nsName,
+      xrayConf,
+      users,
+      VPN_ENTRY_LABEL,
+      gatewayConf.credentialRotation,
+      transportDeps,
+    );
+  const reality: SingboxNode["reality"] | undefined = xrayConf &&
+    xray && {
+      publicKey: xray.publicKey,
+      serverNames: xrayConf.serverNames,
+      shortId: xray.shortId,
+      uuids: xray.uuids,
+    };
+
+  // The CDN-fronted entry: a proxied record, so the name resolves to the CDN's
+  // edge, and a route on the secret path to the XHTTP inbound. The CDN reaches
+  // the origin on :443 like any visitor, with an SNI REALITY does not accept,
+  // so it falls through to Traefik. See docs/architecture.md, "CDN-fronted
+  // XHTTP".
+  const cdn = xrayConf?.xhttp;
+  const xhttpPath = cdn && xray?.xhttpPath;
+  if (cdn && xhttpPath) {
+    if (Object.values(hostnames).includes(cdn.hostname)) {
+      throw new Error(
+        `xray.xhttp.hostname ${cdn.hostname} is a service's hostname: the CDN must front a name of its own`,
       );
-      reality = {
-        publicKey: t.publicKey,
-        serverNames: gatewayConf.xray.serverNames,
-        shortId: t.shortId,
-        uuids: t.uuids,
-      };
-
-      // The CDN-fronted entry: a proxied record, so the name resolves to the
-      // CDN's edge, and a route on the secret path to the XHTTP inbound. The
-      // CDN reaches the origin on :443 like any visitor, with an SNI REALITY
-      // does not accept, so it falls through to Traefik. See
-      // docs/architecture.md, "CDN-fronted XHTTP".
-      const cdn = gatewayConf.xray.xhttp;
-      if (cdn && t.xhttpPath) {
-        if (Object.values(hostnames).includes(cdn.hostname)) {
-          throw new Error(
-            `xray.xhttp.hostname ${cdn.hostname} is a service's hostname: the CDN must front a name of its own`,
-          );
-        }
-        const zone = zoneFor(zones, cdn.hostname);
-        if (!zone) {
-          throw new Error(
-            `xray.xhttp.hostname ${cdn.hostname} is in no configured zone, so nothing can make it proxied`,
-          );
-        }
-        createServiceRecord(dnsTarget, zone, cdn.hostname, true);
-        createIngressRoute(
-          provider,
-          "xray-xhttp",
-          cdn.hostname,
-          nsName,
-          traefikRelease,
-          { paths: [t.xhttpPath.apply((p) => `PathPrefix(\`${p}\`)`)] },
-        );
-        xhttp = { host: cdn.hostname, path: t.xhttpPath };
-      }
     }
-
-    if (gatewayConf.hysteria) {
-      const t = createHysteria(
-        provider,
-        nsName,
-        gatewayConf.hysteria,
-        users,
-        VPN_ENTRY_LABEL,
-        gatewayConf.credentialRotation,
-        transportDeps,
+    const zone = zoneFor(zones, cdn.hostname);
+    if (!zone) {
+      throw new Error(
+        `xray.xhttp.hostname ${cdn.hostname} is in no configured zone, so nothing can make it proxied`,
       );
-      hysteria = {
-        altPorts: gatewayConf.hysteria.altPorts,
-        certificate: t.certificate,
-        obfsPassword: t.obfsPassword,
-        passwords: t.passwords,
-        port: gatewayConf.hysteria.port,
-        sni: gatewayConf.hysteria.sni,
-      };
     }
+    createServiceRecord(gw.vpsIp, zone, cdn.hostname, true);
+    createIngressRoute(
+      provider,
+      "xray-xhttp",
+      cdn.hostname,
+      nsName,
+      traefikRelease,
+      { paths: [xhttpPath.apply((p) => `PathPrefix(\`${p}\`)`)] },
+    );
   }
+  const xhttp: SingboxNode["xhttp"] =
+    cdn && xhttpPath ? { host: cdn.hostname, path: xhttpPath } : undefined;
+
+  const hysteriaConf = gatewayConf.hysteria;
+  const hy =
+    hysteriaConf &&
+    createHysteria(
+      provider,
+      nsName,
+      hysteriaConf,
+      users,
+      VPN_ENTRY_LABEL,
+      gatewayConf.credentialRotation,
+      transportDeps,
+    );
+  const hysteria: SingboxNode["hysteria"] | undefined = hysteriaConf &&
+    hy && {
+      altPorts: hysteriaConf.altPorts,
+      certificate: hy.certificate,
+      obfsPassword: hy.obfsPassword,
+      passwords: hy.passwords,
+      port: hysteriaConf.port,
+      sni: hysteriaConf.sni,
+    };
 
   // --- Everything that runs in the cluster ---
   // Each service is a call in `createServices` (services.ts) — the web
@@ -406,7 +405,7 @@ export default async function () {
     namespace: nsName,
     zones,
     hostnames: hostnames,
-    dnsTarget,
+    dnsTarget: gw.vpsIp,
     traefik: traefikRelease,
     credentialRotation: gatewayConf.credentialRotation,
     exits,
@@ -470,10 +469,9 @@ export default async function () {
   const services = publishRoutes(estate, [...serviceRoutes, ...authRoute]);
 
   return {
-    gatewayProvider: "hetzner",
     namespace: NAMESPACE,
     services,
-    vpsIp: dnsTarget,
+    vpsIp: gw.vpsIp,
     // So the cluster can be reached with kubectl without SSHing in first:
     //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet
     // Secret, because it is full cluster admin.

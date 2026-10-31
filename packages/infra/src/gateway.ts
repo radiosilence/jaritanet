@@ -16,9 +16,10 @@ import type { GatewayConfSchema } from "./schemas.ts";
 /**
  * Provisions the Hetzner VPS the cluster and the transports run on.
  *
- * Over SSH this installs only the host: tuning, patching, tailscaled and k3s.
- * The transports and the DNS cache are pods in that cluster, deployed from
- * main.ts.
+ * Over SSH this sets up the host: tuning, patching, admin SSH access, tailscaled
+ * and k3s, and labels the node as a VPN entry, which is what the transport
+ * DaemonSets select on. The transports and the DNS cache are pods in that
+ * cluster, deployed from main.ts.
  *
  * Everything in `opts` is passed in rather than read from the environment here:
  * the modules this composes take their inputs as arguments, and a function that

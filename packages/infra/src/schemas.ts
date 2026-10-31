@@ -72,7 +72,7 @@ export const TelegramConfSchema = z.object({
  * optional halves.
  */
 export const TailnetAccountConfSchema = z.object({
-  /** Joins the gateway, every edge, and the in-cluster relay. */
+  /** Joins the gateway and every edge to the tailnet. */
   authKey: z.string().optional(),
   /**
    * The `*.ts.net` suffix. Not a secret — it is in the certificate
