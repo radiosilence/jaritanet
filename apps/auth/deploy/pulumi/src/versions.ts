@@ -8,7 +8,7 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  auth: "ghcr.io/radiosilence/auth:0.2.5",
+  auth: "ghcr.io/radiosilence/auth:0.2.6",
 } as const;
 
 /**
