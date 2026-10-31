@@ -1,4 +1,9 @@
-import { authRoutes as authProviderPaths, createAuth } from "@jaritanet/auth";
+import {
+  authRoutes as authProviderPaths,
+  createAuth,
+  createRegistrationLimit,
+  registrationRoute,
+} from "@jaritanet/auth";
 import {
   createBlueskyRecords,
   createFastmailRecords,
@@ -502,11 +507,33 @@ export default async function () {
       // createServices.
       clients,
     });
+    // Registration is open to anyone and writes a Hydra client per call, so
+    // it has a route of its own carrying a limit the login pages do not need.
+    // No redirect: Hydra's bare `Host()` redirect already covers the path.
+    const registration = createIngressRoute(
+      provider,
+      "auth",
+      authHostname,
+      nsName,
+      traefikRelease,
+      {
+        name: "auth-register",
+        paths: [registrationRoute],
+        priority: 100,
+        middlewares: [
+          createRegistrationLimit(provider, nsName, traefikRelease),
+        ],
+        redirect: false,
+      },
+    );
     authRoute.push({
       service: "auth",
       hostname: authHostname,
       paths: authProviderPaths(),
       priority: 100,
+      // Created first, so the update that drops `/register` from this route
+      // never leaves the path with Hydra.
+      dependsOn: [registration],
     });
   }
 

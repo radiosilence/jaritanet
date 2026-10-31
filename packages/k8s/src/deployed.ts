@@ -29,6 +29,8 @@ export type Route = {
   priority?: number;
   /** Traefik Middlewares, by name in the route's namespace, run in order. */
   middlewares?: pulumi.Input<string>[];
+  /** Resources the IngressRoute must wait for, such as a route taking over some of its paths. */
+  dependsOn?: pulumi.Resource[];
 };
 
 /**
