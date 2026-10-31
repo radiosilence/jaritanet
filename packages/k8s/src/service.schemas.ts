@@ -8,10 +8,9 @@ import {
 } from "./schemas.ts";
 
 /**
- * Strict, because this is written by hand in the stack file and read nowhere
- * else. `nodeSelector` sat in here for months doing nothing — Zod strips
- * unknown keys in silence, so it read as pinning navidrome to lady while the
- * pinning actually came from `nodeAffinityHostname` on the volumes below. A key
+ * Strict, because Zod strips unknown keys in silence. A `nodeSelector` once sat
+ * in a service's arguments for months doing nothing, reading as a node pin
+ * while the pinning came from `nodeAffinityHostname` on its volumes. A key
  * nobody reads should fail the preview, not survive as a comment that lies.
  */
 export const ServiceArgsSchema = z.strictObject({
@@ -28,11 +27,8 @@ export const ServiceArgsSchema = z.strictObject({
    * else; unrestricted egress lets a compromised pod walk to whatever the host
    * happens to be serving and write the same data by another route.
    *
-   * ⚠️ NOT CURRENTLY ENFORCED. microk8s here runs **flannel**, a pure overlay
-   * with no policy engine, so these objects are accepted by the API server and
-   * implemented by nothing. They are correct and latent: install an enforcing
-   * CNI and they start working with no change here. Until then do not count
-   * this as a control — see docs/architecture.md, Hardening notes.
+   * Enforced by Cilium. `hubble_drop_total{reason="POLICY_DENIED"}` is how a
+   * rule that is wrong shows up — see docs/architecture.md, Hardening notes.
    */
   networkPolicy: z.boolean().default(false),
   /**
@@ -44,9 +40,9 @@ export const ServiceArgsSchema = z.strictObject({
    * rather than from a pod — and the pod is then killed for failing readiness.
    * So this is opt-in per service and wants proving on something harmless.
    *
-   * ⚠️ Same caveat as `networkPolicy`: flannel enforces neither. `files` staying
-   * healthy after this was enabled proved nothing about probes — nothing was
-   * being applied. That test has to be re-run against a real policy engine.
+   * `files` was enabled first, under flannel, which enforced nothing, so its
+   * staying healthy then proved nothing about probes. It is the canary for
+   * this under Cilium.
    *
    * What it would buy: a compromised pod cannot reach a sibling. That is the
    * lateral step after any egress control fails, and pod-to-pod is wide open.

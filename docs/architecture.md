@@ -218,8 +218,8 @@ between the tailnet name and the public IP.
 ## Keeping k3s current on nodes nothing can reach
 
 The gateway's k3s is installed over SSH, so its version follows
-`Pulumi.main.yaml`. A node joined from a cloud-init seed — `lady`, a Lima VM —
-is installed once and then managed by nothing: Pulumi has no connection to it,
+`k3s.version` in `stack.ts`. A node joined from a cloud-init seed, such as
+`lady`, is installed once and then managed by nothing: Pulumi has no connection to it,
 cannot learn what it is running, and has no mechanism that would ever move it.
 Left alone it sits on whatever was current the day it was flashed, indefinitely,
 inside a cluster whose control plane keeps advancing.
@@ -755,7 +755,7 @@ caps every one of them long before its own overhead does.
 
 ## mariastew's egress sits on neither axis
 
-mariastew (`apps/mariastew/`) also opens outbound connections to the open
+mariastew (`radiosilence/mariastew`) also opens outbound connections to the open
 internet — a BitTorrent swarm, in its case — and it deliberately answers to
 neither axis above. It has no entry to pick: it is a cluster workload, not a
 sing-box client, so nothing about it touches Xray, Hysteria2 or `entry-select`.

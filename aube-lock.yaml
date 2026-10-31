@@ -38,25 +38,25 @@ importers:
         version: 7.0.2
       vite:
         specifier: 8.3.5
-        version: 8.3.5(@types/node@24.19.2)(yaml@2.9.1)
+        version: 8.3.5(@types/node@24.19.2)
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))
+        version: 5.0.5(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2))
 
   apps/auth/deploy/pulumi:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4(typescript@7.0.2)
+        version: 4.21.4
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -65,52 +65,52 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
 
   apps/koan-demo/deploy/pulumi:
     dependencies:
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
 
   apps/serve-from-env/deploy/pulumi:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
 
   packages/blit:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
 
   packages/dns:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/cloudflare':
         specifier: 6.23.1
-        version: 6.23.1(typescript@7.0.2)
+        version: 6.23.1
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -119,28 +119,28 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
 
   packages/hetzner:
     dependencies:
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
-        version: 1.2.1(typescript@7.0.2)
+        version: 1.2.1
       '@pulumi/hcloud':
-        specifier: 1.43.1
-        version: 1.43.1(typescript@7.0.2)
+        specifier: 1.43.2
+        version: 1.43.2
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -149,13 +149,13 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -164,88 +164,88 @@ importers:
     dependencies:
       '@jaritanet/auth':
         specifier: workspace:*
-        version: link:../../apps/auth/deploy/pulumi
+        version: 0.0.0
       '@jaritanet/blit':
         specifier: workspace:*
-        version: link:../blit
+        version: 0.0.0
       '@jaritanet/dns':
         specifier: workspace:*
-        version: link:../dns
+        version: 0.0.0
       '@jaritanet/files':
         specifier: workspace:*
-        version: link:../../apps/files/deploy/pulumi
+        version: 0.0.0
       '@jaritanet/groglog':
         specifier: workspace:*
-        version: link:../groglog
+        version: 0.0.0
       '@jaritanet/hetzner':
         specifier: workspace:*
-        version: link:../hetzner
+        version: 0.0.0
       '@jaritanet/home':
         specifier: workspace:*
-        version: link:../home
+        version: 0.0.0
       '@jaritanet/ingress':
         specifier: workspace:*
-        version: link:../ingress
+        version: 0.0.0
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@jaritanet/koan-demo':
         specifier: workspace:*
-        version: link:../../apps/koan-demo/deploy/pulumi
+        version: 0.0.0
       '@jaritanet/koan-site':
         specifier: workspace:*
-        version: link:../koan-site
+        version: 0.0.0
       '@jaritanet/metrics':
         specifier: workspace:*
-        version: link:../metrics
+        version: 0.0.0
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: 0.0.0
       '@jaritanet/sbr-site':
         specifier: workspace:*
-        version: link:../sbr-site
+        version: 0.0.0
       '@jaritanet/vpn':
         specifier: workspace:*
-        version: link:../vpn
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
-        version: 1.2.1(typescript@7.0.2)
+        version: 1.2.1
       '@pulumi/hcloud':
-        specifier: 1.43.1
-        version: 1.43.1(typescript@7.0.2)
+        specifier: 1.43.2
+        version: 1.43.2
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4(typescript@7.0.2)
+        version: 4.21.4
       '@pulumi/tailscale':
         specifier: 0.29.2
-        version: 0.29.2(typescript@7.0.2)
+        version: 0.29.2
       '@pulumi/tls':
         specifier: 5.6.2
-        version: 5.6.2(typescript@7.0.2)
+        version: 5.6.2
       '@radiosilence/koan-pulumi':
         specifier: 0.67.8
-        version: 0.67.8(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
+        version: 0.67.8(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)
       '@radiosilence/koan-relay-pulumi':
         specifier: 0.1.2
-        version: 0.1.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
+        version: 0.1.2(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)
       '@radiosilence/mariastew-pulumi':
         specifier: 0.3.0
-        version: 0.3.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
+        version: 0.3.0(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)
       '@radiosilence/mcp-gateway-pulumi':
         specifier: 0.9.6
-        version: 0.9.6(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
+        version: 0.9.6(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(@pulumi/random@4.21.4)(zod@4.6.7)
       '@radiosilence/slsk-mcp-pulumi':
         specifier: 0.8.6
-        version: 0.8.6(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)
+        version: 0.8.6(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)
       '@radiosilence/transmet-pulumi':
         specifier: 0.3.4
-        version: 0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))
+        version: 0.3.4(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -257,13 +257,13 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -272,10 +272,10 @@ importers:
     dependencies:
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -284,25 +284,25 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
 
   packages/metrics:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4(typescript@7.0.2)
+        version: 4.21.4
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -316,37 +316,37 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
 
   packages/vpn:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: 0.0.0
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: 0.0.0
       '@jaritanet/serve-from-env':
         specifier: workspace:*
-        version: link:../../apps/serve-from-env/deploy/pulumi
+        version: 0.0.0
       '@pulumi/command':
         specifier: 1.2.1
-        version: 1.2.1(typescript@7.0.2)
+        version: 1.2.1
       '@pulumi/kubernetes':
         specifier: 4.34.2
-        version: 4.34.2(typescript@7.0.2)
+        version: 4.34.2
       '@pulumi/pulumi':
-        specifier: 3.270.0
-        version: 3.270.0(typescript@7.0.2)
+        specifier: 3.272.0
+        version: 3.272.0
       '@pulumi/random':
         specifier: 4.21.4
-        version: 4.21.4(typescript@7.0.2)
+        version: 4.21.4
       '@pulumi/tls':
         specifier: 5.6.2
-        version: 5.6.2(typescript@7.0.2)
+        version: 5.6.2
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -359,7 +359,7 @@ importers:
     dependencies:
       '@jaritanet/vpn':
         specifier: workspace:*
-        version: link:../packages/vpn
+        version: 0.0.0
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -373,8 +373,8 @@ packages:
     resolution: {integrity: sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  '@grpc/grpc-js@1.14.6':
-    resolution: {integrity: sha512-SgC/B3/VZ8lTyOZ4Cwk6f1skWhmkNAaVfiX90qd5u1rRXGKk1//8FTUEN9GvOUq7rfWIqAYkA3CoyumYVpOS6g==}
+  '@grpc/grpc-js@1.14.7':
+    resolution: {integrity: sha512-W4W/fcBMGRVtG6dW2c7cw2mnpS3hvbBd+oQXjh2iYFTZDk1JJmcNqkM5KSaPubQpamlUUurrlb7G1s9NJeERmQ==}
     engines: {node: '>=12.10.0'}
 
   '@grpc/proto-loader@0.8.1':
@@ -452,8 +452,8 @@ packages:
     resolution: {integrity: sha512-iVuTlG3ORq2iaVa1IWUxAO/jIp77tUKBhoMjuzYW2kL4MLN1bi/ofqkZ7D7OOwh8coAx1/S2ge0rMdGv8sLSOQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  '@npmcli/promise-spawn@9.0.1':
-    resolution: {integrity: sha512-OLUaoqBuyxeTqUvjA3FZFiXUfYC1alp3Sa99gW3EUDz3tZ3CbXDdcZ7qWKBzicrJleIgucoWamWH1saAmH/l2Q==}
+  '@npmcli/promise-spawn@9.0.2':
+    resolution: {integrity: sha512-h7b1j0egrruBm/32eVA6/zMw5VJxxaB3vT+uVGGQ4SAAMrQVFHNuzL4+EAXn66j+huj0jApINc1fW3fC+kVoeA==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
   '@npmcli/query@5.0.0':
@@ -590,12 +590,12 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.3.0 <1.10.0'
 
-  '@opentelemetry/semantic-conventions@1.43.0':
-    resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
+  '@opentelemetry/semantic-conventions@1.44.0':
+    resolution: {integrity: sha512-E3JkOlMBi3N8OGGkbl7tFyqk2MAS6/lySRZBK3Mu7AzjF1fT8oIChH9ChE48SUWzDn9Kdwta+G/p5LJ4xW4CLQ==}
     engines: {node: '>=14'}
 
-  '@oxc-project/types@0.155.0':
-    resolution: {integrity: sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==}
+  '@oxc-project/types@0.156.0':
+    resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
 
   '@oxfmt/binding-android-arm-eabi@0.74.0':
     resolution: {integrity: sha512-xxQwrf5EPI5zxvuCTW8r6tzCTjPQ+h6+HqJ0iRKRy2zS1yBllt/xLVjoIyUc+FnR7g0a5g1SZv2yyDYhTItLbA==}
@@ -861,14 +861,14 @@ packages:
   '@pulumi/command@1.2.1':
     resolution: {integrity: sha512-mutNDIUYP67yCBYOVIidQyxuTwZDY9v/sx9EGbgIv4PXfyfolOKGgGLeoHEbI1lxRwaw2wbTZ3VNIynDnA5VKA==}
 
-  '@pulumi/hcloud@1.43.1':
-    resolution: {integrity: sha512-6UjewEWMjzrT5/9mGn/XKSDoXbn1ohZn9O55MaDQuqWoAzZvtqrDTmuN9rIvj6pdUl5yyRwKOnupabLV29l2mQ==}
+  '@pulumi/hcloud@1.43.2':
+    resolution: {integrity: sha512-viMhvzpLzSI5C7u31A2/0q19sb4/WDCxXuZUlVcffijQJd50DG+9m7XgYjjTbJTp55tlnitwxr3dj+CMk3ndRQ==}
 
   '@pulumi/kubernetes@4.34.2':
     resolution: {integrity: sha512-OcIe8OUwivkEngmjinrmke54INbJ0L6u/CWm8mLh6F7pmIDXyHGTM8PzcZsg5QbSm24HnNUHLl2tEUoOBxDo3w==}
 
-  '@pulumi/pulumi@3.270.0':
-    resolution: {integrity: sha512-k2GSGtoP2yrkIe4r+1YvyKL6k7mM6SYnySv6tSzGrv/oTY7WemEmvNEvn7Qd/JbkCMmYeBhWULDS5qB9qpvgkg==}
+  '@pulumi/pulumi@3.272.0':
+    resolution: {integrity: sha512-DepbT+tA3HnNo5+OtEMEevK1pC45PD/71sQh3tlWYFtW4tjuZijAQprvgCYcQUKNwRP3/Y3z83Kbvxn7y9HR2w==}
     engines: {node: '>=22'}
     peerDependencies:
       ts-node: '>= 7.0.1 < 12'
@@ -930,92 +930,92 @@ packages:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
 
-  '@rolldown/binding-android-arm-eabi@1.2.15':
-    resolution: {integrity: sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw==}
+  '@rolldown/binding-android-arm-eabi@1.2.16':
+    resolution: {integrity: sha512-ia3DwAs0OsMGS7+IConptSiyk9pEXkOx/AbJ2n/lAGxH3QkWQus1t8d7gnAT38FCU2sQu8lUbeR6AiZFv4JxaA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [android]
 
-  '@rolldown/binding-android-arm64@1.2.15':
-    resolution: {integrity: sha512-xD7DdZCrbThKuxNg7ooQmvp07ys4J/pnSEMTG3/OdOWl6daC67m/Q4fL78sRHMxTH/N4fGUbYhcPM0MF5WFHkg==}
+  '@rolldown/binding-android-arm64@1.2.16':
+    resolution: {integrity: sha512-kx5wBiMB6E7TEvpl2B9gjLU004BkvEm2Dr941BFjx/SontPwSzNuQUIoVKxHHoSjpFIfHMmcguyLOtyn0hObRg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [android]
 
-  '@rolldown/binding-darwin-arm64@1.2.15':
-    resolution: {integrity: sha512-m2WuQ6r0B4OTYxyPpNLtXaMRbRDUbG8YQV2Q3KTdSSK8Th6KHCnC8jVCJt8bvYeSB5WivkkNbc85mKadaSdOxA==}
+  '@rolldown/binding-darwin-arm64@1.2.16':
+    resolution: {integrity: sha512-qslZrXnKJU4cUpjoAmtAo/KQM9e2IRMlmpig6Zpwj+8KWxW8v+nkAf9216Bsek9lOC1jvg2yCjygCFo2f83msQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [darwin]
 
-  '@rolldown/binding-darwin-x64@1.2.15':
-    resolution: {integrity: sha512-5RtnsHM36nodM9WbMy+zip0LGS/G+y5wro5RHrpOlr4ac24+1zSi9kiV2MP1myZeZ/ifEHfulQcWjnAXzc2C2A==}
+  '@rolldown/binding-darwin-x64@1.2.16':
+    resolution: {integrity: sha512-FdF+y48ND13eAyM2mQn+85kvAqNlvRWROy2rhgA463X/0Gv4vGtazZtfaF1mRBLscYvtOlh4QnLjOWiFzX69OQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [darwin]
 
-  '@rolldown/binding-freebsd-x64@1.2.15':
-    resolution: {integrity: sha512-g3l09pyFqhu+135JKkbkwiKGQmwU5hUMUPJ4VdBADvuqR8d33L6H578rh8m7rtxbdp+VmX/+nzI7nvhSZlzpUQ==}
+  '@rolldown/binding-freebsd-x64@1.2.16':
+    resolution: {integrity: sha512-ddjqFM5e95AgLbUPtKIS7V1KTVlA0RUgCVr5mn+/IEhsdy3pr+Vuj/HZ7nlMN2FyxIwUktOH1LEPIQXO1v9y1Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [freebsd]
 
-  '@rolldown/binding-linux-arm-gnueabihf@1.2.15':
-    resolution: {integrity: sha512-nIe3VugI97nGQtspPxDqA4sXMUpeiocKIP/CqpY/u/vgbT+alX+cVxu1C/oVBPKg4feNTmYovE91v4DgXvXNwQ==}
+  '@rolldown/binding-linux-arm-gnueabihf@1.2.16':
+    resolution: {integrity: sha512-tHdKWbFkFBI687iim3LIyIvyL7j66VvQYkDPss5Stn/qyE2tWkR1YD0dXmXPFKKqT/o5ZEJVsaRsWS2meQwGOA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [linux]
 
-  '@rolldown/binding-linux-arm64-gnu@1.2.15':
-    resolution: {integrity: sha512-iTBjXx+B5QSvgI89lJfmqh4wTh8NabR1YZIIN3hNx4zSG0EVfVqkOvLulNpG4251pbd6/IAmZ/LefVk1Y4rPhw==}
+  '@rolldown/binding-linux-arm64-gnu@1.2.16':
+    resolution: {integrity: sha512-FJiLGAblPBMlBEdbOqw6kW6QcXDWAf/oJu7gYs9ZJZwmg+K+/zjFLxPTIY9izJUzxzc24FHvmseyA0IvJSl17w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
 
-  '@rolldown/binding-linux-arm64-musl@1.2.15':
-    resolution: {integrity: sha512-uN26XOnVR7rqQupG3V9oAG2EGGatWjcJHOeDOHUFCh4TBWmP2tHTFoVN13aYbwfm0aHqJAEmcwhAu6sooIjfqQ==}
+  '@rolldown/binding-linux-arm64-musl@1.2.16':
+    resolution: {integrity: sha512-hrJpblMsrQ58U9veWpbXzkhV5zStunds6HWLprqq1qauvgBr1E6P+24kLj6lSLI9vjRn/RYpjprhkHQPKGWpNg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
 
-  '@rolldown/binding-linux-ppc64-gnu@1.2.15':
-    resolution: {integrity: sha512-9nWkcdd+H+XhaA3fQIwpHnKIrfx/PQ6rO0pivr78Og07tXlUlctBBJoEYLPfhTmCR/QxEVdn6uPjHV5SymPhdw==}
+  '@rolldown/binding-linux-ppc64-gnu@1.2.16':
+    resolution: {integrity: sha512-qJd/dC6j6CwLG9/s/RP2nb1RZ0GIgj7Ioj7x/SYa3RzjVrlzrmH0fhIOpfvqQDeIsdP0loi+kHaMhJzY1PBIaA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
 
-  '@rolldown/binding-linux-s390x-gnu@1.2.15':
-    resolution: {integrity: sha512-Ggh0ciFjLwIusLSLz7LZYEaGdxOAUJXI+Qu5JCbhPJJHEt8vP+IjRATTJheiJsdzzTYgUiHUiw3X1Ea3ZpMBdA==}
+  '@rolldown/binding-linux-s390x-gnu@1.2.16':
+    resolution: {integrity: sha512-Vx7Xg5uUJuNcujJjI70OICaH0EYj80BtOLZTSN7uOYg8QOLlyKnaG0IW7Fn/J0IpJsaKzmDKMhOQv1JBM9m9vg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
 
-  '@rolldown/binding-linux-x64-gnu@1.2.15':
-    resolution: {integrity: sha512-FHg60rS6DBePAYZ9X9F67x+JObFdmgn6tupA1C/a3B+CufFmTD4mX+e8M75tCiAO3foR/6xwVBI0KQiI7sn/rw==}
+  '@rolldown/binding-linux-x64-gnu@1.2.16':
+    resolution: {integrity: sha512-TNKhgE3uJTsTzatUSSYt0Kgo+Oa2uSlSjz4r1aEIea7HX6ULBym4fAlYUhG1i6pjNf2njfCUAfKwr6C3E9Xg1w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
 
-  '@rolldown/binding-linux-x64-musl@1.2.15':
-    resolution: {integrity: sha512-/cvV/7v5VGz/moiz0XKRj2dE8DzsKyhIu1KpOvJGPjRywg3yscON889UGvAe8zfiJLHup7VLjBduoGWi3HusWQ==}
+  '@rolldown/binding-linux-x64-musl@1.2.16':
+    resolution: {integrity: sha512-7chXdpjXZ8qG0+mIxECN3cT9kvhZ3/oZhMX6Pp876P7CDrIy8nJswva6Mq357JR7eYXfuskwZxMeV1SzoZdHrA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
 
-  '@rolldown/binding-openharmony-arm64@1.2.15':
-    resolution: {integrity: sha512-MyzC5Hrv/sm+Z7TSGKP/j8001RO2xQm1zOpCNVL4j0cY/VhBZviludA2YFQ7i4lH6ZAXxQm0lcMdBzM+99mE7w==}
+  '@rolldown/binding-openharmony-arm64@1.2.16':
+    resolution: {integrity: sha512-Kwjt+7uNTJK5/MDkGWGVO2KQPnj8yAV75dMpfwyHZrJSXWHrniOB0aUEWlVYf3H1hOqFLIStLdM5QXq6bnKmOQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [openharmony]
 
-  '@rolldown/binding-win32-arm64-msvc@1.2.15':
-    resolution: {integrity: sha512-+PgYiS+AH5omy6L45ZLxybasauJaj3M8buoT83D+nzPmCayXlxUV9hydhciCKVyIg0B/v0BtXPDE1uGqNwCPpg==}
+  '@rolldown/binding-win32-arm64-msvc@1.2.16':
+    resolution: {integrity: sha512-/LH6WfjDRXXJz/p5xl4TmU+jpcnwcxbKEQBW/GZE0JHfN0lGIyTtsUEGaQ/q/GikkGJ2yLKe6pwm7AnEWO8pdw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [win32]
 
-  '@rolldown/binding-win32-x64-msvc@1.2.15':
-    resolution: {integrity: sha512-HFZd2QNQYn1JbIi+Hpd7H+r/lkWxcfIu28nirZ6eCn2LafuvmExMlb/P96Sfx5tf7pPArw39IdhmCF8vmV+NhQ==}
+  '@rolldown/binding-win32-x64-msvc@1.2.16':
+    resolution: {integrity: sha512-1lv1KvX0Z871zfk7vw+dnXMMnHNyDwMzWG8Kv3HxDXMOhzCX4SHc7HK319fInP0i+0p9D8brkfzL7pJOaGl+tw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -1067,8 +1067,8 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
-  '@types/estree@1.0.9':
-    resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+  '@types/estree@1.0.10':
+    resolution: {integrity: sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g==}
 
   '@types/google-protobuf@3.15.12':
     resolution: {integrity: sha512-40um9QqwHjRS92qnOaDpL7RmDK15NuZYo9HihiJRbYkMQZlWnuH8AdvbMy8/o6lgLmKbDUKa+OALCltHdbOTpQ==}
@@ -1254,8 +1254,8 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
-  bin-links@6.0.2:
-    resolution: {integrity: sha512-frE1t78WOwJ45PKV2cF2tNPjTcs9L1J9s6VkrV59wanRP4GlaomuxYPVma7BwthMg8WnfSory4w5PTE6FZZ81w==}
+  bin-links@6.0.3:
+    resolution: {integrity: sha512-Qg5FD7/YSReWJB1zaM8VIi1l4O637JKK/WPaF/JzJGy/9FcMDWtSklF0dOX5S9X2OMrPGhifIHIKuwtHG0IGFg==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
   brace-expansion@5.0.12:
@@ -1447,8 +1447,8 @@ packages:
     resolution: {integrity: sha512-FCeMZT4NiRQGh+YkeKMtWrOmBgWjHjMJ26WQWrRQyoyzqevdaGSakUaJW5xQYmjLlUVk2qUnCjYVBax9EKKg8A==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  import-in-the-middle@3.5.2:
-    resolution: {integrity: sha512-WseIA/4o56+GYO3RmlOPvejYi771OFeJEeK/ejROsr9bdjW+E5NXTOD1Di8TL40Qgg3JJX9aa97Hf8iiSVIKZw==}
+  import-in-the-middle@3.5.3:
+    resolution: {integrity: sha512-usm/IiY63VtOyx/dm7uEoZV+EsanCDmwRUroQZIkFLGu1NVXZ8mZqIOhaN4QIJ7EsbMTuQbJXwCySCx+ozMA8g==}
     engines: {node: '>=18'}
 
   ini@2.0.0:
@@ -1459,8 +1459,8 @@ packages:
     resolution: {integrity: sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  ip-address@10.7.4:
-    resolution: {integrity: sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==}
+  ip-address@10.7.5:
+    resolution: {integrity: sha512-t2v0rkILYv9WXmSL7TpAaU3HXgaFYOPUcH3QHgwQ++gpJuH3bqyMy4Fvt/DJCTKwzH3Cf+bAp5W/mFL39KPLzA==}
     engines: {node: '>= 12'}
 
   is-fullwidth-code-point@3.0.0:
@@ -1642,8 +1642,8 @@ packages:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
 
-  magic-string@1.4.3:
-    resolution: {integrity: sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==}
+  magic-string@1.4.5:
+    resolution: {integrity: sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w==}
 
   make-fetch-happen@15.0.6:
     resolution: {integrity: sha512-Je0fLJ0F5atA7F+eIlLzk+Wkcl57JDf4kf+EW8xiP5E31xOQxkIxTbgf1Oi1Lw9tRI9UEMRdI5Vz2xTzoNU1Jw==}
@@ -1804,8 +1804,8 @@ packages:
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
 
-  pacote@21.5.1:
-    resolution: {integrity: sha512-KvcJ9iy3crysCsgqc4+PknH/w6jkrp8JN36mpZBPwNaDRwTfMZD37YzRazNstiZUOhuF5pno9f78n9mEJBavwg==}
+  pacote@21.5.2:
+    resolution: {integrity: sha512-rifBXawDMv3nLvABWr1kTpSk0UjeglTT4Vt9t8nU9xSnfdZcCTy+FOjO6TgXWAS77lIfbZlRkl2eKQcdY0++jA==}
     engines: {node: ^20.17.0 || >=22.9.0}
     hasBin: true
 
@@ -1835,8 +1835,8 @@ packages:
     resolution: {integrity: sha512-wWBro/7hJ40ye6TPiXkUQoXKCw23xSsjriUvqd7Uls9Sso3oLiON1flc18cCdnjgCRXw4fBVqUJJeOdDTh3P3g==}
     engines: {node: '>=4'}
 
-  postcss@8.5.31:
-    resolution: {integrity: sha512-YUbWYCgErwnMAVkjUnYa+KlMBzGpHwiIt/DE7f0G33AuX2LH9UcTk6KgWxd3zRU+pN3u/C+Xl3EnMLM4Hea7Sg==}
+  postcss@8.5.32:
+    resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
     engines: {node: ^10 || ^12 || >=14}
 
   proc-log@6.1.0:
@@ -1873,8 +1873,8 @@ packages:
     resolution: {integrity: sha512-QT7FVMXfWOYFbeRBF6nu+I6tr2Tf3u0q8RIEjNob/heKY/nh7drD/k7eeMFmSQgnTtCzLDcCu/XEnpW2wk4xCQ==}
     engines: {node: '>=9.3.0 || >=8.10.0 <9.0.0'}
 
-  rolldown@1.2.15:
-    resolution: {integrity: sha512-6odND+fel5zVw3I4Yc2e69gvguDnX0CAAGiNDZSq4ik5WUcaLrkD2GLuog0XcODbor31hZ5ayEMgVDno+KPV5g==}
+  rolldown@1.2.16:
+    resolution: {integrity: sha512-bWvlMpFKiTfDKfnK7FC2MPgPeWCf/Kpwsq49ApdW+FQaBZb6O6dZ4MAPbPUjp7hYQrw/RobqCzn64BRrQecGHw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
@@ -2175,7 +2175,7 @@ snapshots:
 
   '@gar/promise-retry@1.0.3': {}
 
-  '@grpc/grpc-js@1.14.6':
+  '@grpc/grpc-js@1.14.7':
     dependencies:
       '@grpc/proto-loader': 0.8.1
       '@js-sdsl/ordered-map': 4.4.2
@@ -2232,7 +2232,7 @@ snapshots:
       '@npmcli/query': 5.0.0
       '@npmcli/redact': 4.0.0
       '@npmcli/run-script': 10.0.4
-      bin-links: 6.0.2
+      bin-links: 6.0.3
       cacache: 20.0.4
       common-ancestor-path: 2.0.0
       hosted-git-info: 9.0.3
@@ -2244,7 +2244,7 @@ snapshots:
       npm-package-arg: 13.0.2
       npm-pick-manifest: 11.0.3
       npm-registry-fetch: 19.1.1
-      pacote: 21.5.1
+      pacote: 21.5.2
       parse-conflict-json: 5.0.1
       proc-log: 6.1.0
       proggy: 4.0.0
@@ -2264,7 +2264,7 @@ snapshots:
   '@npmcli/git@7.0.2':
     dependencies:
       '@gar/promise-retry': 1.0.3
-      '@npmcli/promise-spawn': 9.0.1
+      '@npmcli/promise-spawn': 9.0.2
       ini: 6.0.0
       lru-cache: 11.5.3
       npm-pick-manifest: 11.0.3
@@ -2288,7 +2288,7 @@ snapshots:
     dependencies:
       cacache: 20.0.4
       json-parse-even-better-errors: 5.0.0
-      pacote: 21.5.1
+      pacote: 21.5.2
       proc-log: 6.1.0
       semver: 7.8.5
     transitivePeerDependencies:
@@ -2308,7 +2308,7 @@ snapshots:
       semver: 7.8.5
       spdx-expression-parse: 4.0.0
 
-  '@npmcli/promise-spawn@9.0.1':
+  '@npmcli/promise-spawn@9.0.2':
     dependencies:
       which: 6.0.1
 
@@ -2322,7 +2322,7 @@ snapshots:
     dependencies:
       '@npmcli/node-gyp': 5.0.0
       '@npmcli/package-json': 7.0.5
-      '@npmcli/promise-spawn': 9.0.1
+      '@npmcli/promise-spawn': 9.0.2
       node-gyp: 12.4.0
       proc-log: 6.1.0
 
@@ -2341,16 +2341,16 @@ snapshots:
   '@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1)':
     dependencies:
       '@opentelemetry/api': 1.9.1
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1)':
     dependencies:
       '@opentelemetry/api': 1.9.1
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/exporter-trace-otlp-grpc@0.220.0(@opentelemetry/api@1.10.0)':
     dependencies:
-      '@grpc/grpc-js': 1.14.6
+      '@grpc/grpc-js': 1.14.7
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/otlp-exporter-base': 0.220.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/otlp-grpc-exporter-base': 0.220.0(@opentelemetry/api@1.10.0)
@@ -2363,13 +2363,13 @@ snapshots:
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace': 2.12.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/instrumentation-grpc@0.220.0(@opentelemetry/api@1.10.0)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/instrumentation': 0.220.0(@opentelemetry/api@1.10.0)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
     transitivePeerDependencies:
       - supports-color
 
@@ -2377,7 +2377,7 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.220.0
-      import-in-the-middle: 3.5.2
+      import-in-the-middle: 3.5.3
       require-in-the-middle: 8.0.1
     transitivePeerDependencies:
       - supports-color
@@ -2390,7 +2390,7 @@ snapshots:
 
   '@opentelemetry/otlp-grpc-exporter-base@0.220.0(@opentelemetry/api@1.10.0)':
     dependencies:
-      '@grpc/grpc-js': 1.14.6
+      '@grpc/grpc-js': 1.14.7
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/core': 2.9.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/otlp-exporter-base': 0.220.0(@opentelemetry/api@1.10.0)
@@ -2410,13 +2410,13 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/resources@2.9.0(@opentelemetry/api@1.9.1)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.9.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/sdk-logs@0.220.0(@opentelemetry/api@1.9.1)':
     dependencies:
@@ -2424,7 +2424,7 @@ snapshots:
       '@opentelemetry/api-logs': 0.220.0
       '@opentelemetry/core': 2.9.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.9.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/sdk-metrics@2.9.0(@opentelemetry/api@1.9.1)':
     dependencies:
@@ -2438,7 +2438,7 @@ snapshots:
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace': 2.12.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1)':
     dependencies:
@@ -2452,18 +2452,18 @@ snapshots:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
   '@opentelemetry/sdk-trace@2.9.0(@opentelemetry/api@1.9.1)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.9.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.9.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
 
-  '@opentelemetry/semantic-conventions@1.43.0': {}
+  '@opentelemetry/semantic-conventions@1.44.0': {}
 
-  '@oxc-project/types@0.155.0': {}
+  '@oxc-project/types@0.156.0': {}
 
   '@oxfmt/binding-android-arm-eabi@0.74.0':
     optional: true
@@ -2601,33 +2601,33 @@ snapshots:
 
   '@protobufjs/utf8@1.1.2': {}
 
-  '@pulumi/cloudflare@6.23.1(typescript@7.0.2)':
+  '@pulumi/cloudflare@6.23.1':
     dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/command@1.2.1(typescript@7.0.2)':
+  '@pulumi/command@1.2.1':
     dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/hcloud@1.43.1(typescript@7.0.2)':
+  '@pulumi/hcloud@1.43.2':
     dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/kubernetes@4.34.2(typescript@7.0.2)':
+  '@pulumi/kubernetes@4.34.2':
     dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
       glob: 12.0.0
       shell-quote: 1.12.0
     transitivePeerDependencies:
@@ -2635,9 +2635,9 @@ snapshots:
       - ts-node
       - typescript
 
-  '@pulumi/pulumi@3.270.0(typescript@7.0.2)':
+  '@pulumi/pulumi@3.272.0':
     dependencies:
-      '@grpc/grpc-js': 1.14.6
+      '@grpc/grpc-js': 1.14.7
       '@logdna/tail-file': 2.2.0
       '@npmcli/arborist': 9.9.3
       '@opentelemetry/api': 1.10.0
@@ -2649,7 +2649,7 @@ snapshots:
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-node': 2.12.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions': 1.43.0
+      '@opentelemetry/semantic-conventions': 1.44.0
       '@types/google-protobuf': 3.15.12
       '@types/semver': 7.8.0
       execa: 5.1.1
@@ -2662,115 +2662,113 @@ snapshots:
       semver: 7.8.5
       source-map-support: 0.5.21
       upath: 1.2.0
-    optionalDependencies:
-      typescript: 7.0.2
     transitivePeerDependencies:
       - supports-color
 
-  '@pulumi/random@4.21.4(typescript@7.0.2)':
+  '@pulumi/random@4.21.4':
     dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
-    transitivePeerDependencies:
-      - supports-color
-      - ts-node
-      - typescript
-
-  '@pulumi/tailscale@0.29.2(typescript@7.0.2)':
-    dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@pulumi/tls@5.6.2(typescript@7.0.2)':
+  '@pulumi/tailscale@0.29.2':
     dependencies:
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
     transitivePeerDependencies:
       - supports-color
       - ts-node
       - typescript
 
-  '@radiosilence/koan-pulumi@0.67.8(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
+  '@pulumi/tls@5.6.2':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0
+    transitivePeerDependencies:
+      - supports-color
+      - ts-node
+      - typescript
+
+  '@radiosilence/koan-pulumi@0.67.8(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)':
+    dependencies:
+      '@pulumi/kubernetes': 4.34.2
+      '@pulumi/pulumi': 3.272.0
       zod: 4.6.7
 
-  '@radiosilence/koan-relay-pulumi@0.1.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/koan-relay-pulumi@0.1.2(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/kubernetes': 4.34.2
+      '@pulumi/pulumi': 3.272.0
       zod: 4.6.7
 
-  '@radiosilence/mariastew-pulumi@0.3.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/mariastew-pulumi@0.3.0(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/kubernetes': 4.34.2
+      '@pulumi/pulumi': 3.272.0
       zod: 4.6.7
 
-  '@radiosilence/mcp-gateway-pulumi@0.9.6(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/mcp-gateway-pulumi@0.9.6(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(@pulumi/random@4.21.4)(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
-      '@pulumi/random': 4.21.4(typescript@7.0.2)
+      '@pulumi/kubernetes': 4.34.2
+      '@pulumi/pulumi': 3.272.0
+      '@pulumi/random': 4.21.4
       yaml: 2.9.1
       zod: 4.6.7
 
-  '@radiosilence/slsk-mcp-pulumi@0.8.6(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/slsk-mcp-pulumi@0.8.6(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)(zod@4.6.7)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/kubernetes': 4.34.2
+      '@pulumi/pulumi': 3.272.0
       zod: 4.6.7
 
-  '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.270.0(typescript@7.0.2))':
+  '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2)(@pulumi/pulumi@3.272.0)':
     dependencies:
-      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
-      '@pulumi/pulumi': 3.270.0(typescript@7.0.2)
+      '@pulumi/kubernetes': 4.34.2
+      '@pulumi/pulumi': 3.272.0
 
-  '@rolldown/binding-android-arm-eabi@1.2.15':
+  '@rolldown/binding-android-arm-eabi@1.2.16':
     optional: true
 
-  '@rolldown/binding-android-arm64@1.2.15':
+  '@rolldown/binding-android-arm64@1.2.16':
     optional: true
 
-  '@rolldown/binding-darwin-arm64@1.2.15':
+  '@rolldown/binding-darwin-arm64@1.2.16':
     optional: true
 
-  '@rolldown/binding-darwin-x64@1.2.15':
+  '@rolldown/binding-darwin-x64@1.2.16':
     optional: true
 
-  '@rolldown/binding-freebsd-x64@1.2.15':
+  '@rolldown/binding-freebsd-x64@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-arm-gnueabihf@1.2.15':
+  '@rolldown/binding-linux-arm-gnueabihf@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-arm64-gnu@1.2.15':
+  '@rolldown/binding-linux-arm64-gnu@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-arm64-musl@1.2.15':
+  '@rolldown/binding-linux-arm64-musl@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-ppc64-gnu@1.2.15':
+  '@rolldown/binding-linux-ppc64-gnu@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-s390x-gnu@1.2.15':
+  '@rolldown/binding-linux-s390x-gnu@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-x64-gnu@1.2.15':
+  '@rolldown/binding-linux-x64-gnu@1.2.16':
     optional: true
 
-  '@rolldown/binding-linux-x64-musl@1.2.15':
+  '@rolldown/binding-linux-x64-musl@1.2.16':
     optional: true
 
-  '@rolldown/binding-openharmony-arm64@1.2.15':
+  '@rolldown/binding-openharmony-arm64@1.2.16':
     optional: true
 
-  '@rolldown/binding-win32-arm64-msvc@1.2.15':
+  '@rolldown/binding-win32-arm64-msvc@1.2.16':
     optional: true
 
-  '@rolldown/binding-win32-x64-msvc@1.2.15':
+  '@rolldown/binding-win32-x64-msvc@1.2.16':
     optional: true
 
   '@rolldown/pluginutils@1.0.1': {}
@@ -2825,7 +2823,7 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
-  '@types/estree@1.0.9': {}
+  '@types/estree@1.0.10': {}
 
   '@types/google-protobuf@3.15.12': {}
 
@@ -2895,13 +2893,13 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))':
+  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@24.19.2))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.5
       estree-walker: 3.0.3
-      magic-string: 1.4.3
-      vite: 8.3.5(@types/node@24.19.2)(yaml@2.9.1)
+      magic-string: 1.4.5
+      vite: 8.3.5(@types/node@24.19.2)
 
   '@vitest/pretty-format@5.0.5':
     dependencies:
@@ -2917,7 +2915,7 @@ snapshots:
       pathe: 2.0.3
       sirv: 3.0.2
       tinyrainbow: 3.2.0
-      vitest: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))
+      vitest: 5.0.5(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2))
 
   '@vitest/utils@5.0.5':
     dependencies:
@@ -2948,7 +2946,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  bin-links@6.0.2:
+  bin-links@6.0.3:
     dependencies:
       cmd-shim: 8.0.0
       npm-normalize-package-bin: 5.0.0
@@ -3027,7 +3025,7 @@ snapshots:
 
   estree-walker@3.0.3:
     dependencies:
-      '@types/estree': 1.0.9
+      '@types/estree': 1.0.10
 
   execa@5.1.1:
     dependencies:
@@ -3127,7 +3125,7 @@ snapshots:
     dependencies:
       minimatch: 10.2.6
 
-  import-in-the-middle@3.5.2:
+  import-in-the-middle@3.5.3:
     dependencies:
       cjs-module-lexer: 2.3.0
       es-module-lexer: 3.0.4
@@ -3137,7 +3135,7 @@ snapshots:
 
   ini@6.0.0: {}
 
-  ip-address@10.7.4: {}
+  ip-address@10.7.5: {}
 
   is-fullwidth-code-point@3.0.0: {}
 
@@ -3267,7 +3265,7 @@ snapshots:
 
   lru-cache@11.5.3: {}
 
-  magic-string@1.4.3:
+  magic-string@1.4.5:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
@@ -3469,13 +3467,13 @@ snapshots:
 
   package-json-from-dist@1.0.1: {}
 
-  pacote@21.5.1:
+  pacote@21.5.2:
     dependencies:
       '@gar/promise-retry': 1.0.3
       '@npmcli/git': 7.0.2
       '@npmcli/installed-package-contents': 4.0.0
       '@npmcli/package-json': 7.0.5
-      '@npmcli/promise-spawn': 9.0.1
+      '@npmcli/promise-spawn': 9.0.2
       '@npmcli/run-script': 10.0.4
       cacache: 20.0.4
       fs-minipass: 3.0.3
@@ -3515,7 +3513,7 @@ snapshots:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
 
-  postcss@8.5.31:
+  postcss@8.5.32:
     dependencies:
       nanoid: 3.3.20
       picocolors: 1.1.1
@@ -3556,26 +3554,26 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  rolldown@1.2.15:
+  rolldown@1.2.16:
     dependencies:
-      '@oxc-project/types': 0.155.0
+      '@oxc-project/types': 0.156.0
       '@rolldown/pluginutils': 1.0.1
     optionalDependencies:
-      '@rolldown/binding-android-arm-eabi': 1.2.15
-      '@rolldown/binding-android-arm64': 1.2.15
-      '@rolldown/binding-darwin-arm64': 1.2.15
-      '@rolldown/binding-darwin-x64': 1.2.15
-      '@rolldown/binding-freebsd-x64': 1.2.15
-      '@rolldown/binding-linux-arm-gnueabihf': 1.2.15
-      '@rolldown/binding-linux-arm64-gnu': 1.2.15
-      '@rolldown/binding-linux-arm64-musl': 1.2.15
-      '@rolldown/binding-linux-ppc64-gnu': 1.2.15
-      '@rolldown/binding-linux-s390x-gnu': 1.2.15
-      '@rolldown/binding-linux-x64-gnu': 1.2.15
-      '@rolldown/binding-linux-x64-musl': 1.2.15
-      '@rolldown/binding-openharmony-arm64': 1.2.15
-      '@rolldown/binding-win32-arm64-msvc': 1.2.15
-      '@rolldown/binding-win32-x64-msvc': 1.2.15
+      '@rolldown/binding-android-arm-eabi': 1.2.16
+      '@rolldown/binding-android-arm64': 1.2.16
+      '@rolldown/binding-darwin-arm64': 1.2.16
+      '@rolldown/binding-darwin-x64': 1.2.16
+      '@rolldown/binding-freebsd-x64': 1.2.16
+      '@rolldown/binding-linux-arm-gnueabihf': 1.2.16
+      '@rolldown/binding-linux-arm64-gnu': 1.2.16
+      '@rolldown/binding-linux-arm64-musl': 1.2.16
+      '@rolldown/binding-linux-ppc64-gnu': 1.2.16
+      '@rolldown/binding-linux-s390x-gnu': 1.2.16
+      '@rolldown/binding-linux-x64-gnu': 1.2.16
+      '@rolldown/binding-linux-x64-musl': 1.2.16
+      '@rolldown/binding-openharmony-arm64': 1.2.16
+      '@rolldown/binding-win32-arm64-msvc': 1.2.16
+      '@rolldown/binding-win32-x64-msvc': 1.2.16
 
   safer-buffer@2.1.2:
     optional: true
@@ -3623,7 +3621,7 @@ snapshots:
 
   socks@2.8.10:
     dependencies:
-      ip-address: 10.7.4
+      ip-address: 10.7.5
       smart-buffer: 4.2.0
 
   source-map-js@1.2.2: {}
@@ -3743,38 +3741,35 @@ snapshots:
 
   validate-npm-package-name@7.0.2: {}
 
-  vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1):
+  vite@8.3.5(@types/node@24.19.2):
     dependencies:
       '@types/node': 24.19.2
       lightningcss: 1.33.0
       picomatch: 4.0.7
-      postcss: 8.5.31
-      rolldown: 1.2.15
+      postcss: 8.5.32
+      rolldown: 1.2.16
       tinyglobby: 0.2.17
     optionalDependencies:
       fsevents: 2.3.3
-      yaml: 2.9.1
 
-  vitest@5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1)):
+  vitest@5.0.5(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)):
     dependencies:
       '@types/chai': 5.2.3
       '@types/node': 24.19.2
-      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))
+      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@24.19.2))
       '@vitest/ui': 5.0.5(vitest@5.0.5)
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
-      magic-string: 1.4.3
+      magic-string: 1.4.5
       obug: 3.0.0
       picomatch: 4.0.7
       std-env: 4.3.0
       tinybench: 6.2.2
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 8.3.5(@types/node@24.19.2)(yaml@2.9.1)
+      vite: 8.3.5(@types/node@24.19.2)
       why-is-node-running: 3.2.1
-    optionalDependencies:
-      '@opentelemetry/api': 1.10.0
     transitivePeerDependencies:
       - msw
 

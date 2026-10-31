@@ -2,7 +2,8 @@
  * Pinned images for the identity provider.
  *
  * A literal, moved by the release process after the image exists — see the note
- * in `@jaritanet/mariastew` on why this does not read the app's `Cargo.toml`.
+ * on this repository's containers in `.github/tracked-versions.yml` on why this
+ * does not read the app's `Cargo.toml`.
  *
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
