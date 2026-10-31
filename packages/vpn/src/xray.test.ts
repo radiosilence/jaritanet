@@ -65,10 +65,10 @@ describe("FREEDOM_FINAL_RULES", () => {
       [node],
       "ts.net",
     );
-    const tailnetRoute = (
+    const routed = (
       profile.route.rules as { ip_cidr?: string[]; outbound?: string }[]
-    ).find((r) => r.ip_cidr);
+    ).flatMap((r) => (r.outbound === "entry-select" && r.ip_cidr) || []);
     const tailnetRule = FREEDOM_FINAL_RULES.find((r) => !r.port);
-    expect(tailnetRule?.ip).toEqual(tailnetRoute?.ip_cidr);
+    expect(tailnetRule?.ip?.toSorted()).toEqual(routed.toSorted());
   });
 });
