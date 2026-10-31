@@ -656,6 +656,7 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
         paths: route.paths,
         priority: route.priority,
         middlewares: route.middlewares,
+        dependsOn: route.dependsOn,
       },
     );
     published[route.service] = {

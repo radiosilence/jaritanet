@@ -225,7 +225,7 @@ systemctl restart unbound`,
           connection,
           gateway.tailnet,
           pulumi.secret(tailnetAuthKey),
-          { dependsOn: [server] },
+          { dependsOn: [server], replaceWith: [server] },
         )
       : undefined;
 
@@ -250,11 +250,14 @@ systemctl restart unbound`,
     : undefined;
 
   // Marks this node as one that serves VPN entries; the transport DaemonSets
-  // select on it. Applied from here rather than as a Kubernetes resource
-  // because labelling an existing node needs server-side apply, which would
-  // change how every other resource in the stack is managed for the sake of one
-  // key. A missing label is worth failing on: the DaemonSets would simply
-  // schedule nothing, and every transport would be silently absent.
+  // select on it. A missing label is worth failing on: the DaemonSets would
+  // simply schedule nothing, and every transport would be silently absent.
+  //
+  // A rebuilt box is a new cluster with an unlabelled node, so the command is
+  // replaced with the server. It has no `delete`: on a replacement the old
+  // command's delete runs after the new one has labelled the node, and would
+  // strip the label it had just applied. A key that is renamed is left behind
+  // on the node, where nothing selects on it.
   const vpnEntryLabel = k3s
     ? new command.remote.Command(
         "gateway-vpn-entry-label",
@@ -262,10 +265,9 @@ systemctl restart unbound`,
           connection,
           create: `set -euo pipefail
 k3s kubectl label node "$(hostname)" ${entryLabel}=true --overwrite`,
-          delete: `k3s kubectl label node "$(hostname)" ${entryLabel}- || true`,
           triggers: [entryLabel],
         },
-        { dependsOn: [k3s.install] },
+        { dependsOn: [k3s.install], replaceWith: [server] },
       )
     : undefined;
 

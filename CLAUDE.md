@@ -171,11 +171,20 @@ serves every relying party and adding one requires nothing at GitHub.
 stood there, so which hostname issues tokens did not change — only which service
 answers the challenges. Hydra itself is still deployed by `@radiosilence/mcp-gateway-pulumi`,
 because moving it would move the database holding every registered client.
+`/register` has an IngressRoute of its own carrying a Traefik rate limit keyed
+on the caller's address (an IPv6 caller's /64): registration is unauthenticated
+and writes a client row per call, which nothing else bounds. It bounds a caller
+with few addresses, not one with a pool of them, and while Traefik trusts PROXY
+headers from the whole pod network (#1247) a pod can claim any address.
 
 **The allowlist is the gate, and an empty one refuses to boot.** Dynamic client
 registration cannot be closed — Claude registers its own client — so a
 registered client is assumed hostile. What makes that safe is that a client is
 useless without a token and a token issues only to a login in `auth.github.allowed`.
+That holds only for grants that pass through a login, so `/register` refuses any
+grant type but `authorization_code` and `refresh_token`; Hydra's admin API would
+otherwise create a `client_credentials` client that mints tokens from its own
+secret.
 
 **Every relying party gets an address, and both halves have to agree.** The
 scope is `read:user user:email` and the claim comes from the primary *verified*
