@@ -3,10 +3,6 @@ import type * as z from "zod";
 import type { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import { ServiceArgsSchema } from "./service.schemas.ts";
 
-const annotations = {
-  "pulumi.com/skipAwait": "false",
-};
-
 // A k8s httpGet probe from the health-check config. Liveness/readiness/startup
 // share the same shape; startup passes a larger failureThreshold to tolerate a
 // slow first boot.
@@ -41,7 +37,6 @@ export function createService(
   args: ServiceArgs,
 ) {
   const {
-    env,
     healthCheck,
     httpPort,
     image,
@@ -71,9 +66,6 @@ export function createService(
         new k8s.core.v1.PersistentVolume(
           `${serviceName}-${key}-pv`,
           {
-            metadata: {
-              annotations,
-            },
             spec: {
               accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
               capacity: {
@@ -114,9 +106,6 @@ export function createService(
       new k8s.core.v1.PersistentVolumeClaim(
         `${serviceName}-${key}-pvc`,
         {
-          metadata: {
-            annotations,
-          },
           spec: {
             accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
             resources: { requests: { storage } },
@@ -133,7 +122,6 @@ export function createService(
     `${serviceName}-service`,
     {
       metadata: {
-        annotations,
         name: `${serviceName}-service`,
       },
       spec: {
@@ -173,9 +161,6 @@ export function createService(
   new k8s.apps.v1.Deployment(
     `${serviceName}-deployment`,
     {
-      metadata: {
-        annotations,
-      },
       spec: {
         replicas,
         selector: {
@@ -184,7 +169,6 @@ export function createService(
         strategy,
         template: {
           metadata: {
-            annotations,
             labels: { app: serviceName },
           },
           spec: {
@@ -198,13 +182,6 @@ export function createService(
                 imagePullPolicy: image.pullPolicy,
                 ports: [{ name: "http", containerPort: httpPort }],
                 resources,
-                // Sorted, so the rendered order is a property of the names
-                // rather than of how they happened to be written. Pulumi used
-                // to sort these on the way out of stack config, which meant
-                // reordering a literal now churns the Deployment for nothing.
-                env: Object.entries(env)
-                  .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-                  .map(([name, value]) => ({ name, value })),
                 volumeMounts: persistence.map(
                   ({ name, mountPath, readOnly }) => ({
                     name,
@@ -246,17 +223,13 @@ export function createService(
             ingress: [
               {
                 from: [
-                  // The only intended caller.
+                  // The only intended caller. Kubelet probes need no rule:
+                  // Cilium admits the local host to its own endpoints.
                   {
                     podSelector: {
                       matchLabels: { "app.kubernetes.io/name": "traefik" },
                     },
                   },
-                  // Admits any 192.168.0.0/16 source, such as hosts on the home
-                  // node's LAN. Kubelet probes do not depend on it: nodes use
-                  // their tailnet address as `node-ip`, and Cilium admits the
-                  // local host to its own endpoints by default.
-                  { ipBlock: { cidr: "192.168.0.0/16" } },
                 ],
               },
             ],

@@ -50,7 +50,6 @@ describe("service template", () => {
   it("creates service with basic configuration", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
-      env: {},
       httpPort: 80,
       image: { repository: "nginx", tag: "latest" },
       persistence: [],
@@ -66,25 +65,9 @@ describe("service template", () => {
     expect(metadata.name).toBe("test-service-service");
   });
 
-  it("creates service with environment variables", async () => {
-    const { createService } = await import("./service.ts");
-    const serviceArgs = ServiceArgsSchema.parse({
-      env: { NODE_ENV: "production", PORT: "3000" },
-      httpPort: 3000,
-      image: { repository: "nginx", tag: "latest" },
-      persistence: [],
-      replicas: 1,
-    });
-
-    const service = createService(mockProvider, "test-app", serviceArgs);
-
-    expect(service).toBeDefined();
-  });
-
   it("creates service with persistence volumes", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
-      env: {},
       httpPort: 5432,
       image: { repository: "postgres", tag: "14" },
       persistence: [
@@ -109,7 +92,6 @@ describe("service template", () => {
   it("creates service with health checks", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
-      env: {},
       healthCheck: {
         path: "/health",
         port: 80,
@@ -137,7 +119,6 @@ describe("service template", () => {
   it("creates service with resources", async () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
-      env: {},
       httpPort: 80,
       image: { repository: "nginx", tag: "latest" },
       resources: {
@@ -219,7 +200,7 @@ describe("service template", () => {
       ]);
     });
 
-    it("keeps the kubelet reachable when ingress is restricted", async () => {
+    it("admits only Traefik when ingress is restricted", async () => {
       const { createService } = await import("./service.ts");
       createService(
         mockProvider,
@@ -230,13 +211,13 @@ describe("service template", () => {
       const { spec } = (await waitFor("NetworkPolicy", "fenced-netpol")).inputs;
       expect(spec.policyTypes).toEqual(["Ingress", "Egress"]);
 
-      const from = spec.ingress[0].from;
-      expect(from[0].podSelector.matchLabels).toEqual({
-        "app.kubernetes.io/name": "traefik",
-      });
-      // Probes originate from the node. Without this the pod fails readiness
-      // and gets killed — the exact failure this option is gated behind.
-      expect(from[1].ipBlock.cidr).toBe("192.168.0.0/16");
+      // Kubelet probes need no rule: Cilium admits the local host to its own
+      // endpoints, and an ipBlock would never have matched the node anyway.
+      expect(spec.ingress[0].from).toEqual([
+        {
+          podSelector: { matchLabels: { "app.kubernetes.io/name": "traefik" } },
+        },
+      ]);
     });
 
     it("leaves ingress alone unless asked", async () => {
