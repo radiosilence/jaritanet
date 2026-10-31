@@ -25,7 +25,7 @@ export function createHysteriaSystemd(
   connection: SshConnection,
   hysteria: z.infer<typeof HysteriaConfSchema>,
   users: VpnUser[],
-  { name = "", dependsOn = [] }: SystemdOpts = {},
+  { name = "", dependsOn = [], replaceWith = [] }: SystemdOpts = {},
 ) {
   const p = resourcePrefix(name);
   const admins = users.filter((u) => u.role === "admin");
@@ -76,7 +76,7 @@ bash -c "$(curl -fsSL https://get.hy2.sh/)"
 mkdir -p /etc/hysteria`,
       triggers: ["hysteria-v1"],
     },
-    { dependsOn },
+    { dependsOn, replaceWith },
   );
 
   const config = new command.remote.Command(
@@ -146,7 +146,7 @@ done`,
         hysteria.altPorts.join(),
       ],
     },
-    { dependsOn: [install] },
+    { dependsOn: [install], replaceWith },
   );
 
   return {

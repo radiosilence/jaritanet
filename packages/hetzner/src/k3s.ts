@@ -81,7 +81,10 @@ if systemctl is-active --quiet k3s; then
 fi`,
       triggers: [pulumi.output(apiHost), server.ipv4Address, "node-ip-v1"],
     },
-    { dependsOn: [server, ...dependsOn] },
+    // replaceWith re-runs this on a rebuilt box. A new box usually has a new
+    // address, but nothing guarantees it, and the install below has no trigger
+    // that moves with the machine at all.
+    { dependsOn: [server, ...dependsOn], replaceWith: [server] },
   );
 
   const install = new command.remote.Command(
@@ -133,6 +136,7 @@ k3s kubectl get --raw /readyz >/dev/null`,
     },
     {
       dependsOn: [server, nodeConfig],
+      replaceWith: [server],
       // Whatever the vendor script prints while running as root. Pulumi
       // persists every resource output to state and none of it is worth
       // storing in the clear.
