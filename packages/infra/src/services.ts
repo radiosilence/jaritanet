@@ -496,7 +496,7 @@ export function createServices(ctx: EstateContext) {
           // transmet shares the VPS with the ingress, and Cilium drops a pod's
           // traffic to its own node's public address, so codes are exchanged
           // with Hydra directly. The mcp-gateway chart names these, and its
-          // \`hydraCallers\` above admits this pod.
+          // `hydraCallers` above admits this pod.
           backchannel: {
             url: "http://mcp-gateway-hydra-service",
             podLabels: { app: "mcp-gateway-hydra" },
