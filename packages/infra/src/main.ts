@@ -118,6 +118,10 @@ export default async function () {
     entryLabel: VPN_ENTRY_LABEL,
     magicdnsSuffix: tailnet.magicdnsSuffix,
     tailnetAuthKey: tailnet.authKey,
+    tailnetApi: tailnet.oauth && {
+      clientId: pulumi.secret(tailnet.oauth.clientId),
+      clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
+    },
   });
   // Ordering for the transport DaemonSets: the node must carry the entry label
   // before a DaemonSet has anywhere to schedule.

@@ -558,6 +558,19 @@ the `auth_keys` scope and the tag), not a raw auth key — raw keys cap at 90-da
 expiry, OAuth secrets don't. OAuth-minted keys default to ephemeral, so the
 `up` command forces `ephemeral=false` to keep the relay persistent.
 
+A persistent device outlives the machine it was. A rebuilt gateway registers as
+a new device while the old one still holds the hostname, so Tailscale names it
+`<hostname>-1`, and `apiHost`, the kubeconfig and the k3s certificate name the
+dead device. With `tailnet.oauth` set, the gateway therefore claims its name
+once per box: it reads its own node id from tailscaled, deletes every other
+device registered under the same hostname and tag through the Tailscale API,
+and renames itself to the hostname, before k3s is configured. The old box does
+not have to be reachable, and `tailscale up` is not re-run. Matching on the tag
+as well as the hostname keeps a person's device that shares the name out of it.
+Deleting and renaming need `devices:core` write on the OAuth client (see the
+README); on a box that already holds its name the claim only reads, so a client
+without write access fails only the deploy that rebuilds the gateway.
+
 MagicDNS is best-effort here: `ts-dns` points at `100.100.100.100` detoured
 through the tunnel, so the VPS resolves `*.ts.net` on the client's behalf. If a
 sing-box version doesn't honour `detour` on a DNS server, fall back to raw

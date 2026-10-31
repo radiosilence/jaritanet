@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { remotePreamble } from "@jaritanet/remote";
 import * as command from "@pulumi/command";
 import * as pulumi from "@pulumi/pulumi";
@@ -33,6 +35,23 @@ import { TAILSCALE_VERSION } from "./versions.ts";
  * the tag), used directly as the auth key — those don't hit the 90-day
  * expiry that raw auth keys do. OAuth-minted keys default to ephemeral, so
  * `ephemeral=false` is required to keep the relay node persistent.
+ *
+ * That persistence is why `api` exists. A rebuilt box registers as a new
+ * device while the old one still holds the hostname, so Tailscale names the new
+ * one `<hostname>-1`, and anything addressing the node by MagicDNS name reaches
+ * the dead machine. With `api` (an OAuth client with `devices:core` write),
+ * the node is identified by the id its own tailscaled reports, every other
+ * device this tag registered under the same hostname is deleted, and the node
+ * is renamed to the hostname. Nothing here needs the old box to be reachable.
+ *
+ * Both steps run after `up` and are replaced with the machine, so they run once
+ * per box. Run against a node that already holds its name they only read, so
+ * adding them to a live node changes nothing on it and needs only read access;
+ * write access matters on the deploy that rebuilds the box, which fails here,
+ * before anything is configured with the name, if the client lacks it. Every
+ * input of a local command is a trigger, so rotating the client re-runs the
+ * claim, which is harmless for the same reason. The returned resource is the
+ * claim when there is one, so dependents wait for the name, not only for `up`.
  */
 export function createTailscaleSystemd(
   connection: SshConnection,
@@ -40,6 +59,10 @@ export function createTailscaleSystemd(
   tailnet: z.infer<typeof TailnetConfSchema>,
   authKey: pulumi.Output<string>,
   { name = "", dependsOn = [], replaceWith = [] }: SystemdOpts = {},
+  api?: {
+    clientId: pulumi.Input<string>;
+    clientSecret: pulumi.Input<string>;
+  },
 ) {
   const p = resourcePrefix(name);
 
@@ -69,7 +92,7 @@ apt-get install -y -qq "tailscale=${TAILSCALE_VERSION}"`,
     { dependsOn, replaceWith },
   );
 
-  return new command.remote.Command(
+  const up = new command.remote.Command(
     `${p}tailscale-up`,
     {
       connection,
@@ -90,5 +113,38 @@ tailscale up --reset \
       triggers: ["tailscale-v2", tailnet.hostname, tailnet.tag],
     },
     { dependsOn: [install], replaceWith },
+  );
+
+  if (!api) return up;
+
+  const self = new command.remote.Command(
+    `${p}tailscale-self`,
+    {
+      connection,
+      create: `tailscale status --json --peers=false | python3 -c 'import json, sys; print(json.load(sys.stdin)["Self"]["ID"])'`,
+    },
+    { dependsOn: [up], replaceWith },
+  );
+
+  // Piped in rather than named, for the reason notifyProfileUrls gives.
+  const script = readFileSync(
+    join(import.meta.dirname, "..", "scripts", "claim-tailnet-name.ts"),
+    "utf8",
+  );
+
+  return new command.local.Command(
+    `${p}tailscale-name`,
+    {
+      create: "node --input-type=module-typescript",
+      stdin: script,
+      environment: {
+        TAILNET_OAUTH_CLIENT_ID: api.clientId,
+        TAILNET_OAUTH_CLIENT_SECRET: api.clientSecret,
+        TAILNET_SELF: self.stdout.apply((s) => s.trim()),
+        TAILNET_HOSTNAME: tailnet.hostname,
+        TAILNET_TAG: tailnet.tag,
+      },
+    },
+    { dependsOn: [self], replaceWith },
   );
 }

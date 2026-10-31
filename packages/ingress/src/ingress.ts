@@ -63,6 +63,11 @@ export function createIngress(
             // Trusted there only: a connection straight to the hostPort from
             // outside keeps its own address and cannot claim another. A
             // trusted connection without a header is taken as it is.
+            //
+            // The range also holds every pod, which must not be able to claim
+            // an address; `traefik-proxy-protocol` below refuses them this
+            // port rather than narrowing the range to cilium_host's address,
+            // which Cilium picks at random from the node's podCIDR.
             proxyProtocol: {
               trustedIPs: ["10.42.0.0/16"],
             },
@@ -150,6 +155,46 @@ export function createIngress(
         },
       },
       version: VERSIONS.traefikChart,
+    },
+    { provider },
+  );
+
+  // Keeps pods off the PROXY-protocol port, where any source in the pod range
+  // may assert a client address and so evade every per-address rate limit
+  // behind it. Xray reaches the port as the host identity (from cilium_host's
+  // address), which a pod selector never matches, so the relay is untouched;
+  // a pod reaches the same routes through Xray on :443 like any other client,
+  // under its own address.
+  //
+  // A deny rule with default-deny off, so this removes one path and leaves
+  // every other port as it was: an allow rule would put Traefik into default
+  // deny on all of them. Selecting on the presence of the namespace label is
+  // what makes it every namespace's pods; an empty selector would match this
+  // namespace only.
+  new k8s.apiextensions.CustomResource(
+    "traefik-proxy-protocol",
+    {
+      apiVersion: "cilium.io/v2",
+      kind: "CiliumNetworkPolicy",
+      metadata: { name: "traefik-proxy-protocol", namespace },
+      spec: {
+        endpointSelector: {
+          matchLabels: { "app.kubernetes.io/name": "traefik" },
+        },
+        enableDefaultDeny: { ingress: false, egress: false },
+        ingressDeny: [
+          {
+            fromEndpoints: [
+              {
+                matchExpressions: [
+                  { key: "io.kubernetes.pod.namespace", operator: "Exists" },
+                ],
+              },
+            ],
+            toPorts: [{ ports: [{ port: "8443", protocol: "TCP" }] }],
+          },
+        ],
+      },
     },
     { provider },
   );
