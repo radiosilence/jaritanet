@@ -149,6 +149,12 @@ export function createAuth(
     /** Cluster-internal, and never fronted by an IngressRoute. */
     hydraAdminUrl: pulumi.Input<string>;
     clients: RelyingParty[];
+    /**
+     * The MCP gateway's public URL, registered as the audience of every
+     * self-registered client. The gateway accepts a token only from a client
+     * carrying it. Omitted when no gateway is deployed.
+     */
+    gatewayAudience?: string;
   },
 ) {
   const options = { provider };
@@ -292,6 +298,14 @@ export function createAuth(
                     name: "FIRST_PARTY_CLIENTS",
                     ...secretRef("first-party-clients"),
                   },
+                  ...(opts.gatewayAudience
+                    ? [
+                        {
+                          name: "GATEWAY_AUDIENCE",
+                          value: opts.gatewayAudience,
+                        },
+                      ]
+                    : []),
                 ],
                 readinessProbe: {
                   httpGet: { path: "/healthz", port: 8080 },

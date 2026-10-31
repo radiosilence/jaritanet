@@ -460,6 +460,9 @@ export default async function () {
       // secret that service was handed. Collected rather than declared: see
       // createServices.
       clients,
+      ...(hostnames["mcp-gateway"] && {
+        gatewayAudience: `https://${hostnames["mcp-gateway"]}`,
+      }),
     });
     // Registration is open to anyone and writes a Hydra client per call, so
     // it has a route of its own carrying a limit the login pages do not need.

@@ -65,12 +65,14 @@ fn check_flow(request: &Value) -> Result<(), String> {
     }
 }
 
-pub async fn register(
-    State(state): State<AppState>,
-    Json(request): Json<Value>,
-) -> AppResult<Response> {
-    check_flow(&request).map_err(AppError::BadRequest)?;
-
+/// What Hydra is asked to create for a registration. Everything that decides
+/// what the client may do is set here rather than taken from the request.
+///
+/// The audience is the gateway's, whatever the request names: self-registration
+/// exists for MCP clients, and the gateway accepts a token only when its client
+/// carries that audience, so a token issued to any other relying party of this
+/// issuer is refused there. Without a gateway there is no audience to grant.
+fn client_body(request: &Value, gateway_audience: Option<&str>) -> Value {
     let field = |key: &str, default: Value| {
         request
             .get(key)
@@ -91,16 +93,32 @@ pub async fn register(
         }
     }
 
+    let mut body = json!({
+        "client_name": field("client_name", json!("Unnamed client")),
+        "redirect_uris": field("redirect_uris", json!([])),
+        "grant_types": GRANT_TYPES,
+        "response_types": RESPONSE_TYPES,
+        "scope": scopes.join(" "),
+        "token_endpoint_auth_method": field("token_endpoint_auth_method", json!("none")),
+    });
+    if let Some(audience) = gateway_audience {
+        body["audience"] = json!([audience]);
+    }
+    body
+}
+
+pub async fn register(
+    State(state): State<AppState>,
+    Json(request): Json<Value>,
+) -> AppResult<Response> {
+    check_flow(&request).map_err(AppError::BadRequest)?;
+
     let created = state
         .hydra
-        .create_client(&json!({
-            "client_name": field("client_name", json!("Unnamed client")),
-            "redirect_uris": field("redirect_uris", json!([])),
-            "grant_types": GRANT_TYPES,
-            "response_types": RESPONSE_TYPES,
-            "scope": scopes.join(" "),
-            "token_endpoint_auth_method": field("token_endpoint_auth_method", json!("none")),
-        }))
+        .create_client(&client_body(
+            &request,
+            state.config.gateway_audience.as_deref(),
+        ))
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
 
@@ -166,5 +184,20 @@ mod tests {
         assert!(check_flow(&json!({ "grant_types": "client_credentials" })).is_err());
         assert!(check_flow(&json!({ "response_types": ["token"] })).is_err());
         assert!(check_flow(&json!({ "token_endpoint_auth_method": "private_key_jwt" })).is_err());
+    }
+
+    #[test]
+    fn the_audience_is_the_gateway_whatever_the_request_names() {
+        let body = client_body(
+            &json!({ "audience": ["https://evil.example"], "redirect_uris": ["https://claude.ai/cb"] }),
+            Some("https://mcp.example"),
+        );
+        assert_eq!(body["audience"], json!(["https://mcp.example"]));
+    }
+
+    #[test]
+    fn without_a_gateway_no_audience_is_sent() {
+        let body = client_body(&json!({ "audience": ["https://evil.example"] }), None);
+        assert!(body.get("audience").is_none());
     }
 }
