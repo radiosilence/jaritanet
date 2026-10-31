@@ -14,7 +14,6 @@ import {
  * nobody reads should fail the preview, not survive as a comment that lies.
  */
 export const ServiceArgsSchema = z.strictObject({
-  env: z.record(z.string(), z.string()).default({}),
   healthCheck: HealthCheckConfigSchema.optional(),
   httpPort: z.uint32().default(80),
   /**
@@ -32,17 +31,18 @@ export const ServiceArgsSchema = z.strictObject({
    */
   networkPolicy: z.boolean().default(false),
   /**
-   * Also restrict *ingress* to Traefik and the node, on top of `networkPolicy`.
+   * Also restrict *ingress* to Traefik, on top of `networkPolicy`.
    *
    * Separate from `networkPolicy` because the risk is different in kind. Egress
    * rules cannot break a pod that is already serving; an ingress rule can, if
    * the CNI also drops the kubelet's health probes — which arrive from the node
    * rather than from a pod — and the pod is then killed for failing readiness.
-   * So this is opt-in per service and wants proving on something harmless.
+   * Cilium's `allow-localhost` default admits the local host to its own
+   * endpoints whatever the policy says, so probes need no rule. An `ipBlock`
+   * could not admit them anyway: with `policy-cidr-match-mode` unset, CIDR
+   * selectors never match a node.
    *
-   * `files` was enabled first, under flannel, which enforced nothing, so its
-   * staying healthy then proved nothing about probes. It is the canary for
-   * this under Cilium.
+   * `files` is the canary for this under Cilium.
    *
    * What it would buy: a compromised pod cannot reach a sibling. That is the
    * lateral step after any egress control fails, and pod-to-pod is wide open.
