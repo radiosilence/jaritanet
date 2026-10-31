@@ -6,10 +6,10 @@
 #   key    the entry in its exported `VERSIONS` to rewrite. This is where a pin
 #          belongs — next to the code that deploys it — and an entry has this
 #          form as soon as its component has a package to sit in.
-#   path   the older form: what to rewrite in Pulumi.main.yaml, as a list of
-#          keys. A mapping segment like `{ id: tfl }` picks a list entry out by
-#          field rather than by position, so reordering that list is harmless.
-#          Still used by the pins with no package of their own yet.
+#   manifest, package
+#          instead of file and key: a `package.json` and the dependency in it to
+#          rewrite, for a component whose repository publishes its own Pulumi
+#          package. The image it runs is then that package's business.
 #   value  what to write, with {version} substituted
 #   image  an image reference to confirm exists before committing the bump.
 #          Defaults to `value` when that is already a full reference, so only
@@ -25,6 +25,8 @@
 #          can cut the GitHub release before publishing the chart, and a pin the
 #          repository does not serve fails every deploy, so the bump waits until
 #          the index lists the version. Stands in for `image` on a chart.
+#   branch follow this branch's head instead of a release, for images tagged
+#          by commit. {version} is then the short SHA, used verbatim.
 #
 # {version} is the release tag with everything before its first digit stripped,
 # which covers both a leading `v` and a chart-name prefix. An entry puts back
@@ -275,9 +277,10 @@
   image: "ghcr.io/radiosilence/sbr-site:sha-{version}"
 
 # Deliberately absent, and each said so where it is pinned, in an `UNTRACKED`
-# const beside the `VERSIONS` the updater does read: Hydra (a major bump needs
-# a database migration), and postgres and redis (major tags that carry their
-# own patches).
+# const beside the `VERSIONS` the updater does read: redis, in the auth chart
+# (a major tag that carries its own patches). Hydra and its postgres are pinned
+# the same way inside `@radiosilence/mcp-gateway-pulumi`, which this follows as
+# a whole.
 #
 # Also deliberately absent: k3s and Cilium. Cilium's version has to match the
 # cluster's k8s minor, and k3s is the cluster — bumping either unattended

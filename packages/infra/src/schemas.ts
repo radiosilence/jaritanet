@@ -71,7 +71,7 @@ export const CloudflareConfSchema = z.object({
  * A Telegram bot for notifications, shared by whatever wants to send one.
  *
  * Its own schema rather than inline on a single service field because it now
- * has more than one consumer — see `ConfSchema.telegram`.
+ * has more than one consumer — see `telegram` in stack.ts.
  */
 export const TelegramConfSchema = z.object({
   botToken: z.string(),

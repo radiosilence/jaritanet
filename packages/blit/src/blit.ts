@@ -3,8 +3,8 @@ import type * as k8s from "@pulumi/kubernetes";
 import { VERSIONS } from "./versions.ts";
 
 /**
- * The public site. A static bundle behind nano-web, and the only workload here
- * whose image is pinned to a commit.
+ * The public site. A static bundle behind nano-web, its image pinned to a
+ * commit on blit's main branch.
  */
 export function createBlit(
   provider: k8s.Provider,

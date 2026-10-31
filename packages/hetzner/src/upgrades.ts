@@ -19,9 +19,9 @@ const NAMESPACE = "system-upgrade";
  * It watches `Plan` CRDs and schedules a privileged Job on each matching node
  * that enters the host's namespace, replaces `/usr/local/bin/k3s` and restarts
  * the unit — so reach comes from cluster membership rather than from a route to
- * the box. `version` therefore stays a single value in `Pulumi.main.yaml`
- * driving both a fresh install and the upgrade of everything already running,
- * and a bump remains a deliberate PR that actually arrives everywhere.
+ * the box. `version` therefore stays a single value in `stack.ts` driving
+ * both a fresh install and the upgrade of everything already running, and a
+ * bump remains a deliberate PR that actually arrives everywhere.
  *
  * Two plans, because servers and agents cannot move at once: the agent plan's
  * `prepare` step blocks on the server plan completing, which is the ordering

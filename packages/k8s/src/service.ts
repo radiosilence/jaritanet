@@ -332,8 +332,9 @@ export function createService(
                   },
                   // The kubelet's probes come from the node, not from a pod, so
                   // without this the pod fails readiness and gets killed. Pod
-                  // IPs are 10.1.x, so allowing the node's LAN still shuts out
-                  // every sibling — which is the whole point of the rule.
+                  // IPs are in 10.42.0.0/16 (`POD_CIDR`), so allowing the node's
+                  // LAN still shuts out every sibling — which is the point of
+                  // the rule.
                   { ipBlock: { cidr: "192.168.0.0/16" } },
                 ],
               },

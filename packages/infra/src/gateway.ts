@@ -77,10 +77,9 @@ export function createGateway(
       // caps throughput; the cluster's own traffic to the home node rides
       // the tailnet too.
       inboundRule("Tailscale direct connections", 41641, "udp"),
-      // Only when the API server has no tailnet to hide behind. With Tailscale
-      // configured the kubeconfig points at a MagicDNS name and 6443 never
-      // needs a public rule at all — so adding the Pi (and its tailnet) closes
-      // this automatically rather than leaving a control plane exposed.
+      // Only when the API server is not reached over the tailnet. With
+      // `apiViaTailnet` the kubeconfig points at a MagicDNS name and 6443
+      // needs no public rule.
       ...(gateway.k3s && !gateway.k3s.apiViaTailnet
         ? [inboundRule("k3s API server", 6443)]
         : []),
