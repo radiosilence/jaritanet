@@ -112,6 +112,19 @@ async fn ensure_first_party(config: &Config, hydra: &HydraAdmin) -> Result<()> {
     Ok(())
 }
 
+/// Resolves on SIGTERM or ctrl-c. As PID 1 in a scratch image nothing installs
+/// a default handler, so without this the kubelet's SIGTERM is ignored and every
+/// rollout waits out the grace period before a SIGKILL.
+async fn shutdown_signal() {
+    let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .expect("installing a SIGTERM handler");
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = tokio::signal::ctrl_c() => {}
+    }
+    tracing::info!("shutting down");
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -171,6 +184,7 @@ async fn main() -> Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown_signal())
     .await
     .context("serving")?;
     Ok(())

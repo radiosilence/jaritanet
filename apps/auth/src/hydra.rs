@@ -215,6 +215,23 @@ impl HydraAdmin {
         .await
     }
 
+    /// End a login that is not going to succeed. Hydra answers with where to
+    /// send the browser, which is the relying party's redirect URI carrying
+    /// the error — the only way it learns the attempt is over.
+    pub async fn reject_login(
+        &self,
+        challenge: &str,
+        error: &str,
+        description: &str,
+    ) -> Result<String> {
+        self.put_redirect(
+            "/admin/oauth2/auth/requests/login/reject",
+            &[("login_challenge", challenge)],
+            &json!({ "error": error, "error_description": description }),
+        )
+        .await
+    }
+
     pub async fn get_consent(&self, challenge: &str) -> Result<ConsentRequest> {
         self.get(
             "/admin/oauth2/auth/requests/consent",

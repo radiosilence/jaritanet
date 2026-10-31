@@ -166,6 +166,19 @@ async fn guard_headers(request: Request, next: Next) -> Response {
     response
 }
 
+/// Resolves on SIGTERM or ctrl-c. As PID 1 in a scratch image nothing installs
+/// a default handler, so without this the kubelet's SIGTERM is ignored and every
+/// rollout waits out the grace period before a SIGKILL.
+async fn shutdown_signal() {
+    use tokio::signal::unix::{SignalKind, signal};
+    let mut term = signal(SignalKind::terminate()).expect("installing a SIGTERM handler");
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = tokio::signal::ctrl_c() => {}
+    }
+    println!("shutting down");
+}
+
 #[tokio::main]
 async fn main() {
     // A misconfiguration is the expected way for this to fail, so it gets one
@@ -190,6 +203,7 @@ async fn run() -> Result<(), String> {
     println!("serving {} routes on :{port}", routes.len());
 
     axum::serve(listener, build_app(routes))
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| format!("serve failed: {e}"))
 }
