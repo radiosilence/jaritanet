@@ -20,11 +20,6 @@ import type * as pulumi from "@pulumi/pulumi";
  */
 export type Route = {
   service: string;
-  /**
-   * The IngressRoute's name prefix, for a service published on more than one
-   * route. Defaults to `service`.
-   */
-  name?: string;
   hostname: string;
   /**
    * Only for a hostname two workloads share. Absent means the whole host,
@@ -34,6 +29,8 @@ export type Route = {
   priority?: number;
   /** Traefik Middlewares, by name in the route's namespace, run in order. */
   middlewares?: pulumi.Input<string>[];
+  /** Resources the IngressRoute must wait for, such as a route taking over some of its paths. */
+  dependsOn?: pulumi.Resource[];
 };
 
 /**

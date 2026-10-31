@@ -87,6 +87,44 @@ export function authRoutes() {
 export const registrationRoute = "Path(`/register`)";
 
 /**
+ * The Traefik Middleware that limits `registrationRoute`, returning its name.
+ *
+ * Generous for a client registering itself, which happens once per setup;
+ * tight for anything filling the table. Keyed on the remote address, which
+ * Xray's PROXY header sets to the client's. An IPv6 caller is bucketed by its
+ * /64, since one host commonly holds the whole prefix and would otherwise get a
+ * fresh allowance per address.
+ *
+ * The key is only as good as the PROXY header: while Traefik trusts it from the
+ * whole pod network (#1247), a pod can claim any address. The limit bounds a
+ * caller with few addresses, not one with a pool of them.
+ */
+export function createRegistrationLimit(
+  provider: k8s.Provider,
+  namespace: pulumi.Input<string>,
+  // Middleware is a CRD the Traefik chart installs.
+  traefik?: pulumi.Resource,
+) {
+  return new k8s.apiextensions.CustomResource(
+    "auth-register-rate",
+    {
+      apiVersion: "traefik.io/v1alpha1",
+      kind: "Middleware",
+      metadata: { name: "auth-register-rate", namespace },
+      spec: {
+        rateLimit: {
+          average: 5,
+          period: "1m",
+          burst: 10,
+          sourceCriterion: { ipStrategy: { ipv6Subnet: 64 } },
+        },
+      },
+    },
+    { provider, dependsOn: traefik ? [traefik] : [] },
+  ).metadata.name;
+}
+
+/**
  * One login screen, independent of the applications it signs you into.
  *
  * Two deployments: the provider itself, and a Redis holding one nonce per login

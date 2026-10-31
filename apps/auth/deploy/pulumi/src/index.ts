@@ -1,6 +1,7 @@
 export {
   authRoutes,
   createAuth,
+  createRegistrationLimit,
   firstPartyClients,
   registrationRoute,
   type RelyingParty,
