@@ -36,6 +36,7 @@ export function createGateway(
     entryLabel,
     magicdnsSuffix = "",
     tailnetAuthKey,
+    tailnetApi,
   }: {
     adminSshKey?: string;
     clusterName: string;
@@ -43,6 +44,13 @@ export function createGateway(
     entryLabel: string;
     magicdnsSuffix?: string;
     tailnetAuthKey?: string;
+    // Lets a rebuilt box take back its tailnet name; see
+    // createTailscaleSystemd. Without it a rebuild registers as `<name>-1`
+    // and `apiHost` names the dead device until it is deleted by hand.
+    tailnetApi?: {
+      clientId: pulumi.Input<string>;
+      clientSecret: pulumi.Input<string>;
+    };
   },
 ) {
   const sshKey = new tls.PrivateKey("gateway-ssh-key", {
@@ -143,6 +151,7 @@ export function createGateway(
           gateway.tailnet,
           pulumi.secret(tailnetAuthKey),
           { dependsOn: [server], replaceWith: [server] },
+          tailnetApi,
         )
       : undefined;
 
