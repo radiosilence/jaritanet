@@ -42,6 +42,35 @@ const outs = (p: ReturnType<typeof buildProfile>) =>
     transport?: Record<string, string>;
   }[];
 
+describe("buildProfile IPv6", () => {
+  const rules = (role: "admin" | "guest") =>
+    buildProfile({ name: "jc", role }, [node], "ts.net", exits).route.rules as {
+      ip_cidr?: string[];
+      ip_version?: number;
+      action?: string;
+    }[];
+
+  // A reset after the tun's handshake never triggers happy-eyeballs, so IPv6
+  // is refused before sniff (after which reject only closes), and tailnet IPv6
+  // is routed before that.
+  it.each(["admin", "guest"] as const)(
+    "refuses IPv6 for %s before sniff",
+    (role) => {
+      const r = rules(role);
+      const tailnet = r.findIndex((x) =>
+        x.ip_cidr?.includes("fd7a:115c:a1e0::/48"),
+      );
+      const reject = r.findIndex(
+        (x) => x.ip_version === 6 && x.action === "reject",
+      );
+      const sniff = r.findIndex((x) => x.action === "sniff");
+      expect(tailnet).toBe(0);
+      expect(reject).toBe(1);
+      expect(sniff).toBeGreaterThan(reject);
+    },
+  );
+});
+
 describe("buildProfile roles", () => {
   it("gives an admin hy2 + reality with their own UUID, plus the exit axis", () => {
     const p = buildProfile(

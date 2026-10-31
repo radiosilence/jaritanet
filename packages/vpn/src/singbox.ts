@@ -408,13 +408,25 @@ export function buildProfile(
     route: {
       default_domain_resolver: resolver,
       rules: [
+        // Tailnet egresses at the gateway (into the mesh), never via an exit.
+        { ip_cidr: ["fd7a:115c:a1e0::/48"], outbound: "entry-select" },
+        {
+          // IPv6 is refused at the tun. DNS answers IPv4 only, but apps still
+          // arrive with IPv6 literals (Netflix's API, browser DoH, cached AAAA),
+          // and the OS prefers them whenever the local network has global IPv6.
+          // An exit without IPv6 (a home connection) can only reset such a
+          // connection after the tun has completed the handshake, so the app
+          // never falls back. Refused here, the connect itself fails and
+          // happy-eyeballs moves to IPv4. It must come before `sniff`: after
+          // one, sing-box closes the connection instead of answering with a
+          // RST. The tun keeps its IPv6 address so the OS still routes IPv6
+          // into the tunnel rather than out of the physical interface.
+          ip_version: 6,
+          action: "reject",
+        },
         { action: "sniff" },
         { protocol: "dns", action: "hijack-dns" },
-        {
-          // Tailnet egresses at the gateway (into the mesh), never via an exit.
-          ip_cidr: ["100.64.0.0/10", "fd7a:115c:a1e0::/48"],
-          outbound: "entry-select",
-        },
+        { ip_cidr: ["100.64.0.0/10"], outbound: "entry-select" },
       ],
       final: finalOutbound,
       auto_detect_interface: true,
