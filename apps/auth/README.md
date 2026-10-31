@@ -58,8 +58,19 @@ updated.
 
 **Consent is automatic for first-party clients and asked for otherwise.** A
 client whose id, secret and redirect URIs came from the deploy has already been
-decided about. One that registered itself can otherwise ask for — and silently
-receive — a token audienced at a service it has nothing to do with.
+decided about. One that registered itself is registered for the MCP gateway's
+audience, so the token it receives is one the gateway accepts, and through the
+gateway it reaches the person's stored MCP credentials. That is a decision the
+person makes, on a screen.
+
+**Self-registered clients carry the gateway's audience; first-party clients
+carry none.** One Hydra issues tokens for every relying party, so a live token
+alone would let one issued to Grafana act at the gateway. The gateway accepts a
+token only when its client is registered with the gateway's URL as an audience,
+which `/register` sets on every client it creates and nothing else does. The
+decision sits on the client rather than on the token's own audience because
+Hydra copies a token's audience through every refresh: a token-side check would
+refuse every grant made before it, for as long as its refresh token is used.
 
 **Not Hydra's own `skip_consent`.** It bypasses the consent endpoint entirely,
 and that endpoint is where identity claims are attached. Turning it on returns
@@ -148,6 +159,7 @@ once at boot.
 | `GH_CLIENT_ID`, `GH_CLIENT_SECRET` | The OAuth App. One serves everything behind here. |
 | `GH_ALLOWED` | Comma-separated GitHub logins. Empty is refused. |
 | `FIRST_PARTY_CLIENTS` | JSON array of `{id, name, secret, redirect_uris, scopes?}`, registered with Hydra at boot. Assembled by Pulumi from the services that need auth, so a redirect URI is derived from the hostname a service already publishes rather than typed. |
+| `GATEWAY_AUDIENCE` | The MCP gateway's public URL, set as the audience of every self-registered client so the gateway accepts its tokens. Unset when there is no gateway; first-party clients never get it. |
 | `BIND_ADDR` | Defaults to `0.0.0.0:8080`. |
 
 ## Routes

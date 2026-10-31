@@ -195,6 +195,13 @@ Remembered sessions are rechecked on every skipped login and consent, against
 the login in the session context; one that fails is rejected and its Hydra
 sessions and tokens revoked, so removing a login takes effect at that person's
 next sign-in rather than when the thirty-day session expires.
+The gateway is the one service that accepts bearer tokens, and Hydra issues
+tokens for every relying party, so the gateway accepts a token only when its
+client is registered with the gateway's URL as an audience. `/register` sets it
+on every client it creates (`GATEWAY_AUDIENCE`); first-party clients never get
+it. The check is on the client registration rather than the token's audience
+because Hydra copies a token's audience through every refresh, so a token-side
+check would refuse every grant made before it.
 
 **Every relying party gets an address, and both halves have to agree.** The
 scope is `read:user user:email` and the claim comes from the primary *verified*
