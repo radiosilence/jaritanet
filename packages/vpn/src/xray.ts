@@ -125,9 +125,9 @@ export function createXray(
 
   // Guest hard-block, keyed on the client's `email` (= user name), which is the
   // per-user dimension Xray gives us and hy2 does not. Admins match no guest
-  // rule and fall through to `direct`. See xray.ts for why `IPIfNonMatch` is
-  // load-bearing: under `AsIs` these IP rules never match a destination given
-  // as a domain, and a guest pointing an A record into the tailnet walks past.
+  // rule and fall through to `direct`. `IPIfNonMatch` below is load-bearing:
+  // under `AsIs` these IP rules never match a destination given as a domain,
+  // and a guest pointing an A record into the tailnet walks past.
   const guests = users.filter((u) => u.role === "guest").map((u) => u.name);
 
   // The path is what keeps the XHTTP inbound from answering anyone who finds
@@ -297,8 +297,8 @@ export function createXray(
             // The host's resolver is unbound on this same box, not the cluster.
             dnsPolicy: "Default",
             automountServiceAccountToken: false,
-            // Entries are chosen per node, not per cluster: `lady` joins soon
-            // and must not start answering :443 by virtue of being a node.
+            // Entries are chosen per node, not per cluster: `lady` is a node
+            // and must not answer :443 by virtue of being one.
             nodeSelector: { [entryLabel]: "true" },
             containers: [
               {
@@ -311,9 +311,7 @@ export function createXray(
                 // latency spikes and stalled transfers rather than a clean
                 // slowdown. A request is a scheduler share: it guarantees this a
                 // floor when k3s, Traefik and the MCP stack are all busy, and
-                // lets it burst into whatever is idle. 200m because REALITY's
-                // AES-GCM at this box's uplink is a fraction of a core, but it
-                // must never be the thing that loses a scheduling contest.
+                // lets it burst into whatever is idle.
                 //
                 // Memory keeps a real limit — it is not compressible, and OOM is
                 // better than swapping the whole cluster to death. 1Gi because

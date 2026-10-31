@@ -94,7 +94,7 @@ needs.
 
 ## Configuration
 
-Everything is an environment variable, set by Pulumi (`packages/auth`), parsed
+Everything is an environment variable, set by Pulumi (`apps/auth/deploy/pulumi`), parsed
 once at boot.
 
 | Variable | |
@@ -124,7 +124,7 @@ change — only which service answers the challenges.
 
 ## Adding a relying party
 
-An entry in `FIRST_PARTY_CLIENTS`, which `packages/auth` builds from the
+An entry in `FIRST_PARTY_CLIENTS`, which `apps/auth/deploy/pulumi` builds from the
 services declaring they need auth. Registration is derived rather than declared
 on purpose: the redirect allowlist is what stands between this and an open
 redirect, and a derived list cannot hold a typo, cannot keep an entry for a
@@ -140,4 +140,4 @@ cargo clippy --all-targets --locked -- -D warnings
 ```
 
 Running it for real needs a Hydra and a Redis; the deployment in
-`packages/auth` is the topology.
+`apps/auth/deploy/pulumi` is the topology.

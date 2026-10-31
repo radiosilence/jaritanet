@@ -2,6 +2,12 @@ import * as k8s from "@pulumi/kubernetes";
 import type * as pulumi from "@pulumi/pulumi";
 
 /**
+ * The cluster's pod network: k3s's default `cluster-cidr`, which nothing here
+ * overrides. k3s gives each node a /24 of it as its podCIDR.
+ */
+export const POD_CIDR = "10.42.0.0/16";
+
+/**
  * Cilium as the cluster's CNI.
  *
  * Not optional: k3s is installed with `--flannel-backend=none`, so until this
@@ -33,12 +39,6 @@ import type * as pulumi from "@pulumi/pulumi";
  * Turning that flag on is therefore a change to how Cilium bootstraps, not only
  * to how the kubeconfig is addressed.
  */
-/**
- * The cluster's pod network: k3s's default `cluster-cidr`, which nothing here
- * overrides. k3s gives each node a /24 of it as its podCIDR.
- */
-export const POD_CIDR = "10.42.0.0/16";
-
 export function createCilium(
   provider: k8s.Provider,
   version: string,
@@ -53,8 +53,9 @@ export function createCilium(
       repositoryOpts: { repo: "https://helm.cilium.io/" },
       version,
       values: {
-        // Single node — the default of two operator replicas leaves one pending
-        // forever, which looks like a broken cluster to anyone reading pods.
+        // One operator, not the default two. It is not in the packet path, and
+        // a second replica would sit Pending whenever the home node is away,
+        // which reads as a broken cluster to anyone listing pods.
         operator: {
           replicas: 1,
           prometheus: { enabled: true },
@@ -77,10 +78,9 @@ export function createCilium(
          * than discovering them from a `prometheus.io/port` annotation that can
          * only describe one of them.
          *
-         * `drop` is the one that pays for the rest. `ServiceArgsSchema` still
-         * carries the warning that `networkPolicy` and `restrictIngress` were
-         * decorative under flannel; they are enforced under Cilium and have
-         * never been verified. `hubble_drop_total{reason="POLICY_DENIED"}` is
+         * `drop` is the one that pays for the rest. `networkPolicy` and
+         * `restrictIngress` were decorative under flannel; they are enforced
+         * under Cilium and have never been verified. `hubble_drop_total{reason="POLICY_DENIED"}` is
          * how that stops being a belief.
          *
          * The enabled list is deliberately short. Every context added to a
