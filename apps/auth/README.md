@@ -94,7 +94,23 @@ redirect URI (`claude.ai`, or `localhost` for a CLI), so a 302 was silently
 dropped and "Allow" appeared to do nothing — for self-registered clients only,
 since first-party ones never see the form. A meta refresh is a new navigation
 that `form-action` does not govern, so the policy stays as strict as the page
-needs.
+needs. Both buttons answer this way, since "Deny" ends at the
+client's redirect URI just the same. Every other redirect follows a GET and is
+an ordinary 302.
+
+**A failed sign-in is rejected at Hydra, not answered here.** Cancelling at
+GitHub, or signing in with an account the allowlist does not name, rejects the
+login challenge through the admin API and sends the browser to the
+`redirect_to` Hydra returns. The relying party then receives `access_denied` on
+its own redirect URI; an error page here would leave it waiting on a flow
+nobody will finish. The exception is a callback with no flow behind it, expired
+or never bound to this browser: there is no challenge to reject, so the page
+says to start again from the application.
+
+**SIGTERM drains for five seconds before the listener closes.** Traefik keeps
+routing to a terminating pod until the endpoint removal reaches it, and a
+callback or consent decision landing on a closed listener in that window is a
+502 in the middle of a sign-in.
 
 ## Configuration
 
@@ -116,7 +132,7 @@ once at boot.
 | | |
 |---|---|
 | `GET /auth/login` | Hydra's login challenge. Confirms the subject when Hydra says `skip`, otherwise sends the browser to GitHub. |
-| `GET /auth/github/callback` | Exchanges the code, checks the allowlist, accepts the login. |
+| `GET /auth/github/callback` | Exchanges the code, checks the allowlist, accepts the login — or rejects it at Hydra when GitHub returned no code or the account is not allowed. |
 | `GET`/`POST /auth/consent` | Hydra's consent challenge, and the decision from the screen. |
 | `POST /register` | Dynamic client registration (RFC 7591), proxied to Hydra. Public by design. |
 | `GET /healthz` | |

@@ -7,8 +7,13 @@
 //!
 //! `SameSite=Lax` rather than `Strict` because the cookie has to survive the
 //! browser being sent back here by GitHub, which is a cross-site navigation.
+//!
+//! The `__Host-` prefix makes the browser refuse the cookie unless it is
+//! `Secure`, `Path=/` and carries no `Domain`. Without it, any sibling
+//! subdomain could set a flow cookie here and bind the victim's callback to a
+//! login the attacker started.
 
-pub const FLOW_COOKIE: &str = "auth_flow";
+pub const FLOW_COOKIE: &str = "__Host-auth_flow";
 
 pub fn set_cookie(name: &str, value: &str, max_age_secs: i64) -> String {
     format!("{name}={value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={max_age_secs}")
@@ -31,7 +36,7 @@ mod tests {
 
     #[test]
     fn reads_a_named_cookie_from_a_header_of_several() {
-        let h = "other=1; auth_flow=abc123; another=2";
+        let h = "other=1; auth_flow=planted; __Host-auth_flow=abc123; another=2";
         assert_eq!(read_cookie(h, FLOW_COOKIE), Some("abc123"));
         assert_eq!(read_cookie(h, "absent"), None);
     }
@@ -42,5 +47,17 @@ mod tests {
         assert!(c.contains("HttpOnly"));
         assert!(c.contains("Secure"));
         assert!(c.contains("SameSite=Lax"));
+        // What the `__Host-` prefix requires, or the browser drops the cookie.
+        assert!(c.starts_with("__Host-"));
+        assert!(c.contains("Path=/;"));
+        assert!(!c.contains("Domain"));
+        // A clearing cookie that breaks the prefix rules is ignored, and the
+        // flow cookie would outlive every callback.
+        let cleared = clear_cookie(FLOW_COOKIE);
+        assert!(cleared.starts_with("__Host-"));
+        assert!(cleared.contains("Path=/;"));
+        assert!(cleared.contains("Secure"));
+        assert!(!cleared.contains("Domain"));
+        assert!(cleared.contains("Max-Age=0"));
     }
 }
