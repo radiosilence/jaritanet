@@ -14,19 +14,11 @@
 import {
   BlueskyConfSchema,
   FastmailConfSchema,
-  ZoneConfSchema,
   ZonesConfSchema,
 } from "@jaritanet/dns";
 import { AuthConfSchema as AuthComponentConfSchema } from "@jaritanet/auth";
 import { K3sConfSchema } from "@jaritanet/hetzner";
-import { SambaConfSchema } from "@jaritanet/home";
 import { TraefikConfSchema } from "@jaritanet/ingress";
-import { MariastewConfSchema } from "@radiosilence/mariastew-pulumi";
-import {
-  McpGatewayConfSchema,
-  McpSchema,
-} from "@radiosilence/mcp-gateway-pulumi";
-import { MetricsConfSchema } from "@jaritanet/metrics";
 import {
   ExitConfSchema,
   HysteriaConfSchema,
@@ -40,17 +32,7 @@ export {
   BlueskyConfSchema,
   ExitConfSchema,
   FastmailConfSchema,
-  HysteriaConfSchema,
-  K3sConfSchema,
-  MariastewConfSchema,
-  McpGatewayConfSchema,
-  McpSchema,
-  MetricsConfSchema,
-  SambaConfSchema,
-  TailnetConfSchema,
   TraefikConfSchema,
-  XrayConfSchema,
-  ZoneConfSchema,
   ZonesConfSchema,
 };
 
@@ -90,7 +72,7 @@ export const TelegramConfSchema = z.object({
  * optional halves.
  */
 export const TailnetAccountConfSchema = z.object({
-  /** Joins the gateway, every edge, and the in-cluster relay. */
+  /** Joins the gateway and every edge to the tailnet. */
   authKey: z.string().optional(),
   /**
    * The `*.ts.net` suffix. Not a secret — it is in the certificate
@@ -145,12 +127,6 @@ export const GatewayConfSchema = z.object({
    * until the secrets behind them are reissued, which is what this does.
    */
   credentialRotation: z.string().default("1"),
-  /**
-   * Creates the VPS, and its presence is what decides there is a gateway at
-   * all — absent, the stack falls back to `externalIp`. The `hcloud:token`
-   * provider key holds the same value for the provider's own use.
-   */
-  hcloudToken: z.string().optional(),
   hysteria: HysteriaConfSchema.optional(),
   /**
    * What the box is called — in Hetzner, and by default on the tailnet.
@@ -161,7 +137,8 @@ export const GatewayConfSchema = z.object({
    */
   name: z.string().default("sympathy"),
   image: z.string().default("ubuntu-26.04"),
-  k3s: K3sConfSchema.optional(),
+  /** Required: the gateway is the box that provides the cluster. */
+  k3s: K3sConfSchema,
   location: z.string().default("nbg1"),
   serverType: z.string().default("cx23"),
   tailnet: TailnetConfSchema.optional(),

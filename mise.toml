@@ -59,9 +59,9 @@ run = "oxfmt --check"
 
 [tasks.typecheck]
 description = "Type check every package"
-# `-e` guards the globs: an app with no browser TypeScript leaves
-# apps/*/tsconfig*.json unexpanded, and tsc is handed the literal.
-run = 'for p in packages/*/tsconfig.json apps/*/tsconfig*.json apps/*/deploy/pulumi/tsconfig.json scripts/tsconfig.json; do [ -e "$p" ] || continue; echo "→ $p" && tsc -p "$p" || exit 1; done'
+# `-e` guards the globs: one that matches nothing is left unexpanded, and tsc
+# would be handed the literal.
+run = 'for p in packages/*/tsconfig.json apps/*/deploy/pulumi/tsconfig.json scripts/tsconfig.json; do [ -e "$p" ] || continue; echo "→ $p" && tsc -p "$p" || exit 1; done'
 
 [tasks.test]
 description = "Run the test suite (vitest on Node — Pulumi needs Node's v8)"

@@ -4,7 +4,7 @@ import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { K3sConfSchema } from "./k3s.schemas.ts";
-import { type SshConnection, resourcePrefix } from "./vps.ts";
+import type { SshConnection } from "./vps.ts";
 
 /**
  * Runs a Kubernetes control plane on the gateway VPS itself, and hands its
@@ -38,7 +38,6 @@ export function createK3s(
   server: hcloud.Server,
   k3s: z.infer<typeof K3sConfSchema>,
   apiHost: pulumi.Input<string>,
-  name = "",
   // What the cluster, context and user are called in the kubeconfig handed
   // back. k3s calls all three `default`; this package does not know what the
   // cluster is, so the caller says.
@@ -47,8 +46,6 @@ export function createK3s(
   // and authenticated before k3s starts.
   dependsOn: pulumi.Resource[] = [],
 ) {
-  const p = resourcePrefix(name);
-
   // `node-ip` is the box's tailnet address. The rest of the cluster reaches a
   // node at whatever it reports as its InternalIP, and the home node is behind
   // NAT with no forwarded ports, so its tailnet address is the only one that
@@ -61,7 +58,7 @@ export function createK3s(
   // The public address stays in `tls-san` so the API is still reachable there
   // for CI and for a human whose tailnet is the thing that broke.
   const nodeConfig = new command.remote.Command(
-    `${p}k3s-node-config`,
+    "k3s-node-config",
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
@@ -91,7 +88,7 @@ fi`,
   );
 
   const install = new command.remote.Command(
-    `${p}k3s-install`,
+    "k3s-install",
     {
       connection,
       create: pulumi.interpolate`${remotePreamble}
@@ -161,7 +158,7 @@ k3s kubectl get --raw /readyz >/dev/null`,
   // it out of band — an uninstall, `k3s certificate rotate-ca` — is a bump of
   // the tag, and the cascade that follows is then the real thing.
   const read = new command.remote.Command(
-    `${p}k3s-kubeconfig`,
+    "k3s-kubeconfig",
     {
       connection,
       create: "cat /etc/rancher/k3s/k3s.yaml",

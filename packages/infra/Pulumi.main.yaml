@@ -31,8 +31,6 @@ config:
       secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
     githubClientSecret:
       secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
-    hcloudToken:
-      secure: AAABAOgRAPNoCi9RMimIgP3fLzyirP3UdoMx34L1D5tApjmkfrEF60Ys9++KOGJz+0jKxMI5PgGC1LXqk1AiRgZS3psE7g/YHhKkWxMGiCoHVW83ro5MjAtbrAhSyl8+
     tailnetAuthKey:
       secure: AAABAPUJk8cSP4BCle0UNlTgQPHpZp80WGEMqbZp+4fx3Wh1ORkqWChwDukbz5Gd3DIsbT2L+F4awkbtp+R9xg6Elg1Ko8qHXYRVTM+My+YOv+Eus99hVHbE7usnjav7
     tailnetOauthClientSecret:

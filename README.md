@@ -76,8 +76,9 @@ choices and the `:443` multiplexing.
 
 ### The gateway is not optional any more
 
-`secrets.hcloudToken` and `gateway.k3s` (in `stack.ts`) are both required: the
-cluster runs on the VPS the token provisions, so there is no cluster without it.
+`gateway.k3s` (in `stack.ts`) is required, and the Hetzner provider reads its
+token from the `hcloud:token` provider key: the cluster runs on the VPS that
+token provisions, so there is no cluster without it.
 
 | | |
 |---|---|
@@ -230,7 +231,7 @@ is the engine redacting its own stdout. That is what lets a credential sit in
 the block it belongs to instead of a flat key at the root.
 
 ```bash
-pulumi config set --path --secret secrets.hcloudToken
+pulumi config set --path --secret secrets.githubClientSecret
 ```
 
 ### GitHub Actions secrets
@@ -251,9 +252,9 @@ deployment *is* lives in `packages/infra/src/stack.ts` as TypeScript, and
 
 | Key | Required | Purpose |
 |---|---|---|
-| `cloudflare:apiToken`, `hcloud:token` | Yes | Provider credentials |
+| `cloudflare:apiToken` | Yes | Provider credential |
+| `hcloud:token` | Yes | Hetzner API token, read by the provider. The cluster runs on the VPS it provisions, so this is not optional |
 | `secrets.cloudflareApiToken` | Yes | Handed to Traefik for the ACME DNS-01 challenge (DNS:Edit, Zone:Read) |
-| `secrets.hcloudToken` | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
 | `secrets.githubClientSecret` | Yes | The OAuth app the identity provider authenticates people against |
 | `secrets.ubuntuProToken` | No | Ubuntu Pro, for kernel livepatch. Unset = the reboot window is still set and only livepatch is skipped |
 | `secrets.vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
@@ -301,7 +302,7 @@ CI does not join the tailnet. It reaches the API server on the VPS's public
 The token comes from console.hetzner.cloud, under Project, Security, API Tokens.
 
 ```bash
-pulumi config set --path --secret secrets.hcloudToken
+pulumi config set --secret hcloud:token
 ```
 
 Next deploy provisions the VPS, installs k3s on it and deploys everything into

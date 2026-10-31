@@ -5,9 +5,6 @@
   "keywords": [],
   "license": "ISC",
   "author": "James Cleveland <jc@blit.cc>",
-  "workspaces": [
-    "packages/*"
-  ],
   "type": "module",
   "scripts": {
     "prepare": "test -n \"$CI\" || lefthook install"
