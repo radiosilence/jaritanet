@@ -275,13 +275,13 @@ touching branch protection.
 3. **Release** — see below.
 
 **Pulumi preview** runs on pull requests that reach the stack: `pulumi preview
---refresh`, posted as a PR comment and edited in place on each push. It surfaces
+--refresh`, which the Pulumi GitHub app reports on the pull request. It surfaces
 resource **replacements** (the gateway VPS) before merge, and the refresh is what
 makes it call the cloud APIs, so a credential revoked since the last deploy
-fails here rather than mid-deploy. It is the only CI job holding a Pulumi token
-or able to write to the pull request (`pull-requests: write`); the other CI job
-with a write scope is `image`, whose `packages: write` pushes to GHCR. It skips with a notice when a fork's
-pull request is given no secrets.
+fails here rather than mid-deploy. It is the only CI job holding a Pulumi token,
+and needs no write scope; the only CI job with one is `image`, whose
+`packages: write` pushes to GHCR. It skips with a notice when a fork's pull
+request is given no secrets.
 
 #### Containers
 

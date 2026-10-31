@@ -291,12 +291,12 @@ jobs:
         if: matrix.task == 'test'
         run: mise run check:profiles
 
-  # `pulumi preview --refresh` against the live stack, posted on the pull
-  # request, so a resource that *replaces* (the gateway VPS) rather than
-  # updates is seen before merge. --refresh is load-bearing: without it a
+  # `pulumi preview --refresh` against the live stack, so a resource that
+  # *replaces* (the gateway VPS) rather than updates is seen before merge. The
+  # Pulumi GitHub app posts the result on the pull request. --refresh is load-bearing: without it a
   # preview never calls the cloud APIs, so a credential revoked since the last
   # deploy reads as fine and only fails once it is too late to be a preview.
-  # Read-only; the token it holds can comment and nothing more.
+  # Read-only.
   preview:
     name: Pulumi Preview
     runs-on: ubuntu-24.04
@@ -306,7 +306,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-      pull-requests: write
     steps:
       # A pull request from a fork is given no secrets. The token is on the
       # steps that read it only, not the install, whose lifecycle scripts come
@@ -349,46 +348,10 @@ jobs:
         id: preview
         if: steps.token.outputs.ready == 'true'
         working-directory: packages/infra
-        run: |
-          set -o pipefail
-          pulumi preview --non-interactive --diff --refresh -s "$STACK" 2>&1 | tee preview.txt
+        run: pulumi preview --non-interactive --diff --refresh -s "$STACK"
         env:
           STACK: radiosilence/jaritanet/main
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
-      # Truncated from the top: the resource summary a preview is read for sits
-      # at the end, and GitHub refuses a body beyond 65536 characters.
-      - name: Build comment
-        if: ${{ !cancelled() && steps.preview.outcome != 'skipped' }}
-        run: |
-          LIMIT=60000
-          body=$(grep -vE '^(Downloading|Installing) plugin ' packages/infra/preview.txt)
-          {
-            # The backticks are Markdown, for the comment.
-            # shellcheck disable=SC2016
-            echo '#### Pulumi preview — `radiosilence/jaritanet/main`'
-            if [ "${#body}" -gt "$LIMIT" ]; then
-              echo "> Truncated to the last $LIMIT characters — see the run for the whole preview."
-            fi
-            echo
-            echo '```'
-            printf '%s' "$body" | tail -c "$LIMIT"
-            echo
-            echo '```'
-          } > "$BODY"
-        env:
-          BODY: ${{ runner.temp }}/preview.md
-
-      # Edited in place rather than appended, so a PR pushed to repeatedly
-      # carries one comment showing the current preview instead of a pile of
-      # superseded ones.
-      - name: Comment preview on PR
-        if: ${{ !cancelled() && steps.preview.outcome != 'skipped' }}
-        run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$BODY" --edit-last --create-if-none
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.number }}
-          BODY: ${{ runner.temp }}/preview.md
 
   # fmt, clippy and the tests for each Rust app the change touches. On the
   # floating `rust = "stable"` from mise.toml, where a compiler bump breaking is the
