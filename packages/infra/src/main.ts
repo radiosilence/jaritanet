@@ -431,9 +431,8 @@ export default async function () {
   // containers, the file services on the box holding the disks, the MCP
   // gateway, and the sing-box profile server. Nothing here selects the
   // gateway: the file services carry no VPN entry label, so a DaemonSet with
-  // no matching node
-  // schedules nothing rather than landing somewhere it would fight the
-  // transports for a host port.
+  // no matching node schedules nothing rather than landing somewhere it would
+  // fight the transports for a host port.
   //
   // The primary is a sing-box node too: clients connect by IP, and its REALITY
   // decoy is its own reverse-proxied site (unlike edges, which use an external

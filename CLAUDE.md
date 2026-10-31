@@ -56,6 +56,7 @@ that somehow exists cannot abort a run that already did its work.
 - Every package declares its own dependencies; the root holds only tooling
 - Run commands from root directory
 - Build-script allowlist and supply-chain defaults live in `aube-workspace.yaml`
+- aube is pinned to one exact version in `mise.toml`, and every `endevco/aube-action` step passes the same `version` (`scripts/workflows.test.ts` checks it). Versions differ in how the lockfile writes workspace members, so a mismatch makes local installs and CI rewrite each other's lockfile
 
 ## Architecture
 
@@ -237,9 +238,9 @@ missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
 covered by the next. A manual run, a change under `.github/`, a push whose
 last passed commit cannot be found, or a diff that cannot be worked out runs
-everything. Markdown does not count for `ts` or `deploy`; a container counts
-every file in its directory, since an image may ship one (koan-demo copies
-`CREDITS.md`).
+everything. Markdown does not count for `ts` or `deploy`. A container counts
+every file in its directory except its README, since an image may ship other
+Markdown (koan-demo copies `CREDITS.md`).
 
 `aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
 where the change reaches: `.github/scripts/shared_inputs.py` follows the

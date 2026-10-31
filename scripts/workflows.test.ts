@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 const WORKFLOWS = join(import.meta.dirname, "..", ".github", "workflows");
 
@@ -36,6 +37,31 @@ describe("every workflow that installs can authenticate", () => {
         text.indexOf("mise run auth"),
         `${name} authenticates before it installs`,
       ).toBeLessThan(text.indexOf("aube-action"));
+    }
+  });
+
+  /**
+   * aube-action installs the latest aube unless given a version, and aube
+   * versions disagree on how the lockfile writes workspace members, so a local
+   * install and CI on different versions rewrite each other's lockfile.
+   */
+  it("installs the aube mise pins", async () => {
+    const mise = await readFile(
+      join(import.meta.dirname, "..", "mise.toml"),
+      "utf8",
+    );
+    const pinned = mise.match(/^aube = "(\d+\.\d+\.\d+)"$/m)?.[1];
+    expect(pinned, "mise.toml pins an exact aube").toBeDefined();
+    for (const { name, text } of await workflows()) {
+      const { jobs } = parse(text);
+      for (const [job, { steps = [] }] of Object.entries<{
+        steps?: { uses?: string; with?: { version?: string } }[];
+      }>(jobs)) {
+        for (const step of steps) {
+          if (!step.uses?.startsWith("endevco/aube-action@")) continue;
+          expect(String(step.with?.version), `${name} ${job}`).toBe(pinned);
+        }
+      }
     }
   });
 

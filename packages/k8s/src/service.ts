@@ -330,12 +330,10 @@ export function createService(
                       matchLabels: { "app.kubernetes.io/name": "traefik" },
                     },
                   },
-                  // Kept from flannel, where the kubelet's probes arrived from
-                  // the node's LAN address. They no longer do: nodes register
+                  // Admits any 192.168.0.0/16 source, such as hosts on the home
+                  // node's LAN. Kubelet probes do not depend on it: nodes use
                   // their tailnet address as `node-ip`, and Cilium admits the
-                  // local host to its own endpoints by default. What this
-                  // still does is admit any 192.168.x source, such as the home
-                  // node's LAN; whether to drop it is #1254.
+                  // local host to its own endpoints by default.
                   { ipBlock: { cidr: "192.168.0.0/16" } },
                 ],
               },

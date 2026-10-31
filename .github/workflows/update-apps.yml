@@ -68,6 +68,7 @@ jobs:
       - name: Install Dependencies
         uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
         with:
+          version: 2.8.5
           node-version: auto
           run-install: true
           install-args: --frozen-lockfile

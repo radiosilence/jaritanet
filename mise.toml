@@ -1,6 +1,9 @@
 [tools]
 actionlint = "1.7.12"
-aube = "2"
+# Exact, and passed to every aube-action step as well: aube versions differ
+# in how the lockfile writes workspace members, so a local install and CI on
+# different versions rewrite each other's lockfile.
+aube = "2.8.5"
 node = "24"
 pulumi = "latest"
 shellcheck = "0.11.0"
