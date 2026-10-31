@@ -168,6 +168,9 @@ serves every relying party and adding one requires nothing at GitHub.
 stood there, so which hostname issues tokens did not change — only which service
 answers the challenges. Hydra itself is still deployed by the mcp-gateway kind,
 because moving it would move the database holding every registered client.
+`/register` has an IngressRoute of its own carrying a per-caller Traefik rate
+limit: registration is unauthenticated and writes a client row per call, which
+nothing else bounds.
 
 **The allowlist is the gate, and an empty one refuses to boot.** Dynamic client
 registration cannot be closed — Claude registers its own client — so a
