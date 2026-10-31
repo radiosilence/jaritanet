@@ -387,6 +387,18 @@ export function createServices(ctx: EstateContext) {
           oidcClientId: "mcp-gateway",
           oidcClientSecret: secret,
           authHostname: ctx.authHostname,
+          // Hydra's admin API authenticates no caller, so only the login
+          // provider reaches it. The public API is reached through Traefik,
+          // except by transmet, which exchanges codes at the in-cluster
+          // Service because Cilium drops a pod's traffic to its own node's
+          // public address.
+          hydraCallers: {
+            admin: [{ app: "auth" }],
+            public: [
+              { "app.kubernetes.io/name": "traefik" },
+              { app: "transmet" },
+            ],
+          },
         },
       ),
       secret,
