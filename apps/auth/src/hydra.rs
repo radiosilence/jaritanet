@@ -54,6 +54,10 @@ pub struct ConsentRequest {
     pub requested_access_token_audience: Vec<String>,
     #[serde(default)]
     pub context: Value,
+    /// The authorization request as the client sent it, which names the
+    /// redirect URI this particular code is bound for.
+    #[serde(default)]
+    pub request_url: String,
 }
 
 impl ConsentRequest {
@@ -72,15 +76,29 @@ impl ConsentRequest {
         SessionClaims::from_context(&self.context, &self.subject)
     }
 
-    /// Where the token will be delivered, one entry per distinct host.
+    /// Where the code from this request will be delivered, shown by host.
     ///
     /// Unlike the name, this is not decoration: Hydra sends the code only to a
     /// registered redirect URI, so the host is who actually receives access.
-    /// A URI without a host (a custom scheme for a native app) is shown whole.
+    /// The authorization request names which one; a client may register its
+    /// real destination beside a familiar one, so listing every registered URI
+    /// would let the familiar one stand in for it. Only when the request names
+    /// none, which Hydra allows for a client with a single registered URI, are
+    /// the registered ones shown. A URI without a host (a custom scheme for a
+    /// native app) is shown whole.
     pub fn redirect_hosts(&self) -> Vec<String> {
+        let requested = url::Url::parse(&self.request_url).ok().and_then(|u| {
+            u.query_pairs()
+                .find(|(k, _)| k == "redirect_uri")
+                .map(|(_, v)| v.into_owned())
+        });
+        let uris = match requested {
+            Some(uri) => vec![uri],
+            None => self.client.redirect_uris.clone(),
+        };
         let mut hosts: Vec<String> = Vec::new();
-        for uri in &self.client.redirect_uris {
-            let shown = match url::Url::parse(uri) {
+        for uri in uris {
+            let shown = match url::Url::parse(&uri) {
                 Ok(u) => match (u.host_str(), u.port()) {
                     (Some(h), Some(p)) => format!("{h}:{p}"),
                     (Some(h), None) => h.to_string(),
@@ -295,13 +313,41 @@ impl HydraAdmin {
         .await
     }
 
-    pub async fn reject_consent(&self, challenge: &str) -> Result<String> {
+    pub async fn reject_consent(&self, challenge: &str, description: &str) -> Result<String> {
         self.put_redirect(
             "/admin/oauth2/auth/requests/consent/reject",
             &[("consent_challenge", challenge)],
-            &json!({ "error": "access_denied", "error_description": "the user refused" }),
+            &json!({ "error": "access_denied", "error_description": description }),
         )
         .await
+    }
+
+    /// Revoke everything Hydra holds for a subject: its consent sessions, with
+    /// the access and refresh tokens issued under them, and its remembered
+    /// login. Without the first, a refresh token keeps minting access tokens
+    /// for somebody no longer allowed; without the second, every later flow
+    /// from that browser arrives as a skipped login for the same subject, and
+    /// Hydra accepts a skipped login only for that subject, so nobody else
+    /// could sign in there either.
+    pub async fn revoke_subject(&self, subject: &str) -> Result<()> {
+        let sessions: [(&str, &[(&str, &str)]); 2] = [
+            (
+                "/admin/oauth2/auth/sessions/consent",
+                &[("subject", subject), ("all", "true")],
+            ),
+            ("/admin/oauth2/auth/sessions/login", &[("subject", subject)]),
+        ];
+        for (path, query) in sessions {
+            self.http
+                .delete(format!("{}{path}", self.base))
+                .query(query)
+                .send()
+                .await
+                .with_context(|| format!("calling Hydra {path}"))?
+                .error_for_status()
+                .with_context(|| format!("Hydra refused {path}"))?;
+        }
+        Ok(())
     }
 
     /// Create the client, or update it if it is already there.
@@ -366,6 +412,7 @@ mod tests {
             requested_scope: vec!["openid".into()],
             requested_access_token_audience: vec![],
             context,
+            request_url: String::new(),
         }
     }
 
@@ -392,6 +439,21 @@ mod tests {
             c.redirect_hosts(),
             ["claude.ai", "localhost:33418", "com.example.app:/oauth"]
         );
+    }
+
+    /// A familiar registered URI must not stand in for the one this code is
+    /// actually bound for.
+    #[test]
+    fn the_requested_redirect_is_shown_rather_than_every_registered_one() {
+        let mut c = consent(None, Value::Null);
+        c.client.redirect_uris = vec![
+            "https://claude.ai/api/mcp/auth_callback".into(),
+            "https://evil.example/cb".into(),
+        ];
+        c.request_url = "https://auth.example/oauth2/auth?client_id=x\
+            &redirect_uri=https%3A%2F%2Fevil.example%2Fcb&response_type=code"
+            .into();
+        assert_eq!(c.redirect_hosts(), ["evil.example"]);
     }
 
     /// The login rides in the session context so a skipped login still knows

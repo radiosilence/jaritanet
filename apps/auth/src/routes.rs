@@ -87,6 +87,14 @@ pub struct LoginQuery {
     login_challenge: String,
 }
 
+/// Revoke a subject that failed the allowlist. Logged rather than returned: the
+/// challenge is still rejected either way, and that rejection is the gate.
+async fn revoke(state: &AppState, subject: &str) {
+    if let Err(e) = state.hydra.revoke_subject(subject).await {
+        tracing::error!(subject, error = %e, "revoking a disallowed subject at Hydra failed");
+    }
+}
+
 /// Hydra sends the browser here to have the person authenticated.
 ///
 /// When Hydra already holds a session it sets `skip`, and the right answer is
@@ -107,25 +115,25 @@ pub async fn login(
     // the upstream is asked again. GitHub's own session usually makes the
     // round-trip invisible, which is what makes this a migration rather than a
     // forced sign-out.
-    // A remembered session outlives the allowlist entry that admitted it, so it
-    // is checked again here; otherwise removing somebody would take effect only
-    // when their session expired.
-    if request.skip && !state.config.subject_allowed(&request.subject) {
-        tracing::warn!(subject = %request.subject, "rejected remembered login: not allowed");
-        let redirect_to = state
-            .hydra
-            .reject_login(
-                &q.login_challenge,
-                "access_denied",
-                "this account is not permitted to sign in",
-            )
-            .await
-            .map_err(|e| AppError::Upstream(e.to_string()))?;
-        return Ok(redirect(&redirect_to, &[]));
-    }
-
     let claims = request.claims();
     if request.skip && !claims.email.is_empty() {
+        // A remembered session outlives the allowlist entry that admitted it,
+        // so the login it carries is checked again; otherwise removing
+        // somebody would take effect only when their session expired.
+        if !state.config.login_allowed(&claims.login) {
+            tracing::warn!(login = %claims.login, "rejected remembered login: not in GH_ALLOWED");
+            revoke(&state, &request.subject).await;
+            let redirect_to = state
+                .hydra
+                .reject_login(
+                    &q.login_challenge,
+                    "access_denied",
+                    "this account is not permitted to sign in",
+                )
+                .await
+                .map_err(|e| AppError::Upstream(e.to_string()))?;
+            return Ok(redirect(&redirect_to, &[]));
+        }
         let redirect_to = state
             .hydra
             .accept_login(&q.login_challenge, &request.subject, &claims)
@@ -191,12 +199,8 @@ pub async fn github_callback(
     // The control that makes open client registration survivable: a registered
     // client is useless without a token, and a token issues only to somebody
     // named here.
-    if !state.config.subject_allowed(&identity.subject) {
-        tracing::warn!(
-            login = %identity.login,
-            subject = %identity.subject,
-            "rejected login: not in GH_ALLOWED_IDS"
-        );
+    if !state.config.login_allowed(&identity.login) {
+        tracing::warn!(login = %identity.login, "rejected login: not in GH_ALLOWED");
         return Err(AppError::Unauthorized);
     }
 
@@ -237,12 +241,19 @@ pub async fn consent(
 
     // Consent arrives on a remembered login too, so this is the second place a
     // removed person's session is stopped — and the one that matters for
-    // first-party clients, which are granted without a screen.
-    if !state.config.subject_allowed(&request.subject) {
-        tracing::warn!(subject = %request.subject, "rejected consent: not allowed");
+    // first-party clients, which are granted without a screen. The login comes
+    // from the session context, written from GitHub's answer when the session
+    // was accepted.
+    let login = request.claims().login;
+    if !state.config.login_allowed(&login) {
+        tracing::warn!(%login, subject = %request.subject, "rejected consent: not in GH_ALLOWED");
+        revoke(&state, &request.subject).await;
         let redirect_to = state
             .hydra
-            .reject_consent(&q.consent_challenge)
+            .reject_consent(
+                &q.consent_challenge,
+                "this account is not permitted to sign in",
+            )
             .await
             .map_err(|e| AppError::Upstream(e.to_string()))?;
         return Ok(redirect(&redirect_to, &[]));
@@ -271,7 +282,7 @@ pub async fn consent(
         challenge: q.consent_challenge,
         client: request.client_label().to_string(),
         redirect_hosts: request.redirect_hosts(),
-        login: request.claims().login,
+        login,
         scopes: request.requested_scope.clone(),
         audience: request.requested_access_token_audience.clone(),
     };
@@ -298,7 +309,7 @@ pub async fn consent_decision(
     if decision.approve.is_none() {
         let redirect_to = state
             .hydra
-            .reject_consent(&decision.challenge)
+            .reject_consent(&decision.challenge, "the user refused")
             .await
             .map_err(|e| AppError::Upstream(e.to_string()))?;
         return Ok(redirect(&redirect_to, &[]));
