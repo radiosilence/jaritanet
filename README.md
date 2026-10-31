@@ -74,7 +74,7 @@ choices and the `:443` multiplexing.
 
 ### The gateway is not optional any more
 
-`gateway.hcloudToken` and `gateway.k3s` are both required: the cluster runs on the VPS
+`secrets.hcloudToken` and `gateway.k3s` are both required: the cluster runs on the VPS
 the token provisions, so there is no cluster without it.
 
 | | |

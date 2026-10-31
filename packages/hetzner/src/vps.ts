@@ -10,13 +10,6 @@ export type SshConnection = {
   user: string;
 };
 
-/**
- * Resource-name prefix for a node. Empty name = the primary gateway, keeping
- * its original resource names so Pulumi doesn't replace the live box; edges and
- * their transports pass a name and get prefixed names.
- */
-export const resourcePrefix = (name: string) => (name ? `${name}-` : "");
-
 /** An inbound hcloud firewall rule open to the whole internet (v4 + v6). */
 export const inboundRule = (
   description: string,

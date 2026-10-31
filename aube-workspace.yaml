@@ -37,8 +37,6 @@ packages:
   # are typechecked — which they were not, and check-profiles had been
   # validating an exit shape no device is ever handed.
   - "scripts"
-  # Apps hold their own build tooling rather than being deployed from here.
-  - "apps/*"
   # An app's chart lives with the app. They are one project — the chart pins the
   # app's own version — and when an app leaves for its own repository the chart
   # is part of the directory that goes with it, as mcp-gateway's and mariastew's

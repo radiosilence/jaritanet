@@ -2,4 +2,3 @@ export { dashboardFiles, DATASOURCE_UID } from "./dashboards.ts";
 export { createMetrics, GRAFANA, TEXTFILE_DIR } from "./metrics.ts";
 export { MetricsConfSchema } from "./metrics.schemas.ts";
 export { scrapeConfig } from "./scrape.ts";
-export { VERSIONS as METRICS_VERSIONS } from "./versions.ts";

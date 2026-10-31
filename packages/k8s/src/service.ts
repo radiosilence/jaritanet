@@ -41,19 +41,15 @@ export function createService(
   args: ServiceArgs,
 ) {
   const {
-    dropCapabilities,
     env,
     healthCheck,
-    hostVolumes,
     httpPort,
     image,
     resources,
     networkPolicy,
     persistence,
-    ports,
     replicas,
     restrictIngress,
-    securityContext,
     strategy,
   } = ServiceArgsSchema.parse(args);
   // These volumes are host directories holding real data (the music library
@@ -113,26 +109,24 @@ export function createService(
   );
 
   const pvcs = Object.fromEntries(
-    persistence
-      .filter(({ name }) => Boolean(pvs[name]))
-      .map(({ name: key, storageClassName, readOnly, storage }) => [
-        key,
-        new k8s.core.v1.PersistentVolumeClaim(
-          `${serviceName}-${key}-pvc`,
-          {
-            metadata: {
-              annotations,
-            },
-            spec: {
-              accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
-              resources: { requests: { storage } },
-              storageClassName,
-              volumeName: pvs[key]?.metadata.name,
-            },
+    persistence.map(({ name: key, storageClassName, readOnly, storage }) => [
+      key,
+      new k8s.core.v1.PersistentVolumeClaim(
+        `${serviceName}-${key}-pvc`,
+        {
+          metadata: {
+            annotations,
           },
-          { provider, retainOnDelete: true },
-        ),
-      ]),
+          spec: {
+            accessModes: readOnly ? ["ReadOnlyMany"] : ["ReadWriteMany"],
+            resources: { requests: { storage } },
+            storageClassName,
+            volumeName: pvs[key]?.metadata.name,
+          },
+        },
+        { provider, retainOnDelete: true },
+      ),
+    ]),
   );
 
   const service = new k8s.core.v1.Service(
@@ -155,17 +149,6 @@ export function createService(
     },
     { provider },
   );
-
-  // Writable mounts only, and only when the pod runs as a specific uid — those
-  // are exactly the paths whose existing contents can be owned by someone else.
-  const writable = [...hostVolumes, ...persistence].filter((v) => !v.readOnly);
-  const ownershipFixes =
-    securityContext?.runAsUser === undefined
-      ? []
-      : writable.map((v) => v.mountPath);
-  const ownershipMounts = ownershipFixes.length
-    ? writable.map(({ name, mountPath }) => ({ name, mountPath }))
-    : [];
 
   const probes = healthCheck
     ? {
@@ -208,57 +191,12 @@ export function createService(
             // None of these talk to the API server, so the token is a free
             // foothold for anything that lands in the container.
             automountServiceAccountToken: false,
-            ...(ownershipFixes.length && {
-              // A service that switches to running as a given uid inherits
-              // directories created by whatever it ran as before — Navidrome's
-              // /data was root-owned inside, so it opened its DB fine (the
-              // mount point matched) and then died on a root-owned cache
-              // subdirectory. Ownership of the mount point says nothing about
-              // its contents, and nothing outside the cluster is going to fix
-              // that on a rebuilt host.
-              //
-              // Read-only mounts are excluded, which is load-bearing: chown -R
-              // across a 2Ti music library on every pod start is not a thing
-              // anyone wants, and a read-only mount would reject it anyway.
-              initContainers: [
-                {
-                  name: "fix-ownership",
-                  image: "busybox:1.37",
-                  command: [
-                    "sh",
-                    "-c",
-                    // Only touches what is already wrong, so a correct tree
-                    // costs a stat pass rather than a full rewrite.
-                    ownershipFixes
-                      .map(
-                        (path) =>
-                          `find ${path} ! -user ${securityContext?.runAsUser} -exec chown ${securityContext?.runAsUser}:${securityContext?.runAsGroup} {} +`,
-                      )
-                      .join(" && "),
-                  ],
-                  // Overrides the pod-level uid, and keeps the capabilities
-                  // chown needs — the app container is the one that gets to be
-                  // unprivileged.
-                  securityContext: {
-                    runAsUser: 0,
-                    allowPrivilegeEscalation: false,
-                  },
-                  volumeMounts: ownershipMounts,
-                },
-              ],
-            }),
             containers: [
               {
                 name: serviceName,
                 image: `${image.repository}:${image.tag}`,
                 imagePullPolicy: image.pullPolicy,
-                ports: [
-                  { name: "http", containerPort: httpPort },
-                  ...ports.map(([hostPort, containerPort]) => ({
-                    hostPort,
-                    containerPort,
-                  })),
-                ],
+                ports: [{ name: "http", containerPort: httpPort }],
                 resources,
                 // Sorted, so the rendered order is a property of the names
                 // rather than of how they happened to be written. Pulumi used
@@ -267,40 +205,24 @@ export function createService(
                 env: Object.entries(env)
                   .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
                   .map(([name, value]) => ({ name, value })),
-                volumeMounts: [
-                  ...hostVolumes.map(({ name, mountPath, readOnly }) => ({
+                volumeMounts: persistence.map(
+                  ({ name, mountPath, readOnly }) => ({
                     name,
                     mountPath,
                     readOnly,
-                  })),
-                  ...persistence.map(({ name, mountPath, readOnly }) => ({
-                    name,
-                    mountPath,
-                    readOnly,
-                  })),
-                ],
+                  }),
+                ),
                 ...probes,
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   seccompProfile: { type: "RuntimeDefault" },
-                  ...(dropCapabilities && { capabilities: { drop: ["ALL"] } }),
                 },
               },
             ],
-            securityContext,
-            volumes: [
-              ...hostVolumes.map(({ name, hostPath, hostPathType }) => ({
-                name,
-                hostPath: {
-                  path: hostPath,
-                  type: hostPathType,
-                },
-              })),
-              ...Object.entries(pvcs).map(([name, pvc]) => ({
-                name,
-                persistentVolumeClaim: { claimName: pvc.metadata.name },
-              })),
-            ],
+            volumes: Object.entries(pvcs).map(([name, pvc]) => ({
+              name,
+              persistentVolumeClaim: { claimName: pvc.metadata.name },
+            })),
           },
         },
       },
