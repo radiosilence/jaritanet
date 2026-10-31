@@ -359,7 +359,7 @@ mise run check       # Lint, actionlint, format, typecheck and test — in paral
 mise run lint:fix    # Lint and auto-fix
 mise run fmt         # Format with oxfmt
 mise run preview     # Preview the stack
-mise run up          # Deploy it
+mise run deploy      # Deploy it
 ```
 
 `check` declares the other checks as `depends`, so mise fans them out across its
