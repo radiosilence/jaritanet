@@ -17,9 +17,9 @@
 #          there is no image to check, as for a Helm chart.
 #   tagPrefix
 #          only consider releases whose tag starts with this. Needed when a repo
-#          releases more than one thing — this one releases both its containers —
-#          because "the latest release" is otherwise repo-wide, and an entry would
-#          take the version of whatever released last.
+#          releases more than one thing — this one releases each of its
+#          containers — because "the latest release" is otherwise repo-wide,
+#          and an entry would take the version of whatever released last.
 #   helmIndex, chart
 #          a Helm chart's repository index and the chart's name in it. Upstream
 #          can cut the GitHub release before publishing the chart, and a pin the

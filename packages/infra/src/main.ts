@@ -429,8 +429,9 @@ export default async function () {
   // --- Everything that runs in the cluster ---
   // Each service is a call in `createServices` (services.ts) — the web
   // containers, the file services on the box holding the disks, the MCP
-  // gateway, and the sing-box profile server. Nothing here selects the gateway: the file
-  // services carry no VPN entry label, so a DaemonSet with no matching node
+  // gateway, and the sing-box profile server. Nothing here selects the
+  // gateway: the file services carry no VPN entry label, so a DaemonSet with
+  // no matching node
   // schedules nothing rather than landing somewhere it would fight the
   // transports for a host port.
   //

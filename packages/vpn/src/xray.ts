@@ -321,10 +321,8 @@ export function createXray(
                 // measures with headroom, so the ceiling reserves nothing.
                 resources: {
                   // Re-encrypts every byte it relays, so this is the one
-                  // genuinely CPU-bound workload here — ~920Mbit measured
-                  // through the tunnel. No CPU limit deliberately: throttling
-                  // surfaces as periodic stalls, not a slowdown. The request
-                  // is what reserves share when something else bursts.
+                  // CPU-bound workload here: ~920Mbit measured through the
+                  // tunnel at this request.
                   requests: { cpu: "750m", memory: "80Mi" },
                   limits: { memory: "1Gi" },
                 },
