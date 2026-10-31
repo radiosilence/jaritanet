@@ -186,6 +186,10 @@ That holds only for grants that pass through a login, so `/register` refuses any
 grant type but `authorization_code` and `refresh_token`; Hydra's admin API would
 otherwise create a `client_credentials` client that mints tokens from its own
 secret.
+Remembered sessions are rechecked on every skipped login and consent, against
+the login in the session context; one that fails is rejected and its Hydra
+sessions and tokens revoked, so removing a login takes effect at that person's
+next sign-in rather than when the thirty-day session expires.
 
 **Every relying party gets an address, and both halves have to agree.** The
 scope is `read:user user:email` and the claim comes from the primary *verified*

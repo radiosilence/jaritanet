@@ -83,6 +83,7 @@ fn continue_to(heading: &str, to: &str) -> AppResult<Response> {
 struct ConsentTemplate {
     challenge: String,
     client: String,
+    redirect_hosts: Vec<String>,
     login: String,
     scopes: Vec<String>,
     audience: Vec<String>,
@@ -97,6 +98,14 @@ pub async fn index() -> impl IntoResponse {
 #[derive(Deserialize)]
 pub struct LoginQuery {
     login_challenge: String,
+}
+
+/// Revoke a subject that failed the allowlist. Logged rather than returned: the
+/// challenge is still rejected either way, and that rejection is the gate.
+async fn revoke(state: &AppState, subject: &str) {
+    if let Err(e) = state.hydra.revoke_subject(subject).await {
+        tracing::error!(subject, error = %e, "revoking a disallowed subject at Hydra failed");
+    }
 }
 
 /// Hydra sends the browser here to have the person authenticated.
@@ -121,6 +130,23 @@ pub async fn login(
     // forced sign-out.
     let claims = request.claims();
     if request.skip && !claims.email.is_empty() {
+        // A remembered session outlives the allowlist entry that admitted it,
+        // so the login it carries is checked again; otherwise removing
+        // somebody would take effect only when their session expired.
+        if !state.config.login_allowed(&claims.login) {
+            tracing::warn!(login = %claims.login, "rejected remembered login: not in GH_ALLOWED");
+            revoke(&state, &request.subject).await;
+            let redirect_to = state
+                .hydra
+                .reject_login(
+                    &q.login_challenge,
+                    "access_denied",
+                    "this account is not permitted to sign in",
+                )
+                .await
+                .map_err(|e| AppError::Upstream(e.to_string()))?;
+            return redirect(&redirect_to, &[]);
+        }
         let redirect_to = state
             .hydra
             .accept_login(&q.login_challenge, &request.subject, &claims)
@@ -278,6 +304,26 @@ pub async fn consent(
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
 
+    // Consent arrives on a remembered login too, so this is the second place a
+    // removed person's session is stopped — and the one that matters for
+    // first-party clients, which are granted without a screen. The login comes
+    // from the session context, written from GitHub's answer when the session
+    // was accepted.
+    let login = request.claims().login;
+    if !state.config.login_allowed(&login) {
+        tracing::warn!(%login, subject = %request.subject, "rejected consent: not in GH_ALLOWED");
+        revoke(&state, &request.subject).await;
+        let redirect_to = state
+            .hydra
+            .reject_consent(
+                &q.consent_challenge,
+                "this account is not permitted to sign in",
+            )
+            .await
+            .map_err(|e| AppError::Upstream(e.to_string()))?;
+        return redirect(&redirect_to, &[]);
+    }
+
     if state
         .config
         .first_party(&request.client.client_id)
@@ -300,7 +346,8 @@ pub async fn consent(
     let page = ConsentTemplate {
         challenge: q.consent_challenge,
         client: request.client_label().to_string(),
-        login: request.claims().login,
+        redirect_hosts: request.redirect_hosts(),
+        login,
         scopes: request.requested_scope.clone(),
         audience: request.requested_access_token_audience.clone(),
     };
@@ -327,7 +374,7 @@ pub async fn consent_decision(
     if decision.approve.is_none() {
         let redirect_to = state
             .hydra
-            .reject_consent(&decision.challenge)
+            .reject_consent(&decision.challenge, "the user refused")
             .await
             .map_err(|e| AppError::Upstream(e.to_string()))?;
         return continue_to("Denied", &redirect_to);
@@ -371,6 +418,25 @@ mod tests {
         assert!(html.contains(r#"<meta http-equiv="refresh" content="0; url="#));
         assert!(html.contains("code=a&#38;state=b") || html.contains("code=a&amp;state=b"));
         assert!(!html.contains("<script>"));
+    }
+
+    /// The name is whatever the registrant typed; the host is where the token
+    /// goes. Both are attacker-chosen, so both must come out escaped.
+    #[test]
+    fn the_consent_screen_names_the_redirect_host_and_flags_the_name() {
+        let html = ConsentTemplate {
+            challenge: "c".into(),
+            client: "Claude<b>".into(),
+            redirect_hosts: vec!["evil.example<i>".into()],
+            login: "radiosilence".into(),
+            scopes: vec!["openid".into()],
+            audience: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(html.contains("evil.example&#60;i&#62;") || html.contains("evil.example&lt;i&gt;"));
+        assert!(html.contains("self-reported"));
+        assert!(!html.contains("<b>") && !html.contains("<i>"));
     }
 
     /// A header value cannot carry a line break, and Hydra's string reaching

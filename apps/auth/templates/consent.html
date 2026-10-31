@@ -1,17 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Authorise {{ client }}{% endblock %}
+{% block title %}Authorise an application{% endblock %}
 
 {% block content %}
 {#- Everything interpolated here except `login` is chosen by whoever registered
     the client, which anyone may do. Askama escapes by default; nothing on this
-    page may use `|safe`. -#}
+    page may use `|safe`.
+
+    The redirect host leads because it is the one thing here the registrant
+    cannot misrepresent: Hydra delivers the code only to the registered redirect
+    URI the request names, so that host is who receives access. The name is a
+    free-text field. -#}
 <section class="card">
-  <h1>Authorise {{ client }}</h1>
+  <h1>Authorise an application</h1>
   <p class="who">Signed in as <strong>{{ login }}</strong></p>
 
+  <p>Access will be sent to:</p>
+  <ul class="scopes">
+    {% for host in redirect_hosts %}
+    <li><strong>{{ host }}</strong></li>
+    {% else %}
+    <li class="muted">no redirect URI</li>
+    {% endfor %}
+  </ul>
+
   <p>
-    This application registered itself, so it is not one of ours. It is asking
+    It calls itself <strong>{{ client }}</strong>. That name is self-reported:
+    this application registered itself, so it is not one of ours. It is asking
     for:
   </p>
 

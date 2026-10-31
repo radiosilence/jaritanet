@@ -41,6 +41,21 @@ refuses any grant type other than `authorization_code` and `refresh_token`:
 registration goes through Hydra's admin API, which would otherwise create a
 `client_credentials` client that mints tokens from its own secret.
 
+**Remembered sessions are checked again.** Hydra's session lasts thirty days, so
+a skipped login and every consent request (including the automatic consent
+first-party clients receive) check the login carried in the session context
+against the allowlist. A session that fails is rejected at Hydra, and the
+subject's login and consent sessions are revoked there, which also revokes the
+access and refresh tokens issued under them. Removing somebody therefore stops
+them at their next sign-in to anything; a refresh token they already hold keeps
+working until that happens or it expires, and `DELETE
+/admin/oauth2/auth/sessions/consent?subject=github:<id>&all=true` ends it at once.
+
+The list holds logins rather than numeric ids because logins are what a person
+can read and write. The accepted risk is a rename: if a listed account changes
+its login, whoever registers the old one inherits its place until the entry is
+updated.
+
 **Consent is automatic for first-party clients and asked for otherwise.** A
 client whose id, secret and redirect URIs came from the deploy has already been
 decided about. One that registered itself can otherwise ask for — and silently
@@ -86,6 +101,14 @@ in flight at that instant.
 is a form. A self-registered client picks its own `client_name`, which is
 rendered on that screen, so everything interpolated there is attacker-chosen and
 goes through the template's escaping.
+
+**The consent screen leads with where the code goes.** A self-registered
+client's name is free text and can claim to be anything, so the screen marks it
+as self-reported and first shows the host of the redirect URI this
+authorization request names. Hydra delivers the code only there, so that host
+is the party that receives access. The registered URIs are not listed instead:
+a client can register a familiar URI beside its real one, and the familiar one
+would then lead.
 
 **The consent decision answers with a page, not a redirect.** The CSP also holds
 `form-action 'self'`, and browsers apply `form-action` to every redirect that
