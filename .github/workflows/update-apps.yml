@@ -40,18 +40,18 @@ jobs:
     steps:
       - name: Generate App Token
         id: app-token
-        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Environment
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
         with:
           # mise.toml also carries Rust and Pulumi for other jobs; this one only
           # runs a Node script and, for dependency bumps, aube.
@@ -65,7 +65,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
-        uses: endevco/aube-action@f82ca2f6c943dbde1904945d9f0ee1a0faf8e945 # v1.0.0
+        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
         with:
           node-version: auto
           run-install: true
