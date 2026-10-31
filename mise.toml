@@ -90,7 +90,10 @@ run = "pulumi preview"
 
 [tasks.up]
 description = "deprecated: use deploy"
-run = "echo '[301] moved -> mise deploy (mise shadows `up`)'"
+# `mise up` is mise's own upgrade command, so the task is reachable only as
+# `mise run up`. It fails rather than echoing, so a script calling it does not
+# report a deploy that never ran.
+run = "echo 'moved: use mise run deploy' >&2; exit 1"
 
 [tasks.deploy]
 description = "Deploy the stack"

@@ -32,7 +32,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run lint:workflows` - Lint `.github/workflows` with actionlint, which runs shellcheck over the `run` scripts
 - `mise run fmt` - Format code with oxfmt
 - `mise run fmt:check` - Check formatting with oxfmt
-- `mise run preview` / `mise run up` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
+- `mise run preview` / `mise run deploy` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, actionlint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
 - `./scripts/update-apps/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
@@ -234,12 +234,14 @@ missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
 covered by the next. A manual run, a change under `.github/`, a push whose
 last passed commit cannot be found, or a diff that cannot be worked out runs
-everything. Markdown never counts.
+everything. Markdown never counts, except `apps/koan-demo/CREDITS.md`, which
+that image ships.
 
 `aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
 where the change reaches: `.github/scripts/shared_inputs.py` follows the
-lockfile from `packages/infra` through its workspace links (a dev-tool bump at
-the root runs the checks but not a deploy), and reads which mise tools and
+lockfile's runtime dependencies from `packages/infra` through its workspace
+links (a dev-tool bump, at the root or in a package's devDependencies, runs the
+checks but not a deploy), and reads which mise tools and
 tasks each domain's jobs install and run. If it fails, the change counts.
 
 **Adding a domain** is an output of `changes`, an allowlist of paths in its

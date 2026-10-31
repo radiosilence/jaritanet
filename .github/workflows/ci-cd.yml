@@ -137,7 +137,9 @@ jobs:
             {"app": "koan-demo", "image": "koan-demo", "rust": false}
           ]'
           for app in $(jq -r '.[].app' <<< "$apps"); do
-            version=$(version_of "$app" HEAD)
+            # `|| true`: a missing file fails the pipeline, which under
+            # pipefail would end the step before the error below says why.
+            version=$(version_of "$app" HEAD) || true
             if [ -z "$version" ]; then
               echo "::error::no version for $app"
               exit 1
@@ -172,8 +174,9 @@ jobs:
           done
 
           # Counted rather than `grep -q`, which can stop reading early and
-          # fail the stage before it under pipefail.
-          touches() { [ "$(printf '%s\n' "$changed" | grep -vE '\.md$' | grep -vE "${2:-^$}" | grep -cE "$1")" -gt 0 ]; }
+          # fail the stage before it under pipefail. Markdown never counts,
+          # except the CREDITS.md the koan-demo image ships.
+          touches() { [ "$(printf '%s\n' "$changed" | awk '!/\.md$/ || /^apps\/koan-demo\/CREDITS\.md$/' | grep -vE "${2:-^$}" | grep -cE "$1")" -gt 0 ]; }
           if [ "$EVENT" != "workflow_dispatch" ] && [ -n "$base" ] && changed=$(git diff --name-only "$base" HEAD); then
             echo "changes since $(git rev-parse --short "$base"):"
             printf '%s\n' "$changed" | sed 's/^/  /'
@@ -817,7 +820,9 @@ jobs:
           # container tagged last. Scope to this container's own history instead.
           prev=$(git tag --list "$APP-v*" --sort=-version:refname | head -1)
           range=${prev:+$prev..}HEAD
-          notes=$(git log --no-merges --pretty='- %s' "$range" -- "apps/$APP")
+          # The chart under deploy/ ships with the stack, not the image, so
+          # its pin bumps are not this release's changes.
+          notes=$(git log --no-merges --pretty='- %s' "$range" -- "apps/$APP" ":(exclude)apps/$APP/deploy")
           gh release create "$APP-v$VERSION" \
             --title "$APP v$VERSION" \
             --target "$GITHUB_SHA" \
