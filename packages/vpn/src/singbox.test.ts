@@ -60,12 +60,16 @@ describe("buildProfile IPv6", () => {
       const tailnet = r.findIndex((x) =>
         x.ip_cidr?.includes("fd7a:115c:a1e0::/48"),
       );
+      const dns = r.findIndex(
+        (x) => x.ip_version === 6 && x.action === "hijack-dns",
+      );
       const reject = r.findIndex(
         (x) => x.ip_version === 6 && x.action === "reject",
       );
       const sniff = r.findIndex((x) => x.action === "sniff");
       expect(tailnet).toBe(0);
-      expect(reject).toBe(1);
+      expect(dns).toBe(1);
+      expect(reject).toBe(2);
       expect(sniff).toBeGreaterThan(reject);
     },
   );

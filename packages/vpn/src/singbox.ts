@@ -410,6 +410,9 @@ export function buildProfile(
       rules: [
         // Tailnet egresses at the gateway (into the mesh), never via an exit.
         { ip_cidr: ["fd7a:115c:a1e0::/48"], outbound: "entry-select" },
+        // DNS to the tun's IPv6 address is still answered, since the OS may
+        // use it as its resolver.
+        { ip_version: 6, port: 53, action: "hijack-dns" },
         {
           // IPv6 is refused at the tun. DNS answers IPv4 only, but apps still
           // arrive with IPv6 literals (Netflix's API, browser DoH, cached AAAA),
