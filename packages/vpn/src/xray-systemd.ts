@@ -108,7 +108,7 @@ fi`,
       create: "cat /usr/local/etc/xray/public.key",
       triggers: [install.id],
     },
-    { dependsOn: [install], replaceWith },
+    { dependsOn: [install] },
   );
 
   // Render config.json on the box, injecting the private key from disk so

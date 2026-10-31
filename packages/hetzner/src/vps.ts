@@ -43,6 +43,12 @@ export const inboundRule = (
  * admin key and the network sysctls were never installed at all. A server's id
  * changes on replacement, so including it ties the command to the box it
  * actually configured.
+ *
+ * The other commands that configure a box (k3s, tailscaled, the `-systemd`
+ * transports, the VPN entry label) are tied to it with the `replaceWith`
+ * resource option instead, which has the same effect on a rebuild. The three
+ * commands here keep the id trigger because moving them would change their
+ * triggers and re-run them on the next deploy, for no change in behaviour.
  */
 const serverTriggers = (
   server: hcloud.Server,
