@@ -387,16 +387,18 @@ export function createServices(ctx: EstateContext) {
           oidcClientId: "mcp-gateway",
           oidcClientSecret: secret,
           authHostname: ctx.authHostname,
-          // Hydra's admin API authenticates no caller, so only the login
-          // provider reaches it. The public API is reached through Traefik,
-          // except by transmet, which exchanges codes at the in-cluster
-          // Service because Cilium drops a pod's traffic to its own node's
-          // public address.
+          // The gateway itself is admitted to both ports by the package. Hydra's
+          // admin API authenticates no caller, so beyond the gateway only the
+          // login provider reaches it. The public API is reached through
+          // Traefik, except by transmet's backchannel below, which this entry
+          // pairs with.
           hydraCallers: {
             admin: [{ app: "auth" }],
             public: [
               { "app.kubernetes.io/name": "traefik" },
-              { app: "transmet" },
+              ...(hostnames.transmet && ctx.transmet && ctx.authHostname
+                ? [{ app: "transmet" }]
+                : []),
             ],
           },
         },
@@ -493,7 +495,8 @@ export function createServices(ctx: EstateContext) {
           clientSecret: secret,
           // transmet shares the VPS with the ingress, and Cilium drops a pod's
           // traffic to its own node's public address, so codes are exchanged
-          // with Hydra directly. The mcp-gateway chart names these.
+          // with Hydra directly. The mcp-gateway chart names these, and its
+          // \`hydraCallers\` above admits this pod.
           backchannel: {
             url: "http://mcp-gateway-hydra-service",
             podLabels: { app: "mcp-gateway-hydra" },
