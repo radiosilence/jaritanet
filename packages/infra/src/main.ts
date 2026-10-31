@@ -119,7 +119,7 @@ export default async function () {
     magicdnsSuffix: tailnet.magicdnsSuffix,
     tailnetAuthKey: tailnet.authKey,
     tailnetApi: tailnet.oauth && {
-      clientId: pulumi.secret(tailnet.oauth.clientId),
+      clientId: tailnet.oauth.clientId,
       clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
     },
   });

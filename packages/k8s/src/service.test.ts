@@ -212,7 +212,7 @@ describe("service template", () => {
       expect(spec.policyTypes).toEqual(["Ingress", "Egress"]);
 
       // Kubelet probes need no rule: Cilium admits the local host to its own
-      // endpoints, and an ipBlock would never have matched the node anyway.
+      // endpoints.
       expect(spec.ingress[0].from).toEqual([
         {
           podSelector: { matchLabels: { "app.kubernetes.io/name": "traefik" } },

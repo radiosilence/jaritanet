@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { type Device, planClaim } from "./claim-tailnet-name.ts";
 
 const args = { self: "nNEW", hostname: "sympathy", tag: "tag:server" };

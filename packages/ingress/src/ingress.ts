@@ -196,7 +196,9 @@ export function createIngress(
         ],
       },
     },
-    { provider },
+    // Cilium's operator registers its CRDs at runtime, so on a new cluster
+    // this waits for Traefik, which cannot become ready without a working CNI.
+    { provider, dependsOn: [traefikRelease] },
   );
 
   return { traefikRelease };

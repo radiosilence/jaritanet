@@ -95,9 +95,9 @@ export const registrationRoute = "Path(`/register`)";
  * /64, since one host commonly holds the whole prefix and would otherwise get a
  * fresh allowance per address.
  *
- * The key is only as good as the PROXY header: while Traefik trusts it from the
- * whole pod network (#1247), a pod can claim any address. The limit bounds a
- * caller with few addresses, not one with a pool of them.
+ * The key is only as good as the PROXY header, which Traefik accepts only from
+ * the host Xray runs on. The limit bounds a caller with few addresses, not one
+ * with a pool of them.
  */
 export function createRegistrationLimit(
   provider: k8s.Provider,

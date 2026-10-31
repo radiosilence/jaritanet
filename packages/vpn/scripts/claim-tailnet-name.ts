@@ -111,7 +111,14 @@ if (import.meta.main) {
     console.log(`deleted stale device ${id}`);
   }
   if (rename) {
-    await call(token, "POST", `/device/${self}/name`, { name: hostname });
+    // A device outside the tag can hold the name, and is never deleted here.
+    await call(token, "POST", `/device/${self}/name`, { name: hostname }).catch(
+      (e: Error) => {
+        throw new Error(
+          `${e.message}\n${hostname} may be held by a device without ${env("TAILNET_TAG")}; remove or rename it in the admin console`,
+        );
+      },
+    );
     console.log(`renamed ${self} to ${hostname}`);
   }
   if (!remove.length && !rename) {

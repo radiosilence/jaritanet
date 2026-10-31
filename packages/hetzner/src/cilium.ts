@@ -78,9 +78,8 @@ export function createCilium(
          * than discovering them from a `prometheus.io/port` annotation that can
          * only describe one of them.
          *
-         * `drop` is the one that pays for the rest. `networkPolicy` and
-         * `restrictIngress` were decorative under flannel and are enforced
-         * under Cilium. Kubelet probes pass them because `allow-localhost`
+         * `drop` is the one that pays for the rest: `networkPolicy` and
+         * `restrictIngress` are enforced, and kubelet probes pass them because `allow-localhost`
          * admits the local host to its own endpoints, which is why no policy
          * carries a node CIDR for them.
          * `hubble_drop_total{reason="POLICY_DENIED"}` shows what they deny.

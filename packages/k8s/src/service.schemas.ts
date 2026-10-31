@@ -38,9 +38,9 @@ export const ServiceArgsSchema = z.strictObject({
    * the CNI also drops the kubelet's health probes — which arrive from the node
    * rather than from a pod — and the pod is then killed for failing readiness.
    * Cilium's `allow-localhost` default admits the local host to its own
-   * endpoints whatever the policy says, so probes need no rule. An `ipBlock`
-   * could not admit them anyway: with `policy-cidr-match-mode` unset, CIDR
-   * selectors never match a node.
+   * endpoints whatever the policy says, so probes need no rule. CIDR selectors
+   * do not match nodes while `policy-cidr-match-mode` is unset, so a node is
+   * never admitted by address.
    *
    * `files` is the canary for this under Cilium.
    *
