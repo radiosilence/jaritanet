@@ -36,6 +36,10 @@ so a registered client has to be assumed hostile. What makes that survivable is
 that a client is useless without a token and a token issues only to a login in
 `GH_ALLOWED`. An empty allowlist plus open registration means any GitHub account
 in the world; that is a refusal to start, not a warning in a log nobody reads.
+That argument holds only for grants that pass through a login, so `/register`
+refuses any grant type other than `authorization_code` and `refresh_token`:
+registration goes through Hydra's admin API, which would otherwise create a
+`client_credentials` client that mints tokens from its own secret.
 
 **Consent is automatic for first-party clients and asked for otherwise.** A
 client whose id, secret and redirect URIs came from the deploy has already been
