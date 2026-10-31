@@ -39,7 +39,9 @@ const RESPONSE_TYPES: [&str; 1] = ["code"];
 const AUTH_METHODS: [&str; 3] = ["none", "client_secret_basic", "client_secret_post"];
 
 /// Refuses metadata asking for anything outside the authorization-code flow.
-/// Absent fields are fine: they default to that flow.
+/// Absent fields are fine. Whatever passes, Hydra is sent `GRANT_TYPES` and
+/// `RESPONSE_TYPES` themselves, so the list checked and the list registered
+/// cannot differ.
 fn check_flow(request: &Value) -> Result<(), String> {
     let within = |key: &str, allowed: &[&str]| match request.get(key) {
         None | Some(Value::Null) => Ok(()),
@@ -94,8 +96,8 @@ pub async fn register(
         .create_client(&json!({
             "client_name": field("client_name", json!("Unnamed client")),
             "redirect_uris": field("redirect_uris", json!([])),
-            "grant_types": field("grant_types", json!(["authorization_code", "refresh_token"])),
-            "response_types": field("response_types", json!(["code"])),
+            "grant_types": GRANT_TYPES,
+            "response_types": RESPONSE_TYPES,
             "scope": scopes.join(" "),
             "token_endpoint_auth_method": field("token_endpoint_auth_method", json!("none")),
         }))

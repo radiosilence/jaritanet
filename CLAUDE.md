@@ -173,6 +173,10 @@ because moving it would move the database holding every registered client.
 registration cannot be closed — Claude registers its own client — so a
 registered client is assumed hostile. What makes that safe is that a client is
 useless without a token and a token issues only to a login in `auth.github.allowed`.
+That holds only for grants that pass through a login, so `/register` refuses any
+grant type but `authorization_code` and `refresh_token`; Hydra's admin API would
+otherwise create a `client_credentials` client that mints tokens from its own
+secret.
 
 **Every relying party gets an address, and both halves have to agree.** The
 scope is `read:user user:email` and the claim comes from the primary *verified*
