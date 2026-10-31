@@ -172,6 +172,11 @@ serves every relying party and adding one requires nothing at GitHub.
 stood there, so which hostname issues tokens did not change — only which service
 answers the challenges. Hydra itself is still deployed by `@radiosilence/mcp-gateway-pulumi`,
 because moving it would move the database holding every registered client.
+A NetworkPolicy limits Hydra's ports to named callers, passed in from
+`services.ts` as `hydraCallers`: the admin API, which can accept a login for any
+subject without authenticating the caller, admits only `auth` and the gateway;
+the public API admits Traefik, transmet and the gateway. A new in-cluster
+caller of Hydra has to be added there, or its requests are dropped.
 `/register` has an IngressRoute of its own carrying a Traefik rate limit keyed
 on the caller's address (an IPv6 caller's /64): registration is unauthenticated
 and writes a client row per call, which nothing else bounds. It bounds a caller
