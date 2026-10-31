@@ -39,13 +39,17 @@ fn default_scopes() -> Vec<String> {
 pub struct Github {
     pub client_id: String,
     pub client_secret: String,
-    /// GitHub logins permitted to authenticate at all.
+    /// Numeric GitHub user ids permitted to authenticate at all.
     ///
     /// This is the control that makes open registration safe: a registered
     /// client is useless without a token, and a token issues only to somebody
     /// named here. Empty admits anyone with a GitHub account, which is why
     /// [`Config::from_env`] refuses to start on it.
-    pub allowed: Vec<String>,
+    ///
+    /// Ids rather than logins because a login can be renamed and then claimed
+    /// by somebody else, who would inherit the place on this list. The id is
+    /// never reused, and it is already what the subject is built from.
+    pub allowed: Vec<u64>,
 }
 
 pub struct Config {
@@ -71,14 +75,14 @@ fn var_or(key: &str, default: &str) -> String {
 
 impl Config {
     pub fn from_env() -> Result<Self> {
-        let allowed = parse_allowed(&std::env::var("GH_ALLOWED").unwrap_or_default());
+        let allowed = parse_allowed(&std::env::var("GH_ALLOWED_IDS").unwrap_or_default())?;
         // Refusing to boot rather than warning: an empty allowlist and open
         // registration together mean any GitHub account in the world can get a
         // token for every service behind this. A warning in a log nobody reads
         // is not a control.
         if allowed.is_empty() {
             bail!(
-                "GH_ALLOWED is empty: registration is open, so this is the only thing \
+                "GH_ALLOWED_IDS is empty: registration is open, so this is the only thing \
                  between a self-registered client and a usable token"
             );
         }
@@ -104,13 +108,15 @@ impl Config {
         format!("{}/auth/github/callback", self.public_url)
     }
 
-    /// GitHub logins are not case-sensitive, and a deploy that spelled one
-    /// differently from the person would lock them out with nothing to read.
-    pub fn login_allowed(&self, login: &str) -> bool {
-        self.github
-            .allowed
-            .iter()
-            .any(|l| l.eq_ignore_ascii_case(login))
+    /// Whether a subject (`github:<id>`, as `github::Identity` builds it and
+    /// Hydra hands back on every later request) belongs to somebody on the
+    /// allowlist. Asked of remembered sessions too, so removing someone takes
+    /// effect at their next request rather than when the session expires.
+    pub fn subject_allowed(&self, subject: &str) -> bool {
+        subject
+            .strip_prefix("github:")
+            .and_then(|id| id.parse::<u64>().ok())
+            .is_some_and(|id| self.github.allowed.contains(&id))
     }
 
     pub fn first_party(&self, client_id: &str) -> Option<&FirstPartyClient> {
@@ -118,11 +124,16 @@ impl Config {
     }
 }
 
-fn parse_allowed(raw: &str) -> Vec<String> {
+/// A login where an id belongs is refused rather than skipped: skipping it
+/// would lock that person out with nothing in the log saying why.
+fn parse_allowed(raw: &str) -> Result<Vec<u64>> {
     raw.split(',')
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(str::to_string)
+        .map(|s| {
+            s.parse()
+                .with_context(|| format!("GH_ALLOWED_IDS entry {s:?} is not a GitHub user id"))
+        })
         .collect()
 }
 
@@ -147,7 +158,7 @@ fn parse_first_party(raw: &str) -> Result<Vec<FirstPartyClient>> {
 mod tests {
     use super::*;
 
-    fn config(allowed: &[&str], first_party: Vec<FirstPartyClient>) -> Config {
+    fn config(allowed: &[u64], first_party: Vec<FirstPartyClient>) -> Config {
         Config {
             bind_addr: String::new(),
             public_url: "https://auth.example".into(),
@@ -156,7 +167,7 @@ mod tests {
             github: Github {
                 client_id: String::new(),
                 client_secret: String::new(),
-                allowed: allowed.iter().map(|s| s.to_string()).collect(),
+                allowed: allowed.to_vec(),
             },
             first_party,
         }
@@ -173,17 +184,30 @@ mod tests {
     }
 
     #[test]
-    fn the_allowlist_ignores_case() {
-        let c = config(&["RadioSilence"], vec![]);
-        assert!(c.login_allowed("radiosilence"));
-        assert!(!c.login_allowed("someone-else"));
+    fn the_allowlist_matches_the_subject_by_id() {
+        let c = config(&[65021], vec![]);
+        assert!(c.subject_allowed("github:65021"));
+        assert!(!c.subject_allowed("github:650210"));
+        assert!(!c.subject_allowed("65021"));
+        assert!(!c.subject_allowed("gitlab:65021"));
+        assert!(!c.subject_allowed(""));
+    }
+
+    #[test]
+    fn a_login_in_the_id_list_is_refused() {
+        assert_eq!(
+            parse_allowed(" 65021, 67614058 ,").unwrap(),
+            [65021, 67614058]
+        );
+        assert!(parse_allowed("65021,radiosilence").is_err());
+        assert!(parse_allowed("").unwrap().is_empty());
     }
 
     /// The whole point of the list: a client that registered itself must never
     /// be mistaken for one this deployment put there.
     #[test]
     fn only_configured_clients_are_first_party() {
-        let c = config(&["x"], vec![client("mariastew"), client("mcp-gateway")]);
+        let c = config(&[1], vec![client("mariastew"), client("mcp-gateway")]);
         assert!(c.first_party("mariastew").is_some());
         assert!(c.first_party("some-dcr-client").is_none());
     }

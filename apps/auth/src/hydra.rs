@@ -19,6 +19,8 @@ pub struct Client {
     pub client_id: String,
     #[serde(default)]
     pub client_name: Option<String>,
+    #[serde(default)]
+    pub redirect_uris: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -68,6 +70,29 @@ impl ConsentRequest {
 
     pub fn claims(&self) -> SessionClaims {
         SessionClaims::from_context(&self.context, &self.subject)
+    }
+
+    /// Where the token will be delivered, one entry per distinct host.
+    ///
+    /// Unlike the name, this is not decoration: Hydra sends the code only to a
+    /// registered redirect URI, so the host is who actually receives access.
+    /// A URI without a host (a custom scheme for a native app) is shown whole.
+    pub fn redirect_hosts(&self) -> Vec<String> {
+        let mut hosts: Vec<String> = Vec::new();
+        for uri in &self.client.redirect_uris {
+            let shown = match url::Url::parse(uri) {
+                Ok(u) => match (u.host_str(), u.port()) {
+                    (Some(h), Some(p)) => format!("{h}:{p}"),
+                    (Some(h), None) => h.to_string(),
+                    (None, _) => uri.clone(),
+                },
+                Err(_) => uri.clone(),
+            };
+            if !hosts.contains(&shown) {
+                hosts.push(shown);
+            }
+        }
+        hosts
     }
 }
 
@@ -215,6 +240,23 @@ impl HydraAdmin {
         .await
     }
 
+    /// End a login that is not going to succeed. Hydra answers with where to
+    /// send the browser, which is the relying party's redirect URI carrying
+    /// the error — the only way it learns the attempt is over.
+    pub async fn reject_login(
+        &self,
+        challenge: &str,
+        error: &str,
+        description: &str,
+    ) -> Result<String> {
+        self.put_redirect(
+            "/admin/oauth2/auth/requests/login/reject",
+            &[("login_challenge", challenge)],
+            &json!({ "error": error, "error_description": description }),
+        )
+        .await
+    }
+
     pub async fn get_consent(&self, challenge: &str) -> Result<ConsentRequest> {
         self.get(
             "/admin/oauth2/auth/requests/consent",
@@ -318,6 +360,7 @@ mod tests {
             client: Client {
                 client_id: "some-id".into(),
                 client_name: name.map(str::to_string),
+                redirect_uris: vec![],
             },
             subject: "github:12345".into(),
             requested_scope: vec!["openid".into()],
@@ -333,6 +376,21 @@ mod tests {
         assert_eq!(
             consent(Some("Claude"), Value::Null).client_label(),
             "Claude"
+        );
+    }
+
+    #[test]
+    fn redirect_targets_are_shown_by_host_once_each() {
+        let mut c = consent(None, Value::Null);
+        c.client.redirect_uris = vec![
+            "https://claude.ai/api/mcp/auth_callback".into(),
+            "https://claude.ai/other".into(),
+            "http://localhost:33418/callback".into(),
+            "com.example.app:/oauth".into(),
+        ];
+        assert_eq!(
+            c.redirect_hosts(),
+            ["claude.ai", "localhost:33418", "com.example.app:/oauth"]
         );
     }
 

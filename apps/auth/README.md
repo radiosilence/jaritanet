@@ -33,9 +33,21 @@ client and why adding one requires nothing at GitHub.
 **The allowlist is the only real gate, so an empty one refuses to boot.**
 Dynamic client registration cannot be closed — Claude registers its own client —
 so a registered client has to be assumed hostile. What makes that survivable is
-that a client is useless without a token and a token issues only to a login in
-`GH_ALLOWED`. An empty allowlist plus open registration means any GitHub account
+that a client is useless without a token and a token issues only to an account in
+`GH_ALLOWED_IDS`. An empty allowlist plus open registration means any GitHub account
 in the world; that is a refusal to start, not a warning in a log nobody reads.
+
+**The allowlist holds GitHub user ids, not logins.** A login can be renamed, and
+the old one is then free for anybody to register, who would inherit its place on
+a login list. The numeric id is never reused and is already what the subject
+(`github:<id>`) is built from, so the check compares the subject directly. Look
+one up with `gh api users/<login> -q .id`.
+
+**Remembered sessions are checked again.** Hydra's session lasts thirty days,
+and both a skipped login and every consent request are rechecked against the
+allowlist by subject. Removing somebody therefore takes effect at their next
+request: a skipped login is rejected at Hydra, and so is consent, including the
+automatic consent first-party clients receive.
 
 **Consent is automatic for first-party clients and asked for otherwise.** A
 client whose id, secret and redirect URIs came from the deploy has already been
@@ -83,6 +95,12 @@ is a form. A self-registered client picks its own `client_name`, which is
 rendered on that screen, so everything interpolated there is attacker-chosen and
 goes through the template's escaping.
 
+**The consent screen leads with where the token goes.** A self-registered
+client's name is free text and can claim to be anything, so the screen marks it
+as self-reported and shows the host of each registered redirect URI first. Hydra
+delivers the code only to a registered redirect URI, so that host is the party
+that actually receives access.
+
 **The consent decision answers with a page, not a redirect.** The CSP also holds
 `form-action 'self'`, and browsers apply `form-action` to every redirect that
 follows a form submission. The decision's last hop leaves for the client's own
@@ -103,7 +121,7 @@ once at boot.
 | `REDIS_URL` | The flow store. |
 | `HYDRA_ADMIN_URL` | Cluster-internal. It accepts a login for any subject without authenticating the caller, so it is never published. |
 | `GH_CLIENT_ID`, `GH_CLIENT_SECRET` | The OAuth App. One serves everything behind here. |
-| `GH_ALLOWED` | Comma-separated GitHub logins. Empty is refused. |
+| `GH_ALLOWED_IDS` | Comma-separated numeric GitHub user ids. Empty, or an entry that is not a number, is refused. |
 | `FIRST_PARTY_CLIENTS` | JSON array of `{id, name, secret, redirect_uris, scopes?}`, registered with Hydra at boot. Assembled by Pulumi from the services that need auth, so a redirect URI is derived from the hostname a service already publishes rather than typed. |
 | `BIND_ADDR` | Defaults to `0.0.0.0:8080`. |
 
@@ -112,7 +130,7 @@ once at boot.
 | | |
 |---|---|
 | `GET /auth/login` | Hydra's login challenge. Confirms the subject when Hydra says `skip`, otherwise sends the browser to GitHub. |
-| `GET /auth/github/callback` | Exchanges the code, checks the allowlist, accepts the login. |
+| `GET /auth/github/callback` | Exchanges the code, checks the subject against the allowlist, accepts the login. |
 | `GET`/`POST /auth/consent` | Hydra's consent challenge, and the decision from the screen. |
 | `POST /register` | Dynamic client registration (RFC 7591), proxied to Hydra. Public by design. |
 | `GET /healthz` | |

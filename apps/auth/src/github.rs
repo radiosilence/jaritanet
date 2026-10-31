@@ -189,7 +189,7 @@ mod tests {
             github: Github {
                 client_id: "cid".into(),
                 client_secret: String::new(),
-                allowed: vec!["someone".into()],
+                allowed: vec![1],
             },
             first_party: vec![],
         }

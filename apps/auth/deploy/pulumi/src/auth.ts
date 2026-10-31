@@ -95,7 +95,14 @@ export function createAuth(
   opts: {
     githubClientId: pulumi.Input<string>;
     githubClientSecret: pulumi.Input<string>;
-    githubAllowed: pulumi.Input<string>;
+    /** Comma-separated numeric GitHub user ids, read by auth 0.2.5 and later. */
+    githubAllowedIds: pulumi.Input<string>;
+    /**
+     * Comma-separated logins, read only by images before 0.2.5. Kept so this
+     * deploy does not lock everybody out before the pin reaches the release
+     * that reads ids.
+     */
+    githubAllowedLogins: pulumi.Input<string>;
     /** Where it stands, shared with Hydra and split by path. */
     hostname: string;
     /** Cluster-internal, and never fronted by an IngressRoute. */
@@ -237,8 +244,12 @@ export function createAuth(
                     ...secretRef("gh-client-secret"),
                   },
                   {
+                    name: "GH_ALLOWED_IDS",
+                    value: pulumi.output(opts.githubAllowedIds),
+                  },
+                  {
                     name: "GH_ALLOWED",
-                    value: pulumi.output(opts.githubAllowed),
+                    value: pulumi.output(opts.githubAllowedLogins),
                   },
                   {
                     name: "FIRST_PARTY_CLIENTS",

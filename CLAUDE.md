@@ -172,7 +172,12 @@ because moving it would move the database holding every registered client.
 **The allowlist is the gate, and an empty one refuses to boot.** Dynamic client
 registration cannot be closed — Claude registers its own client — so a
 registered client is assumed hostile. What makes that safe is that a client is
-useless without a token and a token issues only to a login in `auth.github.allowed`.
+useless without a token and a token issues only to an account in `auth.github.allowed`.
+That list holds numeric GitHub user ids, with the login as a comment, because a
+login can be renamed and then registered by someone else; the subject is
+`github:<id>`, so the check compares it directly. Remembered sessions are
+rechecked on every skipped login and consent, so removing an id takes effect at
+that person's next request rather than when Hydra's thirty-day session expires.
 
 **Every relying party gets an address, and both halves have to agree.** The
 scope is `read:user user:email` and the claim comes from the primary *verified*

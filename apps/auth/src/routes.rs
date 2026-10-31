@@ -70,6 +70,7 @@ fn continue_to(heading: &str, to: &str) -> AppResult<Response> {
 struct ConsentTemplate {
     challenge: String,
     client: String,
+    redirect_hosts: Vec<String>,
     login: String,
     scopes: Vec<String>,
     audience: Vec<String>,
@@ -106,6 +107,23 @@ pub async fn login(
     // the upstream is asked again. GitHub's own session usually makes the
     // round-trip invisible, which is what makes this a migration rather than a
     // forced sign-out.
+    // A remembered session outlives the allowlist entry that admitted it, so it
+    // is checked again here; otherwise removing somebody would take effect only
+    // when their session expired.
+    if request.skip && !state.config.subject_allowed(&request.subject) {
+        tracing::warn!(subject = %request.subject, "rejected remembered login: not allowed");
+        let redirect_to = state
+            .hydra
+            .reject_login(
+                &q.login_challenge,
+                "access_denied",
+                "this account is not permitted to sign in",
+            )
+            .await
+            .map_err(|e| AppError::Upstream(e.to_string()))?;
+        return Ok(redirect(&redirect_to, &[]));
+    }
+
     let claims = request.claims();
     if request.skip && !claims.email.is_empty() {
         let redirect_to = state
@@ -173,8 +191,12 @@ pub async fn github_callback(
     // The control that makes open client registration survivable: a registered
     // client is useless without a token, and a token issues only to somebody
     // named here.
-    if !state.config.login_allowed(&identity.login) {
-        tracing::warn!(login = %identity.login, "rejected login: not in GH_ALLOWED");
+    if !state.config.subject_allowed(&identity.subject) {
+        tracing::warn!(
+            login = %identity.login,
+            subject = %identity.subject,
+            "rejected login: not in GH_ALLOWED_IDS"
+        );
         return Err(AppError::Unauthorized);
     }
 
@@ -213,6 +235,19 @@ pub async fn consent(
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
 
+    // Consent arrives on a remembered login too, so this is the second place a
+    // removed person's session is stopped — and the one that matters for
+    // first-party clients, which are granted without a screen.
+    if !state.config.subject_allowed(&request.subject) {
+        tracing::warn!(subject = %request.subject, "rejected consent: not allowed");
+        let redirect_to = state
+            .hydra
+            .reject_consent(&q.consent_challenge)
+            .await
+            .map_err(|e| AppError::Upstream(e.to_string()))?;
+        return Ok(redirect(&redirect_to, &[]));
+    }
+
     if state
         .config
         .first_party(&request.client.client_id)
@@ -235,6 +270,7 @@ pub async fn consent(
     let page = ConsentTemplate {
         challenge: q.consent_challenge,
         client: request.client_label().to_string(),
+        redirect_hosts: request.redirect_hosts(),
         login: request.claims().login,
         scopes: request.requested_scope.clone(),
         audience: request.requested_access_token_audience.clone(),
@@ -296,5 +332,24 @@ mod tests {
         assert!(html.contains(r#"<meta http-equiv="refresh" content="0; url="#));
         assert!(html.contains("code=a&#38;state=b") || html.contains("code=a&amp;state=b"));
         assert!(!html.contains("<script>"));
+    }
+
+    /// The name is whatever the registrant typed; the host is where the token
+    /// goes. Both are attacker-chosen, so both must come out escaped.
+    #[test]
+    fn the_consent_screen_names_the_redirect_host_and_flags_the_name() {
+        let html = ConsentTemplate {
+            challenge: "c".into(),
+            client: "Claude<b>".into(),
+            redirect_hosts: vec!["evil.example<i>".into()],
+            login: "radiosilence".into(),
+            scopes: vec!["openid".into()],
+            audience: vec![],
+        }
+        .render()
+        .unwrap();
+        assert!(html.contains("evil.example&#60;i&#62;") || html.contains("evil.example&lt;i&gt;"));
+        assert!(html.contains("self-reported"));
+        assert!(!html.contains("<b>") && !html.contains("<i>"));
     }
 }

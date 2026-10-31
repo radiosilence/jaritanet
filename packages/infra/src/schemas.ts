@@ -210,11 +210,16 @@ export const EdgeConfSchema = z.object({
  * `clientId` and `allowed` stay plain deliberately. Marking `allowed` secret
  * makes Pulumi redact the literal string from all output, which mangles every
  * path containing it.
+ *
+ * `allowed` holds numeric GitHub user ids, because a login can be renamed and
+ * then registered by somebody else. `allowedLogins` feeds only auth images
+ * older than 0.2.5, which compare logins; it goes once the pin is past that.
  */
 export const AuthConfSchema = AuthComponentConfSchema.extend({
   github: z
     .object({
-      allowed: z.array(z.string()).default([]),
+      allowed: z.array(z.number().int().positive()).default([]),
+      allowedLogins: z.array(z.string()).default([]),
       clientId: z.string(),
       clientSecret: z.string(),
     })
