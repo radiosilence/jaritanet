@@ -137,14 +137,19 @@ def lock_reaches_deploy(old, new):
     # A `packages` entry holds what a snapshot of that name and version
     # installs, whatever peers the snapshot was resolved with.
     installed = {key.split("(", 1)[0] for section, key in seen if section == "snapshots"}
-    # An importer counts by what it installs at runtime, so a change to its
-    # devDependencies alone is not one.
-    changed = {
-        (section, key)
+
+    def runtime_changed(key):
+        """Whether an importer's runtime dependencies differ. Its
+        devDependencies are tooling the deploy never loads, and the root's
+        runtime dependencies were compared above."""
+        unit = ("importers", key)
+        return key != "." and deps(before.get(unit, "")) != deps(after.get(unit, ""))
+
+    return any(
+        (section, key) in seen or (section == "packages" and key in installed)
         for section, key in changed
-        if section != "importers" or (key != "." and deps(before.get((section, key), "")) != deps(after.get((section, key), "")))
-    }
-    return any((section, key) in seen or (section == "packages" and key in installed) for section, key in changed)
+        if section != "importers" or runtime_changed(key)
+    )
 
 
 def mise_reaches(old, new):

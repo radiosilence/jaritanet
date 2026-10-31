@@ -237,8 +237,9 @@ missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
 covered by the next. A manual run, a change under `.github/`, a push whose
 last passed commit cannot be found, or a diff that cannot be worked out runs
-everything. Markdown never counts, except `apps/koan-demo/CREDITS.md`, which
-that image ships.
+everything. Markdown does not count for `ts` or `deploy`; a container counts
+every file in its directory, since an image may ship one (koan-demo copies
+`CREDITS.md`).
 
 `aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
 where the change reaches: `.github/scripts/shared_inputs.py` follows the
