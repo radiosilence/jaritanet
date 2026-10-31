@@ -59,6 +59,9 @@ pub struct Config {
     pub hydra_admin_url: String,
     pub github: Github,
     pub first_party: Vec<FirstPartyClient>,
+    /// The MCP gateway's public URL, granted as the audience of every
+    /// self-registered client. Absent when no gateway is deployed.
+    pub gateway_audience: Option<String>,
 }
 
 fn var(key: &str) -> Result<String> {
@@ -97,6 +100,10 @@ impl Config {
                 allowed,
             },
             first_party,
+            gateway_audience: std::env::var("GATEWAY_AUDIENCE")
+                .ok()
+                .map(|v| v.trim_end_matches('/').to_string())
+                .filter(|v| !v.is_empty()),
         })
     }
 
@@ -159,6 +166,7 @@ mod tests {
                 allowed: allowed.iter().map(|s| s.to_string()).collect(),
             },
             first_party,
+            gateway_audience: None,
         }
     }
 

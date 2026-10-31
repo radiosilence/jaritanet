@@ -78,11 +78,11 @@ export function createCilium(
          * than discovering them from a `prometheus.io/port` annotation that can
          * only describe one of them.
          *
-         * `drop` is the one that pays for the rest. `networkPolicy` and
-         * `restrictIngress` were decorative under flannel; they are enforced
-         * under Cilium and have never been verified.
-         * `hubble_drop_total{reason="POLICY_DENIED"}` is how that stops being
-         * a belief.
+         * `drop` is the one that pays for the rest: `networkPolicy` and
+         * `restrictIngress` are enforced, and kubelet probes pass them because `allow-localhost`
+         * admits the local host to its own endpoints, which is why no policy
+         * carries a node CIDR for them.
+         * `hubble_drop_total{reason="POLICY_DENIED"}` shows what they deny.
          *
          * The enabled list is deliberately short. Every context added to a
          * Hubble metric multiplies its series count, and this runs on the box

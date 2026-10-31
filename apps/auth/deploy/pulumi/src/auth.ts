@@ -95,9 +95,9 @@ export const registrationRoute = "Path(`/register`)";
  * /64, since one host commonly holds the whole prefix and would otherwise get a
  * fresh allowance per address.
  *
- * The key is only as good as the PROXY header: while Traefik trusts it from the
- * whole pod network (#1247), a pod can claim any address. The limit bounds a
- * caller with few addresses, not one with a pool of them.
+ * The key is only as good as the PROXY header, which Traefik accepts only from
+ * the host Xray runs on. The limit bounds a caller with few addresses, not one
+ * with a pool of them.
  */
 export function createRegistrationLimit(
   provider: k8s.Provider,
@@ -149,6 +149,12 @@ export function createAuth(
     /** Cluster-internal, and never fronted by an IngressRoute. */
     hydraAdminUrl: pulumi.Input<string>;
     clients: RelyingParty[];
+    /**
+     * The MCP gateway's public URL, registered as the audience of every
+     * self-registered client. The gateway accepts a token only from a client
+     * carrying it. Omitted when no gateway is deployed.
+     */
+    gatewayAudience?: string;
   },
 ) {
   const options = { provider };
@@ -292,6 +298,14 @@ export function createAuth(
                     name: "FIRST_PARTY_CLIENTS",
                     ...secretRef("first-party-clients"),
                   },
+                  ...(opts.gatewayAudience
+                    ? [
+                        {
+                          name: "GATEWAY_AUDIENCE",
+                          value: opts.gatewayAudience,
+                        },
+                      ]
+                    : []),
                 ],
                 readinessProbe: {
                   httpGet: { path: "/healthz", port: 8080 },

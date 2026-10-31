@@ -185,15 +185,6 @@ export function createServices(ctx: EstateContext) {
       nodeSelector: { "kubernetes.io/hostname": MEDIA_NODE },
       // The ingress route backs onto `<prefix>-service`.
       service: { name: "koan-service" },
-      networkPolicy: {
-        // The node, for the probes: this CNI enforces policy on kubelet.
-        extraIngress: [
-          {
-            from: [{ ipBlock: { cidr: "192.168.0.0/16" } }],
-            ports: [{ protocol: "TCP", port: 4000 }],
-          },
-        ],
-      },
     });
     // The package names the Service outright; routes here name a prefix.
     add({ routes: [{ service: "koan", hostname: hostnames.koan }] });

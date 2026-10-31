@@ -192,6 +192,7 @@ mod tests {
                 allowed: vec!["someone".into()],
             },
             first_party: vec![],
+            gateway_audience: None,
         }
     }
 

@@ -242,7 +242,7 @@ reaches the stack in the first place.
 | Secret | Workflow | Purpose |
 |---|---|---|
 | `PULUMI_ACCESS_TOKEN` | `ci-cd` (`preview`, `deploy`) | Pulumi Cloud state |
-| `APP_PRIVATE_KEY` | `update-apps` | GitHub App key for version-bump commits (pairs with the `APP_ID` repo variable) |
+| `APP_PRIVATE_KEY` | `update-apps` | GitHub App key for version-bump commits (pairs with the `APP_ID` repo variable, passed as the action's `client-id`) |
 
 Pull requests show the preview through the Pulumi GitHub app, installed on the
 repository and linked to the Pulumi organisation. Without it the `preview` job
@@ -406,9 +406,13 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
 
 1. **Create the OAuth client.** Admin console → *Settings* → *OAuth clients* →
    *Generate OAuth client*. Tick **Policy File** with **write** access (read
-   alone lets Pulumi import but not apply). No tags — those are only required
-   for scopes that mint devices or keys. The secret is shown once, so copy it
-   there and then. Free on the Personal plan.
+   alone lets Pulumi import but not apply), and **Devices Core** with **write**
+   access, which requires choosing a tag: pick the gateway's (`tag:server`). The
+   deploy uses the device scope to give a rebuilt gateway back its tailnet name,
+   deleting the device of the box it replaced (see docs/architecture.md); with
+   read access alone every deploy succeeds except the one that rebuilds the
+   gateway. The secret is shown once, so copy it there and then. Free on the
+   Personal plan.
 2. **Put the secret in stack config**, not GitHub secrets — the deploy reads
    nothing from the environment — and the client id in `tailnet.oauth.clientId`
    in `stack.ts`:

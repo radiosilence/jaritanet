@@ -118,6 +118,10 @@ export default async function () {
     entryLabel: VPN_ENTRY_LABEL,
     magicdnsSuffix: tailnet.magicdnsSuffix,
     tailnetAuthKey: tailnet.authKey,
+    tailnetApi: tailnet.oauth && {
+      clientId: tailnet.oauth.clientId,
+      clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
+    },
   });
   // Ordering for the transport DaemonSets: the node must carry the entry label
   // before a DaemonSet has anywhere to schedule.
@@ -460,6 +464,9 @@ export default async function () {
       // secret that service was handed. Collected rather than declared: see
       // createServices.
       clients,
+      ...(hostnames["mcp-gateway"] && {
+        gatewayAudience: `https://${hostnames["mcp-gateway"]}`,
+      }),
     });
     // Registration is open to anyone and writes a Hydra client per call, so
     // it has a route of its own carrying a limit the login pages do not need.
