@@ -94,7 +94,7 @@ export function createEdge(
     createAdminSshAccess(name, connection, server, adminSshKey);
   }
 
-  const opts = { name, dependsOn: [server] };
+  const opts = { name, dependsOn: [server], replaceWith: [server] };
 
   const hysteria = createHysteriaSystemd(
     connection,
