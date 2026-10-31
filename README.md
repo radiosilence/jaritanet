@@ -243,6 +243,11 @@ reaches the stack in the first place.
 | `PULUMI_ACCESS_TOKEN` | `ci-cd` (`preview`, `deploy`) | Pulumi Cloud state |
 | `APP_PRIVATE_KEY` | `update-apps` | GitHub App key for version-bump commits (pairs with the `APP_ID` repo variable) |
 
+Pull requests show the preview through the Pulumi GitHub app, installed on the
+repository and linked to the Pulumi organisation. Without it the `preview` job
+still runs and fails on a broken program or a revoked credential, but its
+output appears only in the job log.
+
 ### Stack configuration
 
 `Pulumi.main.yaml` holds credentials and nothing else — everything the

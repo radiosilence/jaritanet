@@ -293,10 +293,11 @@ jobs:
 
   # `pulumi preview --refresh` against the live stack, so a resource that
   # *replaces* (the gateway VPS) rather than updates is seen before merge. The
-  # Pulumi GitHub app posts the result on the pull request. --refresh is load-bearing: without it a
-  # preview never calls the cloud APIs, so a credential revoked since the last
-  # deploy reads as fine and only fails once it is too late to be a preview.
-  # Read-only.
+  # Pulumi GitHub app posts the result on the pull request; a preview that
+  # fails before reaching Pulumi Cloud reports only in this job's log.
+  # --refresh is load-bearing: without it a preview never calls the cloud
+  # APIs, so a credential revoked since the last deploy reads as fine and only
+  # fails once it is too late to be a preview. Read-only.
   preview:
     name: Pulumi Preview
     runs-on: ubuntu-24.04
@@ -345,7 +346,6 @@ jobs:
           install-args: --frozen-lockfile
 
       - name: Preview
-        id: preview
         if: steps.token.outputs.ready == 'true'
         working-directory: packages/infra
         run: pulumi preview --non-interactive --diff --refresh -s "$STACK"
