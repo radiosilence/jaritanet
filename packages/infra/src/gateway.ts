@@ -5,14 +5,7 @@ import {
   createNetworkTuning,
   inboundRule,
 } from "@jaritanet/hetzner";
-import { remotePreamble } from "@jaritanet/remote";
-import {
-  createHysteriaSystemd,
-  createTailscaleSystemd,
-  createXraySystemd,
-  type VpnUser,
-  UPSTREAM_ROOTS,
-} from "@jaritanet/vpn";
+import { createTailscaleSystemd } from "@jaritanet/vpn";
 import * as command from "@pulumi/command";
 import * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
@@ -22,17 +15,11 @@ import type { GatewayConfSchema } from "./schemas.ts";
 
 /**
  * Provisions the Hetzner VPS the cluster and the transports run on.
- * The VPS is completely stateless — no certs, no proxy config.
- * It just tunnels ports 80/443 from the public internet to
- * the transports and the k3s control plane, all installed over SSH.
  *
- * `users` is the per-user VPN roster threaded into the entry transports (Xray
- * clients + hy2 userpass); see @jaritanet/vpn for role enforcement.
- *
- * With `k3s` set the box runs its own cluster, and the transports, the DNS
- * cache and the tailnet relay are pods deployed from main.ts instead — so
- * nothing here installs them, and whatever a previous deploy left running as a
- * systemd unit is disabled first.
+ * Over SSH this sets up the host: tuning, patching, admin SSH access, tailscaled
+ * and k3s, and labels the node as a VPN entry, which is what the transport
+ * DaemonSets select on. The transports and the DNS cache are pods in that
+ * cluster, deployed from main.ts.
  *
  * Everything in `opts` is passed in rather than read from the environment here:
  * the modules this composes take their inputs as arguments, and a function that
@@ -42,7 +29,6 @@ import type { GatewayConfSchema } from "./schemas.ts";
  */
 export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
-  users: VpnUser[],
   {
     adminSshKey,
     clusterName,
@@ -77,11 +63,10 @@ export function createGateway(
       // caps throughput; the cluster's own traffic to the home node rides
       // the tailnet too.
       inboundRule("Tailscale direct connections", 41641, "udp"),
-      // Only when the API server has no tailnet to hide behind. With Tailscale
-      // configured the kubeconfig points at a MagicDNS name and 6443 never
-      // needs a public rule at all — so adding the Pi (and its tailnet) closes
-      // this automatically rather than leaving a control plane exposed.
-      ...(gateway.k3s && !gateway.k3s.apiViaTailnet
+      // Only when the API server is not reached over the tailnet. With
+      // `apiViaTailnet` the kubeconfig points at a MagicDNS name and 6443
+      // needs no public rule.
+      ...(!gateway.k3s.apiViaTailnet
         ? [inboundRule("k3s API server", 6443)]
         : []),
       ...(gateway.hysteria
@@ -141,82 +126,10 @@ export function createGateway(
     createAdminSshAccess("gateway", connection, server, adminSshKey);
   }
 
-  // With a cluster on this box the transports are pods (see modules/*-pod.ts);
-  // without one they are systemd units installed over SSH, which is also what
-  // every edge still uses. Both paths bind the same host ports, so exactly one
-  // of them may exist.
-  const sshTransports = !gateway.k3s;
-
-  // Caching DNS forwarder on loopback. Clients dial 127.0.0.1:53 *at this box*
-  // through the tunnel (a DNS server with detour=entry-select), so unbound has
-  // zero public attack surface — reachable only from inside the tunnel. It
-  // forwards upstream to Cloudflare over DoT (:853), so there is no cleartext
-  // DNS anywhere in the chain: client→gateway is the encrypted tunnel, and
-  // gateway→resolver is TLS. Prefetch + serve-expired keep the hot set warm, so
-  // a client-cache miss is answered from this Germany-local cache in one tunnel
-  // RTT instead of a round trip to the upstream from the client's location.
-  if (sshTransports) {
-    new command.remote.Command(
-      "gateway-unbound",
-      {
-        connection,
-        create: `${remotePreamble}
-export DEBIAN_FRONTEND=noninteractive
-apt-get update && apt-get install -y unbound
-cat > /etc/unbound/jaritanet-roots.pem << 'EOF'
-${UPSTREAM_ROOTS}EOF
-cat > /etc/unbound/unbound.conf.d/jaritanet.conf << 'EOF'
-server:
-  interface: 127.0.0.1
-  port: 53
-  do-ip6: no
-  access-control: 127.0.0.0/8 allow
-  prefetch: yes
-  prefetch-key: yes
-  serve-expired: yes
-  serve-expired-ttl: 86400
-  cache-min-ttl: 120
-  cache-max-ttl: 86400
-  msg-cache-size: 64m
-  rrset-cache-size: 128m
-  num-threads: 2
-  so-reuseport: yes
-  qname-minimisation: yes
-  hide-identity: yes
-  hide-version: yes
-  tls-cert-bundle: "/etc/unbound/jaritanet-roots.pem"
-forward-zone:
-  name: "."
-  forward-tls-upstream: yes
-  forward-addr: 1.1.1.1@853#cloudflare-dns.com
-  forward-addr: 1.0.0.1@853#cloudflare-dns.com
-EOF
-systemctl enable unbound
-systemctl restart unbound`,
-        triggers: ["unbound-v2", UPSTREAM_ROOTS],
-      },
-      { dependsOn: [server] },
-    );
-  }
-
-  const xray =
-    gateway.xray && sshTransports
-      ? createXraySystemd(connection, gateway.xray, users, {
-          dependsOn: [server],
-        })
-      : undefined;
-
-  const hysteria =
-    gateway.hysteria && sshTransports
-      ? createHysteriaSystemd(connection, gateway.hysteria, users, {
-          dependsOn: [server],
-        })
-      : undefined;
-
   // Tailnet relay: only when configured and an auth key is present, so
   // enabling `tailnet` in config before the secret is set is a safe no-op.
-  // Not gated on `sshTransports` like the other units: this is not a transport
-  // the cluster serves but the substrate it stands on. Cilium addresses nodes
+  // Not a pod like the transports: this is not something the cluster serves
+  // but the substrate it stands on. Cilium addresses nodes
   // by their tailnet IP because the home node has no other reachable address,
   // so tailscaled has to exist before k3s installs — which rules out running it
   // as a pod in the cluster it is a precondition for.
@@ -226,7 +139,7 @@ systemctl restart unbound`,
           connection,
           gateway.tailnet,
           pulumi.secret(tailnetAuthKey),
-          { dependsOn: [server] },
+          { dependsOn: [server], replaceWith: [server] },
         )
       : undefined;
 
@@ -234,51 +147,46 @@ systemctl restart unbound`,
   // certificate covers whichever is used, so the kubeconfig verifies properly
   // in both cases rather than falling back to insecure-skip-tls-verify.
   const apiHost =
-    gateway.k3s?.apiViaTailnet && gateway.tailnet && magicdnsSuffix
+    gateway.k3s.apiViaTailnet && gateway.tailnet && magicdnsSuffix
       ? `${gateway.tailnet.hostname}.${magicdnsSuffix}`
       : server.ipv4Address;
 
-  const k3s = gateway.k3s
-    ? createK3s(
-        connection,
-        server,
-        gateway.k3s,
-        apiHost,
-        "",
-        clusterName,
-        tailscale ? [tailscale] : [],
-      )
-    : undefined;
+  const k3s = createK3s(
+    connection,
+    server,
+    gateway.k3s,
+    apiHost,
+    clusterName,
+    tailscale ? [tailscale] : [],
+  );
 
   // Marks this node as one that serves VPN entries; the transport DaemonSets
-  // select on it. Applied from here rather than as a Kubernetes resource
-  // because labelling an existing node needs server-side apply, which would
-  // change how every other resource in the stack is managed for the sake of one
-  // key. A missing label is worth failing on: the DaemonSets would simply
-  // schedule nothing, and every transport would be silently absent.
-  const vpnEntryLabel = k3s
-    ? new command.remote.Command(
-        "gateway-vpn-entry-label",
-        {
-          connection,
-          create: `set -euo pipefail
+  // select on it. A missing label is worth failing on: the DaemonSets would
+  // simply schedule nothing, and every transport would be silently absent.
+  //
+  // A rebuilt box is a new cluster with an unlabelled node, so the command is
+  // replaced with the server. It has no `delete`: on a replacement the old
+  // command's delete runs after the new one has labelled the node, and would
+  // strip the label it had just applied. A key that is renamed is left behind
+  // on the node, where nothing selects on it.
+  const vpnEntryLabel = new command.remote.Command(
+    "gateway-vpn-entry-label",
+    {
+      connection,
+      create: `set -euo pipefail
 k3s kubectl label node "$(hostname)" ${entryLabel}=true --overwrite`,
-          delete: `k3s kubectl label node "$(hostname)" ${entryLabel}- || true`,
-          triggers: [entryLabel],
-        },
-        { dependsOn: [k3s.install] },
-      )
-    : undefined;
+      triggers: [entryLabel],
+    },
+    { dependsOn: [k3s.install], replaceWith: [server] },
+  );
 
   return {
     apiHost,
-    hysteria,
     k3s,
     vpnEntryLabel,
     server,
     sshKey,
     tailscale,
     vpsIp: server.ipv4Address,
-    xray,
   };
 }

@@ -73,8 +73,8 @@ export type EstateContext = {
   zones: Zone[];
   /** Where each service is published. A name with no entry is not published. */
   hostnames: Record<string, string>;
-  /** Where A records point. Absent → no gateway, so no records are created. */
-  dnsTarget?: pulumi.Output<string>;
+  /** Where A records point: the gateway. */
+  dnsTarget: pulumi.Output<string>;
   /** IngressRoute is a CRD the Traefik chart brings; routes wait on it. */
   traefik?: pulumi.Resource;
   /**
@@ -642,7 +642,7 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
 
   for (const route of routes) {
     const zone = zoneFor(ctx.zones, route.hostname);
-    if (ctx.dnsTarget && zone && !recorded.has(route.hostname)) {
+    if (zone && !recorded.has(route.hostname)) {
       recorded.add(route.hostname);
       createServiceRecord(ctx.dnsTarget, zone, route.hostname);
     }
@@ -656,6 +656,7 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
         paths: route.paths,
         priority: route.priority,
         middlewares: route.middlewares,
+        dependsOn: route.dependsOn,
       },
     );
     published[route.service] = {

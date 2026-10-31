@@ -2,14 +2,12 @@ export {
   AbsolutePath,
   Hostname,
   HostPort,
-  HostVolumeSchema,
   ImageSchema,
   LabelKey,
   PersistenceSchema,
   Port,
   Quantity,
   ResourcesSchema,
-  SecurityContextSchema,
   StrategySchema,
 } from "./schemas.ts";
 export { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";

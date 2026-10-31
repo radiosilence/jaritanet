@@ -112,6 +112,26 @@ async fn ensure_first_party(config: &Config, hydra: &HydraAdmin) -> Result<()> {
     Ok(())
 }
 
+/// How long the listener stays open after SIGTERM. Traefik keeps routing to a
+/// terminating pod until the endpoint removal reaches it, and a request landing
+/// on a closed listener in that window becomes a 502 mid-login.
+const DRAIN: Duration = Duration::from_secs(5);
+
+/// Resolves `DRAIN` after SIGTERM, or at once on ctrl-c. As PID 1 in a scratch
+/// image nothing installs a default handler, so without this the kubelet's
+/// SIGTERM is ignored and every rollout waits out the grace period before a
+/// SIGKILL.
+async fn shutdown_signal(mut term: tokio::signal::unix::Signal) {
+    tokio::select! {
+        _ = term.recv() => {
+            tracing::info!("SIGTERM, draining for {DRAIN:?}");
+            tokio::time::sleep(DRAIN).await;
+        }
+        _ = tokio::signal::ctrl_c() => {}
+    }
+    tracing::info!("shutting down");
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -163,6 +183,8 @@ async fn main() -> Result<()> {
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
+    let term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .context("installing a SIGTERM handler")?;
     let listener = tokio::net::TcpListener::bind(&bind_addr)
         .await
         .with_context(|| format!("binding {bind_addr}"))?;
@@ -171,6 +193,7 @@ async fn main() -> Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown_signal(term))
     .await
     .context("serving")?;
     Ok(())

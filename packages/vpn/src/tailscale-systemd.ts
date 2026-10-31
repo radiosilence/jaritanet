@@ -39,7 +39,7 @@ export function createTailscaleSystemd(
   // reference means nothing to it.
   tailnet: z.infer<typeof TailnetConfSchema>,
   authKey: pulumi.Output<string>,
-  { name = "", dependsOn = [] }: SystemdOpts = {},
+  { name = "", dependsOn = [], replaceWith = [] }: SystemdOpts = {},
 ) {
   const p = resourcePrefix(name);
 
@@ -66,7 +66,7 @@ apt-get update -qq
 apt-get install -y -qq "tailscale=${TAILSCALE_VERSION}"`,
       triggers: [`v${TAILSCALE_VERSION}`],
     },
-    { dependsOn },
+    { dependsOn, replaceWith },
   );
 
   return new command.remote.Command(
@@ -89,6 +89,6 @@ tailscale up --reset \
       // to force a re-run (e.g. after rotating the key or changing flags).
       triggers: ["tailscale-v2", tailnet.hostname, tailnet.tag],
     },
-    { dependsOn: [install] },
+    { dependsOn: [install], replaceWith },
   );
 }

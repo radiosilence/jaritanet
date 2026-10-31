@@ -3,8 +3,8 @@ import type * as k8s from "@pulumi/kubernetes";
 import { VERSIONS } from "./versions.ts";
 
 /**
- * kōan's website: static bytes behind nano-web, the same shape as blit and the
- * Queen's Head. Separate from `@jaritanet/koan`, which is the music server; the
+ * kōan's website: static bytes behind nano-web, the same shape as blit.
+ * Separate from `@radiosilence/koan-pulumi`, which is the music server; the
  * image is built by the koan repository, beside the screenshots it shows.
  */
 export function createKoanSite(

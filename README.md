@@ -11,10 +11,12 @@ and deploys everything into the cluster it just built. There is no secret
 round-trip and nothing for a human to rotate — the kubeconfig is an output of
 the same program that consumes it.
 
-The box runs **k3s and sshd, and nothing else**. Xray, Hysteria2, unbound and
-tailscale are DaemonSets rather than systemd units; Traefik, the web services
+The box runs **k3s, tailscaled and sshd, and nothing else**. Xray, Hysteria2
+and unbound are DaemonSets rather than systemd units; Traefik, the web services
 and the MCP gateway are ordinary Deployments. `hostNetwork` is what lets the
 VPN transports own the host's real ports while still being cluster workloads.
+tailscaled stays a systemd unit because k3s takes the node's tailnet address as
+its `node-ip`, so it has to be running before the cluster is.
 
 ```mermaid
 graph TB
@@ -25,6 +27,7 @@ graph TB
         subgraph host["host"]
             SSHD["sshd :22<br/>the way back in"]
             K3S["k3s"]
+            TS["tailscaled<br/>tailnet relay, node-ip"]
         end
 
         subgraph k8s["k3s cluster — Cilium CNI"]
@@ -32,12 +35,11 @@ graph TB
                 XR["Xray VLESS-REALITY<br/>tcp :443"]
                 HY["Hysteria2<br/>udp :443 / :3478 / :4500"]
                 UB["unbound<br/>127.0.0.1:53 — client DNS"]
-                TS["tailscale relay"]
             end
 
             TR["Traefik<br/>TLS + routing, hostPort 8443"]
             subgraph apps["services"]
-                BL["blit"]
+                BL["web services<br/>blit, koan, transmet, …"]
                 MCP["mcp-gateway + hydra + postgres"]
                 PROF["singbox-profiles"]
             end
@@ -74,17 +76,19 @@ choices and the `:443` multiplexing.
 
 ### The gateway is not optional any more
 
-`gateway.hcloudToken` and `gateway.k3s` are both required: the cluster runs on the VPS
-the token provisions, so there is no cluster without it.
+`gateway.k3s` (in `stack.ts`) is required, and the Hetzner provider reads its
+token from the `hcloud:token` provider key: the cluster runs on the VPS that
+token provisions, so there is no cluster without it.
 
 | | |
 |---|---|
 | Host | Hetzner CX33, Nuremberg (~EUR13/mo) |
-| Cluster | k3s, single node, Cilium CNI |
+| Cluster | k3s, the VPS as server and `lady` as agent, Cilium CNI |
 | Storage | k3s local-path for PVCs; static local PVs with node affinity for existing media |
 
-A second node (`lady`, a Raspberry Pi) joins by dialling the VPS's public
-`:6443` — no tunnel needed. Media stays on its disk, which is what the static
+A second node (`lady`, a Dell OptiPlex at home) joins as an agent by dialling
+the VPS's public `:6443`. It is behind NAT with nothing forwarded, so it
+registers its tailnet address and node-to-node traffic rides the tailnet. Media stays on its disk, which is what the static
 PV's `nodeAffinity` is for: it pins the pod to the box holding the files.
 
 ## How It Works
@@ -96,7 +100,7 @@ PV's `nodeAffinity` is for: it pins the pod to the box holding the files.
 
 ## Topology configuration
 
-The VPN topology is three config lists in `packages/infra/Pulumi.main.yaml`.
+The VPN topology is three bindings in `packages/infra/src/stack.ts`.
 
 **`gateway`** — the single entry hub (a Hetzner VPS). Runs Xray (VLESS-REALITY,
 `:443/tcp`), Hysteria2 (`:443/udp`), and the tailnet relay. This is
@@ -107,11 +111,15 @@ ss-rust server on the machine whose IP it presents — a residential one,
 typically. Entries reach it over the tailnet, so it works on a box behind NAT
 with nothing forwarded.
 
-```yaml
-jaritanet:exits:
-  - name: lady
-    nodeLabel: jaritanet.radiosilence.dev/vpn-exit
-    server: 100.74.66.121
+```ts
+export const exits = z.array(ExitConfSchema).parse([
+  {
+    name: "lady",
+    node: "lady",
+    nodeLabel: "jaritanet.radiosilence.dev/vpn-exit",
+    server: "100.74.66.121",
+  },
+]);
 ```
 
 - **`name`** is cosmetic — the picker tag (`exit-<name>`) and resource names.
@@ -145,16 +153,17 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 - **`k3s.ts`** — installs k3s over SSH, and reads the kubeconfig back as a separate command keyed on the server rather than on the installer, so editing the install command does not churn the credentials the Kubernetes provider is built from
 - **`cilium.ts`** — the CNI, with `kubeProxyReplacement` (which is what makes `hostPort` work at all)
 - **`vps.ts`** — firewall rules and the sysctls the transports need (BBR, UDP buffers)
+- **`upgrades.ts`** — system-upgrade-controller Plans that carry `k3s.version` to nodes Pulumi cannot reach
+- **`tailnet-rule.ts`** — the DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing
 
 **`@jaritanet/vpn`** — the transports. DaemonSets on the entry-labelled node, `hostNetwork`
 
 - **`xray.ts`** — VLESS-Vision-REALITY on tcp/443, relaying non-clients to Traefik
 - **`hysteria.ts`** — Hysteria2 on udp/443 plus alt ports, one container each
-- **`tailscale.ts`** — tailnet relay, node state in a Secret so identity survives the node
 - **`unbound.ts`** — the client-facing resolver on `127.0.0.1:53`, DoT upstream
 - **`exit.ts`** — selectable egress exit node (ss-rust)
 - **`singbox.ts`** / **`profiles.ts`** — builds each user's profile (`buildProfile`) and serves it from a Secret via `serve-from-env`; the routing table *is* the content, so a rotated slug stops existing rather than lingering as a stale file
-- **`*-systemd.ts`** — the same transports installed over SSH, still used by edges, which have no cluster. They take an SSH connection and opaque `dependsOn` rather than a typed server, so nothing here depends on a cloud provider
+- **`*-systemd.ts`** — the same transports installed over SSH, still used by edges, which have no cluster, and `tailscale-systemd.ts`, which the gateway uses too. They take an SSH connection and opaque `dependsOn` rather than a typed server, so nothing here depends on a cloud provider
 
 **`@jaritanet/metrics`** — the history
 
@@ -169,10 +178,17 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 - **`service.ts`** — K8s Deployment/Service/PV/PVC templates, plus the schemas and helpers the other packages share
 - **`preamble.ts`** — `remotePreamble`, the shell every `command.remote.Command` opens with. Pulumi SSHes in the moment the box answers, so waiting for cloud-init and setting a dpkg lock timeout is the first thing on the wire — depending on nothing and on no cloud is what lets the `-systemd` transports and the k3s install share one copy
 
+**`@jaritanet/blit`**, **`@jaritanet/groglog`**, **`@jaritanet/koan-site`**, **`@jaritanet/sbr-site`** — static sites behind nano-web, each image built by its own repository and pinned to a commit
+
+**`@jaritanet/home`** — anonymous read-only Samba and btrfs maintenance on the node holding the disks
+
+Published from other repositories and consumed as dependencies: `@radiosilence/mcp-gateway-pulumi`, `@radiosilence/mariastew-pulumi`, `@radiosilence/slsk-mcp-pulumi`, `@radiosilence/koan-pulumi`, `@radiosilence/koan-relay-pulumi` and `@radiosilence/transmet-pulumi`.
+
 **`apps/<x>/deploy/pulumi`** — an app's own chart, next to the app
 
 - **`apps/auth`** — the login and consent provider Hydra delegates to
 - **`apps/files`** — static nginx over a read-only mount
+- **`apps/koan-demo`** — koan's public demo, and the image of freely licensed music it plays
 - **`apps/serve-from-env`** — a Secret of path → body, and a Deployment serving
   exactly those paths
 
@@ -215,8 +231,7 @@ is the engine redacting its own stdout. That is what lets a credential sit in
 the block it belongs to instead of a flat key at the root.
 
 ```bash
-pulumi config set --path --secret gateway.hcloudToken
-pulumi config set --path tailnet.magicdnsSuffix example.ts.net
+pulumi config set --path --secret secrets.githubClientSecret
 ```
 
 ### GitHub Actions secrets
@@ -237,14 +252,18 @@ deployment *is* lives in `packages/infra/src/stack.ts` as TypeScript, and
 
 | Key | Required | Purpose |
 |---|---|---|
-| `cloudflare:apiToken`, `hcloud:token` | Yes | Provider credentials |
+| `cloudflare:apiToken` | Yes | Provider credential |
+| `hcloud:token` | Yes | Hetzner API token, read by the provider. The cluster runs on the VPS it provisions, so this is not optional |
 | `secrets.cloudflareApiToken` | Yes | Handed to Traefik for the ACME DNS-01 challenge (DNS:Edit, Zone:Read) |
-| `secrets.hcloudToken` | Yes | Hetzner API token. The cluster runs on the VPS it provisions, so this is not optional |
 | `secrets.githubClientSecret` | Yes | The OAuth app the identity provider authenticates people against |
 | `secrets.ubuntuProToken` | No | Ubuntu Pro, for kernel livepatch. Unset = the reboot window is still set and only livepatch is skipped |
 | `secrets.vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 | `secrets.tailnetAuthKey` | No | Joins the gateway and edges to the tailnet — enables the relay |
 | `secrets.tailnetOauthClientSecret` | No | Manages the tailnet policy file as code. Unset = policy stays hand-managed |
+| `secrets.slskUsername` / `slskPassword` | No | The Soulseek account slsk logs in with at start. Both or neither |
+| `secrets.discogsToken` | No | Discogs token for slsk's importer |
+| `secrets.transmetPassword` / `transmetPullToken` | No | transmet's password and the `read:packages` token its private image is pulled with. Both absent → not deployed |
+| `secrets.koanApnsKey` | No | koan's APNs key, to reach its iOS app while suspended |
 | `secrets.telegramBotToken` / `telegramChatId` | No | Shared bot + chat: the profile server notifies on a URL rotation, mariastew on a download finishing, the btrfs scrub with its monthly result. Absent → none of them sends anything |
 
 Everything else — the gateway's shape, the zones, the exits, the tailnet's
@@ -280,9 +299,10 @@ CI does not join the tailnet. It reaches the API server on the VPS's public
 
 ### Enabling the gateway
 
+The token comes from console.hetzner.cloud, under Project, Security, API Tokens.
+
 ```bash
-# console.hetzner.cloud > Project > Security > API Tokens
-pulumi config set --path --secret gateway.hcloudToken
+pulumi config set --secret hcloud:token
 ```
 
 Next deploy provisions the VPS, installs k3s on it and deploys everything into
@@ -291,11 +311,8 @@ box.
 
 ### Break-glass SSH
 
-```bash
-pulumi config set adminSshKey "$(cat ~/.ssh/id_ed25519.pub)"
-```
-
-Installs that key on the gateway and every edge, so `ssh root@<ip>` works. Only
+`ADMIN_SSH_KEY` in `stack.ts` is the public half, so it is committed rather
+than held as a secret. It installs that key on the gateway and every edge, so `ssh root@<ip>` works. Only
 worth having for one case: k3s failing to come up. Everything else — host files,
 host networking, `systemctl` — is already reachable through a privileged pod
 with `hostPID` and `nsenter`, and none of that exists without an API server. The
@@ -305,7 +322,7 @@ be there beforehand.
 It arrives over SSH rather than through the server's `sshKeys` or `userData`,
 both of which Hetzner applies only at creation: setting either would replace the
 box, and with it the IP and the REALITY keypair every client profile carries.
-Rotating the key is therefore a normal deploy. Unsetting it removes the key.
+Rotating the key is therefore a normal deploy.
 
 The key lands in `/etc/ssh/admin_authorized_keys`, selected by an
 `sshd_config.d` drop-in, never in the `authorized_keys` Pulumi authenticates
@@ -319,8 +336,10 @@ Cloud images install security updates on their own and then leave them there:
 `Automatic-Reboot` ships false, so a new kernel is downloaded and never booted.
 Every box gets a 04:00 reboot window so the patches it installs take effect.
 
+The token is from https://ubuntu.com/pro/dashboard.
+
 ```bash
-pulumi config set --secret ubuntuProToken   # from https://ubuntu.com/pro/dashboard
+pulumi config set --path --secret secrets.ubuntuProToken
 ```
 
 Adds livepatch on top, which applies high and critical kernel CVE fixes to the
@@ -341,25 +360,26 @@ mise run check       # Lint, actionlint, format, typecheck and test — in paral
 mise run lint:fix    # Lint and auto-fix
 mise run fmt         # Format with oxfmt
 mise run preview     # Preview the stack
-mise run up          # Deploy it
-
-`check` declares the other four as `depends`, so mise fans them out across its
-job pool rather than running them in an order nothing requires.
+mise run deploy      # Deploy it
 ```
 
-Pre-commit hooks (via Lefthook) run oxlint, oxfmt, and type checking.
+`check` declares the other checks as `depends`, so mise fans them out across its
+job pool rather than running them in an order nothing requires.
+
+Pre-commit hooks (via Lefthook) run oxlint, oxfmt and type checking, and
+`cargo fmt` and `cargo clippy` for any crate with a staged `.rs` file.
 
 ## Automated Updates
 
-The `update-apps.yml` workflow runs daily against `.github/tracked-versions.yml`.
+The `update-apps.yml` workflow runs three times a day against `.github/tracked-versions.yml`.
 A release
 tag is never trusted alone: the registry is asked whether the image actually
 published, including for entries already current, so a pin that stopped
 resolving is reported rather than discovered at the next pod restart.
 
-The containers built from this repo (`serve-from-env`, `files`) are **not**
-tracked — they publish sha tags and cut no releases, so their pins move by hand.
-See #197.
+The containers built from this repo (`auth`, `serve-from-env`, `files`,
+`koan-demo`) are tracked like any upstream: CI cuts `<app>-v<version>` when an
+app's version changes, and the updater moves the pin once the image exists.
 
 ## Tailnet policy as code
 
@@ -384,12 +404,12 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
    alone lets Pulumi import but not apply). No tags — those are only required
    for scopes that mint devices or keys. The secret is shown once, so copy it
    there and then. Free on the Personal plan.
-2. **Put it in stack config**, not GitHub secrets — the deploy reads nothing
-   from the environment:
+2. **Put the secret in stack config**, not GitHub secrets — the deploy reads
+   nothing from the environment — and the client id in `tailnet.oauth.clientId`
+   in `stack.ts`:
 
    ```sh
-   pulumi config set --path tailnet.oauth.clientId     <client-id>
-   pulumi config set --path tailnet.oauth.clientSecret <secret> --secret
+   pulumi config set --path --secret secrets.tailnetOauthClientSecret <secret>
    ```
 
    Leave `tailnet.name` unset for now. `main.ts` constructs the resource only
@@ -399,8 +419,8 @@ refuses to modify a policy file it has not imported. Bringing it under Pulumi:
 3. Set the tailnet name — the one in the admin console's top-left switcher
    (e.g. `example.com` or `tail1234.ts.net`), not the org display name — along
    with `tailnet.tagOwners` (who may apply tags) and any `tailnet.extraTags`
-   advertised by nodes this stack does not provision:
-   `pulumi config set --path tailnet.name <tailnet>`
+   advertised by nodes this stack does not provision, all in `tailnet` in
+   `stack.ts`.
 4. Import, so Pulumi adopts the existing policy rather than replacing it. Add
    `import: "acl"` to the resource's options in `tailnet-policy.ts`, make the
    generated output match the live policy exactly, run `pulumi up`, then undo

@@ -244,8 +244,7 @@ export function readConst(source: string, key: string) {
 
 /**
  * Replaces the literal and nothing else, so a bump is one changed line and the
- * docblocks around it are untouched — the same property the YAML writer gets
- * from mutating a scalar in place.
+ * docblocks around it are untouched.
  */
 export function writeConst(source: string, key: string, value: string) {
   if (readConst(source, key) === undefined) return undefined;

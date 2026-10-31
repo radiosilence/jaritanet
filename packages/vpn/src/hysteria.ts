@@ -8,9 +8,6 @@ import type { VpnUser } from "./users.ts";
 import { sha256hex } from "@jaritanet/k8s";
 import { VERSIONS } from "./versions.ts";
 
-// Hysteria2 publishes no images under the apernet org — `ghcr.io/apernet/
-// hysteria` does not exist. tobyxdd is the maintainer, and this is the image
-// hysteria's own installation docs and docker-compose example point at.
 /**
  * Hysteria2 (QUIC/UDP), in the cluster on the node it fronts.
  *
@@ -163,8 +160,8 @@ ${userpassBlock}
             // The host's resolver is unbound on this same box, not the cluster.
             dnsPolicy: "Default",
             automountServiceAccountToken: false,
-            // Entries are chosen per node, not per cluster: `lady` joins soon
-            // and must not start answering :443 by virtue of being a node.
+            // Entries are chosen per node, not per cluster: `lady` is a node
+            // and must not answer :443 by virtue of being one.
             nodeSelector: { [entryLabel]: "true" },
             containers: ports.map((port) => ({
               name: `${app}-${port}`,

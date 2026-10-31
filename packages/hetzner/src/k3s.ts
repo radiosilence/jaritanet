@@ -4,7 +4,7 @@ import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { K3sConfSchema } from "./k3s.schemas.ts";
-import { type SshConnection, resourcePrefix } from "./vps.ts";
+import type { SshConnection } from "./vps.ts";
 
 /**
  * Runs a Kubernetes control plane on the gateway VPS itself, and hands its
@@ -16,14 +16,13 @@ import { type SshConnection, resourcePrefix } from "./vps.ts";
  * cluster credentials living anywhere a human has to rotate.
  *
  * k3s rather than microk8s: roughly half the memory on a box that also carries
- * xray, hysteria and the workloads; a one-command node join for when the home
- * node arrives; systemd rather than snap, so nothing self-refreshes underneath
- * the VPN.
+ * xray, hysteria and the workloads; a one-command node join, which is how the
+ * home node joined; systemd rather than snap, so nothing self-refreshes
+ * underneath the VPN.
  *
- * The API server is reachable **only over the tailnet** — `apiHost` is a
- * MagicDNS name, it is in the certificate's SANs, and 6443 is absent from the
- * firewall's inbound rules. That matches how the home cluster was already
- * reached and keeps a control plane off the public internet.
+ * The API server is reached at `apiHost`, which the caller chooses: a MagicDNS
+ * name with `apiViaTailnet`, otherwise the public address, with 6443 open in
+ * the firewall. Both addresses are in the certificate's SANs.
  *
  * `--disable-kube-proxy` is not an optimisation: Cilium only implements
  * hostPort when it owns service routing, and Traefik binds one. Running both
@@ -39,7 +38,6 @@ export function createK3s(
   server: hcloud.Server,
   k3s: z.infer<typeof K3sConfSchema>,
   apiHost: pulumi.Input<string>,
-  name = "",
   // What the cluster, context and user are called in the kubeconfig handed
   // back. k3s calls all three `default`; this package does not know what the
   // cluster is, so the caller says.
@@ -48,13 +46,10 @@ export function createK3s(
   // and authenticated before k3s starts.
   dependsOn: pulumi.Resource[] = [],
 ) {
-  const p = resourcePrefix(name);
-
-  // `node-ip` is the box's tailnet address. Cilium tunnels pod traffic to
-  // whatever a node reports as its InternalIP, and the home node is behind NAT
-  // with no forwarded ports, so its tailnet address is the only one that can be
-  // reached at all. Both ends must agree or the encapsulated packets are
-  // addressed somewhere they cannot land.
+  // `node-ip` is the box's tailnet address. The rest of the cluster reaches a
+  // node at whatever it reports as its InternalIP, and the home node is behind
+  // NAT with no forwarded ports, so its tailnet address is the only one that
+  // can be reached at all. Agents set theirs the same way (make-seed-drive).
   //
   // Read on the box rather than passed in: this program never learns the
   // address, and reading it here means a node that re-registers with a new one
@@ -63,7 +58,7 @@ export function createK3s(
   // The public address stays in `tls-san` so the API is still reachable there
   // for CI and for a human whose tailnet is the thing that broke.
   const nodeConfig = new command.remote.Command(
-    `${p}k3s-node-config`,
+    "k3s-node-config",
     {
       connection,
       create: pulumi.interpolate`set -euo pipefail
@@ -86,11 +81,14 @@ if systemctl is-active --quiet k3s; then
 fi`,
       triggers: [pulumi.output(apiHost), server.ipv4Address, "node-ip-v1"],
     },
-    { dependsOn: [server, ...dependsOn] },
+    // replaceWith re-runs this on a rebuilt box. A new box usually has a new
+    // address, but nothing guarantees it, and the install below has no trigger
+    // that moves with the machine at all.
+    { dependsOn: [server, ...dependsOn], replaceWith: [server] },
   );
 
   const install = new command.remote.Command(
-    `${p}k3s-install`,
+    "k3s-install",
     {
       connection,
       create: pulumi.interpolate`${remotePreamble}
@@ -99,8 +97,8 @@ fi`,
 # at 127.0.0.53. coredns runs in a pod network namespace, where that address
 # is its own loopback and nothing answers, so every external name returns
 # SERVFAIL and no pod can reach the internet. The host's real resolv.conf is
-# no better here: it listed tailscale's MagicDNS, which points at a daemon
-# that now lives in a pod.
+# no better here: it lists tailscale's MagicDNS, which would make every
+# lookup in the cluster depend on tailscaled.
 mkdir -p /etc/rancher/k3s
 printf 'nameserver 1.1.1.1\nnameserver 1.0.0.1\n' > /etc/rancher/k3s/resolv.conf
 # Idempotent: the installer is a no-op when the pinned version is already there.
@@ -138,6 +136,7 @@ k3s kubectl get --raw /readyz >/dev/null`,
     },
     {
       dependsOn: [server, nodeConfig],
+      replaceWith: [server],
       // Whatever the vendor script prints while running as root. Pulumi
       // persists every resource output to state and none of it is worth
       // storing in the clear.
@@ -159,7 +158,7 @@ k3s kubectl get --raw /readyz >/dev/null`,
   // it out of band — an uninstall, `k3s certificate rotate-ca` — is a bump of
   // the tag, and the cascade that follows is then the real thing.
   const read = new command.remote.Command(
-    `${p}k3s-kubeconfig`,
+    "k3s-kubeconfig",
     {
       connection,
       create: "cat /etc/rancher/k3s/k3s.yaml",

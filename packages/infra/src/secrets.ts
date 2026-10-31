@@ -19,8 +19,7 @@ const SecretsSchema = z.strictObject({
   cloudflareApiToken: z.string().min(1),
   /** The OAuth app the identity provider authenticates people against. */
   githubClientSecret: z.string().min(1),
-  hcloudToken: z.string().min(1),
-  /** Joins the gateway, every edge, and the in-cluster relay. */
+  /** Joins the gateway and every edge to the tailnet. */
   tailnetAuthKey: z.string().optional(),
   /** Policy-as-code. Absent → the policy stays hand-managed in the console. */
   tailnetOauthClientSecret: z.string().optional(),

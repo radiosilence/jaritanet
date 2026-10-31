@@ -60,24 +60,6 @@ export const Quantity = z
     "must be a Kubernetes quantity, e.g. 500m, 2, 64Mi, 8Gi",
   );
 
-export const HostVolumeSchema = z.strictObject({
-  hostPath: AbsolutePath,
-  hostPathType: z
-    .enum([
-      "DirectoryOrCreate",
-      "Directory",
-      "FileOrCreate",
-      "File",
-      "Socket",
-      "CharDevice",
-      "BlockDevice",
-    ])
-    .default("Directory"),
-  mountPath: AbsolutePath,
-  name: z.string(),
-  readOnly: z.boolean().default(true),
-});
-
 export const PersistenceSchema = z.strictObject({
   hostPath: AbsolutePath,
   mountPath: AbsolutePath,
@@ -131,18 +113,4 @@ export const ResourcesSchema = z.strictObject({
 
 export const StrategySchema = z.strictObject({
   type: z.enum(["Recreate", "RollingUpdate"]).default("RollingUpdate"),
-});
-
-/**
- * Pod-level security context. Every field is optional and none is defaulted,
- * because setting one has consequences: `fsGroup` in particular switches on
- * kubelet volume ownership management, which walks and chowns the volume. On a
- * 2Ti media library backed by a `local` PV that is not a default anyone wants
- * to acquire by accident — so a service that only needs to run as a given uid
- * sets exactly that and nothing else.
- */
-export const SecurityContextSchema = z.strictObject({
-  fsGroup: z.number().optional(),
-  runAsGroup: z.number().optional(),
-  runAsUser: z.number().optional(),
 });

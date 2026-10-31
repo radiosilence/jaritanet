@@ -3,8 +3,8 @@ import type * as k8s from "@pulumi/kubernetes";
 import { VERSIONS } from "./versions.ts";
 
 /**
- * GrogLog's website: static bytes behind nano-web, the same shape as blit and
- * the Queen's Head. The image is built by the app's own repository, beside the
+ * GrogLog's website: static bytes behind nano-web, the same shape as blit. The
+ * image is built by the app's own repository, beside the
  * screenshots it shows.
  */
 export function createGroglog(
