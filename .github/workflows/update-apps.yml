@@ -43,7 +43,9 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ vars.APP_ID }}
+          # The action sends this as the JWT issuer, which GitHub accepts as
+          # either the app's client ID or its numeric app ID.
+          client-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
