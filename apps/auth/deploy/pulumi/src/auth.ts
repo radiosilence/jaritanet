@@ -63,8 +63,8 @@ export function firstPartyClients(
  * One hostname, split by path, because a second `auth-something` host trades
  * one oddity for another — and `URLS_SELF_ISSUER` already stands here, so which
  * hostname issues tokens does not change, only which service answers the
- * challenges. Everything not listed stays with Hydra: `/oauth2/*`,
- * `/.well-known/*`, `/userinfo`.
+ * challenges. Everything not listed here or in `registrationRoute` stays with
+ * Hydra: `/oauth2/*`, `/.well-known/*`, `/userinfo`.
  */
 export function authRoutes() {
   return [
@@ -72,9 +72,19 @@ export function authRoutes() {
     "PathPrefix(`/assets/`)",
     "Path(`/`)",
     "Path(`/healthz`)",
-    "Path(`/register`)",
   ];
 }
+
+/**
+ * Dynamic client registration, apart from the other paths so it can be
+ * published on a route of its own and rate limited there.
+ *
+ * It is public and unauthenticated by design, and every call writes a client to
+ * Hydra's database. A registered client is useless without an allowlisted login,
+ * so the risk is volume rather than access: nothing else bounds how many rows a
+ * caller can create.
+ */
+export const registrationRoute = "Path(`/register`)";
 
 /**
  * One login screen, independent of the applications it signs you into.

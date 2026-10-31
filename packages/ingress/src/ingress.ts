@@ -192,8 +192,12 @@ export function createIngressRoute(
     paths?: pulumi.Input<string>[];
     priority?: number;
     middlewares?: pulumi.Input<string>[];
+    // A second route to the same service needs a name of its own; the
+    // backend is still `serviceName`'s.
+    name?: string;
   },
 ) {
+  const name = routing?.name ?? serviceName;
   const match = pulumi
     .all(routing?.paths ?? [])
     .apply((paths) => routeMatch(hostname, paths));
@@ -207,12 +211,12 @@ export function createIngressRoute(
   };
 
   new k8s.apiextensions.CustomResource(
-    `${serviceName}-ingress-route`,
+    `${name}-ingress-route`,
     {
       apiVersion: "traefik.io/v1alpha1",
       kind: "IngressRoute",
       metadata: {
-        name: `${serviceName}-ingress`,
+        name: `${name}-ingress`,
         namespace,
       },
       spec: {
@@ -241,12 +245,12 @@ export function createIngressRoute(
 
   // HTTP -> HTTPS redirect
   new k8s.apiextensions.CustomResource(
-    `${serviceName}-ingress-redirect`,
+    `${name}-ingress-redirect`,
     {
       apiVersion: "traefik.io/v1alpha1",
       kind: "IngressRoute",
       metadata: {
-        name: `${serviceName}-redirect`,
+        name: `${name}-redirect`,
         namespace,
       },
       spec: {

@@ -1,4 +1,8 @@
-import { authRoutes as authProviderPaths, createAuth } from "@jaritanet/auth";
+import {
+  authRoutes as authProviderPaths,
+  createAuth,
+  registrationRoute,
+} from "@jaritanet/auth";
 import {
   createBlueskyRecords,
   createFastmailRecords,
@@ -502,12 +506,37 @@ export default async function () {
       // createServices.
       clients,
     });
-    authRoute.push({
-      service: "auth",
-      hostname: authHostname,
-      paths: authProviderPaths(),
-      priority: 100,
-    });
+    // Registration is open to anyone and writes a Hydra client per call, so
+    // its route carries a per-caller limit the login pages do not need. The
+    // source is the remote address, which Xray's PROXY header makes the real
+    // client. Generous for a client registering itself, which happens once
+    // per setup; tight for anything filling the table.
+    const registrationRate = new k8s.apiextensions.CustomResource(
+      "auth-register-rate",
+      {
+        apiVersion: "traefik.io/v1alpha1",
+        kind: "Middleware",
+        metadata: { name: "auth-register-rate", namespace: nsName },
+        spec: { rateLimit: { average: 5, period: "1m", burst: 10 } },
+      },
+      { provider, dependsOn: [traefikRelease] },
+    ).metadata.name;
+    authRoute.push(
+      {
+        service: "auth",
+        hostname: authHostname,
+        paths: authProviderPaths(),
+        priority: 100,
+      },
+      {
+        service: "auth",
+        name: "auth-register",
+        hostname: authHostname,
+        paths: [registrationRoute],
+        priority: 100,
+        middlewares: [registrationRate],
+      },
+    );
   }
 
   // One pass over every route the stack has, because `auth` shares Hydra's

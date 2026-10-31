@@ -20,6 +20,11 @@ import type * as pulumi from "@pulumi/pulumi";
  */
 export type Route = {
   service: string;
+  /**
+   * The IngressRoute's name prefix, for a service published on more than one
+   * route. Defaults to `service`.
+   */
+  name?: string;
   hostname: string;
   /**
    * Only for a hostname two workloads share. Absent means the whole host,
