@@ -11,31 +11,6 @@ const nginxArgs = (over: Record<string, unknown> = {}) =>
     ...over,
   });
 
-const withVolumes = (over: Record<string, unknown> = {}) =>
-  ServiceArgsSchema.parse({
-    image: { repository: "navidrome", tag: "1" },
-    httpPort: 4533,
-    persistence: [
-      {
-        name: "music",
-        storage: "2Ti",
-        hostPath: "/mnt/music",
-        mountPath: "/music",
-        readOnly: true,
-        nodeAffinityHostname: "lady",
-      },
-      {
-        name: "data",
-        storage: "20Gi",
-        hostPath: "/home/nd/data",
-        mountPath: "/data",
-        readOnly: false,
-        nodeAffinityHostname: "lady",
-      },
-    ],
-    ...over,
-  });
-
 describe("service template", () => {
   let mockProvider: k8s.Provider;
   const created: pulumi.runtime.MockResourceArgs[] = [];
@@ -76,11 +51,9 @@ describe("service template", () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
       env: {},
-      hostVolumes: [],
       httpPort: 80,
       image: { repository: "nginx", tag: "latest" },
       persistence: [],
-      ports: [],
       replicas: 1,
     });
 
@@ -97,11 +70,9 @@ describe("service template", () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
       env: { NODE_ENV: "production", PORT: "3000" },
-      hostVolumes: [],
       httpPort: 3000,
       image: { repository: "nginx", tag: "latest" },
       persistence: [],
-      ports: [],
       replicas: 1,
     });
 
@@ -114,7 +85,6 @@ describe("service template", () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
       env: {},
-      hostVolumes: [],
       httpPort: 5432,
       image: { repository: "postgres", tag: "14" },
       persistence: [
@@ -128,7 +98,6 @@ describe("service template", () => {
           hostPath: "/data/postgres",
         },
       ],
-      ports: [],
       replicas: 1,
     });
 
@@ -154,11 +123,9 @@ describe("service template", () => {
         successThreshold: 1,
         httpHeaders: [],
       },
-      hostVolumes: [],
       httpPort: 80,
       image: { repository: "nginx", tag: "latest" },
       persistence: [],
-      ports: [],
       replicas: 1,
     });
 
@@ -171,7 +138,6 @@ describe("service template", () => {
     const { createService } = await import("./service.ts");
     const serviceArgs = ServiceArgsSchema.parse({
       env: {},
-      hostVolumes: [],
       httpPort: 80,
       image: { repository: "nginx", tag: "latest" },
       resources: {
@@ -179,7 +145,6 @@ describe("service template", () => {
         limits: { memory: "1Gi" },
       },
       persistence: [],
-      ports: [],
       replicas: 2,
     });
 
@@ -288,45 +253,11 @@ describe("service template", () => {
       expect(spec.ingress).toBeUndefined();
     });
 
-    it("fixes ownership of writable mounts, never read-only ones", async () => {
+    it("confines every container to the runtime's default seccomp profile", async () => {
       const { createService } = await import("./service.ts");
+      createService(mockProvider, "seccomp", nginxArgs());
 
-      createService(mockProvider, "asroot", withVolumes());
-      createService(
-        mockProvider,
-        "asuser",
-        withVolumes({ securityContext: { runAsUser: 1001, runAsGroup: 1002 } }),
-      );
-
-      // Nothing to fix when the pod runs as whatever the image says.
-      expect((await podSpec("asroot")).initContainers).toBeUndefined();
-
-      const init = (await podSpec("asuser")).initContainers[0];
-      const cmd = init.command[2];
-      expect(cmd).toContain("/data");
-      // A recursive chown across a 2Ti library on every start would be a
-      // catastrophe, and the mount would reject the write anyway.
-      expect(cmd).not.toContain("/music");
-      expect(cmd).toContain("1001:1002");
-      // Must stay root: it is the thing granting the app its ownership.
-      expect(init.securityContext.runAsUser).toBe(0);
-    });
-
-    it("drops capabilities only where asked", async () => {
-      const { createService } = await import("./service.ts");
-      createService(mockProvider, "caps", nginxArgs());
-      createService(
-        mockProvider,
-        "nocaps",
-        nginxArgs({ dropCapabilities: true }),
-      );
-
-      expect((await securityContext("caps")).capabilities).toBeUndefined();
-      expect((await securityContext("nocaps")).capabilities).toEqual({
-        drop: ["ALL"],
-      });
-      // Applied regardless — it costs nothing and breaks nothing.
-      expect((await securityContext("caps")).seccompProfile).toEqual({
+      expect((await securityContext("seccomp")).seccompProfile).toEqual({
         type: "RuntimeDefault",
       });
     });

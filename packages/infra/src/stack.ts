@@ -161,7 +161,6 @@ export const gateway = GatewayConfSchema.parse({
   hysteria: {},
   // Joins the VPS to the tailnet so clients can reach 100.x over the tunnel.
   tailnet: { hostname: "sympathy" },
-  hcloudToken: secrets.hcloudToken,
 });
 
 /** Pure VPN boxes in other locations. None at present. */

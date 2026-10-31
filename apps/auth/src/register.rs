@@ -2,9 +2,15 @@
 //!
 //! Hydra advertises this as its `registration_endpoint`, so it is public and
 //! unauthenticated — that is what DCR is, and Claude needs it to register a
-//! client for itself. The control against abuse is not here: a registered
-//! client is useless without a token, and a token issues only to a login in
-//! `GH_ALLOWED`. That is why the allowlist is refused when empty.
+//! client for itself. A registered client is useless without a token, and a
+//! token issues only to a login in `GH_ALLOWED`, which is why the allowlist is
+//! refused when empty.
+//!
+//! That holds only for grants that pass through a login. The request reaches
+//! Hydra's admin API, which honours whatever grant types it is given, and a
+//! `client_credentials` client gets a token from its own secret with no login
+//! at all. So the grant types, response types and authentication methods are
+//! restricted here to the authorization-code flow.
 //!
 //! It exists as a proxy rather than a route straight to Hydra because Hydra's
 //! own DCR response carries empty `client_uri`/`logo_uri`/`tos_uri` fields that
@@ -28,10 +34,43 @@ use crate::state::AppState;
 /// the person decides.
 const ALWAYS_ALLOWED: [&str; 3] = ["openid", "offline", "offline_access"];
 
+const GRANT_TYPES: [&str; 2] = ["authorization_code", "refresh_token"];
+const RESPONSE_TYPES: [&str; 1] = ["code"];
+const AUTH_METHODS: [&str; 3] = ["none", "client_secret_basic", "client_secret_post"];
+
+/// Refuses metadata asking for anything outside the authorization-code flow.
+/// Absent fields are fine. Whatever passes, Hydra is sent `GRANT_TYPES` and
+/// `RESPONSE_TYPES` themselves, so the list checked and the list registered
+/// cannot differ.
+fn check_flow(request: &Value) -> Result<(), String> {
+    let within = |key: &str, allowed: &[&str]| match request.get(key) {
+        None | Some(Value::Null) => Ok(()),
+        Some(Value::Array(items))
+            if items
+                .iter()
+                .all(|v| v.as_str().is_some_and(|s| allowed.contains(&s))) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err(format!("{key} must be a subset of {allowed:?}")),
+    };
+    within("grant_types", &GRANT_TYPES)?;
+    within("response_types", &RESPONSE_TYPES)?;
+    match request.get("token_endpoint_auth_method") {
+        None | Some(Value::Null) => Ok(()),
+        Some(Value::String(m)) if AUTH_METHODS.contains(&m.as_str()) => Ok(()),
+        Some(_) => Err(format!(
+            "token_endpoint_auth_method must be one of {AUTH_METHODS:?}"
+        )),
+    }
+}
+
 pub async fn register(
     State(state): State<AppState>,
     Json(request): Json<Value>,
 ) -> AppResult<Response> {
+    check_flow(&request).map_err(AppError::BadRequest)?;
+
     let field = |key: &str, default: Value| {
         request
             .get(key)
@@ -57,8 +96,8 @@ pub async fn register(
         .create_client(&json!({
             "client_name": field("client_name", json!("Unnamed client")),
             "redirect_uris": field("redirect_uris", json!([])),
-            "grant_types": field("grant_types", json!(["authorization_code", "refresh_token"])),
-            "response_types": field("response_types", json!(["code"])),
+            "grant_types": GRANT_TYPES,
+            "response_types": RESPONSE_TYPES,
             "scope": scopes.join(" "),
             "token_endpoint_auth_method": field("token_endpoint_auth_method", json!("none")),
         }))
@@ -100,4 +139,32 @@ pub async fn register(
     out.insert("client_secret_expires_at".into(), json!(0));
 
     Ok((StatusCode::CREATED, Json(Value::Object(out))).into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_and_the_code_flow_pass() {
+        assert!(check_flow(&json!({})).is_ok());
+        assert!(
+            check_flow(&json!({
+                "grant_types": ["authorization_code", "refresh_token"],
+                "response_types": ["code"],
+                "token_endpoint_auth_method": "client_secret_post",
+            }))
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn grants_without_a_login_are_refused() {
+        for grant in ["client_credentials", "implicit", "password"] {
+            assert!(check_flow(&json!({ "grant_types": [grant] })).is_err());
+        }
+        assert!(check_flow(&json!({ "grant_types": "client_credentials" })).is_err());
+        assert!(check_flow(&json!({ "response_types": ["token"] })).is_err());
+        assert!(check_flow(&json!({ "token_endpoint_auth_method": "private_key_jwt" })).is_err());
+    }
 }

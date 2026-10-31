@@ -10,13 +10,6 @@ export type SshConnection = {
   user: string;
 };
 
-/**
- * Resource-name prefix for a node. Empty name = the primary gateway, keeping
- * its original resource names so Pulumi doesn't replace the live box; edges and
- * their transports pass a name and get prefixed names.
- */
-export const resourcePrefix = (name: string) => (name ? `${name}-` : "");
-
 /** An inbound hcloud firewall rule open to the whole internet (v4 + v6). */
 export const inboundRule = (
   description: string,
@@ -43,6 +36,12 @@ export const inboundRule = (
  * admin key and the network sysctls were never installed at all. A server's id
  * changes on replacement, so including it ties the command to the box it
  * actually configured.
+ *
+ * The other commands that configure a box (k3s, tailscaled, the `-systemd`
+ * transports, the VPN entry label) are tied to it with the `replaceWith`
+ * resource option instead, which has the same effect on a rebuild. The three
+ * commands here keep the id trigger because moving them would change their
+ * triggers and re-run them on the next deploy, for no change in behaviour.
  */
 const serverTriggers = (
   server: hcloud.Server,

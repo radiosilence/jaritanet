@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authRoutes, firstPartyClients } from "./auth.ts";
+import { authRoutes, firstPartyClients, registrationRoute } from "./auth.ts";
 
 describe("firstPartyClients", () => {
   const client = {
@@ -43,15 +43,19 @@ describe("authRoutes", () => {
    * what a relying party discovers and what would break silently.
    */
   it("claims no path Hydra serves", () => {
-    const rule = authRoutes().join(" || ");
+    const rule = [...authRoutes(), registrationRoute].join(" || ");
     for (const hydra of ["/oauth2", "/.well-known", "/userinfo"]) {
       expect(rule).not.toContain(hydra);
     }
   });
 
   it("claims the login, consent and registration endpoints", () => {
-    const rule = authRoutes().join(" || ");
+    const rule = [...authRoutes(), registrationRoute].join(" || ");
     expect(rule).toContain("/auth/");
     expect(rule).toContain("/register");
+  });
+
+  it("keeps registration on a route of its own, so it can be rate limited", () => {
+    expect(authRoutes().join(" || ")).not.toContain("/register");
   });
 });

@@ -1,11 +1,9 @@
 import * as z from "zod";
 import { HealthCheckConfigSchema } from "./healthcheck.schemas.ts";
 import {
-  HostVolumeSchema,
   ImageSchema,
   PersistenceSchema,
   ResourcesSchema,
-  SecurityContextSchema,
   StrategySchema,
 } from "./schemas.ts";
 
@@ -16,17 +14,8 @@ import {
  * nobody reads should fail the preview, not survive as a comment that lies.
  */
 export const ServiceArgsSchema = z.strictObject({
-  /**
-   * Drop every Linux capability from the container.
-   *
-   * Off by default rather than always-on because dropping ALL takes
-   * NET_BIND_SERVICE with it, and an image serving on `:80` *inside* the
-   * container needs that to bind. Safe for anything listening above 1024.
-   */
-  dropCapabilities: z.boolean().default(false),
   env: z.record(z.string(), z.string()).default({}),
   healthCheck: HealthCheckConfigSchema.optional(),
-  hostVolumes: z.array(HostVolumeSchema).default([]),
   httpPort: z.uint32().default(80),
   /**
    * Confine the pod's egress to DNS and the public internet — no private
@@ -62,8 +51,6 @@ export const ServiceArgsSchema = z.strictObject({
   image: ImageSchema,
   resources: ResourcesSchema.optional(),
   persistence: z.array(PersistenceSchema).default([]),
-  ports: z.array(z.tuple([z.number(), z.number()])).default([]),
   replicas: z.uint32().default(1),
-  securityContext: SecurityContextSchema.optional(),
   strategy: StrategySchema.optional(),
 });

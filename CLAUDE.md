@@ -172,11 +172,20 @@ serves every relying party and adding one requires nothing at GitHub.
 stood there, so which hostname issues tokens did not change — only which service
 answers the challenges. Hydra itself is still deployed by `@radiosilence/mcp-gateway-pulumi`,
 because moving it would move the database holding every registered client.
+`/register` has an IngressRoute of its own carrying a Traefik rate limit keyed
+on the caller's address (an IPv6 caller's /64): registration is unauthenticated
+and writes a client row per call, which nothing else bounds. It bounds a caller
+with few addresses, not one with a pool of them, and while Traefik trusts PROXY
+headers from the whole pod network (#1247) a pod can claim any address.
 
 **The allowlist is the gate, and an empty one refuses to boot.** Dynamic client
 registration cannot be closed — Claude registers its own client — so a
 registered client is assumed hostile. What makes that safe is that a client is
 useless without a token and a token issues only to a login in `auth.github.allowed`.
+That holds only for grants that pass through a login, so `/register` refuses any
+grant type but `authorization_code` and `refresh_token`; Hydra's admin API would
+otherwise create a `client_credentials` client that mints tokens from its own
+secret.
 
 **Every relying party gets an address, and both halves have to agree.** The
 scope is `read:user user:email` and the claim comes from the primary *verified*
@@ -218,8 +227,8 @@ each relying party knowing how identity works is the thing being removed.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback. Its Prometheus endpoint carries the router, service and entrypoint labels, which is the difference between per-route rates and one number for the whole estate.
 - **Metrics** — Grafana opens on a triage page rather than on its own onboarding: the worst disk, the worst container, anything unmeasured, and the nearest certificate expiry, each coloured and named. Anything summed per pod excludes `container=""` — cAdvisor reports the pod-level cgroup alongside its containers under the same `pod` label, so a naive `sum by (pod)` reads double. Cilium exports its own counters and Hubble's flow metrics alongside, including `hubble_drop_total{reason="POLICY_DENIED"}` — the NetworkPolicies in this repo were decorative under flannel and are enforced under Cilium, and that counter is how the difference stops being a belief. Both metrics servers sit on the same hostNetwork agent pod, so they are scraped as static targets on the node rather than discovered from a `prometheus.io/port` annotation that can only name one of them.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records. The one exception is the opt-in `xray.xhttp` hostname, whose record is proxied.
-- **Gateway** — Hetzner. `gateway.hcloudToken` and `gateway.k3s` are both required: the box provides the cluster.
-- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria and unbound are DaemonSets there rather than systemd units installed over SSH. All three are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `vpnEntryLabel`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges. tailscaled is the exception on the gateway too, a systemd unit: k3s takes the node's tailnet address as its `node-ip`, so tailscaled must be running before the cluster it would otherwise run in.
+- **Gateway** — Hetzner, authenticated by the `hcloud:token` provider key in `Pulumi.main.yaml`. `gateway.k3s` is required: the box provides the cluster.
+- **Transports in the cluster** — the cluster runs on the gateway, so xray, hysteria and unbound are DaemonSets there rather than systemd units installed over SSH. All three are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `vpnEntryLabel`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges. tailscaled is the exception on the gateway too, a systemd unit: k3s takes the node's tailnet address as its `node-ip`, so tailscaled must be running before the cluster it would otherwise run in.
 - **k3s upgrades** — Rancher's system-upgrade-controller, deployed from its pinned release manifests, plus a server Plan and an agent Plan both reading `k3s.version`. Reach comes from cluster membership rather than a route to the box, which is the only thing that works for a node joined from a cloud-init seed: Pulumi never created it, holds no key for it and has no address for it, so break-glass SSH does not help either. The server Plan cordons rather than drains — the gateway is the only server, so a drain would evict the cluster to nowhere — and agents drain, which leaves the DaemonSet transports running. `k3s.version` and `k3s.ciliumVersion` reach the fleet by separate paths (Plan vs Helm) and must pair, so `CILIUM_K8S_SUPPORT` in `@jaritanet/hetzner` encodes Cilium's tested Kubernetes ranges and `K3sConfSchema` fails to parse a half-bump — a red preview instead of a cluster that comes up healthy and moves no packets.
 
 ## GitHub Actions
@@ -232,8 +241,11 @@ so CD ships what CI built in the same run.
 **CI runs per domain.** `changes` works out from the diff which domains a change
 touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 `deploy` (the Pulumi program and everything it imports), and one per container
-(`auth`, `serve_from_env`, `files`, `koan_demo`). Each job runs under an `if:` on its domain,
-so a skipped job means the change does not reach it, not that something was
+(`auth`, `serve_from_env`, `files`, `koan_demo`). `deploy` and `ts` are outputs
+of `changes`, and each job they gate runs under an `if:` on its output. The
+container domains are not outputs: they select which apps enter the `rust`,
+`binaries` and `images` matrices, and those jobs run when their matrix is not
+empty. Either way, a skipped job means the change does not reach it, not that something was
 missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
 covered by the next. A manual run, a change under `.github/`, a push whose
@@ -251,8 +263,9 @@ tasks each domain's jobs install and run. If it fails, the change counts.
 
 **Adding a domain** is an output of `changes`, an allowlist of paths in its
 script (plus anything `shared_inputs.py` should follow), an `if:` on the jobs it
-gates, and those jobs in `checks`' `needs`. A new container is one entry in the
-`apps` table there, with a `Dockerfile` in `apps/<name>/`.
+gates, and those jobs in `checks`' `needs`. A new container is not a domain of
+that kind: it is one entry in the `apps` table there, with a `Dockerfile` in
+`apps/<name>/`, and reaches its jobs through the matrices.
 
 **`Checks` is the gate.** It needs every CI job, runs `if: always()`, and fails
 on any result other than `success` or `skipped`. It is the only status the

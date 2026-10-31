@@ -32,7 +32,7 @@ export function createXraySystemd(
   connection: SshConnection,
   xray: z.infer<typeof XrayConfSchema>,
   users: VpnUser[],
-  { name = "", dependsOn = [] }: SystemdOpts = {},
+  { name = "", dependsOn = [], replaceWith = [] }: SystemdOpts = {},
 ) {
   const p = resourcePrefix(name);
   const shortId = new random.RandomId(`${p}xray-short-id`, { byteLength: 8 });
@@ -97,7 +97,7 @@ if [ ! -f /usr/local/etc/xray/private.key ]; then
 fi`,
       triggers: [`v${XRAY_VERSION}`],
     },
-    { dependsOn },
+    { dependsOn, replaceWith },
   );
 
   // Read back the minted public key so clients can be configured.
@@ -174,7 +174,7 @@ systemctl restart xray`,
         publicKey.stdout,
       ],
     },
-    { dependsOn: [publicKey] },
+    { dependsOn: [publicKey], replaceWith },
   );
 
   return {

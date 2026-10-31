@@ -64,10 +64,6 @@ jobs:
     outputs:
       ts: ${{ steps.filter.outputs.ts }}
       deploy: ${{ steps.filter.outputs.deploy }}
-      auth: ${{ steps.filter.outputs.auth }}
-      serve_from_env: ${{ steps.filter.outputs.serve_from_env }}
-      files: ${{ steps.filter.outputs.files }}
-      koan_demo: ${{ steps.filter.outputs.koan_demo }}
       rust: ${{ steps.filter.outputs.rust }}
       binaries: ${{ steps.filter.outputs.binaries }}
       images: ${{ steps.filter.outputs.images }}
@@ -217,10 +213,6 @@ jobs:
           {
             echo "ts=$ts"
             echo "deploy=$deploy"
-            echo "auth=$auth"
-            echo "serve_from_env=$serve_from_env"
-            echo "files=$files"
-            echo "koan_demo=$koan_demo"
             echo "rust=$(jq -c 'map(select(.rust))' <<< "$on")"
             echo "binaries=$(jq -c '[.[] | select(.rust) | {app} + (
               {arch: "amd64", runner: "ubuntu-24.04", target: "x86_64-unknown-linux-musl"},

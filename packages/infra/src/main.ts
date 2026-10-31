@@ -1,4 +1,9 @@
-import { authRoutes as authProviderPaths, createAuth } from "@jaritanet/auth";
+import {
+  authRoutes as authProviderPaths,
+  createAuth,
+  createRegistrationLimit,
+  registrationRoute,
+} from "@jaritanet/auth";
 import {
   createBlueskyRecords,
   createFastmailRecords,
@@ -65,27 +70,6 @@ export default async function () {
   warnUnlessCleanMain();
   const zones = resolveZones(zoneConfs, cloudflare.accountId);
 
-  let dnsTarget: pulumi.Output<string> | undefined;
-  let gatewayProvider: string | undefined;
-  // Set when the gateway runs its own control plane; its kubeconfig then
-  // replaces the KUBE_* secrets below.
-  let gatewayK3s: ReturnType<typeof createGateway>["k3s"];
-  let gatewayIp: pulumi.Output<string> | undefined;
-  // Where the API server answers. Cilium needs it too, and must agree with the
-  // kubeconfig — see createCilium.
-  let gatewayApiHost: ReturnType<typeof createGateway>["apiHost"] | undefined;
-  // Ordering for the transport DaemonSets: the legacy daemons must be gone
-  // before anything tries to bind their ports, and the node must carry the
-  // entry label before a DaemonSet has anywhere to schedule.
-  let transportDeps: pulumi.Resource[] = [];
-
-  // The primary gateway's transport parameters, from whichever of the two
-  // implementations is in play — SSH-provisioned units, or pods in its own
-  // cluster. Same shapes either way, so the client profile cannot tell.
-  let reality: SingboxNode["reality"] | undefined;
-  let hysteria: SingboxNode["hysteria"] | undefined;
-  let xhttp: SingboxNode["xhttp"];
-
   // sing-box nodes for the edges. The primary is prepended once its transports
   // are known, so it leads the picker.
   const edgeNodes: SingboxNode[] = [];
@@ -127,81 +111,57 @@ export default async function () {
 
   // The gateway is unconditional: it is the box that provides the cluster, and
   // its token is a required secret.
-  {
-    const gw = createGateway(gatewayConf, users, {
-      adminSshKey: ADMIN_SSH_KEY,
-      clusterName: NAMESPACE,
-      proToken: secrets.ubuntuProToken,
-      entryLabel: VPN_ENTRY_LABEL,
-      magicdnsSuffix: tailnet.magicdnsSuffix,
-      tailnetAuthKey: tailnet.authKey,
+  const gw = createGateway(gatewayConf, {
+    adminSshKey: ADMIN_SSH_KEY,
+    clusterName: NAMESPACE,
+    proToken: secrets.ubuntuProToken,
+    entryLabel: VPN_ENTRY_LABEL,
+    magicdnsSuffix: tailnet.magicdnsSuffix,
+    tailnetAuthKey: tailnet.authKey,
+  });
+  // Ordering for the transport DaemonSets: the node must carry the entry label
+  // before a DaemonSet has anywhere to schedule.
+  const transportDeps = [gw.vpnEntryLabel];
+
+  // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
+  // picker entry. Tailnet relay only when `tailnet.authKey` is present.
+  const edgeAuthKey = tailnet.authKey
+    ? pulumi.secret(tailnet.authKey)
+    : undefined;
+  for (const edge of edges) {
+    const e = createEdge(
+      edge,
+      users,
+      edgeAuthKey,
+      ADMIN_SSH_KEY,
+      secrets.ubuntuProToken,
+    );
+    const hostname = `${edge.name}.${edge.zone}`;
+    const zone = zones.find((z) => z.name === edge.zone);
+    if (zone) {
+      createServiceRecord(e.vpsIp, zone, hostname);
+    }
+    edgeNodes.push({
+      name: edge.name,
+      // The literal IP, not `hostname`: the profile detours every resolver
+      // through the tunnel, so resolving an edge's name needs the tunnel that
+      // needs the name. The A record stays for humans.
+      server: e.vpsIp,
+      hysteria: {
+        altPorts: edge.hysteria.altPorts,
+        certificate: e.hysteria.certificate,
+        obfsPassword: e.hysteria.obfsPassword,
+        passwords: e.hysteria.passwords,
+        port: edge.hysteria.port,
+        sni: edge.hysteria.sni,
+      },
+      reality: {
+        publicKey: e.xray.publicKey,
+        serverNames: [edge.reality.serverName],
+        shortId: e.xray.shortId,
+        uuids: e.xray.uuids,
+      },
     });
-    dnsTarget = gw.vpsIp;
-    gatewayIp = gw.vpsIp;
-    gatewayProvider = "hetzner";
-    gatewayK3s = gw.k3s;
-    gatewayApiHost = gw.apiHost;
-    transportDeps = [gw.vpnEntryLabel].filter((r) => r !== undefined);
-
-    if (gw.xray && gatewayConf.xray) {
-      reality = {
-        publicKey: gw.xray.publicKey,
-        serverNames: gatewayConf.xray.serverNames,
-        shortId: gw.xray.shortId,
-        uuids: gw.xray.uuids,
-      };
-    }
-    if (gw.hysteria && gatewayConf.hysteria) {
-      hysteria = {
-        altPorts: gatewayConf.hysteria.altPorts,
-        certificate: gw.hysteria.certificate,
-        obfsPassword: gw.hysteria.obfsPassword,
-        passwords: gw.hysteria.passwords,
-        port: gatewayConf.hysteria.port,
-        sni: gatewayConf.hysteria.sni,
-      };
-    }
-
-    // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
-    // picker entry. Tailnet relay only when `tailnet.authKey` is present.
-    const edgeAuthKey = tailnet.authKey
-      ? pulumi.secret(tailnet.authKey)
-      : undefined;
-    for (const edge of edges) {
-      const e = createEdge(
-        edge,
-        users,
-        edgeAuthKey,
-        ADMIN_SSH_KEY,
-        secrets.ubuntuProToken,
-      );
-      const hostname = `${edge.name}.${edge.zone}`;
-      const zone = zones.find((z) => z.name === edge.zone);
-      if (zone) {
-        createServiceRecord(e.vpsIp, zone, hostname);
-      }
-      edgeNodes.push({
-        name: edge.name,
-        // The literal IP, not `hostname`: the profile detours every resolver
-        // through the tunnel, so resolving an edge's name needs the tunnel that
-        // needs the name. The A record stays for humans.
-        server: e.vpsIp,
-        hysteria: {
-          altPorts: edge.hysteria.altPorts,
-          certificate: e.hysteria.certificate,
-          obfsPassword: e.hysteria.obfsPassword,
-          passwords: e.hysteria.passwords,
-          port: edge.hysteria.port,
-          sni: edge.hysteria.sni,
-        },
-        reality: {
-          publicKey: e.xray.publicKey,
-          serverNames: [edge.reality.serverName],
-          shortId: e.xray.shortId,
-          uuids: e.xray.uuids,
-        },
-      });
-    }
   }
 
   // Tailnet policy as code — only once an OAuth client exists, so this is a
@@ -251,10 +211,7 @@ export default async function () {
   // through it, so what the value is allowed to depend on is load-bearing:
   // @jaritanet/hetzner reads it off the box keyed on the server, not on the
   // installer that happens to run alongside it.
-  if (!gatewayK3s) {
-    throw new Error("gateway.k3s is required: it provides the cluster");
-  }
-  const kubeconfig = gatewayK3s.kubeconfig;
+  const kubeconfig = gw.k3s.kubeconfig;
 
   const provider = new k8s.Provider(
     "provider",
@@ -281,24 +238,21 @@ export default async function () {
     VPN_VERSIONS.tailscale,
     tailnetPolicy ? [tailnetPolicy] : [],
   );
-  const cilium =
-    gatewayK3s && gatewayConf.k3s && gatewayApiHost
-      ? createCilium(provider, gatewayConf.k3s.ciliumVersion, gatewayApiHost, [
-          gatewayK3s.install,
-          tailnetRoutes,
-        ])
-      : undefined;
+  const cilium = createCilium(
+    provider,
+    gatewayConf.k3s.ciliumVersion,
+    gw.apiHost,
+    [gw.k3s.install, tailnetRoutes],
+  );
 
   // Carries `k3s.version` to nodes Pulumi never installed — a seeded agent has
   // no SSH connection here and would otherwise stay on whatever it was flashed
   // with forever. Gated on the CNI because the controller is an ordinary
   // Deployment and stays Pending without one.
-  if (gatewayConf.k3s && cilium) {
-    createK3sUpgrades(provider, gatewayConf.k3s, [cilium]);
-    // The pod network rides the tailnet between nodes, and Cilium's packet
-    // marks collide with tailscaled's routing rules — see createTailnetRule.
-    createTailnetRule(provider, [cilium]);
-  }
+  createK3sUpgrades(provider, gatewayConf.k3s, [cilium]);
+  // The pod network rides the tailnet between nodes, and Cilium's packet
+  // marks collide with tailscaled's routing rules — see createTailnetRule.
+  createTailnetRule(provider, [cilium]);
 
   // Every resource below takes its namespace from this output rather than the
   // bare string, so Pulumi orders them after it. With a literal there is no
@@ -323,7 +277,7 @@ export default async function () {
     // readiness, and without a CNI every pod stays Pending until its create
     // times out. Racing a one-minute install against a five-minute timeout is
     // a race that is usually won, which is the worst kind.
-    { provider, dependsOn: cilium ? [cilium] : [] },
+    { provider, dependsOn: [cilium] },
   );
   const nsName = ns.metadata.name;
 
@@ -354,77 +308,82 @@ export default async function () {
   //
   // All DaemonSets selecting the entry label, so which node carries an entry is
   // a property of the node — see transportDeps for the ordering they need.
-  {
-    createUnbound(provider, nsName, VPN_ENTRY_LABEL, transportDeps);
+  createUnbound(provider, nsName, VPN_ENTRY_LABEL, transportDeps);
 
-    if (gatewayConf.xray) {
-      const t = createXray(
-        provider,
-        nsName,
-        gatewayConf.xray,
-        users,
-        VPN_ENTRY_LABEL,
-        gatewayConf.credentialRotation,
-        transportDeps,
+  // The primary gateway's transport parameters, from its pods.
+  const xrayConf = gatewayConf.xray;
+  const xray =
+    xrayConf &&
+    createXray(
+      provider,
+      nsName,
+      xrayConf,
+      users,
+      VPN_ENTRY_LABEL,
+      gatewayConf.credentialRotation,
+      transportDeps,
+    );
+  const reality: SingboxNode["reality"] | undefined = xrayConf &&
+    xray && {
+      publicKey: xray.publicKey,
+      serverNames: xrayConf.serverNames,
+      shortId: xray.shortId,
+      uuids: xray.uuids,
+    };
+
+  // The CDN-fronted entry: a proxied record, so the name resolves to the CDN's
+  // edge, and a route on the secret path to the XHTTP inbound. The CDN reaches
+  // the origin on :443 like any visitor, with an SNI REALITY does not accept,
+  // so it falls through to Traefik. See docs/architecture.md, "CDN-fronted
+  // XHTTP".
+  const cdn = xrayConf?.xhttp;
+  const xhttpPath = cdn && xray?.xhttpPath;
+  if (cdn && xhttpPath) {
+    if (Object.values(hostnames).includes(cdn.hostname)) {
+      throw new Error(
+        `xray.xhttp.hostname ${cdn.hostname} is a service's hostname: the CDN must front a name of its own`,
       );
-      reality = {
-        publicKey: t.publicKey,
-        serverNames: gatewayConf.xray.serverNames,
-        shortId: t.shortId,
-        uuids: t.uuids,
-      };
-
-      // The CDN-fronted entry: a proxied record, so the name resolves to the
-      // CDN's edge, and a route on the secret path to the XHTTP inbound. The
-      // CDN reaches the origin on :443 like any visitor, with an SNI REALITY
-      // does not accept, so it falls through to Traefik. See
-      // docs/architecture.md, "CDN-fronted XHTTP".
-      const cdn = gatewayConf.xray.xhttp;
-      if (cdn && t.xhttpPath && dnsTarget) {
-        if (Object.values(hostnames).includes(cdn.hostname)) {
-          throw new Error(
-            `xray.xhttp.hostname ${cdn.hostname} is a service's hostname: the CDN must front a name of its own`,
-          );
-        }
-        const zone = zoneFor(zones, cdn.hostname);
-        if (!zone) {
-          throw new Error(
-            `xray.xhttp.hostname ${cdn.hostname} is in no configured zone, so nothing can make it proxied`,
-          );
-        }
-        createServiceRecord(dnsTarget, zone, cdn.hostname, true);
-        createIngressRoute(
-          provider,
-          "xray-xhttp",
-          cdn.hostname,
-          nsName,
-          traefikRelease,
-          { paths: [t.xhttpPath.apply((p) => `PathPrefix(\`${p}\`)`)] },
-        );
-        xhttp = { host: cdn.hostname, path: t.xhttpPath };
-      }
     }
-
-    if (gatewayConf.hysteria) {
-      const t = createHysteria(
-        provider,
-        nsName,
-        gatewayConf.hysteria,
-        users,
-        VPN_ENTRY_LABEL,
-        gatewayConf.credentialRotation,
-        transportDeps,
+    const zone = zoneFor(zones, cdn.hostname);
+    if (!zone) {
+      throw new Error(
+        `xray.xhttp.hostname ${cdn.hostname} is in no configured zone, so nothing can make it proxied`,
       );
-      hysteria = {
-        altPorts: gatewayConf.hysteria.altPorts,
-        certificate: t.certificate,
-        obfsPassword: t.obfsPassword,
-        passwords: t.passwords,
-        port: gatewayConf.hysteria.port,
-        sni: gatewayConf.hysteria.sni,
-      };
     }
+    createServiceRecord(gw.vpsIp, zone, cdn.hostname, true);
+    createIngressRoute(
+      provider,
+      "xray-xhttp",
+      cdn.hostname,
+      nsName,
+      traefikRelease,
+      { paths: [xhttpPath.apply((p) => `PathPrefix(\`${p}\`)`)] },
+    );
   }
+  const xhttp: SingboxNode["xhttp"] =
+    cdn && xhttpPath ? { host: cdn.hostname, path: xhttpPath } : undefined;
+
+  const hysteriaConf = gatewayConf.hysteria;
+  const hy =
+    hysteriaConf &&
+    createHysteria(
+      provider,
+      nsName,
+      hysteriaConf,
+      users,
+      VPN_ENTRY_LABEL,
+      gatewayConf.credentialRotation,
+      transportDeps,
+    );
+  const hysteria: SingboxNode["hysteria"] | undefined = hysteriaConf &&
+    hy && {
+      altPorts: hysteriaConf.altPorts,
+      certificate: hy.certificate,
+      obfsPassword: hy.obfsPassword,
+      passwords: hy.passwords,
+      port: hysteriaConf.port,
+      sni: hysteriaConf.sni,
+    };
 
   // --- Everything that runs in the cluster ---
   // Each service is a call in `createServices` (services.ts) — the web
@@ -438,8 +397,8 @@ export default async function () {
   // decoy is its own reverse-proxied site (unlike edges, which use an external
   // one). It leads the list so it heads the entry picker.
   const singboxNodes: SingboxNode[] = [
-    ...(gatewayIp && reality && hysteria
-      ? [{ name: "primary", server: gatewayIp, hysteria, reality, xhttp }]
+    ...(reality && hysteria
+      ? [{ name: "primary", server: gw.vpsIp, hysteria, reality, xhttp }]
       : []),
     ...edgeNodes,
   ];
@@ -451,7 +410,7 @@ export default async function () {
     namespace: nsName,
     zones,
     hostnames: hostnames,
-    dnsTarget,
+    dnsTarget: gw.vpsIp,
     traefik: traefikRelease,
     credentialRotation: gatewayConf.credentialRotation,
     exits,
@@ -502,11 +461,33 @@ export default async function () {
       // createServices.
       clients,
     });
+    // Registration is open to anyone and writes a Hydra client per call, so
+    // it has a route of its own carrying a limit the login pages do not need.
+    // No redirect: Hydra's bare `Host()` redirect already covers the path.
+    const registration = createIngressRoute(
+      provider,
+      "auth",
+      authHostname,
+      nsName,
+      traefikRelease,
+      {
+        name: "auth-register",
+        paths: [registrationRoute],
+        priority: 100,
+        middlewares: [
+          createRegistrationLimit(provider, nsName, traefikRelease),
+        ],
+        redirect: false,
+      },
+    );
     authRoute.push({
       service: "auth",
       hostname: authHostname,
       paths: authProviderPaths(),
       priority: 100,
+      // Created first, so the update that drops `/register` from this route
+      // never leaves the path with Hydra.
+      dependsOn: [registration],
     });
   }
 
@@ -515,14 +496,13 @@ export default async function () {
   const services = publishRoutes(estate, [...serviceRoutes, ...authRoute]);
 
   return {
-    ...(gatewayProvider && { gatewayProvider }),
     namespace: NAMESPACE,
     services,
-    ...(dnsTarget && { vpsIp: dnsTarget }),
+    vpsIp: gw.vpsIp,
     // So the cluster can be reached with kubectl without SSHing in first:
     //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet
     // Secret, because it is full cluster admin.
-    ...(gatewayK3s && { kubeconfig: gatewayK3s.kubeconfig }),
+    kubeconfig: gw.k3s.kubeconfig,
     // Per-user credentials and share URLs are delivered as individual sing-box
     // profiles (see createProfileServer), so only the shared, non-secret
     // REALITY params are surfaced as stack outputs.
