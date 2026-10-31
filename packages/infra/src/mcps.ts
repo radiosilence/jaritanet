@@ -24,7 +24,7 @@ import type * as z from "zod";
  */
 export const VERSIONS = {
   caldav: "ghcr.io/radiosilence/caldav-cli:v0.6.5",
-  fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.7.4",
+  fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.8.0",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.5",
   tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.8",
 } as const;
