@@ -427,9 +427,9 @@ export default async function () {
   }
 
   // --- Everything that runs in the cluster ---
-  // One loop over `conf.services`, dispatched by `kind` — the web containers,
-  // the file services on the box holding the disks, the MCP gateway, and the
-  // sing-box profile server. Nothing here selects the gateway: the file
+  // Each service is a call in `createServices` (services.ts) — the web
+  // containers, the file services on the box holding the disks, the MCP
+  // gateway, and the sing-box profile server. Nothing here selects the gateway: the file
   // services carry no VPN entry label, so a DaemonSet with no matching node
   // schedules nothing rather than landing somewhere it would fight the
   // transports for a host port.
@@ -519,13 +519,13 @@ export default async function () {
     namespace: NAMESPACE,
     services,
     ...(dnsTarget && { vpsIp: dnsTarget }),
-    // Per-user credentials + share URLs are now delivered as individual sing-box
-    // profiles (see createProfileServer), so only the shared, non-secret
-    // REALITY params are surfaced as stack outputs.
     // So the cluster can be reached with kubectl without SSHing in first:
     //   pulumi stack output kubeconfig --show-secrets > ~/.kube/jaritanet
     // Secret, because it is full cluster admin.
     ...(gatewayK3s && { kubeconfig: gatewayK3s.kubeconfig }),
+    // Per-user credentials and share URLs are delivered as individual sing-box
+    // profiles (see createProfileServer), so only the shared, non-secret
+    // REALITY params are surfaced as stack outputs.
     ...(reality && {
       xrayPublicKey: reality.publicKey,
       xrayServerNames: reality.serverNames,

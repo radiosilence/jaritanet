@@ -69,7 +69,7 @@ run = "vitest run"
 
 [tasks.check]
 description = "Everything CI checks"
-# No `run` of its own. These four are independent, so mise fans them out across
+# No `run` of its own. These are independent, so mise fans them out across
 # its job pool instead of running a list in an order nothing requires — and a
 # failure stops the dependents rather than the whole file.
 depends = ["lint", "lint:workflows", "fmt:check", "typecheck", "test"]
@@ -90,7 +90,10 @@ run = "pulumi preview"
 
 [tasks.up]
 description = "deprecated: use deploy"
-run = "echo '[301] moved -> mise deploy (mise shadows `up`)'"
+# `mise up` is mise's own upgrade command, so the task is reachable only as
+# `mise run up`. It fails rather than echoing, so a script calling it does not
+# report a deploy that never ran.
+run = "echo 'moved: use mise run deploy' >&2; exit 1"
 
 [tasks.deploy]
 description = "Deploy the stack"

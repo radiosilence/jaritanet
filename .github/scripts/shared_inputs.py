@@ -6,10 +6,11 @@ This prints `ts=`, `deploy=` and `rust=` (each `true` or `false`) for the
 change between two commits:
 
 - aube-lock.yaml: any change reaches `ts`, whose jobs install and check the
-  whole workspace. It reaches `deploy` when an entry in the dependency closure
-  of `packages/infra` (the Pulumi program) was added, removed or changed,
-  following workspace links, plus the root's runtime `dependencies`, which
-  Node's resolution can reach from any package. A change to the lockfile's
+  whole workspace. It reaches `deploy` when an entry in the runtime dependency
+  closure of `packages/infra` (the Pulumi program) was added, removed or
+  changed, following workspace links, plus the root's runtime `dependencies`,
+  which Node's resolution can reach from any package. devDependencies are test
+  tooling the deploy never loads, so they reach `ts` alone. A change to the lockfile's
   settings or format reaches both.
 - mise.toml: a tool a domain's jobs install (node and aube for `ts`; those and
   pulumi for `deploy`; rust for `rust`), a task they run or one those tasks
@@ -32,7 +33,7 @@ TS_TASKS = {"auth", "lint", "fmt:check", "typecheck", "test", "check:profiles"}
 DEPLOY_TASKS = {"auth"}
 
 ENTRY_SECTIONS = {"importers", "packages", "snapshots"}
-DEP_SECTIONS = {"dependencies", "devDependencies", "optionalDependencies"}
+DEP_SECTIONS = {"dependencies", "optionalDependencies"}
 
 
 def show(rev, path):
@@ -121,7 +122,7 @@ def lock_reaches_deploy(old, new):
                         edges.add(("snapshots", f"{name}@{version}"))
             elif section == "snapshots":
                 edges = graph.setdefault(("snapshots", key), set())
-                for name, version in deps(body, {"dependencies", "optionalDependencies"}):
+                for name, version in deps(body):
                     edges.add(("snapshots", f"{name}@{version}"))
         graph.setdefault(("importers", "packages/infra"), set()).update(
             ("snapshots", f"{name}@{version}") for name, version in root_runtime(units)
@@ -136,11 +137,14 @@ def lock_reaches_deploy(old, new):
     # A `packages` entry holds what a snapshot of that name and version
     # installs, whatever peers the snapshot was resolved with.
     installed = {key.split("(", 1)[0] for section, key in seen if section == "snapshots"}
-    return any(
-        (section, key) in seen or (section == "packages" and key in installed)
+    # An importer counts by what it installs at runtime, so a change to its
+    # devDependencies alone is not one.
+    changed = {
+        (section, key)
         for section, key in changed
-        if section != "importers" or key != "."
-    )
+        if section != "importers" or (key != "." and deps(before.get((section, key), "")) != deps(after.get((section, key), "")))
+    }
+    return any((section, key) in seen or (section == "packages" and key in installed) for section, key in changed)
 
 
 def mise_reaches(old, new):

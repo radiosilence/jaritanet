@@ -51,6 +51,13 @@ mod tests {
         assert!(c.starts_with("__Host-"));
         assert!(c.contains("Path=/;"));
         assert!(!c.contains("Domain"));
-        assert!(clear_cookie(FLOW_COOKIE).contains("Path=/;"));
+        // A clearing cookie that breaks the prefix rules is ignored, and the
+        // flow cookie would outlive every callback.
+        let cleared = clear_cookie(FLOW_COOKIE);
+        assert!(cleared.starts_with("__Host-"));
+        assert!(cleared.contains("Path=/;"));
+        assert!(cleared.contains("Secure"));
+        assert!(!cleared.contains("Domain"));
+        assert!(cleared.contains("Max-Age=0"));
     }
 }

@@ -51,6 +51,18 @@ fn redirect(location: &str, cookies: &[String]) -> AppResult<Response> {
 struct IndexTemplate;
 
 #[derive(Template)]
+#[template(path = "expired.html")]
+struct ExpiredTemplate;
+
+/// The callback when no flow is bound to this browser: it expired, or the
+/// cookie never arrived. There is no challenge to reject at Hydra, so the
+/// person is told to start again rather than shown a bare 401.
+fn expired() -> Response {
+    let html = ExpiredTemplate.render().unwrap_or_default();
+    (StatusCode::UNAUTHORIZED, Html(html)).into_response()
+}
+
+#[derive(Template)]
 #[template(path = "continue.html")]
 struct ContinueTemplate<'a> {
     heading: &'a str,
@@ -179,20 +191,24 @@ pub async fn github_callback(
     headers: HeaderMap,
     Query(q): Query<GithubCallback>,
 ) -> AppResult<Response> {
-    let flow_id = headers
+    let Some(flow_id) = headers
         .get(header::COOKIE)
         .and_then(|v| v.to_str().ok())
         .and_then(|c| cookie::read_cookie(c, FLOW_COOKIE))
-        .ok_or(AppError::Unauthorized)?;
+    else {
+        return Ok(expired());
+    };
 
     // Taken, not read: a replayed callback finds nothing rather than a second
     // usable flow.
-    let flow = state
+    let Some(flow) = state
         .store
         .take_flow(flow_id)
         .await
         .map_err(AppError::Internal)?
-        .ok_or(AppError::Unauthorized)?;
+    else {
+        return Ok(expired());
+    };
 
     if flow.csrf != q.state {
         return Err(AppError::BadRequest("state mismatch".into()));
@@ -333,6 +349,16 @@ pub async fn consent_decision(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_callback_without_a_flow_says_to_start_again() {
+        let response = expired();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(String::from_utf8_lossy(&body).contains("sign in again"));
+    }
 
     #[test]
     fn a_decision_continues_by_page_so_form_action_stays_self() {

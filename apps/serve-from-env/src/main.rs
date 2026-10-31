@@ -16,6 +16,8 @@ use std::collections::HashMap;
 use std::env;
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::signal::unix::{Signal, SignalKind, signal};
 
 const HEALTH_PATHS: [&str; 2] = ["/healthz", "/_health"];
 
@@ -166,14 +168,21 @@ async fn guard_headers(request: Request, next: Next) -> Response {
     response
 }
 
-/// Resolves on SIGTERM or ctrl-c. As PID 1 in a scratch image nothing installs
-/// a default handler, so without this the kubelet's SIGTERM is ignored and every
-/// rollout waits out the grace period before a SIGKILL.
-async fn shutdown_signal() {
-    use tokio::signal::unix::{SignalKind, signal};
-    let mut term = signal(SignalKind::terminate()).expect("installing a SIGTERM handler");
+/// How long the listener stays open after SIGTERM. Traefik keeps routing to a
+/// terminating pod until the endpoint removal reaches it, and with one replica a
+/// closed listener in that window is a 502 for every profile fetch.
+const DRAIN: Duration = Duration::from_secs(5);
+
+/// Resolves `DRAIN` after SIGTERM, or at once on ctrl-c. As PID 1 in a scratch
+/// image nothing installs a default handler, so without this the kubelet's
+/// SIGTERM is ignored and every rollout waits out the grace period before a
+/// SIGKILL.
+async fn shutdown_signal(mut term: Signal) {
     tokio::select! {
-        _ = term.recv() => {}
+        _ = term.recv() => {
+            println!("SIGTERM, draining for {DRAIN:?}");
+            tokio::time::sleep(DRAIN).await;
+        }
         _ = tokio::signal::ctrl_c() => {}
     }
     println!("shutting down");
@@ -197,13 +206,15 @@ async fn run() -> Result<(), String> {
         Err(_) => 8080,
     };
 
+    let term = signal(SignalKind::terminate())
+        .map_err(|e| format!("cannot install a SIGTERM handler: {e}"))?;
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
         .await
         .map_err(|e| format!("cannot bind :{port}: {e}"))?;
     println!("serving {} routes on :{port}", routes.len());
 
     axum::serve(listener, build_app(routes))
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown_signal(term))
         .await
         .map_err(|e| format!("serve failed: {e}"))
 }

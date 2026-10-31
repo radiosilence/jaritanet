@@ -105,11 +105,6 @@ async function chartListed(indexUrl: string, chart: string, version: string) {
 }
 
 /**
- * `releases/latest` is repo-wide, which is right until a repo releases more than
- * one thing. With a prefix the list is read instead and filtered — skipping
- * drafts and prereleases, which is what `releases/latest` does for us otherwise.
- */
-/**
  * The short SHA a branch points at, for entries that follow one.
  *
  * Seven characters because that is what the container workflows tag with; the
@@ -129,6 +124,11 @@ async function headSha(repo: string, branch: string) {
   }
 }
 
+/**
+ * `releases/latest` is repo-wide, which is right until a repo releases more than
+ * one thing. With a prefix the list is read instead and filtered — skipping
+ * drafts and prereleases, which is what `releases/latest` does for us otherwise.
+ */
 async function latestTag(repo: string, prefix?: string) {
   try {
     if (!prefix) {

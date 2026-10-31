@@ -32,7 +32,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run lint:workflows` - Lint `.github/workflows` with actionlint, which runs shellcheck over the `run` scripts
 - `mise run fmt` - Format code with oxfmt
 - `mise run fmt:check` - Check formatting with oxfmt
-- `mise run preview` / `mise run up` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
+- `mise run preview` / `mise run deploy` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, actionlint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
 - `./scripts/update-apps/update-apps.ts --dry-run` - Report which tracked components have moved, without writing or committing anything
 
@@ -43,6 +43,7 @@ The project uses Lefthook for pre-commit validation:
 - Runs oxlint with auto-fix on staged files
 - Runs oxfmt formatting on staged files
 - Runs type checking before commit
+- Runs `cargo fmt` and `cargo clippy -D warnings` in every crate a staged `.rs` file belongs to
 
 Installed by the root `prepare` script, which no-ops when `CI` is set. Hooks
 exist for a working tree a human is about to push; a runner has none, and the
@@ -68,7 +69,7 @@ and mariastew left.
 
 **`packages/<x>` is deploy code for software built somewhere else**, whether
 upstream (Traefik, VictoriaMetrics, the transports) or another
-repository of ours (blit) — plus the two shared primitives, `k8s` and `remote`.
+repository of ours (blit, groglog, koan-site, sbr-site) — plus the two shared primitives, `k8s` and `remote`.
 Nothing here can be extracted, because there is nothing to extract it *to*.
 
 ### Packages
@@ -87,9 +88,11 @@ Components live in their own packages and know nothing about this deployment;
 - **koan** — `@radiosilence/koan-pulumi`, published from the koan repository at each release's version, like mariastew and slsk-mcp: a headless server over the media library, read-only, with GraphQL, Subsonic and MCP at its own hostname; koan is its own OAuth provider for MCP, so it is not behind the gateway. Users and the Subsonic secret are made with `koan auth setup` / `koan subsonic setup` in the pod; until then the public port refuses everything
 - **`@jaritanet/blit`** (and **`@jaritanet/files`**, which lives with its app) — a container, its volumes and its image pin. No configuration surface: volumes, uids and pins are facts about this deployment rather than knobs, and every one of them was already fixed in a config block nobody varied. What they take is only what the estate owns — where they are published, and which machine holds the disks
 - **`apps/koan-demo`** (`@jaritanet/koan-demo`) — koan's public demo at demo.koan.rocks: an image holding freely licensed music (`library.json`, built and fully tagged by `build.py`; `CREDITS.md`), and its Deployment, on the stack's one koan pin so the demo always runs the release prod does. The music is an image volume; the state lives in the container's writable layer and the container exits on the hour, so each restart is a fresh demo. Everyone signs in as demo/demo; the state is wiped on the hour
+- **`@jaritanet/groglog`**, **`@jaritanet/koan-site`**, **`@jaritanet/sbr-site`** — the same shape as blit: static sites behind nano-web, each image built by its app's repository on every commit to main and pinned to that commit
+- **`@jaritanet/home`** — what the node holding the disks runs for the house: anonymous read-only Samba as a DaemonSet on that node, and scheduled btrfs maintenance of its drives
+- **transmet** — `@radiosilence/transmet-pulumi`, published from radiosilence/transmet: a comic reader whose image carries every page, so it needs no volume and runs on the VPS. Its password works without the identity provider, so sign-on is added when there is one rather than being a condition of deploying
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`apps/auth/deploy/pulumi`** (`@jaritanet/auth`) — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
-- **`@jaritanet/mcp-gateway`** — OAuth-fronted gateway for self-hosted MCP servers (Hydra + Postgres)
 - **`@jaritanet/metrics`** — VictoriaMetrics single-node, node-exporter and `vmagent` as DaemonSets, and Grafana signed in through the estate's own provider. Each agent scrapes its own node and remote-writes, rather than one scraper reaching across the tailnet to a residential uplink where a missed scrape is simply lost. Not kube-prometheus-stack: the operator, Alertmanager, kube-state-metrics and ~30 CRDs are monitoring outweighing the monitored on the box whose scheduler already refused a transport for lack of CPU
 - **`apps/serve-from-env/deploy/pulumi`** (`@jaritanet/serve-from-env`) — a Secret of path → body, a Deployment serving exactly those paths, and the annotation that restarts it when the table changes. The caller keeps what the table *means*; this knows only that it is JSON
 - **Extracted, and consumed as published packages** — `@radiosilence/mcp-gateway-pulumi`, `@radiosilence/mariastew-pulumi` and `@radiosilence/slsk-mcp-pulumi` (the Soulseek client: shares and files into the music library on the file node). Each is published by the repository that builds the app, at that app's own version, so pinning the package says exactly which build runs and what image that is stops being this repository's business
@@ -166,7 +169,7 @@ serves every relying party and adding one requires nothing at GitHub.
 `/userinfo` on the bare `Host()` rule; auth claims `/auth/*`, `/register`,
 `/healthz`, `/` and `/assets/*` at a higher priority. `URLS_SELF_ISSUER` already
 stood there, so which hostname issues tokens did not change — only which service
-answers the challenges. Hydra itself is still deployed by the mcp-gateway kind,
+answers the challenges. Hydra itself is still deployed by `@radiosilence/mcp-gateway-pulumi`,
 because moving it would move the database holding every registered client.
 
 **The allowlist is the gate, and an empty one refuses to boot.** Dynamic client
@@ -191,7 +194,7 @@ holds no session store: a Redis with no volume, carrying one ten-minute CSRF
 nonce per login in flight, is the whole of its state.
 
 **Registration is derived, not declared.** A service says only *that* it needs
-auth — `oidc: { clientId, issuer }` — and `relyingParties()` in
+auth — `oidc: { clientId, issuer }` — and `registration()` in
 `infra/src/services.ts` turns that into a client whose redirect URI comes from
 the hostname the service already publishes and whose secret the stack generates.
 That is a security control rather than tidiness: the redirect allowlist is what
@@ -200,7 +203,7 @@ hold a typo, cannot keep an entry for a service that moved, and gives no service
 a way to widen its own permissions. Exact matches only — a wildcard on a
 hostname is how one forgotten subdomain becomes a token thief.
 
-Each secret is generated once in `main.ts` and handed to both halves, so the
+Each secret is generated once in `services.ts` and handed to both halves, so the
 provider registering the client and the service authenticating with it cannot
 disagree. That replaced mariastew's `mariastew-register-client` Job, which had
 the service minting its own credential and posting it to Hydra's admin API —
@@ -210,12 +213,12 @@ each relying party knowing how identity works is the thing being removed.
 
 - **Hysteria2** — QUIC/UDP transport with Salamander obfuscation; the fast, loss-tolerant daily-driver entry, on the gateway and every edge. Listens on `:443` plus `altPorts` (3478 STUN, 4500 IPsec NAT-T) as one process per port, because inspecting middleboxes block QUIC on 443 and VoIP-blocking regimes block 3478 — the client's urltest finds whichever survives. Admin-only: auth is a per-admin `userpass` map (guests get reality only), obfs is server-wide; both delivered inside admin sing-box profiles.
 - **Xray (optional)** — When `gateway.xray` is set, Xray-core takes the VPS `:443` (VLESS-Vision-REALITY) and Traefik's https bind moves to local `:8443`. Traffic that doesn't match a client is relayed to `dest` (Traefik's `:8443`); matched clients are proxied out. One REALITY UUID per VPN user (`email: <name>`), delivered inside that user's sing-box profile (see RBAC). `serverNames` is a list. Its first entry is `koan.rocks`, one of our own names that Traefik serves with a real certificate, so SNI, IP and certificate agree and a probe gets the real site. It is the only own name on the list: content filters pick what to TLS-intercept from the SNI's reputation category, and a mis-rated own-domain (blit.cc) gets every handshake forged. The rest are borrowed names China does not block (no Google, no VK). The client carries one outbound per name in its urltest, so no single identity being blocked or intercepted is fatal (see docs/architecture.md, Hardening notes). `xray.xhttp`, off by default, adds a CDN-fronted XHTTP inbound that only sbr profiles dial (docs/architecture.md, "CDN-fronted XHTTP").
-- **sing-box delivery** — `@jaritanet/vpn` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware), writes each to the file server over SSH (content-hashed, so unchanged deploys are silent), sweeps superseded slug files so rotated profile URLs 404 rather than serving stale credentials, and notifies Telegram with every user's URL on change. The notify script is piped to node over stdin rather than named as a file, because every input of a `local.Command` is a trigger and an absolute path made the checkout's location part of the resource — a deploy from a worktree announced a credential rotation that had not happened. It must therefore stay self-contained: a relative import has nothing to resolve against.
+- **sing-box delivery** — `@jaritanet/vpn` aggregates the primary + every edge into a per-user client profile (`buildProfile`, role-aware) and serves them with `createProfileServer`: a Secret mapping each user's unguessable path to their profile, served by serve-from-env. A rotated slug is a Secret update, so the old URL stops existing rather than lingering as a file to sweep. It notifies Telegram with every user's URL when the content hash changes, so unchanged deploys are silent. The notify script is piped to node over stdin rather than named as a file, because every input of a `local.Command` is a trigger and an absolute path made the checkout's location part of the resource — a deploy from a worktree announced a credential rotation that had not happened. It must therefore stay self-contained: a relative import has nothing to resolve against.
 - **Traefik** — Ingress controller with built-in ACME. Handles Let's Encrypt certs via DNS-01 challenge against Cloudflare. Always binds hostPort 443 as fallback. Its Prometheus endpoint carries the router, service and entrypoint labels, which is the difference between per-route rates and one number for the whole estate.
 - **Metrics** — Grafana opens on a triage page rather than on its own onboarding: the worst disk, the worst container, anything unmeasured, and the nearest certificate expiry, each coloured and named. Anything summed per pod excludes `container=""` — cAdvisor reports the pod-level cgroup alongside its containers under the same `pod` label, so a naive `sum by (pod)` reads double. Cilium exports its own counters and Hubble's flow metrics alongside, including `hubble_drop_total{reason="POLICY_DENIED"}` — the NetworkPolicies in this repo were decorative under flannel and are enforced under Cilium, and that counter is how the difference stops being a belief. Both metrics servers sit on the same hostNetwork agent pod, so they are scraped as static targets on the node rather than discovered from a `prometheus.io/port` annotation that can only name one of them.
 - **Cloudflare** — DNS only. A records pointing at VPS or server IP, plus Fastmail MX/DKIM and Bluesky ATProto records. The one exception is the opt-in `xray.xhttp` hostname, whose record is proxied.
 - **Gateway** — Hetzner. `gateway.hcloudToken` and `gateway.k3s` are both required: the box provides the cluster.
-- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria, tailscale and unbound are DaemonSets there rather than systemd units installed over SSH. All four are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `vpnEntryLabel`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges, and `gateway-legacy-units` uninstalls whatever a pre-cluster deploy left on the box, since a stopped daemon is one package upgrade away from taking a port back.
+- **Transports in the cluster** — with `gateway.k3s` the cluster runs on the gateway, so xray, hysteria and unbound are DaemonSets there rather than systemd units installed over SSH. All three are `hostNetwork` (they must own the host's real ports, see real client addresses, and treat `127.0.0.1` as the host's loopback), which is also why a DaemonSet: two replicas can never share a node, so "one per matching node" is the shape rather than something an update strategy has to work around. They select on the `jaritanet.radiosilence.dev/vpn-entry` node label (from `vpnEntryLabel`, read once and passed to both the labeller and every nodeSelector as a required argument, so they cannot drift apart), so which machine serves an entry is a property of that machine — `lady` joining the cluster does not make it a VPN entry. Their keys and passwords are Pulumi-held rather than minted on the box: an on-box secret cannot follow a rescheduled pod, and reading one back over SSH is the coupling the move exists to remove. The `-systemd` variants stay for the edges. tailscaled is the exception on the gateway too, a systemd unit: k3s takes the node's tailnet address as its `node-ip`, so tailscaled must be running before the cluster it would otherwise run in.
 - **k3s upgrades** — Rancher's system-upgrade-controller, deployed from its pinned release manifests, plus a server Plan and an agent Plan both reading `k3s.version`. Reach comes from cluster membership rather than a route to the box, which is the only thing that works for a node joined from a cloud-init seed: Pulumi never created it, holds no key for it and has no address for it, so break-glass SSH does not help either. The server Plan cordons rather than drains — the gateway is the only server, so a drain would evict the cluster to nowhere — and agents drain, which leaves the DaemonSet transports running. `k3s.version` and `k3s.ciliumVersion` reach the fleet by separate paths (Plan vs Helm) and must pair, so `CILIUM_K8S_SUPPORT` in `@jaritanet/hetzner` encodes Cilium's tested Kubernetes ranges and `K3sConfSchema` fails to parse a half-bump — a red preview instead of a cluster that comes up healthy and moves no packets.
 
 ## GitHub Actions
@@ -228,18 +231,20 @@ so CD ships what CI built in the same run.
 **CI runs per domain.** `changes` works out from the diff which domains a change
 touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 `deploy` (the Pulumi program and everything it imports), and one per container
-(`auth`, `serve_from_env`, `files`). Each job runs under an `if:` on its domain,
+(`auth`, `serve_from_env`, `files`, `koan_demo`). Each job runs under an `if:` on its domain,
 so a skipped job means the change does not reach it, not that something was
 missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
 covered by the next. A manual run, a change under `.github/`, a push whose
 last passed commit cannot be found, or a diff that cannot be worked out runs
-everything. Markdown never counts.
+everything. Markdown never counts, except `apps/koan-demo/CREDITS.md`, which
+that image ships.
 
 `aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
 where the change reaches: `.github/scripts/shared_inputs.py` follows the
-lockfile from `packages/infra` through its workspace links (a dev-tool bump at
-the root runs the checks but not a deploy), and reads which mise tools and
+lockfile's runtime dependencies from `packages/infra` through its workspace
+links (a dev-tool bump, at the root or in a package's devDependencies, runs the
+checks but not a deploy), and reads which mise tools and
 tasks each domain's jobs install and run. If it fails, the change counts.
 
 **Adding a domain** is an output of `changes`, an allowlist of paths in its
@@ -274,7 +279,8 @@ touching branch protection.
 resource **replacements** (the gateway VPS) before merge, and the refresh is what
 makes it call the cloud APIs, so a credential revoked since the last deploy
 fails here rather than mid-deploy. It is the only CI job holding a Pulumi token
-and a write scope (`pull-requests`), and skips with a notice when a fork's
+or able to write to the pull request (`pull-requests: write`); the other CI job
+with a write scope is `image`, whose `packages: write` pushes to GHCR. It skips with a notice when a fork's
 pull request is given no secrets.
 
 #### Containers
@@ -305,7 +311,7 @@ Actions cache.
 
 The containers are versioned and released from here, so the updater can track
 them like any upstream. The version lives in each app's `Cargo.toml`, or
-`apps/files/VERSION`; changing it is the release. `changes` decides once whether
+`apps/<app>/VERSION` for files and koan-demo; changing it is the release. `changes` decides once whether
 each container releases: a push whose version differs from the last passed
 commit's, when that version is not out yet (runs on `main` never overlap, so a
 release whose run failed or was superseded is picked up by the next); or a
@@ -319,7 +325,7 @@ containers releasing from one repo is why tracked entries need `tagPrefix`:
 
 ### App Version Updates (`update-apps.yml`)
 
-Daily check for new releases of the components listed in `.github/tracked-versions.yml`. Uses a GitHub App token so version bump commits trigger `ci-cd.yml`.
+Checks three times a day for new releases of the components listed in `.github/tracked-versions.yml`. Uses a GitHub App token so version bump commits trigger `ci-cd.yml`.
 
 It stays a workflow of its own because it is not part of the change pipeline: it produces commits rather than checking them. Its pushes reach `main` like any other, and `ci-cd.yml` checks and deploys them.
 
@@ -327,7 +333,7 @@ The workflow only supplies tokens; the work is `scripts/update-apps/`, with the 
 
 A missing image fails the run only when it is the *pinned* one — that is a live deployment referencing something that no longer exists. A newer release whose image has not published yet warns and leaves the entry alone: several upstreams build their container separately from the release it tracks, so lag is their normal operation and there is nothing here to act on. Failing on it left the workflow permanently red, which costs the alarm rather than fixing anything.
 
-Rewrites go through the YAML document API and mutate the existing scalar, so a bump changes exactly one line and leaves comments and quoting alone.
+Rewrites replace one quoted literal, the pin in a `versions.ts` or the dependency in a `package.json`, and refuse when the key is absent or appears twice, so a bump changes exactly one line and leaves the docblocks around it alone.
 
 ## Container Services
 
@@ -336,7 +342,7 @@ Rewrites go through the YAML document API and mutate the existing scalar, so a b
   nothing else; static musl binary on `scratch`. Built for the sing-box
   profiles, whose paths are secret and whose bodies Pulumi already holds as
   strings — so there is no volume to mount and no file to go stale.
-- `apps/mariastew/` - Torrent web UI fronting aria2; see `apps/mariastew/README.md`
+- `apps/koan-demo/` - The music image koan's public demo mounts; built by `build.py` from `library.json`
 - `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`
 
 ## Utility Scripts
@@ -347,11 +353,11 @@ Rewrites go through the YAML document API and mutate the existing scalar, so a b
 
 ## Development Notes
 
-- Single package at `packages/infra/` with its own `tsconfig.json` and `package.json`
+- The stack is `packages/infra/`; every package has its own `tsconfig.json` and `package.json`
 - **Use aube for package management and script running** — node 24 provides the runtime
 - Type checking must pass before commits (Lefthook)
 - oxlint handles linting, oxfmt handles code formatting
-- The system runs on minimal hardware (2014 MacBook Pro)
+- The system runs on minimal hardware: one Hetzner VPS and a home node (`lady`, a Dell OptiPlex)
 - No inbound ports on the home network — the home node joins the cluster outbound, over the tailnet
-- Tailscale provides secure access to internal Kubernetes cluster for CI/CD
+- CI needs no tailnet: the program builds its Kubernetes provider from the kubeconfig it reads off the gateway, which addresses the API server at the public IP on :6443 unless `apiViaTailnet` is set
 - Secrets managed through GitHub repository secrets and Pulumi configuration
