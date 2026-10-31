@@ -41,11 +41,11 @@
 # ## What a node declares about itself
 #
 # Node labels are applied as the agent joins, and each one selects a workload in
-# the stack (`packages/infra/src/services.ts`) — lady's `file-node` puts samba/koan on the
-# disks. A label that goes missing is silent: the DaemonSet selecting it
-# schedules nowhere and the cluster reports itself perfectly healthy. (The exit
-# label is the exception, and no longer needs to be here: the stack applies that
-# one itself over the API. See `createExit`.)
+# the stack (`packages/infra/src/services.ts`) — lady's `file-node` puts
+# samba/koan on the disks. A label that goes missing is silent: the DaemonSet
+# selecting it schedules nowhere and the cluster reports itself perfectly
+# healthy. (The exit label is the exception, and no longer needs to be here: the
+# stack applies that one itself over the API. See `createExit`.)
 #
 # They default to the `jaritanet.radiosilence.dev/*` labels the node already
 # carries, read from the cluster, so a reflash rebuilds the machine it was

@@ -1,6 +1,9 @@
 [tools]
 actionlint = "1.7.12"
-aube = "1"
+# Exact, and passed to every aube-action step as well: aube versions differ
+# in how the lockfile writes workspace members, so a local install and CI on
+# different versions rewrite each other's lockfile.
+aube = "2.8.5"
 node = "24"
 pulumi = "latest"
 shellcheck = "0.11.0"
@@ -87,13 +90,6 @@ run = "./scripts/update-apps/update-apps.ts"
 description = "Preview the stack"
 dir = "packages/infra"
 run = "pulumi preview"
-
-[tasks.up]
-description = "deprecated: use deploy"
-# `mise up` is mise's own upgrade command, so the task is reachable only as
-# `mise run up`. It fails rather than echoing, so a script calling it does not
-# report a deploy that never ran.
-run = "echo 'moved: use mise run deploy' >&2; exit 1"
 
 [tasks.deploy]
 description = "Deploy the stack"

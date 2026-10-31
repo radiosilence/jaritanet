@@ -56,6 +56,7 @@ that somehow exists cannot abort a run that already did its work.
 - Every package declares its own dependencies; the root holds only tooling
 - Run commands from root directory
 - Build-script allowlist and supply-chain defaults live in `aube-workspace.yaml`
+- aube is pinned to one exact version in `mise.toml`, and every `endevco/aube-action` step passes the same `version` (`scripts/workflows.test.ts` checks it). Versions differ in how the lockfile writes workspace members, so a mismatch makes local installs and CI rewrite each other's lockfile
 
 ## Architecture
 
@@ -81,7 +82,7 @@ Components live in their own packages and know nothing about this deployment;
 
 - **`@jaritanet/k8s`** — Deployment/Service/PV/PVC templates and the primitives the others share (`ImageSchema`, `ResourcesSchema`, `sha256hex`). `ResourcesSchema` carries the sizing policy: requests from measured usage, generous memory limits, no CPU limits
 - **`@jaritanet/remote`** — `remotePreamble`, the shell every `command.remote.Command` opens with: wait for cloud-init, then set a dpkg lock timeout apt honours on its own so the vendor installers inherit it. It has no dependencies and belongs to no cloud, which is what lets the `-systemd` transports and the k3s install share one copy without either depending on the other
-- **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Each has a DaemonSet form and a `-systemd` form; the latter takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
+- **`@jaritanet/vpn`** — the transports: Xray VLESS-REALITY, Hysteria2, tailnet relay, `unbound`, ss-rust exits, and the sing-box profile builder. Xray and Hysteria2 each have a DaemonSet form and a `-systemd` form; `unbound` and the exits run only in the cluster, and the tailnet relay runs as a systemd unit, because k3s takes its address as `node-ip`. A `-systemd` form takes an SSH connection and opaque `dependsOn`, so it works on any reachable box rather than one cloud's server type
 - **`@jaritanet/hetzner`** — the VPS, its firewall rules, network tuning, k3s over SSH, Cilium as the CNI, the tailnet-rule DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing (see docs/architecture.md), and the upgrade Plans that carry the k3s version to nodes Pulumi cannot reach
 - **`@jaritanet/ingress`** — Traefik Helm chart, IngressRoute CRDs, and the redirect middleware
 - **koan's push relay** — `@radiosilence/koan-relay-pulumi`, published from radiosilence/koan-push-relay at the relay's version, like slsk-mcp: `push.koan.rocks`, one replica pinned to the gateway with its revocation table in a host directory there. Its credentials are one Secret made here, the token and handle keys generated once and kept in state. Only Traefik may reach it, because the relay limits callers by the `X-Real-Ip` Traefik writes, and Traefik rate-limits each caller address before the relay sees it. It serves the sandbox gateway alone until registration requires App Attest. Its quotas are set here, generous for now; the "Push relay" dashboard is what it is doing, since it logs nothing about who it serves
@@ -249,8 +250,9 @@ missed. A pull request is diffed against its base; a push against the last
 `main` commit whose run passed, so a push whose run was superseded or failed is
 covered by the next. A manual run, a change under `.github/`, a push whose
 last passed commit cannot be found, or a diff that cannot be worked out runs
-everything. Markdown never counts, except `apps/koan-demo/CREDITS.md`, which
-that image ships.
+everything. Markdown does not count for `ts` or `deploy`. A container counts
+every file in its directory except its README, since an image may ship other
+Markdown (koan-demo copies `CREDITS.md`).
 
 `aube-lock.yaml` and `mise.toml` are shared by every domain, so they count only
 where the change reaches: `.github/scripts/shared_inputs.py` follows the

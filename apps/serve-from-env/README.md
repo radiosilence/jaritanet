@@ -43,8 +43,8 @@ startup rather than answering 404 to every client.
 Bump `version` in `Cargo.toml`. That is the whole release process: CI sees a
 version with no matching release, publishes the image, cuts
 `serve-from-env-v<version>`, and the version updater moves the pin in
-`apps/serve-from-env/deploy/pulumi/src/versions.ts` on its next run — after confirming the image actually
-published.
+`apps/serve-from-env/deploy/pulumi/src/versions.ts` on its next run, after
+confirming the image actually published.
 
 Tags are output, not input. Nothing reads a tag to decide what to build, so
 there is no second place to keep the number in step.

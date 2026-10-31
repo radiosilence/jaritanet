@@ -120,17 +120,20 @@ flowchart LR
 
 ## Where the gateway's daemons run
 
-With `gateway.k3s` the cluster runs on the gateway itself, so Xray, Hysteria2,
-tailscaled and unbound are Deployments in it rather than systemd units installed
-over SSH. The daemons and their configuration are unchanged; what changes is who
-starts them and where their secrets come from.
+With `gateway.k3s` the cluster runs on the gateway itself, so Xray, Hysteria2
+and unbound are DaemonSets in it rather than systemd units installed over SSH.
+The daemons and their configuration are unchanged; what changes is who starts
+them and where their secrets come from.
 
-All four are `hostNetwork`, and that is a requirement rather than a convenience.
-Xray must own the host's real `:443` and see real client source addresses, and
-its `dest` is `127.0.0.1:8443` — Traefik's `hostPort`, which only means Traefik
-from inside the host's namespace. unbound answers `127.0.0.1:53` for clients
-dialling that loopback *through* the tunnel. tailscaled has to put `tailscale0`
-where the other two resolve their routes.
+tailscaled stays a systemd unit on the gateway. k3s takes the node's tailnet
+address as its `node-ip`, so tailscaled has to be up before the cluster it would
+otherwise run in.
+
+All three are `hostNetwork`, and that is a requirement rather than a
+convenience. Xray must own the host's real `:443` and see real client source
+addresses, and its `dest` is `127.0.0.1:8443` — Traefik's `hostPort`, which only
+means Traefik from inside the host's namespace. unbound answers `127.0.0.1:53`
+for clients dialling that loopback *through* the tunnel.
 
 That is also why they are **DaemonSets**. With `hostNetwork` two replicas can
 never coexist on a node — they would collide on the same ports — so "exactly one
@@ -217,9 +220,9 @@ between the tailnet name and the public IP.
 
 ## Keeping k3s current on nodes nothing can reach
 
-The gateway's k3s is installed over SSH, so its version follows
-`k3s.version` in `stack.ts`. A node joined from a cloud-init seed, such as
-`lady`, is installed once and then managed by nothing: Pulumi has no connection to it,
+The gateway's k3s is installed over SSH, so its version follows `k3s.version`
+in `stack.ts`. A node joined from a cloud-init seed, such as `lady`, is
+installed once and then managed by nothing: Pulumi has no connection to it,
 cannot learn what it is running, and has no mechanism that would ever move it.
 Left alone it sits on whatever was current the day it was flashed, indefinitely,
 inside a cluster whose control plane keeps advancing.

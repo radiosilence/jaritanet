@@ -252,11 +252,10 @@ export function createService(
                       matchLabels: { "app.kubernetes.io/name": "traefik" },
                     },
                   },
-                  // The kubelet's probes come from the node, not from a pod, so
-                  // without this the pod fails readiness and gets killed. Pod
-                  // IPs are in 10.42.0.0/16 (`POD_CIDR`), so allowing the node's
-                  // LAN still shuts out every sibling — which is the point of
-                  // the rule.
+                  // Admits any 192.168.0.0/16 source, such as hosts on the home
+                  // node's LAN. Kubelet probes do not depend on it: nodes use
+                  // their tailnet address as `node-ip`, and Cilium admits the
+                  // local host to its own endpoints by default.
                   { ipBlock: { cidr: "192.168.0.0/16" } },
                 ],
               },

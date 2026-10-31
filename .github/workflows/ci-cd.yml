@@ -122,8 +122,8 @@ jobs:
           # while it waited, is released by the next run instead of dropped.
           version_of() {
             case $1 in
-              files | koan-demo) git show "$2:apps/$1/VERSION" 2>/dev/null | tr -d '[:space:]' ;;
-              *) git show "$2:apps/$1/Cargo.toml" 2>/dev/null | sed -n 's/^version = "\(.*\)"/\1/p' | head -1 ;;
+              files | koan-demo) git show "$2:apps/$1/VERSION" 2>/dev/null | tr -d '[:space:]' || : ;;
+              *) git show "$2:apps/$1/Cargo.toml" 2>/dev/null | sed -n 's/^version = "\(.*\)"/\1/p' | head -1 || : ;;
             esac
           }
           apps='[
@@ -133,9 +133,7 @@ jobs:
             {"app": "koan-demo", "image": "koan-demo", "rust": false}
           ]'
           for app in $(jq -r '.[].app' <<< "$apps"); do
-            # `|| true`: a missing file fails the pipeline, which under
-            # pipefail would end the step before the error below says why.
-            version=$(version_of "$app" HEAD) || true
+            version=$(version_of "$app" HEAD)
             if [ -z "$version" ]; then
               echo "::error::no version for $app"
               exit 1
@@ -170,9 +168,9 @@ jobs:
           done
 
           # Counted rather than `grep -q`, which can stop reading early and
-          # fail the stage before it under pipefail. Markdown never counts,
-          # except the CREDITS.md the koan-demo image ships.
-          touches() { [ "$(printf '%s\n' "$changed" | awk '!/\.md$/ || /^apps\/koan-demo\/CREDITS\.md$/' | grep -vE "${2:-^$}" | grep -cE "$1")" -gt 0 ]; }
+          # fail the stage before it under pipefail. The second argument is
+          # what does not count, as an extended regex.
+          touches() { [ "$(printf '%s\n' "$changed" | grep -vE "${2:-^$}" | grep -cE "$1")" -gt 0 ]; }
           if [ "$EVENT" != "workflow_dispatch" ] && [ -n "$base" ] && changed=$(git diff --name-only "$base" HEAD); then
             echo "changes since $(git rev-parse --short "$base"):"
             printf '%s\n' "$changed" | sed 's/^/  /'
@@ -184,20 +182,21 @@ jobs:
             # What the TypeScript checks read: the workspace, its scripts, the
             # vendored schema the tests validate against, and the tools'
             # configuration.
-            touches '^packages/|^apps/[^/]+/deploy/|^scripts/|^schemas/|^(package\.json|tsconfig\.json|vitest\.config\.ts|\.oxlintrc\.json|\.oxfmtrc\.json|\.npmrc|aube-workspace\.yaml)$|^\.github/' \
+            touches '^packages/|^apps/[^/]+/deploy/|^scripts/|^schemas/|^(package\.json|tsconfig\.json|vitest\.config\.ts|\.oxlintrc\.json|\.oxfmtrc\.json|\.npmrc|aube-workspace\.yaml)$|^\.github/' '\.md$' \
               || [ "$inputs_ts" = true ] || ts=false
             # What `pulumi up` runs: the program and every package it imports,
             # and what decides how they install. Tests are not part of it. The
             # root package.json holds tooling; its runtime dependencies reach
             # the program through the lockfile, which shared_inputs.py follows.
-            touches '^packages/|^apps/[^/]+/deploy/|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' '\.test\.ts$' \
+            touches '^packages/|^apps/[^/]+/deploy/|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' '\.test\.ts$|\.md$' \
               || [ "$inputs_deploy" = true ] || deploy=false
-            # A container is its app's directory, less the chart beside it: a
-            # pin bump there is a deploy, not a new image.
-            touches '^apps/auth/|^\.github/' '^apps/auth/deploy/' || [ "$inputs_rust" = true ] || auth=false
-            touches '^apps/serve-from-env/|^\.github/' '^apps/serve-from-env/deploy/' || [ "$inputs_rust" = true ] || serve_from_env=false
-            touches '^apps/files/|^\.github/' '^apps/files/deploy/' || files=false
-            touches '^apps/koan-demo/|^\.github/' '^apps/koan-demo/deploy/' || koan_demo=false
+            # A container is its app's directory, less the chart beside it (a
+            # pin bump there is a deploy, not a new image) and its README,
+            # which no image copies.
+            touches '^apps/auth/|^\.github/' '^apps/auth/deploy/|/README\.md$' || [ "$inputs_rust" = true ] || auth=false
+            touches '^apps/serve-from-env/|^\.github/' '^apps/serve-from-env/deploy/|/README\.md$' || [ "$inputs_rust" = true ] || serve_from_env=false
+            touches '^apps/files/|^\.github/' '^apps/files/deploy/|/README\.md$' || files=false
+            touches '^apps/koan-demo/|^\.github/' '^apps/koan-demo/deploy/|/README\.md$' || koan_demo=false
           fi
 
           # A release builds what it ships, whatever the diff says.
@@ -266,6 +265,7 @@ jobs:
       - name: Install Dependencies
         uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
         with:
+          version: 2.8.5
           node-version: auto
           run-install: true
           install-args: --frozen-lockfile
@@ -333,6 +333,7 @@ jobs:
         if: steps.token.outputs.ready == 'true'
         uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
         with:
+          version: 2.8.5
           node-version: auto
           run-install: true
           install-args: --frozen-lockfile
@@ -610,6 +611,7 @@ jobs:
         if: steps.current.outputs.deploy == 'true'
         uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
         with:
+          version: 2.8.5
           node-version: auto
           run-install: true
           install-args: --frozen-lockfile
@@ -776,8 +778,9 @@ jobs:
           prev=$(git tag --list "$APP-v*" --sort=-version:refname | head -1)
           range=${prev:+$prev..}HEAD
           # The chart under deploy/ ships with the stack, not the image, so
-          # its pin bumps are not this release's changes.
-          notes=$(git log --no-merges --pretty='- %s' "$range" -- "apps/$APP" ":(exclude)apps/$APP/deploy")
+          # its pin bumps are not this release's changes; nor is a README,
+          # which no image copies.
+          notes=$(git log --no-merges --pretty='- %s' "$range" -- "apps/$APP" ":(exclude)apps/$APP/deploy" ":(exclude,glob)apps/$APP/**/README.md")
           gh release create "$APP-v$VERSION" \
             --title "$APP v$VERSION" \
             --target "$GITHUB_SHA" \

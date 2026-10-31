@@ -53,6 +53,14 @@ export function createGateway(
     publicKey: sshKey.publicKeyOpenssh,
   });
 
+  // The API server is addressed by its MagicDNS name only when all three are
+  // set; otherwise the kubeconfig uses the public IP, which then needs 6443
+  // open. Both the firewall and `apiHost` read this, so they cannot disagree.
+  const apiTailnetName =
+    gateway.k3s.apiViaTailnet && gateway.tailnet && magicdnsSuffix
+      ? `${gateway.tailnet.hostname}.${magicdnsSuffix}`
+      : undefined;
+
   const firewall = new hcloud.Firewall("gateway", {
     rules: [
       inboundRule("SSH", 22),
@@ -63,12 +71,7 @@ export function createGateway(
       // caps throughput; the cluster's own traffic to the home node rides
       // the tailnet too.
       inboundRule("Tailscale direct connections", 41641, "udp"),
-      // Only when the API server is not reached over the tailnet. With
-      // `apiViaTailnet` the kubeconfig points at a MagicDNS name and 6443
-      // needs no public rule.
-      ...(!gateway.k3s.apiViaTailnet
-        ? [inboundRule("k3s API server", 6443)]
-        : []),
+      ...(!apiTailnetName ? [inboundRule("k3s API server", 6443)] : []),
       ...(gateway.hysteria
         ? [
             inboundRule("Hysteria2 QUIC", gateway.hysteria.port, "udp"),
@@ -146,10 +149,7 @@ export function createGateway(
   // Reachable over the tailnet when there is one, else the public IP. The
   // certificate covers whichever is used, so the kubeconfig verifies properly
   // in both cases rather than falling back to insecure-skip-tls-verify.
-  const apiHost =
-    gateway.k3s.apiViaTailnet && gateway.tailnet && magicdnsSuffix
-      ? `${gateway.tailnet.hostname}.${magicdnsSuffix}`
-      : server.ipv4Address;
+  const apiHost = apiTailnetName ?? server.ipv4Address;
 
   const k3s = createK3s(
     connection,

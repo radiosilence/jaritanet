@@ -8,10 +8,13 @@ change between two commits:
 - aube-lock.yaml: any change reaches `ts`, whose jobs install and check the
   whole workspace. It reaches `deploy` when an entry in the runtime dependency
   closure of `packages/infra` (the Pulumi program) was added, removed or
-  changed, following workspace links, plus the root's runtime `dependencies`,
-  which Node's resolution can reach from any package. devDependencies are test
-  tooling the deploy never loads, so they reach `ts` alone. A change to the lockfile's
-  settings or format reaches both.
+  changed, following workspace members, plus the root's runtime `dependencies`,
+  which Node's resolution can reach from any package. A workspace member is
+  recognised by its package name rather than by how the lockfile writes the
+  version (`link:<path>` or the member's own version), so a change of format
+  cannot hide one. devDependencies are test tooling the deploy never loads, so
+  they reach `ts` alone. A change to the lockfile's settings or format reaches
+  both.
 - mise.toml: a tool a domain's jobs install (node and aube for `ts`; those and
   pulumi for `deploy`; rust for `rust`), a task they run or one those tasks
   depend on, or anything outside [tools] and [tasks], such as [env], which
@@ -20,6 +23,7 @@ change between two commits:
     python3 shared_inputs.py BASE HEAD
 """
 
+import json
 import os
 import re
 import subprocess
@@ -96,7 +100,7 @@ def deps(body, sections=DEP_SECTIONS):
     return out
 
 
-def lock_reaches_deploy(old, new):
+def lock_reaches_deploy(old, new, members):
     before, after = lock_units(old), lock_units(new)
     changed = {k for k in before.keys() | after.keys() if before.get(k) != after.get(k)}
     if not changed:
@@ -116,7 +120,9 @@ def lock_reaches_deploy(old, new):
             if section == "importers" and key != ".":
                 edges = graph.setdefault(("importers", key), set())
                 for name, version in deps(body):
-                    if version.startswith("link:"):
+                    if name in members:
+                        edges.add(("importers", members[name]))
+                    elif version.startswith("link:"):
                         edges.add(("importers", os.path.normpath(os.path.join(key, version[5:]))))
                     else:
                         edges.add(("snapshots", f"{name}@{version}"))
@@ -137,14 +143,19 @@ def lock_reaches_deploy(old, new):
     # A `packages` entry holds what a snapshot of that name and version
     # installs, whatever peers the snapshot was resolved with.
     installed = {key.split("(", 1)[0] for section, key in seen if section == "snapshots"}
-    # An importer counts by what it installs at runtime, so a change to its
-    # devDependencies alone is not one.
-    changed = {
-        (section, key)
+
+    def runtime_changed(key):
+        """Whether an importer's runtime dependencies differ. Its
+        devDependencies are tooling the deploy never loads, and the root's
+        runtime dependencies were compared above."""
+        unit = ("importers", key)
+        return key != "." and deps(before.get(unit, "")) != deps(after.get(unit, ""))
+
+    return any(
+        (section, key) in seen or (section == "packages" and key in installed)
         for section, key in changed
-        if section != "importers" or (key != "." and deps(before.get((section, key), "")) != deps(after.get((section, key), "")))
-    }
-    return any((section, key) in seen or (section == "packages" and key in installed) for section, key in changed)
+        if section != "importers" or runtime_changed(key)
+    )
 
 
 def mise_reaches(old, new):
@@ -180,11 +191,26 @@ def mise_reaches(old, new):
     )
 
 
+def workspace_members(*revisions):
+    """Package name to importer path, for every workspace member either revision lists."""
+    members = {}
+    for rev, lock in revisions:
+        for section, key in lock_units(lock):
+            if section == "importers" and key != ".":
+                try:
+                    name = json.loads(show(rev, f"{key}/package.json") or "{}").get("name")
+                except json.JSONDecodeError:
+                    name = None
+                if name:
+                    members[name] = key
+    return members
+
+
 def main():
     base, head = sys.argv[1:3]
     old_lock, new_lock = show(base, "aube-lock.yaml"), show(head, "aube-lock.yaml")
     lock_ts = old_lock != new_lock
-    lock_deploy = lock_ts and lock_reaches_deploy(old_lock, new_lock)
+    lock_deploy = lock_ts and lock_reaches_deploy(old_lock, new_lock, workspace_members((base, old_lock), (head, new_lock)))
     mise_ts, mise_deploy, mise_rust = mise_reaches(show(base, "mise.toml"), show(head, "mise.toml"))
     print(f"ts={str(lock_ts or mise_ts).lower()}")
     print(f"deploy={str(lock_deploy or mise_deploy).lower()}")

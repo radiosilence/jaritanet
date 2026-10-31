@@ -20,9 +20,10 @@ import type { SshConnection } from "./vps.ts";
  * home node joined; systemd rather than snap, so nothing self-refreshes
  * underneath the VPN.
  *
- * The API server is reached at `apiHost`, which the caller chooses: a MagicDNS
- * name with `apiViaTailnet`, otherwise the public address, with 6443 open in
- * the firewall. Both addresses are in the certificate's SANs.
+ * The API server is reached at `apiHost`, which the caller chooses: in this
+ * stack a MagicDNS name when `apiViaTailnet` is set and the gateway is on a
+ * tailnet, otherwise the public address with 6443 open in the firewall. Both
+ * addresses are in the certificate's SANs.
  *
  * `--disable-kube-proxy` is not an optimisation: Cilium only implements
  * hostPort when it owns service routing, and Traefik binds one. Running both
