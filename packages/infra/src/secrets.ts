@@ -44,6 +44,8 @@ const SecretsSchema = z.strictObject({
   transmetPullToken: z.string().optional(),
   /** Discogs personal access token, for slsk's importer (sift). */
   discogsToken: z.string().optional(),
+  /** AcoustID application key: slsk's importer identifies folders by fingerprint. */
+  acoustidClient: z.string().optional(),
   /**
    * koan's APNs auth key (the `.p8`, PEM), for the koan server to reach its
    * iOS app once iOS has suspended it. Absent → phones are reached only while

@@ -94,6 +94,7 @@ export type EstateContext = {
   /** The Soulseek account slsk logs in with at start. */
   slskAccount?: { username: string; password: string };
   discogsToken?: string;
+  acoustidClient?: string;
   /** koan's APNs key: push to its iOS app. See `secrets.ts`. */
   koanApnsKey?: string;
   /** The reader's password, and the token its private image is pulled with. */
@@ -544,6 +545,8 @@ export function createServices(ctx: EstateContext) {
             password: pulumi.secret(ctx.slskAccount.password),
           },
           discogsToken: ctx.discogsToken && pulumi.secret(ctx.discogsToken),
+          acoustidClient:
+            ctx.acoustidClient && pulumi.secret(ctx.acoustidClient),
         },
       ),
       secret,
