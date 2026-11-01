@@ -1,6 +1,7 @@
 import {
   createAdminSshAccess,
   createAutomaticPatching,
+  createNetworkHardening,
   createNetworkTuning,
   inboundRule,
 } from "@jaritanet/hetzner";
@@ -82,6 +83,7 @@ export function createEdge(
   };
 
   createNetworkTuning(name, connection, server);
+  createNetworkHardening(name, connection, server);
 
   createAutomaticPatching(
     name,

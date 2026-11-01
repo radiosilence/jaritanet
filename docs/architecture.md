@@ -988,6 +988,16 @@ network or from another tag is never approved and so never accepted.
 
 Live tradeoffs worth knowing, not necessarily bugs:
 
+- **MPTCP is off and IPv4 TCP with IP options is dropped, on every node.** Go
+  opens listeners as MPTCP by default, so every Go daemon on a node (the k3s
+  API included, which is public) accepted it while nothing used it.
+  CVE-2026-98432 made that remote root on unpatched kernels. The nftables drop
+  is in its own table and unit, because the stock `nftables.service` flushes
+  the whole ruleset, Cilium's and k3s's rules with it. It sees only traffic for
+  the host namespace: Cilium redirects pod-bound traffic before netfilter.
+  `createNetworkHardening` (cloud boxes) and `make-seed-drive` (home nodes)
+  carry the same configuration by copy.
+
 - **The primary's default SNI is one of our own names, and only one that
   survives category filters.** REALITY has a single `dest` fallback, and every
   non-proxy TCP/443 connection (every real public visitor to the site) is
