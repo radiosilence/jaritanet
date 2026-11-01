@@ -220,6 +220,34 @@ write_files:
       Persistent=true
       [Install]
       WantedBy=timers.target
+  # MPTCP off and IPv4 TCP packets with IP options dropped: the same reduction
+  # createNetworkHardening in packages/hetzner/src/vps.ts makes on the cloud
+  # boxes, which explains both. Keep the two in step.
+  - path: /etc/sysctl.d/99-no-mptcp.conf
+    content: |
+      net.mptcp.enabled = 0
+  - path: /etc/jaritanet/ip-options.nft
+    content: |
+      table ip ip-options
+      delete table ip ip-options
+      table ip ip-options {
+        chain prerouting {
+          type filter hook prerouting priority raw; policy accept;
+          ip hdrlength > 5 meta l4proto tcp drop
+        }
+      }
+  - path: /etc/systemd/system/ip-options-filter.service
+    content: |
+      [Unit]
+      Description=Drop IPv4 TCP packets carrying IP options
+      Wants=network-pre.target
+      Before=network-pre.target
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/sbin/nft -f /etc/jaritanet/ip-options.nft
+      [Install]
+      WantedBy=multi-user.target
 YAML
 
   # A media drive, identified by UUID (or label) rather than device path: USB
@@ -362,6 +390,10 @@ runcmd:
       # here arms it now rather than one reboot from now.
       modprobe iTCO_wdt || true
       systemctl daemon-reexec
+      # systemd-sysctl has also already run, and k3s starts below: applying the
+      # MPTCP sysctl now keeps its listeners from opening as MPTCP.
+      sysctl --system >/dev/null
+      systemctl enable --now ip-options-filter.service
       # btrfs detects bitrot on read and can repair it from a good copy, but
       # only for blocks something actually reads — a scrub is what walks the
       # whole filesystem. Media is written once and read rarely, which is

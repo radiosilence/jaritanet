@@ -2,6 +2,7 @@ import {
   createAdminSshAccess,
   createAutomaticPatching,
   createK3s,
+  createNetworkHardening,
   createNetworkTuning,
   inboundRule,
 } from "@jaritanet/hetzner";
@@ -125,6 +126,7 @@ export function createGateway(
   };
 
   createNetworkTuning("gateway", connection, server);
+  createNetworkHardening("gateway", connection, server);
 
   createAutomaticPatching(
     "gateway",

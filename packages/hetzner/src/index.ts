@@ -8,6 +8,7 @@ export { createTailnetRoutes } from "./tailnet-routes.ts";
 export {
   createAdminSshAccess,
   createAutomaticPatching,
+  createNetworkHardening,
   createNetworkTuning,
   inboundRule,
   type SshConnection,

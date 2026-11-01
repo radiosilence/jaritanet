@@ -268,3 +268,81 @@ test "$(sysctl -n net.core.wmem_max)" = 16777216`,
     { dependsOn: [server] },
   );
 }
+
+/**
+ * The kernel's network attack surface, reduced to what the estate uses.
+ *
+ * MPTCP is off. Go opens every listener as MPTCP by default since 1.24, so k3s,
+ * cilium, tailscaled and node_exporter all accept it, and the k3s API is on the
+ * public internet. Nothing here uses multipath, and CVE-2026-98432 is remote
+ * root through exactly that combination. With the sysctl off, Go's MPTCP
+ * socket call fails and it falls back to plain TCP. A listener opened before
+ * the sysctl changed stays MPTCP until its process restarts, so on a running
+ * box this takes effect at the next reboot or service restart.
+ *
+ * IPv4 TCP packets carrying IP options are dropped. Nothing legitimate sends
+ * them across the internet, and the same CVE's trigger needs them. The rule is
+ * in a table of its own, loaded by its own unit rather than
+ * `/etc/nftables.conf`, whose stock service flushes the whole ruleset and
+ * would take k3s's and Cilium's rules with it. It covers listeners in the host
+ * namespace (sshd, xray, the k3s API); traffic Cilium redirects to a pod from
+ * tc ingress never reaches netfilter.
+ *
+ * The hostNetwork transports share the host namespace and so the sysctl;
+ * a pod's own namespace starts with MPTCP enabled regardless.
+ */
+export function createNetworkHardening(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+) {
+  return new command.remote.Command(
+    `${name}-network-hardening`,
+    {
+      connection,
+      create: `set -euo pipefail
+${NETWORK_HARDENING_SCRIPT}`,
+      triggers: serverTriggers(server, "mptcp-off-ip-options-v1"),
+    },
+    { dependsOn: [server] },
+  );
+}
+
+/**
+ * Installs and applies the MPTCP sysctl and the IP options filter. Shared with
+ * `scripts/make-seed-drive` by copy, which cannot import TypeScript; a change
+ * here belongs there too.
+ */
+const NETWORK_HARDENING_SCRIPT = `cat > /etc/sysctl.d/99-no-mptcp.conf << 'EOF'
+net.mptcp.enabled = 0
+EOF
+sysctl --system >/dev/null
+test "$(sysctl -n net.mptcp.enabled)" = 0
+
+mkdir -p /etc/jaritanet
+cat > /etc/jaritanet/ip-options.nft << 'EOF'
+table ip ip-options
+delete table ip ip-options
+table ip ip-options {
+  chain prerouting {
+    type filter hook prerouting priority raw; policy accept;
+    ip hdrlength > 5 meta l4proto tcp drop
+  }
+}
+EOF
+cat > /etc/systemd/system/ip-options-filter.service << 'EOF'
+[Unit]
+Description=Drop IPv4 TCP packets carrying IP options
+Wants=network-pre.target
+Before=network-pre.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/jaritanet/ip-options.nft
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable ip-options-filter.service
+systemctl restart ip-options-filter.service
+nft list table ip ip-options | grep -q 'hdrlength > 5'`;
