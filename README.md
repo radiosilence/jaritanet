@@ -267,6 +267,7 @@ deployment *is* lives in `packages/infra/src/stack.ts` as TypeScript, and
 | `secrets.tailnetOauthClientSecret` | No | Manages the tailnet policy file as code. Unset = policy stays hand-managed |
 | `secrets.slskUsername` / `slskPassword` | No | The Soulseek account slsk logs in with at start. Both or neither |
 | `secrets.discogsToken` | No | Discogs token for slsk's importer |
+| `secrets.acoustidClient` | No | AcoustID key for slsk's importer, which identifies folders by fingerprint when their tags are poor |
 | `secrets.transmetPassword` / `transmetPullToken` | No | transmet's password and the `read:packages` token its private image is pulled with. Both absent → not deployed |
 | `secrets.koanApnsKey` | No | koan's APNs key, to reach its iOS app while suspended |
 | `secrets.telegramBotToken` / `telegramChatId` | No | Shared bot + chat: the profile server notifies on a URL rotation, mariastew on a download finishing, the btrfs scrub with its monthly result. Absent → none of them sends anything |
