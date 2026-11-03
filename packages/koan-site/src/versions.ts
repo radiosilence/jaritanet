@@ -6,5 +6,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  koanSite: "sha-0ab3a4f",
+  koanSite: "sha-ee76ac9",
 } as const;
