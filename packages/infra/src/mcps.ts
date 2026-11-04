@@ -27,6 +27,7 @@ export const VERSIONS = {
   fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.9.0",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.5",
   tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.8",
+  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.2.0",
 } as const;
 
 export const MCPS: z.input<typeof McpSchema>[] = [
@@ -177,6 +178,29 @@ export const MCPS: z.input<typeof McpSchema>[] = [
         secret: true,
         required: false,
         hint: "32 hex characters",
+      },
+    ],
+  },
+  // Wetherspoon's order-and-pay: find a pub, read its menu, order to a table.
+  // Orders are placed as a guest, so there is no account to log in to; the one
+  // field is where the receipt goes. Paying returns a link to the card payment
+  // page, which the user opens and approves in their banking app, so no card
+  // details pass through the gateway. Quotes live in the pod and are lost on a
+  // restart, which is safe: a quote that no longer exists can't be paid.
+  {
+    id: "spoons",
+    name: "Wetherspoon's",
+    image: VERSIONS.spoons,
+    args: ["mcp", "--http", "0.0.0.0:8080", "--state", "/state"],
+    port: 8080,
+    path: "/mcp",
+    fields: [
+      {
+        id: "email",
+        label: "Email for receipts",
+        header: "X-Spoons-Email",
+        secret: false,
+        hint: "you@example.com",
       },
     ],
   },
