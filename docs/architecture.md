@@ -988,15 +988,17 @@ network or from another tag is never approved and so never accepted.
 
 Live tradeoffs worth knowing, not necessarily bugs:
 
-- **MPTCP is off and IPv4 TCP with IP options is dropped, on every node.** Go
-  opens listeners as MPTCP by default, so every Go daemon on a node (the k3s
-  API included, which is public) accepted it while nothing used it.
-  CVE-2026-98432 made that remote root on unpatched kernels. The nftables drop
-  is in its own table and unit, because the stock `nftables.service` flushes
-  the whole ruleset, Cilium's and k3s's rules with it. It sees only traffic for
-  the host namespace: Cilium redirects pod-bound traffic before netfilter.
-  `createNetworkHardening` (cloud boxes) and `make-seed-drive` (home nodes)
-  carry the same configuration by copy.
+- **MPTCP is off on every node.** Go opens listeners as MPTCP by default, so
+  every Go daemon on a node (the k3s API included, which is public) accepted it
+  while nothing used it. CVE-2026-98432 made that remote root on unpatched
+  kernels. `createNetworkHardening` (cloud boxes) and `make-seed-drive` (home
+  nodes) carry the same sysctl file.
+
+  There is no persistent nftables rule for that CVE's IP-options trigger. A
+  boot-time unit ordered before `network-pre.target` with default dependencies
+  forms a cycle with `cloud-init.service`, and systemd resolved it by leaving
+  the gateway without a network. Anything loaded at boot on these nodes needs
+  `DefaultDependencies=no`, as the stock `nftables.service` has.
 
 - **The primary's default SNI is one of our own names, and only one that
   survives category filters.** REALITY has a single `dest` fallback, and every
