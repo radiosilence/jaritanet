@@ -229,8 +229,8 @@ importers:
         specifier: 5.6.2
         version: 5.6.2(typescript@7.0.2)
       '@radiosilence/koan-pulumi':
-        specifier: 0.70.1
-        version: 0.70.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.70.2
+        version: 0.70.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/koan-relay-pulumi':
         specifier: 0.1.3
         version: 0.1.3(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
@@ -238,8 +238,8 @@ importers:
         specifier: 0.3.1
         version: 0.3.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/mcp-gateway-pulumi':
-        specifier: 0.11.1
-        version: 0.11.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.11.2
+        version: 0.11.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/slsk-mcp-pulumi':
         specifier: 0.10.2
         version: 0.10.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
@@ -888,8 +888,8 @@ packages:
   '@pulumi/tls@5.6.2':
     resolution: {integrity: sha512-Id9iwUsVONmXamwrAo1OR+RGjlR1WXqA50v2WQJevZSF+73ZZpZvp5rmd4CinWfvmoYVcBJGNpAzrUjUnUmuZg==}
 
-  '@radiosilence/koan-pulumi@0.70.1':
-    resolution: {gitHosted: true, integrity: sha512-MvH6Ctj59rc3i5ptEjS2/XTXj3/Z54lwxreHChuj7cBt6pYf/mMPRk0svXRWafQB1AU9C0kXne9kDyxbLweDrg==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.70.1/cba5002e1626170e18de61ae892f7b4fc153b19c}
+  '@radiosilence/koan-pulumi@0.70.2':
+    resolution: {gitHosted: true, integrity: sha512-Z4FQvv1A88zbM8kOmUJ4G9Nv+oRd6k/zPmDOvwJF/SnK2X69zC9o4wfvXTqpMC2Ma0efLpBiIz3mPm5htJ2few==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.70.2/1c0b572593856a1419fa6591d6dec7c2e5b0f531}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -909,8 +909,8 @@ packages:
       '@pulumi/pulumi': ^3
       zod: ^4
 
-  '@radiosilence/mcp-gateway-pulumi@0.11.1':
-    resolution: {gitHosted: true, integrity: sha512-MOt+A6OUdJPeUJRZWSsZ0fbb9f/UaQ85jbGa0EpS8JH5mG/JiwwDZLE5x++O807YxdZrl/76YLjIYXDaEbol0w==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.11.1/ab8d2b30c46f392523663b6e382a9dc6ad7b7380}
+  '@radiosilence/mcp-gateway-pulumi@0.11.2':
+    resolution: {gitHosted: true, integrity: sha512-cGqy+qfQJ8TH0yhZuVjwopiU9AuSyCh5tAGGoSXxvHWaaCUPM9EtnK0GlN8/aL2eG84Js0GPRpBm/V29fpdohw==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.11.2/c6533cde9b60753b664df2a7bb0bb2426a2faddb}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2691,7 +2691,7 @@ snapshots:
       - ts-node
       - typescript
 
-  '@radiosilence/koan-pulumi@0.70.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/koan-pulumi@0.70.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
@@ -2709,7 +2709,7 @@ snapshots:
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/mcp-gateway-pulumi@0.11.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/mcp-gateway-pulumi@0.11.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
