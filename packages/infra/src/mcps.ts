@@ -185,32 +185,16 @@ export const MCPS: z.input<typeof McpSchema>[] = [
   // publish a peer port there, none of which a generic backend gets. So it is
   // registered by URL, and its chart's NetworkPolicy admits the gateway.
   //
-  // Both fields are optional: the pod logs in at start with the account in
-  // stack secrets, and a user who fills these in switches it to their own.
+  // Public: it logs in with the account in stack secrets, so there is nothing
+  // for a user to enter. `verify` runs without credentials and reports whether
+  // that account is signed in.
   {
     id: "slsk",
     name: "Soulseek",
     url: "http://slsk-internal:8081",
     path: "/mcp",
     graphqlPath: "/graphql",
-    keyHelpUrl: "https://www.slsknet.org",
-    fields: [
-      {
-        id: "username",
-        label: "Soulseek username (optional)",
-        header: "X-Slsk-Username",
-        secret: false,
-        required: false,
-      },
-      {
-        id: "password",
-        label: "Soulseek password (optional)",
-        header: "X-Slsk-Password",
-        secret: true,
-        required: false,
-        hint: "Blank = the account the service already runs as",
-      },
-    ],
+    public: true,
     verify: {
       query: "{ status { state } }",
       path: "status.state",
