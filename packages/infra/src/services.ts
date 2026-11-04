@@ -32,6 +32,7 @@ import {
 import { createPushRelay } from "@radiosilence/koan-relay-pulumi";
 import { createSlsk } from "@radiosilence/slsk-mcp-pulumi";
 import { createTransmet } from "@radiosilence/transmet-pulumi";
+import { createTubele } from "@radiosilence/tubele-pulumi";
 import { readFileSync } from "node:fs";
 import { createMetrics, GRAFANA, TEXTFILE_DIR } from "@jaritanet/metrics";
 import { createKoanDemo } from "@jaritanet/koan-demo";
@@ -304,6 +305,19 @@ export function createServices(ctx: EstateContext) {
     createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
   );
   add(createSbrSite(provider, "sbr-site", { hostname: hostnames["sbr-site"] }));
+
+  // A daily London station game. Its boards and players' records are one
+  // SQLite file on the VPS's disk, so it is pinned there and runs one replica.
+  if (hostnames.tubele) {
+    add(
+      createTubele(provider, ns, {
+        hostname: hostnames.tubele,
+        node: CLOUD_NODE,
+        limits: { cpu: CLOUD_CORES, memory: "256Mi" },
+        requests: { cpu: "10m", memory: "32Mi" },
+      }),
+    );
+  }
 
   // The media drive is a btrfs RAID1 pool. Only music is snapshotted: the rest
   // is replaceable, and a snapshot of the download directories would hold on

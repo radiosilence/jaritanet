@@ -92,6 +92,7 @@ export const hostnames: Record<string, string> = {
   "singbox-profiles": "p.radiosilence.dev",
   slsk: "slsk.blit.cc",
   transmet: "transmetropolitan.blit.cc",
+  tubele: "tubele.blit.cc",
 };
 
 export const cloudflare = CloudflareConfSchema.parse({

@@ -90,6 +90,12 @@
   package: "@radiosilence/slsk-mcp-pulumi"
   value: "{version}"
 
+- app: tubele
+  repo: radiosilence/tubele-rs
+  manifest: packages/infra/package.json
+  package: "@radiosilence/tubele-pulumi"
+  value: "{version}"
+
 - app: auth
   repo: radiosilence/jaritanet
   tagPrefix: auth-v
