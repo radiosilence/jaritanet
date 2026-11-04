@@ -225,6 +225,11 @@ write_files:
   - path: /etc/sysctl.d/99-no-mptcp.conf
     content: |
       net.mptcp.enabled = 0
+  # Container processes signalling each other: createAppArmorStackingWorkaround
+  # in packages/hetzner/src/vps.ts explains it, and goes when that does.
+  - path: /etc/sysctl.d/99-apparmor-unconfined.conf
+    content: |
+      kernel.apparmor_restrict_unprivileged_unconfined = 0
 YAML
 
   # A media drive, identified by UUID (or label) rather than device path: USB

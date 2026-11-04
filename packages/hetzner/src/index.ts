@@ -7,6 +7,7 @@ export { createTailnetRule } from "./tailnet-rule.ts";
 export { createTailnetRoutes } from "./tailnet-routes.ts";
 export {
   createAdminSshAccess,
+  createAppArmorStackingWorkaround,
   createAutomaticPatching,
   createNetworkHardening,
   createNetworkTuning,

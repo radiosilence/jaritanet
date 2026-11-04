@@ -1000,6 +1000,14 @@ Live tradeoffs worth knowing, not necessarily bugs:
   the gateway without a network. Anything loaded at boot on these nodes needs
   `DefaultDependencies=no`, as the stock `nftables.service` has.
 
+- **Ubuntu's AppArmor stacking restriction is off on nodes that run
+  containers.** On 26.04's 7.0.0-42 kernel it labels container processes
+  `cri-containerd.apparmor.d//&unconfined`, which containerd's profile does not
+  accept as a signal peer, so containers cannot signal their own processes and
+  postgres never finishes starting. `kernel.apparmor_restrict_unprivileged_unconfined = 0`
+  restores the plain label at the cost of that restriction, until a k3s release
+  carries containerd/containerd#14487.
+
 - **The primary's default SNI is one of our own names, and only one that
   survives category filters.** REALITY has a single `dest` fallback, and every
   non-proxy TCP/443 connection (every real public visitor to the site) is
