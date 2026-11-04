@@ -13,5 +13,5 @@ export const VERSIONS = {
    * Rancher's system-upgrade-controller, which carries `k3s.version` to every
    * node — including ones Pulumi has no SSH to.
    */
-  upgradeController: "v0.20.2",
+  upgradeController: "v0.21.0",
 } as const;
