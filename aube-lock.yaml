@@ -246,6 +246,9 @@ importers:
       '@radiosilence/transmet-pulumi':
         specifier: 0.3.4
         version: 0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
+      '@radiosilence/tubele-pulumi':
+        specifier: 0.1.0
+        version: 0.1.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -926,6 +929,12 @@ packages:
 
   '@radiosilence/transmet-pulumi@0.3.4':
     resolution: {gitHosted: true, integrity: sha512-AidwCkyc1fpjGZ0byb9h1mAb8dRcb7KcQIVsr0rzNVChxpbnroMrOMtZRmzRl2WqTwSu3ihIOKfsTIEOEproqg==, tarball: https://npm.pkg.github.com/download/@radiosilence/transmet-pulumi/0.3.4/46f0ce813b9e8c31af3e5b7a67a546456bb893b2}
+    peerDependencies:
+      '@pulumi/kubernetes': ^4
+      '@pulumi/pulumi': ^3
+
+  '@radiosilence/tubele-pulumi@0.1.0':
+    resolution: {gitHosted: true, integrity: sha512-0RXeafEfw1s3a7I/UN+grS5qY0BPYii9Iq/weq1AsxVgHrEG28qRgRduHqPeliE3gAThIoZ1RIdHI8QzvVSaiQ==, tarball: https://npm.pkg.github.com/download/@radiosilence/tubele-pulumi/0.1.0/8870b690905080ce531935804a09acae028c7b61}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2724,6 +2733,11 @@ snapshots:
       zod: 4.6.7
 
   '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))':
+    dependencies:
+      '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
+      '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
+
+  '@radiosilence/tubele-pulumi@0.1.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
