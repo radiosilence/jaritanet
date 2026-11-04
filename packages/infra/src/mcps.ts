@@ -142,7 +142,7 @@ export const MCPS: z.input<typeof McpSchema>[] = [
   },
   // The English folk archive. The first backend needing no credentials at all:
   // mainlynorfolk.info is a public website, so there is nothing to authenticate
-  // to and nothing to store. `public: true` says so explicitly — an omitted
+  // to and nothing to store. `noAuth: true` says so explicitly — an omitted
   // credential block is a schema error, not a licence to front an MCP
   // unauthenticated.
   {
@@ -153,7 +153,7 @@ export const MCPS: z.input<typeof McpSchema>[] = [
     port: 8080,
     path: "/mcp",
     graphqlPath: "/graphql",
-    public: true,
+    noAuth: true,
   },
   // TfL needs no key at all — anonymous callers get 50 requests/minute, which
   // is the same data, not a degraded tier. A key raises that to 500, so the
@@ -185,7 +185,7 @@ export const MCPS: z.input<typeof McpSchema>[] = [
   // publish a peer port there, none of which a generic backend gets. So it is
   // registered by URL, and its chart's NetworkPolicy admits the gateway.
   //
-  // Public: it logs in with the account in stack secrets, so there is nothing
+  // No auth: it logs in with the account in stack secrets, so there is nothing
   // for a user to enter. `verify` runs without credentials and reports whether
   // that account is signed in.
   {
@@ -194,7 +194,7 @@ export const MCPS: z.input<typeof McpSchema>[] = [
     url: "http://slsk-internal:8081",
     path: "/mcp",
     graphqlPath: "/graphql",
-    public: true,
+    noAuth: true,
     verify: {
       query: "{ status { state } }",
       path: "status.state",
