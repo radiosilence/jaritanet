@@ -302,3 +302,37 @@ test "$(sysctl -n net.mptcp.enabled)" = 0`,
     { dependsOn: [server] },
   );
 }
+
+/**
+ * Lets container processes signal each other under Ubuntu 26.04's AppArmor.
+ *
+ * With `apparmor_restrict_unprivileged_unconfined` on, the 7.0.0-42 kernel
+ * turns runc's switch into containerd's profile into a stack, labelling
+ * container processes `cri-containerd.apparmor.d//&unconfined`. containerd's
+ * profile allows signals and ptrace only from the unstacked label, so a
+ * container cannot signal itself: Go's SIGURG preemption is refused, gosu's
+ * setuid never returns, and postgres cannot wake its own checkpointer.
+ * containerd/containerd#14487 matches the stacked peer; once a k3s release
+ * carries it, this goes. The label is fixed when a process starts, so a
+ * container started before this applied keeps the stack until it restarts.
+ */
+export function createAppArmorStackingWorkaround(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+) {
+  return new command.remote.Command(
+    `${name}-apparmor-stacking`,
+    {
+      connection,
+      create: `set -euo pipefail
+cat > /etc/sysctl.d/99-apparmor-unconfined.conf << 'EOF'
+kernel.apparmor_restrict_unprivileged_unconfined = 0
+EOF
+sysctl --system >/dev/null
+test "$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined)" = 0`,
+      triggers: serverTriggers(server, "apparmor-unconfined-v1"),
+    },
+    { dependsOn: [server] },
+  );
+}
