@@ -40,6 +40,14 @@ description = "Toolchain, dependencies and git hooks, from a fresh clone"
 # `.git/hooks/pre-commit` is what broke the workflows that do commit.
 run = "aube install"
 
+[tasks.css]
+description = "Rebuild apps/auth/assets after changing apps/auth/styles or a template"
+# The output is committed: the binary embeds it, and the image build has no
+# GitHub Packages token to fetch the theme with. The font is copied beside the
+# stylesheet because the theme's @font-face names it by a relative URL.
+dir = "apps/auth"
+run = "node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --minify && cp node_modules/@radiosilence/theme/geist-mono.woff2 assets/"
+
 [tasks.lint]
 description = "Lint with oxlint"
 run = "oxlint"

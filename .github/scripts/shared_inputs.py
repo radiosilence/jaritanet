@@ -2,11 +2,12 @@
 
 `aube-lock.yaml` and `mise.toml` are edited for every part of the repository,
 so a change to one says nothing on its own about the deploy or the Rust apps.
-This prints `ts=`, `deploy=` and `rust=` (each `true` or `false`) for the
-change between two commits:
+This prints `ts=`, `deploy=`, `rust=` and `styles=` (each `true` or `false`)
+for the change between two commits:
 
 - aube-lock.yaml: any change reaches `ts`, whose jobs install and check the
-  whole workspace. It reaches `deploy` when an entry in the runtime dependency
+  whole workspace, and `styles`, whose job installs it to compile auth's
+  stylesheet. It reaches `deploy` when an entry in the runtime dependency
   closure of `packages/infra` (the Pulumi program) was added, removed or
   changed, following workspace members, plus the root's runtime `dependencies`,
   which Node's resolution can reach from any package. A workspace member is
@@ -16,7 +17,7 @@ change between two commits:
   they reach `ts` alone. A change to the lockfile's settings or format reaches
   both.
 - mise.toml: a tool a domain's jobs install (node and aube for `ts`; those and
-  pulumi for `deploy`; rust for `rust`), a task they run or one those tasks
+  pulumi for `deploy`; rust for `rust`; node and aube for `styles`), a task they run or one those tasks
   depend on, or anything outside [tools] and [tasks], such as [env], which
   every job reads.
 
@@ -35,6 +36,7 @@ DEPLOY_TOOLS = {"node", "aube", "pulumi"}
 RUST_TOOLS = {"rust"}
 TS_TASKS = {"auth", "lint", "fmt:check", "typecheck", "test", "check:profiles"}
 DEPLOY_TASKS = {"auth"}
+STYLES_TASKS = {"auth", "css"}
 
 ENTRY_SECTIONS = {"importers", "packages", "snapshots"}
 DEP_SECTIONS = {"dependencies", "optionalDependencies"}
@@ -159,13 +161,13 @@ def lock_reaches_deploy(old, new, members):
 
 
 def mise_reaches(old, new):
-    """(ts, deploy, rust) for a change to mise.toml."""
+    """(ts, deploy, rust, styles) for a change to mise.toml."""
     before = tomllib.loads(old) if old else {}
     after = tomllib.loads(new) if new else {}
     tools_before, tools_after = before.pop("tools", {}), after.pop("tools", {})
     tasks_before, tasks_after = before.pop("tasks", {}), after.pop("tasks", {})
     if before != after:
-        return True, True, True
+        return True, True, True, True
     tools = {t for t in tools_before.keys() | tools_after.keys() if tools_before.get(t) != tools_after.get(t)}
     tasks = {t for t in tasks_before.keys() | tasks_after.keys() if tasks_before.get(t) != tasks_after.get(t)}
 
@@ -188,6 +190,7 @@ def mise_reaches(old, new):
         bool(tools & TS_TOOLS) or reached(TS_TASKS),
         bool(tools & DEPLOY_TOOLS) or reached(DEPLOY_TASKS),
         bool(tools & RUST_TOOLS),
+        bool(tools & TS_TOOLS) or reached(STYLES_TASKS),
     )
 
 
@@ -211,10 +214,11 @@ def main():
     old_lock, new_lock = show(base, "aube-lock.yaml"), show(head, "aube-lock.yaml")
     lock_ts = old_lock != new_lock
     lock_deploy = lock_ts and lock_reaches_deploy(old_lock, new_lock, workspace_members((base, old_lock), (head, new_lock)))
-    mise_ts, mise_deploy, mise_rust = mise_reaches(show(base, "mise.toml"), show(head, "mise.toml"))
+    mise_ts, mise_deploy, mise_rust, mise_styles = mise_reaches(show(base, "mise.toml"), show(head, "mise.toml"))
     print(f"ts={str(lock_ts or mise_ts).lower()}")
     print(f"deploy={str(lock_deploy or mise_deploy).lower()}")
     print(f"rust={str(mise_rust).lower()}")
+    print(f"styles={str(lock_ts or mise_styles).lower()}")
 
 
 main()

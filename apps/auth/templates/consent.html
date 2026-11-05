@@ -12,46 +12,46 @@
     URI the request names, so that host is who receives access. The name is a
     free-text field. -#}
 <section class="card">
-  <h1>Authorise an application</h1>
-  <p class="who">Signed in as <strong>{{ login }}</strong></p>
+  <h1 class="mb-3 text-title-sm font-semibold text-strong wrap-anywhere">Authorise an application</h1>
+  <p class="mb-5">Signed in as <strong>{{ login }}</strong></p>
 
-  <p>Access will be sent to:</p>
-  <ul class="scopes">
+  <p class="muted mb-2">Access will be sent to:</p>
+  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
     {% for host in redirect_hosts %}
-    <li><strong>{{ host }}</strong></li>
+    <li class="wrap-anywhere"><strong>{{ host }}</strong></li>
     {% else %}
-    <li class="muted">no redirect URI</li>
+    <li class="muted list-none -ml-5">no redirect URI</li>
     {% endfor %}
   </ul>
 
-  <p>
+  <p class="muted mb-2">
     It calls itself <strong>{{ client }}</strong>. That name is self-reported:
     this application registered itself, so it is not one of ours. It is asking
     for:
   </p>
 
-  <ul class="scopes">
+  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
     {% for scope in scopes %}
-    <li>{{ scope }}</li>
+    <li class="wrap-anywhere">{{ scope }}</li>
     {% else %}
-    <li class="muted">no scopes</li>
+    <li class="muted list-none -ml-5">no scopes</li>
     {% endfor %}
   </ul>
 
   {% if !audience.is_empty() %}
-  <p>On behalf of:</p>
-  <ul class="scopes">
+  <p class="muted mb-2">On behalf of:</p>
+  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
     {% for aud in audience %}
-    <li>{{ aud }}</li>
+    <li class="wrap-anywhere">{{ aud }}</li>
     {% endfor %}
   </ul>
   {% endif %}
 
   <form method="post" action="/auth/consent">
     <input type="hidden" name="challenge" value="{{ challenge }}" />
-    <div class="actions">
-      <button type="submit" class="deny">Deny</button>
-      <button type="submit" name="approve" value="1" class="allow">Allow</button>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="submit" class="rounded-lg px-4 py-2 text-control text-muted ring-1 ring-rule hover:bg-bg hover:text-ink">Deny</button>
+      <button type="submit" name="approve" value="1" class="rounded-lg bg-brand px-4 py-2 text-control font-semibold text-bg hover:opacity-90">Allow</button>
     </div>
   </form>
 </section>

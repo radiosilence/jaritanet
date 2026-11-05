@@ -1,0 +1,13 @@
+{
+  "name": "@jaritanet/auth-styles",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Builds apps/auth/assets/app.css from styles/ and the templates",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@radiosilence/theme": "0.1.0",
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3"
+  }
+}

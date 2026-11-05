@@ -40,16 +40,20 @@ use crate::hydra::HydraAdmin;
 use crate::state::AppState;
 use crate::store::Store;
 
-/// Baked into the binary rather than served from a volume: this stylesheet is
-/// fetched mid-authentication, so the deployment is one artefact with nothing
-/// else to mount and nothing to go stale against the templates it styles.
+/// Baked into the binary rather than served from a volume: these are fetched
+/// mid-authentication, so the deployment is one artefact with nothing else to
+/// mount and nothing to go stale against the templates they style. The
+/// stylesheet is compiled from `styles/` by `mise run css`; the font comes from
+/// @radiosilence/theme, whose `@font-face` names it relative to the stylesheet.
 const APP_CSS: &str = include_str!("../assets/app.css");
+const GEIST_MONO: &[u8] = include_bytes!("../assets/geist-mono.woff2");
 
 /// No script anywhere. A login provider is the last page that should be
 /// executing anything it did not have to, and the consent screen is a form.
 const CSP: &str = "default-src 'self'; \
      script-src 'none'; \
      style-src 'self'; \
+     font-src 'self'; \
      img-src 'self' data:; \
      connect-src 'self'; \
      form-action 'self'; \
@@ -78,6 +82,10 @@ async fn security_headers(request: axum::extract::Request, next: middleware::Nex
 
 async fn app_css() -> impl IntoResponse {
     ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], APP_CSS)
+}
+
+async fn geist_mono() -> impl IntoResponse {
+    ([(header::CONTENT_TYPE, "font/woff2")], GEIST_MONO)
 }
 
 /// Register every client this deployment owns, so a relying party's
@@ -172,6 +180,7 @@ async fn main() -> Result<()> {
         .route("/", get(routes::index))
         .route("/healthz", get(|| async { "ok" }))
         .route("/assets/app.css", get(app_css))
+        .route("/assets/geist-mono.woff2", get(geist_mono))
         .route("/auth/login", get(routes::login))
         .route("/auth/github/callback", get(routes::github_callback))
         .route(
@@ -222,6 +231,7 @@ mod tests {
         let csp = headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
         assert!(csp.contains("default-src 'self'"));
         assert!(csp.contains("frame-ancestors 'none'"));
+        assert!(csp.contains("font-src 'self'"));
         // A login provider executing script it did not need is the whole class
         // of bug this closes, and no page here wants any.
         assert!(csp.contains("script-src 'none'"));
@@ -232,5 +242,13 @@ mod tests {
         assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
         assert_eq!(headers[header::X_FRAME_OPTIONS], "DENY");
         assert_eq!(headers[header::REFERRER_POLICY], "no-referrer");
+    }
+
+    /// The theme's `@font-face` names the font relative to the stylesheet, so
+    /// the route that serves it has to sit beside `/assets/app.css`.
+    #[test]
+    fn the_stylesheet_names_the_font_it_is_served_beside() {
+        assert!(APP_CSS.contains("url(geist-mono.woff2)"));
+        assert_eq!(&GEIST_MONO[..4], b"wOF2");
     }
 }

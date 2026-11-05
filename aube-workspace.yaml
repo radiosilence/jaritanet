@@ -7,6 +7,14 @@
 # Default is 1440 (1 day).
 minimumReleaseAge: 10080
 
+# Our own packages, published from our own repositories' CI, are exempt: the
+# window exists to let the community catch a hijacked third-party release, and
+# nobody else publishes these. An app release and the pin that deploys it land
+# on the same day, which until now worked only because a non-strict age gate
+# falls back to an exact pin that is too new rather than refusing it.
+minimumReleaseAgeExclude:
+  - "@radiosilence/*"
+
 # Refuse to install a version whose trust evidence is weaker than an earlier
 # release (eg. lost provenance, dropped signature). Mitigates downgrade
 # attacks where an attacker republishes a "patched" version with weaker
@@ -42,3 +50,7 @@ packages:
   # is part of the directory that goes with it, as mcp-gateway's and mariastew's
   # both were.
   - "apps/*/deploy/pulumi"
+  # auth's stylesheet build: Tailwind and the shared theme. Its own member, so
+  # the image's inputs stay inside apps/auth and the chart beside it does not
+  # carry build tooling.
+  - "apps/auth"

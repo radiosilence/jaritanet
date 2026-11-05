@@ -65,6 +65,7 @@ jobs:
       ts: ${{ steps.filter.outputs.ts }}
       deploy: ${{ steps.filter.outputs.deploy }}
       rust: ${{ steps.filter.outputs.rust }}
+      styles: ${{ steps.filter.outputs.styles }}
       binaries: ${{ steps.filter.outputs.binaries }}
       images: ${{ steps.filter.outputs.images }}
       release: ${{ steps.filter.outputs.release }}
@@ -94,7 +95,7 @@ jobs:
         # command rather than an answer, so every question is asked in a
         # condition.
         run: |
-          ts=true deploy=true auth=true serve_from_env=true files=true koan_demo=true
+          ts=true deploy=true styles=true auth=true serve_from_env=true files=true koan_demo=true
 
           base=HEAD^1
           if [ "$EVENT" = "push" ]; then
@@ -176,7 +177,7 @@ jobs:
             printf '%s\n' "$changed" | sed 's/^/  /'
             # The lockfile and mise.toml count for a domain only when the
             # change reaches it. Unanswerable, they count.
-            inputs=$(python3 .github/scripts/shared_inputs.py "$base" HEAD) || inputs=$'ts=true\ndeploy=true\nrust=true'
+            inputs=$(python3 .github/scripts/shared_inputs.py "$base" HEAD) || inputs=$'ts=true\ndeploy=true\nrust=true\nstyles=true'
             eval "$(printf '%s\n' "$inputs" | sed 's/^/inputs_/')"
 
             # What the TypeScript checks read: the workspace, its scripts, the
@@ -190,6 +191,10 @@ jobs:
             # the program through the lockfile, which shared_inputs.py follows.
             touches '^packages/|^apps/[^/]+/deploy/|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' '\.test\.ts$|\.md$' \
               || [ "$inputs_deploy" = true ] || deploy=false
+            # auth's compiled stylesheet: its source, the templates it scans,
+            # the committed output, and the manifest naming the theme.
+            touches '^apps/auth/(styles|templates|assets)/|^apps/auth/package\.json$|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' \
+              || [ "$inputs_styles" = true ] || styles=false
             # A container is its app's directory, less the chart beside it (a
             # pin bump there is a deploy, not a new image) and its README,
             # which no image copies.
@@ -213,6 +218,7 @@ jobs:
           {
             echo "ts=$ts"
             echo "deploy=$deploy"
+            echo "styles=$styles"
             echo "rust=$(jq -c 'map(select(.rust))' <<< "$on")"
             echo "binaries=$(jq -c '[.[] | select(.rust) | {app} + (
               {arch: "amd64", runner: "ubuntu-24.04", target: "x86_64-unknown-linux-musl"},
@@ -282,6 +288,53 @@ jobs:
       - name: Check profiles against the minimum sing-box core
         if: matrix.task == 'test'
         run: mise run check:profiles
+
+  # auth's stylesheet is compiled from apps/auth/styles and the templates, and
+  # the output committed, because the image build has no GitHub Packages token
+  # to fetch the theme with. This rebuilds it and fails when the committed copy
+  # differs, so a template change cannot ship with classes nothing defines.
+  styles:
+    name: Stylesheet (auth)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.styles == 'true'
+    permissions:
+      contents: read
+      # @radiosilence/theme comes from GitHub Packages.
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Environment
+        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        with:
+          install_args: node aube
+
+      - name: Authenticate to GitHub Packages
+        run: mise run auth
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Dependencies
+        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
+        with:
+          version: 2.8.5
+          node-version: auto
+          run-install: true
+          install-args: --frozen-lockfile
+
+      - name: Compile
+        run: mise run css
+
+      - name: Check the committed output is current
+        run: |
+          if [ -n "$(git status --porcelain -- apps/auth/assets)" ]; then
+            git status --short -- apps/auth/assets
+            echo "::error::apps/auth/assets is stale; run \`mise run css\` and commit the result"
+            exit 1
+          fi
 
   # `pulumi preview --refresh` against the live stack, so a resource that
   # *replaces* (the gateway VPS) rather than updates is seen before merge. The
@@ -533,7 +586,7 @@ jobs:
     name: Checks
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [changes, actionlint, ts, preview, rust, binary, image]
+    needs: [changes, actionlint, ts, styles, preview, rust, binary, image]
     if: always()
     permissions: {}
     steps:
