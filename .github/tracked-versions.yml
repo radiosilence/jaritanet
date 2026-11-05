@@ -141,6 +141,12 @@
   key: tfl
   value: "ghcr.io/radiosilence/tfl-mcp:v{version}"
 
+- app: Spoons MCP
+  repo: radiosilence/spoons-mcp
+  file: packages/infra/src/mcps.ts
+  key: spoons
+  value: "ghcr.io/radiosilence/spoons-mcp:v{version}"
+
 # The metrics stack.
 - app: VictoriaMetrics
   repo: VictoriaMetrics/VictoriaMetrics
