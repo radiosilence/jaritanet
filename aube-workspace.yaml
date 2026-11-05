@@ -42,3 +42,7 @@ packages:
   # is part of the directory that goes with it, as mcp-gateway's and mariastew's
   # both were.
   - "apps/*/deploy/pulumi"
+  # auth's stylesheet build: Tailwind and the shared theme. Its own member, so
+  # the image's inputs stay inside apps/auth and the chart beside it does not
+  # carry build tooling.
+  - "apps/auth"

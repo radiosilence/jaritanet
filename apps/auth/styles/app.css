@@ -1,0 +1,42 @@
+/*
+ * Compiled into ../assets/app.css by `mise run css`, and the result committed:
+ * the binary embeds it, and the image build has no registry token to fetch the
+ * theme with. CI fails when the committed file is stale.
+ *
+ * The tokens (palette, type scale, Geist Mono) come from @radiosilence/theme.
+ * Its @font-face names geist-mono.woff2 relative to the compiled stylesheet,
+ * so `mise run css` copies the font into ../assets beside it.
+ */
+@import "tailwindcss" source(none);
+@import "@radiosilence/theme";
+@source "../templates";
+
+@layer base {
+  body {
+    @apply bg-bg text-body text-ink antialiased;
+  }
+
+  a {
+    @apply text-brand underline underline-offset-2 hover:text-strong;
+  }
+
+  strong {
+    @apply font-semibold text-strong;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+}
+
+@utility card {
+  @apply rounded-xl bg-surface p-7 ring-1 ring-rule;
+}
+
+@utility muted {
+  @apply text-muted;
+}

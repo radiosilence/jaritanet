@@ -146,6 +146,22 @@ routing to a terminating pod until the endpoint removal reaches it, and a
 callback or consent decision landing on a closed listener in that window is a
 502 in the middle of a sign-in.
 
+## Styling
+
+The pages use the shared koan theme (`@radiosilence/theme`): its palette, dark
+by default and light when the device asks, its type scale and Geist Mono.
+`styles/app.css` imports Tailwind and the theme, and `mise run css` compiles it
+into `assets/app.css`, scanning `templates/` for the classes they use, and
+copies the theme's `geist-mono.woff2` beside it. Both outputs are committed and
+embedded in the binary: the image build has no GitHub Packages token to fetch
+the theme with, and the pages appear mid-login, where nothing else should have
+to be reachable. CI's `Stylesheet (auth)` job rebuilds them and fails when the
+committed copy differs, so a template edit needs `mise run css` before it is
+pushed.
+
+The font's URL is relative because the theme writes it that way, so the binary
+serves it at `/assets/geist-mono.woff2`, and the CSP names `font-src 'self'`.
+
 ## Configuration
 
 Everything is an environment variable, set by Pulumi (`apps/auth/deploy/pulumi`), parsed
@@ -171,7 +187,7 @@ once at boot.
 | `GET`/`POST /auth/consent` | Hydra's consent challenge, and the decision from the screen. |
 | `POST /register` | Dynamic client registration (RFC 7591), proxied to Hydra. Public by design. |
 | `GET /healthz` | |
-| `GET /`, `GET /assets/app.css` | |
+| `GET /`, `GET /assets/app.css`, `GET /assets/geist-mono.woff2` | |
 
 `auth.<domain>` is shared with Hydra and split by path: Hydra keeps `/oauth2/*`,
 `/.well-known/*` and `/userinfo`, so the issuer relying parties discover does not

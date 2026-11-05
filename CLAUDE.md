@@ -31,6 +31,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run lint:fix` - Lint and auto-fix with oxlint
 - `mise run lint:workflows` - Lint `.github/workflows` with actionlint, which runs shellcheck over the `run` scripts
 - `mise run fmt` - Format code with oxfmt
+- `mise run css` - Rebuild auth's committed stylesheet and font after changing `apps/auth/styles` or a template
 - `mise run fmt:check` - Check formatting with oxfmt
 - `mise run preview` / `mise run deploy` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, actionlint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
@@ -255,8 +256,10 @@ so CD ships what CI built in the same run.
 
 **CI runs per domain.** `changes` works out from the diff which domains a change
 touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
-`deploy` (the Pulumi program and everything it imports), and one per container
-(`auth`, `serve_from_env`, `files`, `koan_demo`). `deploy` and `ts` are outputs
+`deploy` (the Pulumi program and everything it imports), `styles` (auth's
+compiled stylesheet: `mise run css` rebuilt and compared with the committed
+`apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
+`koan_demo`). `deploy`, `ts` and `styles` are outputs
 of `changes`, and each job they gate runs under an `if:` on its output. The
 container domains are not outputs: they select which apps enter the `rust`,
 `binaries` and `images` matrices, and those jobs run when their matrix is not
@@ -373,7 +376,10 @@ Rewrites replace one quoted literal, the pin in a `versions.ts` or the dependenc
   profiles, whose paths are secret and whose bodies Pulumi already holds as
   strings — so there is no volume to mount and no file to go stale.
 - `apps/koan-demo/` - The music image koan's public demo mounts; built by `build.py` from `library.json`
-- `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`
+- `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`.
+  Its stylesheet is Tailwind over `@radiosilence/theme`, compiled by
+  `mise run css` into the committed `assets/` because the image build has no
+  registry token; `apps/auth` is a workspace member for that build alone
 
 ## Utility Scripts
 
