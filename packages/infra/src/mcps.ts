@@ -27,7 +27,7 @@ export const VERSIONS = {
   fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.9.0",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.5",
   tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.8",
-  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.3.2",
+  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.3.3",
 } as const;
 
 export const MCPS: z.input<typeof McpSchema>[] = [
