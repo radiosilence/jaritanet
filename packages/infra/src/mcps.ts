@@ -27,7 +27,7 @@ export const VERSIONS = {
   fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.9.0",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.5",
   tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.8",
-  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.2.0",
+  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.3.0",
 } as const;
 
 export const MCPS: z.input<typeof McpSchema>[] = [
@@ -201,6 +201,38 @@ export const MCPS: z.input<typeof McpSchema>[] = [
         header: "X-Spoons-Email",
         secret: false,
         hint: "you@example.com",
+      },
+      // Optional: with all four, pay enters the card on the payment page
+      // itself; without them it hands out the page. Wetherspoon's stores no
+      // cards, so this is the only way to order without typing one.
+      {
+        id: "card-number",
+        label: "Card number",
+        header: "X-Spoons-Card-Number",
+        secret: true,
+        required: false,
+      },
+      {
+        id: "card-expiry",
+        label: "Card expiry",
+        header: "X-Spoons-Card-Expiry",
+        secret: true,
+        required: false,
+        hint: "MM/YY",
+      },
+      {
+        id: "card-cvc",
+        label: "Card CVC",
+        header: "X-Spoons-Card-CVC",
+        secret: true,
+        required: false,
+      },
+      {
+        id: "card-name",
+        label: "Name on card",
+        header: "X-Spoons-Card-Name",
+        secret: true,
+        required: false,
       },
     ],
   },
