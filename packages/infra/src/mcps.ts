@@ -27,7 +27,7 @@ export const VERSIONS = {
   fastmail: "ghcr.io/radiosilence/fastmail-cli:v3.9.0",
   folk: "ghcr.io/radiosilence/mainlynorfolk-mcp:v1.1.5",
   tfl: "ghcr.io/radiosilence/tfl-mcp:v1.3.8",
-  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.3.1",
+  spoons: "ghcr.io/radiosilence/spoons-mcp:v0.3.2",
 } as const;
 
 export const MCPS: z.input<typeof McpSchema>[] = [
@@ -200,6 +200,7 @@ export const MCPS: z.input<typeof McpSchema>[] = [
         label: "Email for receipts",
         header: "X-Spoons-Email",
         secret: false,
+        autocomplete: "email",
         hint: "you@example.com",
       },
       // Optional: with all four, pay enters the card on the payment page
@@ -210,13 +211,15 @@ export const MCPS: z.input<typeof McpSchema>[] = [
         label: "Card number",
         header: "X-Spoons-Card-Number",
         secret: true,
+        autocomplete: "cc-number",
         required: false,
       },
       {
         id: "card-expiry",
         label: "Card expiry",
         header: "X-Spoons-Card-Expiry",
-        secret: true,
+        secret: false,
+        autocomplete: "cc-exp",
         required: false,
         hint: "MM/YY",
       },
@@ -225,13 +228,15 @@ export const MCPS: z.input<typeof McpSchema>[] = [
         label: "Card CVC",
         header: "X-Spoons-Card-CVC",
         secret: true,
+        autocomplete: "cc-csc",
         required: false,
       },
       {
         id: "card-name",
         label: "Name on card",
         header: "X-Spoons-Card-Name",
-        secret: true,
+        secret: false,
+        autocomplete: "cc-name",
         required: false,
       },
     ],
