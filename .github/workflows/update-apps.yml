@@ -47,6 +47,13 @@ jobs:
           # either the app's client ID or its numeric app ID.
           client-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # The token covers only this repository unless others are named, and
+          # a private tracked repository's releases are then a 404. Each one
+          # listed here also needs the app installed on it.
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            jaritanet
+            spoons-mcp
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
