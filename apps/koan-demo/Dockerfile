@@ -3,7 +3,9 @@
 # playlists and CREDITS.md. The demo mounts it as an image volume.
 #
 # The music is the same for every architecture, so it is made once, natively
-# on the builder, rather than once per platform under emulation.
+# on the builder, rather than once per platform under emulation. The image is
+# only ever mounted as a volume, never run, so it holds the files and nothing
+# else.
 FROM --platform=$BUILDPLATFORM alpine:3.24 AS build
 RUN apk add --no-cache ca-certificates ffmpeg python3 py3-mutagen
 WORKDIR /src
@@ -14,5 +16,5 @@ COPY playlists/ /music/Playlists/
 COPY CREDITS.md /music/
 RUN chmod -R a+rX /music
 
-FROM busybox:1.38
+FROM scratch
 COPY --from=build /music /music
