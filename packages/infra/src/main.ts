@@ -115,7 +115,6 @@ export default async function () {
     adminSshKey: ADMIN_SSH_KEY,
     clusterName: NAMESPACE,
     proToken: secrets.ubuntuProToken,
-    entryLabel: VPN_ENTRY_LABEL,
     magicdnsSuffix: tailnet.magicdnsSuffix,
     tailnetAuthKey: tailnet.authKey,
     tailnetApi: tailnet.oauth && {
@@ -123,10 +122,6 @@ export default async function () {
       clientSecret: pulumi.secret(tailnet.oauth.clientSecret),
     },
   });
-  // Ordering for the transport DaemonSets: the node must carry the entry label
-  // before a DaemonSet has anywhere to schedule.
-  const transportDeps = [gw.vpnEntryLabel];
-
   // Edge boxes — pure VPN nodes. Each gets a <name>.<zone> A record and a
   // picker entry. Tailnet relay only when `tailnet.authKey` is present.
   const edgeAuthKey = tailnet.authKey
@@ -257,6 +252,29 @@ export default async function () {
   // The pod network rides the tailnet between nodes, and Cilium's packet
   // marks collide with tailscaled's routing rules — see createTailnetRule.
   createTailnetRule(provider, [cilium]);
+
+  // Marks the gateway as a node that serves VPN entries; the transport
+  // DaemonSets select on it, and must come after it or have nowhere to
+  // schedule. A patch rather than a Node: k3s owns the object, and this owns
+  // one label on it. It fails rather than creating anything when the node is
+  // absent, so a node registered under another name is a red deploy instead of
+  // transports silently scheduled nowhere. The node name is the server's name,
+  // because Hetzner's cloud-init sets the hostname from it and k3s registers
+  // under the hostname. patchForce for the reason createExit gives: it puts
+  // back a label changed by hand rather than failing on the conflict.
+  const transportDeps = [
+    new k8s.core.v1.NodePatch(
+      "gateway-vpn-entry-label",
+      {
+        metadata: {
+          annotations: { "pulumi.com/patchForce": "true" },
+          labels: { [VPN_ENTRY_LABEL]: "true" },
+          name: gw.server.name,
+        },
+      },
+      { provider, dependsOn: [gw.k3s.install] },
+    ),
+  ];
 
   // Every resource below takes its namespace from this output rather than the
   // bare string, so Pulumi orders them after it. With a literal there is no

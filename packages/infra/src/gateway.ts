@@ -8,7 +8,6 @@ import {
   inboundRule,
 } from "@jaritanet/hetzner";
 import { createTailscaleSystemd } from "@jaritanet/vpn";
-import * as command from "@pulumi/command";
 import * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
 import * as tls from "@pulumi/tls";
@@ -19,15 +18,13 @@ import type { GatewayConfSchema } from "./schemas.ts";
  * Provisions the Hetzner VPS the cluster and the transports run on.
  *
  * Over SSH this sets up the host: tuning, patching, admin SSH access, tailscaled
- * and k3s, and labels the node as a VPN entry, which is what the transport
- * DaemonSets select on. The transports and the DNS cache are pods in that
- * cluster, deployed from main.ts.
+ * and k3s. The transports and the DNS cache are pods in that cluster, deployed
+ * from main.ts, which also labels the node as a VPN entry through the cluster's
+ * own API.
  *
  * Everything in `opts` is passed in rather than read from the environment here:
  * the modules this composes take their inputs as arguments, and a function that
  * reaches for `process.env` halfway down cannot be tested or reused.
- * `entryLabel` in particular is the same value the transport DaemonSets select
- * on, so it arrives from one place instead of being spelled twice.
  */
 export function createGateway(
   gateway: z.infer<typeof GatewayConfSchema>,
@@ -35,7 +32,6 @@ export function createGateway(
     adminSshKey,
     clusterName,
     proToken,
-    entryLabel,
     magicdnsSuffix = "",
     tailnetAuthKey,
     tailnetApi,
@@ -43,7 +39,6 @@ export function createGateway(
     adminSshKey?: string;
     clusterName: string;
     proToken?: string;
-    entryLabel: string;
     magicdnsSuffix?: string;
     tailnetAuthKey?: string;
     // Lets a rebuilt box take back its tailnet name; see
@@ -173,30 +168,9 @@ export function createGateway(
     tailscale ? [tailscale] : [],
   );
 
-  // Marks this node as one that serves VPN entries; the transport DaemonSets
-  // select on it. A missing label is worth failing on: the DaemonSets would
-  // simply schedule nothing, and every transport would be silently absent.
-  //
-  // A rebuilt box is a new cluster with an unlabelled node, so the command is
-  // replaced with the server. It has no `delete`: on a replacement the old
-  // command's delete runs after the new one has labelled the node, and would
-  // strip the label it had just applied. A key that is renamed is left behind
-  // on the node, where nothing selects on it.
-  const vpnEntryLabel = new command.remote.Command(
-    "gateway-vpn-entry-label",
-    {
-      connection,
-      create: `set -euo pipefail
-k3s kubectl label node "$(hostname)" ${entryLabel}=true --overwrite`,
-      triggers: [entryLabel],
-    },
-    { dependsOn: [k3s.install], replaceWith: [server] },
-  );
-
   return {
     apiHost,
     k3s,
-    vpnEntryLabel,
     server,
     sshKey,
     tailscale,

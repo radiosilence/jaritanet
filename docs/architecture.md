@@ -147,10 +147,12 @@ exclusive port. Traefik sat 20 days on a stale pod for getting this wrong.
 They select on the `jaritanet.radiosilence.dev/vpn-entry` node label rather than a
 hostname, so serving an entry is a property of a node. `lady` joining the
 cluster does not make it a VPN entry, and making an edge one later is a label
-rather than another module. The gateway labels itself after k3s comes up.
+rather than another module. The gateway is labelled after k3s comes up, by a
+`NodePatch` over the cluster's API, forced for the same reason as an exit's
+(see below).
 
-The key comes from `vpnEntryLabel` and is read once, then passed to both the
-labelling command and every DaemonSet's `nodeSelector` — as a required argument,
+The key is `VPN_ENTRY_LABEL`, read once, then passed to both that patch and
+every DaemonSet's `nodeSelector` — as a required argument,
 so the compiler rejects a call site that omits it. That is deliberate: the two
 must agree exactly, and a selector matching no node schedules nothing while the
 cluster reports perfectly healthy. The prefix is a subdomain we actually own;
@@ -267,7 +269,7 @@ disagree — the failure being a cluster that comes up looking healthy and moves
 no packets. So `CILIUM_K8S_SUPPORT` encodes Cilium's e2e-tested Kubernetes range
 per minor and `K3sConfSchema` asserts it while parsing, which makes a half-bump
 a red preview before a single resource is touched. Same reasoning as
-`vpnEntryLabel` being required rather than defaulted: when the healthy-looking
+`VPN_ENTRY_LABEL` being required rather than defaulted: when the healthy-looking
 failure is the expensive one, the config surface is where to catch it.
 
 An unknown Cilium minor fails rather than passes. A table that silently accepts
