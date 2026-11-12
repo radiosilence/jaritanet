@@ -4,5 +4,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  traefikChart: "42.3.1",
+  traefikChart: "42.4.0",
 } as const;
