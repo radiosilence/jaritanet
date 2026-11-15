@@ -16,7 +16,7 @@ export const VERSIONS = {
    * hysteria's install docs point at, on a maintainer's Docker Hub account. A
    * weaker supply-chain position, accepted knowingly.
    */
-  hysteria: "docker.io/tobyxdd/hysteria:v2.13.0",
+  hysteria: "docker.io/tobyxdd/hysteria:v2.14.0",
   ssRust: "ghcr.io/shadowsocks/ssserver-rust:v1.25.0",
   tailscale: "ghcr.io/tailscale/tailscale:v1.104.7",
   unbound: "docker.io/klutchell/unbound:v1.26.2",
