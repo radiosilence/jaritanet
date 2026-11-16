@@ -6,5 +6,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  sbrSite: "sha-b4b7fd2",
+  sbrSite: "sha-7bc18c6",
 } as const;
