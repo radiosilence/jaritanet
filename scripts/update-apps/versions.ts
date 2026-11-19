@@ -9,11 +9,13 @@ import * as z from "zod";
 /**
  * Where a tracked component's version is written down.
  *
- * Two kinds, because there are two kinds of thing to follow. An image this
+ * Three kinds, because there are three kinds of thing to follow. An image this
  * deployment pulls is a pin in the package that deploys it. A component that
  * publishes its own deploy code is an ordinary dependency, and what moves is
  * the range in a `package.json` — the image it runs is then the published
- * package's business, not ours.
+ * package's business, not ours. A base image one of our own containers builds
+ * on is its Dockerfile's `FROM`, and moving it is also a release of that
+ * container.
  */
 const TargetSchema = z.union([
   z.object({
@@ -301,18 +303,28 @@ export function writeDependency(manifest: string, pkg: string, value: string) {
  * the same image named twice is a miss rather than a guess.
  */
 export function readBase(dockerfile: string, name: string) {
-  const refs = dockerfile
-    .split("\n")
-    .filter((line) => line.startsWith(`FROM ${name}:`))
-    .map((line) => line.split(/\s+/)[1]);
-  return refs.length === 1 ? refs[0] : undefined;
+  const lines = baseLines(dockerfile, name);
+  return lines.length === 1 ? lines[0]!.ref : undefined;
 }
 
+/** Rewrites the reference on the line `readBase` found, and nothing else. */
 export function writeBase(dockerfile: string, name: string, ref: string) {
-  const current = readBase(dockerfile, name);
-  if (current === undefined) return undefined;
-  return dockerfile.replace(`FROM ${current}`, () => `FROM ${ref}`);
+  const found = baseLines(dockerfile, name);
+  if (found.length !== 1) return undefined;
+  const { index, line, ref: current } = found[0]!;
+  const lines = dockerfile.split("\n");
+  lines[index] = line.replace(current, () => ref);
+  return lines.join("\n");
 }
+
+const baseLines = (dockerfile: string, name: string) =>
+  dockerfile
+    .split("\n")
+    .flatMap((line, index) =>
+      line.startsWith(`FROM ${name}:`)
+        ? [{ index, line, ref: line.split(/\s+/)[1]! }]
+        : [],
+    );
 
 /** `1.0.2` to `1.0.3`, or undefined for anything that is not plain semver. */
 export function bumpPatch(version: string) {

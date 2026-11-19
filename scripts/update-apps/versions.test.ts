@@ -325,6 +325,13 @@ describe("rewriting a base image", () => {
     expect(changed).toEqual(["FROM nginx:1.31.9-alpine"]);
   });
 
+  it("leaves a comment quoting the same reference alone", () => {
+    const quoted = `# was FROM nginx:1.31.7-alpine\n${dockerfile}`;
+    const next = writeBase(quoted, "nginx", "nginx:1.31.9-alpine")!;
+    expect(next.split("\n")[0]).toBe("# was FROM nginx:1.31.7-alpine");
+    expect(readBase(next, "nginx")).toBe("nginx:1.31.9-alpine");
+  });
+
   it("refuses an image it cannot find, or finds twice", () => {
     expect(writeBase(dockerfile, "redis", "redis:8")).toBeUndefined();
     const twice = `${dockerfile}\nFROM nginx:1.30.0-alpine`;
