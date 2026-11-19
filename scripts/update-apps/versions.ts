@@ -32,6 +32,20 @@ const TargetSchema = z.union([
     /** The dependency in it whose version to rewrite. */
     package: z.string().min(1),
   }),
+  z.object({
+    /**
+     * A Dockerfile, relative to the repository root, whose `FROM` of the image
+     * named in `value` to rewrite. For a base image this repository builds on,
+     * which no `versions.ts` can hold because the build never reads one.
+     */
+    dockerfile: z.string().min(1),
+    /**
+     * The container's `VERSION` file, whose patch is bumped in the same commit.
+     * An image releases only when its version changes, so a new base with no
+     * bump would rebuild under a tag that already exists and never ship.
+     */
+    release: z.string().min(1),
+  }),
 ]);
 
 export const TrackedSchema = z.intersection(
@@ -279,4 +293,53 @@ export function writeDependency(manifest: string, pkg: string, value: string) {
     (_, before: string, __: string, after: string) =>
       `${before}${value}${after}`,
   );
+}
+
+/**
+ * The one `FROM` of an image in a Dockerfile, as the full reference. Matched by
+ * the image's name, so a stage built from another image is not a candidate, and
+ * the same image named twice is a miss rather than a guess.
+ */
+export function readBase(dockerfile: string, name: string) {
+  const refs = dockerfile
+    .split("\n")
+    .filter((line) => line.startsWith(`FROM ${name}:`))
+    .map((line) => line.split(/\s+/)[1]);
+  return refs.length === 1 ? refs[0] : undefined;
+}
+
+export function writeBase(dockerfile: string, name: string, ref: string) {
+  const current = readBase(dockerfile, name);
+  if (current === undefined) return undefined;
+  return dockerfile.replace(`FROM ${current}`, () => `FROM ${ref}`);
+}
+
+/** `1.0.2` to `1.0.3`, or undefined for anything that is not plain semver. */
+export function bumpPatch(version: string) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.trim());
+  return match ? `${match[1]}.${match[2]}.${Number(match[3]) + 1}` : undefined;
+}
+
+/** The image name in a template such as `nginx:{version}-alpine`. */
+const imageName = (template: string) =>
+  template.slice(0, template.lastIndexOf(":"));
+
+/** Which file an entry rewrites, whichever kind of target it is. */
+export const targetFile = (entry: Tracked) =>
+  "file" in entry
+    ? entry.file
+    : "manifest" in entry
+      ? entry.manifest
+      : entry.dockerfile;
+
+export function readTarget(entry: Tracked, source: string) {
+  if ("file" in entry) return readConst(source, entry.key);
+  if ("manifest" in entry) return readDependency(source, entry.package);
+  return readBase(source, imageName(entry.value));
+}
+
+export function writeTarget(entry: Tracked, source: string, value: string) {
+  if ("file" in entry) return writeConst(source, entry.key, value);
+  if ("manifest" in entry) return writeDependency(source, entry.package, value);
+  return writeBase(source, imageName(entry.value), value);
 }

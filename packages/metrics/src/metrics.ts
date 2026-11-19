@@ -106,6 +106,25 @@ export function createMetrics(
             // machine. Anywhere else it would come up with an empty store and
             // report itself healthy.
             nodeSelector: { "kubernetes.io/hostname": conf.storageNode },
+            // The store runs as nobody, against a directory root created and
+            // wrote to before it did. kubelet does not apply fsGroup to a
+            // hostPath volume, so the handover is a chown.
+            initContainers: [
+              {
+                name: "fix-ownership",
+                image: "busybox:1.37",
+                command: [
+                  "sh",
+                  "-c",
+                  "find /storage ! -user 65534 -exec chown 65534:65534 {} +",
+                ],
+                securityContext: {
+                  runAsUser: 0,
+                  allowPrivilegeEscalation: false,
+                },
+                volumeMounts: [{ name: "storage", mountPath: "/storage" }],
+              },
+            ],
             containers: [
               {
                 name: "vmsingle",
@@ -123,7 +142,13 @@ export function createMetrics(
                   periodSeconds: 10,
                 },
                 resources: conf.vmsingle.resources,
-                securityContext: { allowPrivilegeEscalation: false },
+                securityContext: {
+                  runAsNonRoot: true,
+                  runAsUser: 65534,
+                  runAsGroup: 65534,
+                  allowPrivilegeEscalation: false,
+                  capabilities: { drop: ["ALL"] },
+                },
               },
             ],
             volumes: [
@@ -230,6 +255,9 @@ export function createMetrics(
                 ],
                 resources: conf.nodeExporter.resources,
                 securityContext: {
+                  runAsNonRoot: true,
+                  runAsUser: 65534,
+                  runAsGroup: 65534,
                   allowPrivilegeEscalation: false,
                   readOnlyRootFilesystem: true,
                   seccompProfile: { type: "RuntimeDefault" },
@@ -383,7 +411,13 @@ export function createMetrics(
                   periodSeconds: 10,
                 },
                 resources: conf.vmagent.resources,
-                securityContext: { allowPrivilegeEscalation: false },
+                securityContext: {
+                  runAsNonRoot: true,
+                  runAsUser: 65534,
+                  runAsGroup: 65534,
+                  allowPrivilegeEscalation: false,
+                  capabilities: { drop: ["ALL"] },
+                },
               },
             ],
             volumes: [
@@ -630,7 +664,12 @@ export function createMetrics(
                   periodSeconds: 10,
                 },
                 resources: conf.grafana.resources,
-                securityContext: { allowPrivilegeEscalation: false },
+                securityContext: {
+                  runAsNonRoot: true,
+                  runAsUser: 472,
+                  allowPrivilegeEscalation: false,
+                  capabilities: { drop: ["ALL"] },
+                },
               },
             ],
             volumes: [

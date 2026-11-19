@@ -10,6 +10,11 @@
 #          instead of file and key: a `package.json` and the dependency in it to
 #          rewrite, for a component whose repository publishes its own Pulumi
 #          package. The image it runs is then that package's business.
+#   dockerfile, release
+#          instead of file and key: a Dockerfile whose `FROM` of the image in
+#          `value` to rewrite, and the container's `VERSION` file, whose patch
+#          is bumped in the same commit so the rebuilt image releases. The
+#          container's own entry then moves its pin once that image exists.
 #   value  what to write, with {version} substituted
 #   image  an image reference to confirm exists before committing the bump.
 #          Defaults to `value` when that is already a full reference, so only
@@ -64,6 +69,17 @@
   key: files
   value: "{version}"
   image: "ghcr.io/radiosilence/jaritanet-files:{version}"
+
+# Mainline, which takes security fixes on the same day as stable. Every
+# release is tagged `release-<version>`; the prefix sorts them by version,
+# because the stable line's release can be the newer one by date.
+- app: nginx (files base)
+  repo: nginx/nginx
+  tagPrefix: release-
+  dockerfile: apps/files/Dockerfile
+  release: apps/files/VERSION
+  value: "nginx:{version}-alpine"
+  image: "nginx:{version}-alpine"
 
 - app: koan demo
   repo: radiosilence/jaritanet

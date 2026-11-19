@@ -17,9 +17,11 @@ export const ServiceArgsSchema = z.strictObject({
   healthCheck: HealthCheckConfigSchema.optional(),
   httpPort: z.uint32().default(80),
   /**
-   * Confine the pod's egress to DNS and the public internet — no private
-   * space, so it cannot reach the node, the LAN, the tailnet, other pods or
-   * the API server.
+   * Deny the pod all egress, DNS included. Everything built here serves
+   * requests and starts none, so there is nothing to allow: a compromised pod
+   * can reach no other pod, the node, the LAN, the tailnet or the API server,
+   * and cannot fetch tools or carry data out over the internet or through the
+   * resolver either.
    *
    * This is the control that decides what an RCE in a public-facing service
    * is worth. A read-only volumeMount protects the path it covers and nothing
