@@ -13,8 +13,8 @@ export function createGroglog(
   opts: { hostname?: string },
 ): Deployed {
   createService(provider, name, {
-    // Public-facing, so egress is confined to DNS and the internet. No
-    // capability dropping, for the same distroless reason as blit.
+    // Public-facing, so no egress at all; non-root and capability-free as
+    // blit is, for the same reasons.
     networkPolicy: true,
     replicas: 1,
     healthCheck: {},

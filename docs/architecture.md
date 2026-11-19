@@ -147,10 +147,12 @@ exclusive port. Traefik sat 20 days on a stale pod for getting this wrong.
 They select on the `jaritanet.radiosilence.dev/vpn-entry` node label rather than a
 hostname, so serving an entry is a property of a node. `lady` joining the
 cluster does not make it a VPN entry, and making an edge one later is a label
-rather than another module. The gateway labels itself after k3s comes up.
+rather than another module. The gateway is labelled after k3s comes up, by a
+`NodePatch` over the cluster's API, forced for the same reason as an exit's
+(see below).
 
-The key comes from `vpnEntryLabel` and is read once, then passed to both the
-labelling command and every DaemonSet's `nodeSelector` — as a required argument,
+The key is `VPN_ENTRY_LABEL`, read once, then passed to both that patch and
+every DaemonSet's `nodeSelector` — as a required argument,
 so the compiler rejects a call site that omits it. That is deliberate: the two
 must agree exactly, and a selector matching no node schedules nothing while the
 cluster reports perfectly healthy. The prefix is a subdomain we actually own;
@@ -267,7 +269,7 @@ disagree — the failure being a cluster that comes up looking healthy and moves
 no packets. So `CILIUM_K8S_SUPPORT` encodes Cilium's e2e-tested Kubernetes range
 per minor and `K3sConfSchema` asserts it while parsing, which makes a half-bump
 a red preview before a single resource is touched. Same reasoning as
-`vpnEntryLabel` being required rather than defaulted: when the healthy-looking
+`VPN_ENTRY_LABEL` being required rather than defaulted: when the healthy-looking
 failure is the expensive one, the config surface is where to catch it.
 
 An unknown Cilium minor fails rather than passes. A table that silently accepts
@@ -1113,6 +1115,21 @@ Live tradeoffs worth knowing, not necessarily bugs:
   been tested, so switching CNI is not a hardening step but a behavioural
   change. Anything that talks to anything should be assumed broken until shown
   otherwise.
+
+- **What runs as root is what cannot avoid it.** A container that binds a
+  privileged port on the host network (xray and hysteria on :443, unbound on
+  :53, samba on :445) has to be uid 0: Kubernetes puts an added capability in
+  the effective set only for root, and a `hostNetwork` pod cannot lower
+  `net.ipv4.ip_unprivileged_port_start` because that is the host's own
+  namespace. The same goes for what manages the host itself (the btrfs
+  maintenance, the tailnet-rule and tailnet-routes DaemonSets, the two chown
+  init containers). Everything else runs as a fixed non-root uid with
+  `runAsNonRoot`, so an image that switched back to root fails to start instead
+  of running as root. A workload that owns data on a host directory gets a uid
+  of its own (Grafana 472, VictoriaMetrics 8428) rather than `nobody`, which
+  the public web servers share, so an escape from one of those does not land
+  as the owner of the data. The static servers built by `createService` also
+  have no egress at all, DNS included: they answer requests and start none.
 
 - **Cilium's packet marks collide with tailscaled's routing rules, and the
   collision selects victims by identity arithmetic.** Cilium stamps the

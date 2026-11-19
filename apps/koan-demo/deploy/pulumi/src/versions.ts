@@ -9,5 +9,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  koanDemo: "1.1.2",
+  koanDemo: "1.1.3",
 } as const;

@@ -23,18 +23,18 @@ import { promisify } from "node:util";
 import { parse } from "yaml";
 import {
   applyTemplate,
+  bumpPatch,
   chartServes,
   decide,
   normaliseVersion,
   parseImageRef,
   pickLatestTag,
-  readConst,
-  readDependency,
+  readTarget,
+  targetFile,
   type Tracked,
   TrackedListSchema,
   verifyRef,
-  writeConst,
-  writeDependency,
+  writeTarget,
 } from "./versions.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
@@ -64,6 +64,14 @@ const REGISTRIES: Record<
       `https://auth.docker.io/token?service=registry.docker.io&scope=repository:${repo}:pull`,
     manifest: (repo, tag) =>
       `https://registry-1.docker.io/v2/${repo}/manifests/${tag}`,
+  },
+  // Prometheus publishes here, and its images can trail the GitHub release by a
+  // day. A registry with no entry is not checked at all, so that lag would be
+  // pinned as though the image existed.
+  "quay.io": {
+    token: (repo) =>
+      `https://quay.io/v2/auth?service=quay.io&scope=repository:${repo}:pull`,
+    manifest: (repo, tag) => `https://quay.io/v2/${repo}/manifests/${tag}`,
   },
 };
 
@@ -221,10 +229,6 @@ async function record(titles: string[], details: string[]) {
 const dryRun = process.argv.includes("--dry-run");
 
 const entries = TrackedListSchema.parse(parse(await readFile(TRACKED, "utf8")));
-/** Which file an entry rewrites, whichever kind of target it is. */
-const targetFile = (entry: Tracked) =>
-  "file" in entry ? entry.file : entry.manifest;
-
 /**
  * The files entries rewrite, read once and kept in memory.
  *
@@ -235,9 +239,7 @@ const targetFile = (entry: Tracked) =>
 const sources = new Map<string, string>();
 const current = async (entry: Tracked) => {
   const { text } = await source(targetFile(entry));
-  return "file" in entry
-    ? readConst(text, entry.key)
-    : readDependency(text, entry.package);
+  return readTarget(entry, text);
 };
 
 const source = async (file: string) => {
@@ -304,10 +306,7 @@ for (const entry of entries) {
   log(`${entry.app} — ${decision.from} -> ${decision.to}`);
   if (!dryRun) {
     const { abs, text } = await source(targetFile(entry));
-    const rewritten =
-      "file" in entry
-        ? writeConst(text, entry.key, decision.to)
-        : writeDependency(text, entry.package, decision.to);
+    const rewritten = writeTarget(entry, text, decision.to);
     // `decide` already read the same key through the same matcher, so this
     // cannot miss — but it returns a value rather than throwing, and a silent
     // skip here would report a bump that was never written.
@@ -315,6 +314,18 @@ for (const entry of entries) {
       warn(`${entry.app} — could not write into ${targetFile(entry)}`);
       failed.push(entry.app);
       continue;
+    }
+    if ("release" in entry) {
+      const release = await source(entry.release);
+      const bumped = bumpPatch(release.text);
+      if (bumped === undefined) {
+        warn(`${entry.app} — ${entry.release} is not a plain version`);
+        failed.push(entry.app);
+        continue;
+      }
+      sources.set(release.abs, `${bumped}\n`);
+      await writeFile(release.abs, `${bumped}\n`);
+      await git("add", release.abs);
     }
     sources.set(abs, rewritten);
     await writeFile(abs, rewritten);
@@ -325,7 +336,7 @@ for (const entry of entries) {
     // with — so a commit carrying only package.json is a red deploy rather than
     // a version that quietly did not take. Same commit, because the updater
     // commits per entry and each one has to stand on its own.
-    if (!("file" in entry)) {
+    if ("manifest" in entry) {
       await run("aube", ["install", "--fix-lockfile"], { cwd: ROOT });
       await git("add", join(ROOT, "aube-lock.yaml"));
     }

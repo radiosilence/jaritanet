@@ -163,6 +163,16 @@ export function createExit(
                   requests: { cpu: "10m", memory: "32Mi" },
                   limits: { memory: "1Gi" },
                 },
+                // Its port is above 1024, so on the host network it needs
+                // neither root nor a capability.
+                securityContext: {
+                  runAsNonRoot: true,
+                  runAsUser: 65534,
+                  runAsGroup: 65534,
+                  allowPrivilegeEscalation: false,
+                  seccompProfile: { type: "RuntimeDefault" },
+                  capabilities: { drop: ["ALL"] },
+                },
               },
             ],
             volumes: [{ name: "config", secret: { secretName: name } }],

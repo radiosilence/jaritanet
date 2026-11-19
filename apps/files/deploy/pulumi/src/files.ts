@@ -17,9 +17,7 @@ export function createFiles(
 ): Deployed {
   createService(provider, name, {
     // Serves a read-only mount to the internet and nothing else — it has no
-    // business reaching the node, the LAN or another pod. No capability
-    // dropping: nginx binds :80 inside the container, which needs
-    // NET_BIND_SERVICE even as root once ALL is dropped.
+    // business reaching the node, the LAN or another pod.
     networkPolicy: true,
     restrictIngress: true,
     strategy: { type: "Recreate" },

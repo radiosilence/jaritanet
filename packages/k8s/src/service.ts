@@ -175,6 +175,20 @@ export function createService(
             // None of these talk to the API server, so the token is a free
             // foothold for anything that lands in the container.
             automountServiceAccountToken: false,
+            // Never root: these are public web servers, and root in the
+            // container is the first step of a kernel escape onto the node.
+            securityContext: {
+              runAsNonRoot: true,
+              runAsUser: 65534,
+              runAsGroup: 65534,
+              // Lets a non-root process bind a port below 1024 in the pod's own
+              // network namespace, which is all a capability would have bought.
+              ...(httpPort < 1024 && {
+                sysctls: [
+                  { name: "net.ipv4.ip_unprivileged_port_start", value: "0" },
+                ],
+              }),
+            },
             containers: [
               {
                 name: serviceName,
@@ -193,6 +207,7 @@ export function createService(
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   seccompProfile: { type: "RuntimeDefault" },
+                  capabilities: { drop: ["ALL"] },
                 },
               },
             ],
@@ -207,10 +222,9 @@ export function createService(
     { deleteBeforeReplace: persistence.length > 0, provider },
   );
 
-  // Egress only — see `networkPolicy` in the schema for why ingress is left
-  // alone. DNS needs its own rule because the cluster resolver's ClusterIP
-  // sits inside the private space the second rule excludes; policy rules are
-  // OR'd, so the narrow allow survives the broad deny.
+  // An empty egress list under the Egress policy type denies every new outbound
+  // connection; replies to the connections Traefik opens are still let through.
+  // Ingress is restricted only on request; see `restrictIngress` for why.
   if (networkPolicy) {
     new k8s.networking.v1.NetworkPolicy(
       `${serviceName}-netpol`,
@@ -234,39 +248,7 @@ export function createService(
               },
             ],
           }),
-          egress: [
-            {
-              to: [
-                {
-                  namespaceSelector: {
-                    matchLabels: {
-                      "kubernetes.io/metadata.name": "kube-system",
-                    },
-                  },
-                },
-              ],
-              ports: [
-                { protocol: "UDP", port: 53 },
-                { protocol: "TCP", port: 53 },
-              ],
-            },
-            {
-              to: [
-                {
-                  ipBlock: {
-                    cidr: "0.0.0.0/0",
-                    except: [
-                      "10.0.0.0/8", // pod + service CIDRs, and any LAN using it
-                      "172.16.0.0/12",
-                      "192.168.0.0/16", // the node's own LAN
-                      "169.254.0.0/16",
-                      "100.64.0.0/10", // tailnet
-                    ],
-                  },
-                },
-              ],
-            },
-          ],
+          egress: [],
         },
       },
       { provider },

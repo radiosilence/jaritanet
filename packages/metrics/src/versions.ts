@@ -10,9 +10,18 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  grafana: "docker.io/grafana/grafana:13.3.0",
+  grafana: "docker.io/grafana/grafana:13.3.1",
   nodeExporter: "quay.io/prometheus/node-exporter:v1.12.1",
-  victoriaMetrics: "1.155.0",
+  victoriaMetrics: "1.156.0",
+} as const;
+
+/**
+ * Floats on purpose: the init containers that hand a hostPath over to a
+ * non-root uid run one `find … chown`, and busybox publishes no releases for
+ * the updater to follow.
+ */
+export const UNTRACKED = {
+  busybox: "docker.io/library/busybox:1.37",
 } as const;
 
 export const VM_SINGLE_IMAGE = `docker.io/victoriametrics/victoria-metrics:v${VERSIONS.victoriaMetrics}`;

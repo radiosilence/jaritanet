@@ -218,7 +218,16 @@ export function createAuth(
                   requests: { cpu: "10m", memory: "32Mi" },
                   limits: { memory: "1Gi" },
                 },
-                securityContext: { allowPrivilegeEscalation: false },
+                // The image's own `redis` user and group (999:1000 on Alpine).
+                // Its entrypoint drops to them from root by itself, and started
+                // as them it skips that step.
+                securityContext: {
+                  runAsNonRoot: true,
+                  runAsUser: 999,
+                  runAsGroup: 1000,
+                  allowPrivilegeEscalation: false,
+                  capabilities: { drop: ["ALL"] },
+                },
               },
             ],
           },
@@ -314,6 +323,7 @@ export function createAuth(
                 },
                 resources: conf.resources,
                 securityContext: {
+                  runAsNonRoot: true,
                   allowPrivilegeEscalation: false,
                   readOnlyRootFilesystem: true,
                   capabilities: { drop: ["ALL"] },
