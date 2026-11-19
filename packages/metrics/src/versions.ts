@@ -15,5 +15,14 @@ export const VERSIONS = {
   victoriaMetrics: "1.156.0",
 } as const;
 
+/**
+ * Floats on purpose: the init containers that hand a hostPath over to a
+ * non-root uid run one `find … chown`, and busybox publishes no releases for
+ * the updater to follow.
+ */
+export const UNTRACKED = {
+  busybox: "docker.io/library/busybox:1.37",
+} as const;
+
 export const VM_SINGLE_IMAGE = `docker.io/victoriametrics/victoria-metrics:v${VERSIONS.victoriaMetrics}`;
 export const VM_AGENT_IMAGE = `docker.io/victoriametrics/vmagent:v${VERSIONS.victoriaMetrics}`;

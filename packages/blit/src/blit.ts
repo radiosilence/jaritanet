@@ -12,10 +12,9 @@ export function createBlit(
   opts: { hostname?: string },
 ): Deployed {
   createService(provider, name, {
-    // Public-facing, so confine egress to DNS and the internet. No capability
-    // dropping: the image is distroless, so what it needs at runtime cannot be
-    // checked from here, and guessing that is what took Navidrome down
-    // (see #166/#168).
+    // Public-facing, so no egress at all. No capability dropping: the image is
+    // distroless, so what it needs at runtime cannot be checked from here, and
+    // guessing that is what took Navidrome down (see #166/#168).
     networkPolicy: true,
     // One node means one failure domain: a second replica dies with the first,
     // so it bought nothing. maxSurge still brings the new pod up before the old

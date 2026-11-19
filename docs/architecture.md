@@ -1122,11 +1122,14 @@ Live tradeoffs worth knowing, not necessarily bugs:
   the effective set only for root, and a `hostNetwork` pod cannot lower
   `net.ipv4.ip_unprivileged_port_start` because that is the host's own
   namespace. The same goes for what manages the host itself (the btrfs
-  maintenance, the tailnet-rule DaemonSet, the two chown init containers).
-  Everything else runs as a fixed non-root uid with `runAsNonRoot`, so an image
-  that switched back to root fails to start instead of running as root. The
-  static servers built by `createService` also have no egress at all, DNS
-  included: they answer requests and start none.
+  maintenance, the tailnet-rule and tailnet-routes DaemonSets, the two chown
+  init containers). Everything else runs as a fixed non-root uid with
+  `runAsNonRoot`, so an image that switched back to root fails to start instead
+  of running as root. A workload that owns data on a host directory gets a uid
+  of its own (Grafana 472, VictoriaMetrics 8428) rather than `nobody`, which
+  the public web servers share, so an escape from one of those does not land
+  as the owner of the data. The static servers built by `createService` also
+  have no egress at all, DNS included: they answer requests and start none.
 
 - **Cilium's packet marks collide with tailscaled's routing rules, and the
   collision selects victims by identity arithmetic.** Cilium stamps the

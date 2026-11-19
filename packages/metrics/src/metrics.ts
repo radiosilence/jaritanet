@@ -11,7 +11,15 @@ import {
 } from "./dashboards.ts";
 import { MetricsConfSchema } from "./metrics.schemas.ts";
 import { scrapeConfig } from "./scrape.ts";
-import { VERSIONS, VM_AGENT_IMAGE, VM_SINGLE_IMAGE } from "./versions.ts";
+import {
+  UNTRACKED,
+  VERSIONS,
+  VM_AGENT_IMAGE,
+  VM_SINGLE_IMAGE,
+} from "./versions.ts";
+
+/** Owns the metrics store on the storage node, and nothing else does. */
+const VMSINGLE_UID = 8428;
 
 const VMSINGLE = "metrics-vmsingle";
 const VMAGENT = "metrics-vmagent";
@@ -106,17 +114,19 @@ export function createMetrics(
             // machine. Anywhere else it would come up with an empty store and
             // report itself healthy.
             nodeSelector: { "kubernetes.io/hostname": conf.storageNode },
-            // The store runs as nobody, against a directory root created and
-            // wrote to before it did. kubelet does not apply fsGroup to a
-            // hostPath volume, so the handover is a chown.
+            // The store runs as its own uid, against a directory root created
+            // and wrote to before it did. kubelet does not apply fsGroup to a
+            // hostPath volume, so the handover is a chown. Not nobody: the
+            // public web servers on this node run as nobody, and an escape
+            // from one of them must not land as the owner of this data.
             initContainers: [
               {
                 name: "fix-ownership",
-                image: "busybox:1.37",
+                image: UNTRACKED.busybox,
                 command: [
                   "sh",
                   "-c",
-                  "find /storage ! -user 65534 -exec chown 65534:65534 {} +",
+                  `find /storage ! -user ${VMSINGLE_UID} -exec chown ${VMSINGLE_UID}:${VMSINGLE_UID} {} +`,
                 ],
                 securityContext: {
                   runAsUser: 0,
@@ -144,8 +154,8 @@ export function createMetrics(
                 resources: conf.vmsingle.resources,
                 securityContext: {
                   runAsNonRoot: true,
-                  runAsUser: 65534,
-                  runAsGroup: 65534,
+                  runAsUser: VMSINGLE_UID,
+                  runAsGroup: VMSINGLE_UID,
                   allowPrivilegeEscalation: false,
                   capabilities: { drop: ["ALL"] },
                 },
@@ -542,7 +552,7 @@ export function createMetrics(
             initContainers: [
               {
                 name: "fix-ownership",
-                image: "busybox:1.37",
+                image: UNTRACKED.busybox,
                 command: [
                   "sh",
                   "-c",
