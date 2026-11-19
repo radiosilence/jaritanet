@@ -12,9 +12,11 @@ export function createBlit(
   opts: { hostname?: string },
 ): Deployed {
   createService(provider, name, {
-    // Public-facing, so no egress at all. No capability dropping: the image is
-    // distroless, so what it needs at runtime cannot be checked from here, and
-    // guessing that is what took Navidrome down (see #166/#168).
+    // Public-facing, so no egress at all. Runs as nobody with every capability
+    // dropped, like every createService pod. nano-web only binds :3000 and
+    // reads its bundle, so it needs neither. Should a new image need more, the
+    // rollout stalls rather than taking the site down: maxSurge keeps the old
+    // pod serving until the new one is Ready.
     networkPolicy: true,
     // One node means one failure domain: a second replica dies with the first,
     // so it bought nothing. maxSurge still brings the new pod up before the old
