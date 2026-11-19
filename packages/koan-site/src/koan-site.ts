@@ -13,8 +13,8 @@ export function createKoanSite(
   opts: { hostname?: string },
 ): Deployed {
   createService(provider, name, {
-    // Public-facing, so no egress at all. No capability dropping, for the same
-    // distroless reason as blit.
+    // Public-facing, so no egress at all; non-root and capability-free as
+    // blit is, for the same reasons.
     networkPolicy: true,
     replicas: 1,
     healthCheck: {},
