@@ -65,6 +65,14 @@ const REGISTRIES: Record<
     manifest: (repo, tag) =>
       `https://registry-1.docker.io/v2/${repo}/manifests/${tag}`,
   },
+  // Prometheus publishes here, and its images can trail the GitHub release by a
+  // day. A registry with no entry is not checked at all, so that lag would be
+  // pinned as though the image existed.
+  "quay.io": {
+    token: (repo) =>
+      `https://quay.io/v2/auth?service=quay.io&scope=repository:${repo}:pull`,
+    manifest: (repo, tag) => `https://quay.io/v2/${repo}/manifests/${tag}`,
+  },
 };
 
 const run = promisify(execFile);
