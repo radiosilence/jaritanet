@@ -175,6 +175,20 @@ export function createService(
             // None of these talk to the API server, so the token is a free
             // foothold for anything that lands in the container.
             automountServiceAccountToken: false,
+            // Never root: these are public web servers, and root in the
+            // container is the first step of a kernel escape onto the node.
+            securityContext: {
+              runAsNonRoot: true,
+              runAsUser: 65534,
+              runAsGroup: 65534,
+              // Lets a non-root process bind a port below 1024 in the pod's own
+              // network namespace, which is all a capability would have bought.
+              ...(httpPort < 1024 && {
+                sysctls: [
+                  { name: "net.ipv4.ip_unprivileged_port_start", value: "0" },
+                ],
+              }),
+            },
             containers: [
               {
                 name: serviceName,
@@ -193,6 +207,7 @@ export function createService(
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   seccompProfile: { type: "RuntimeDefault" },
+                  capabilities: { drop: ["ALL"] },
                 },
               },
             ],

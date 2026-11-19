@@ -230,5 +230,31 @@ describe("service template", () => {
         type: "RuntimeDefault",
       });
     });
+
+    it("never runs as root, and holds no capabilities", async () => {
+      const { createService } = await import("./service.ts");
+      createService(mockProvider, "nonroot", nginxArgs());
+
+      const spec = await podSpec("nonroot");
+      expect(spec.securityContext).toEqual({
+        runAsNonRoot: true,
+        runAsUser: 65534,
+        runAsGroup: 65534,
+      });
+      expect(spec.containers[0].securityContext.capabilities).toEqual({
+        drop: ["ALL"],
+      });
+    });
+
+    // Without the sysctl a non-root process cannot bind :80, and with every
+    // capability dropped nothing else would let it.
+    it("lets a non-root process bind a privileged port", async () => {
+      const { createService } = await import("./service.ts");
+      createService(mockProvider, "lowport", nginxArgs({ httpPort: 80 }));
+
+      expect((await podSpec("lowport")).securityContext.sysctls).toEqual([
+        { name: "net.ipv4.ip_unprivileged_port_start", value: "0" },
+      ]);
+    });
   });
 });
