@@ -3,16 +3,21 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import {
+  bumpPatch,
   chartServes,
   applyTemplate,
   decide,
   normaliseVersion,
   parseImageRef,
   pickLatestTag,
+  readBase,
   readConst,
   readDependency,
+  readTarget,
+  targetFile,
   TrackedListSchema,
   verifyRef,
+  writeBase,
   writeConst,
   writeDependency,
 } from "./versions.ts";
@@ -27,11 +32,9 @@ const tracked = async () =>
 
 type Entries = Awaited<ReturnType<typeof tracked>>;
 
-/** Every file an entry rewrites, of either kind, keyed by its repo path. */
+/** Every file an entry rewrites, of any kind, keyed by its repo path. */
 const targetSources = async (entries: Entries) => {
-  const files = [
-    ...new Set(entries.map((e) => ("file" in e ? e.file : e.manifest))),
-  ];
+  const files = [...new Set(entries.map(targetFile))];
   const texts = await Promise.all(
     files.map((f) => readFile(join(ROOT, f), "utf8")),
   );
@@ -223,11 +226,17 @@ describe("targets against the real tree", () => {
     const entries = await tracked();
     const sources = await targetSources(entries);
     for (const entry of entries) {
-      const current =
-        "file" in entry
-          ? readConst(sources.get(entry.file)!, entry.key)
-          : readDependency(sources.get(entry.manifest)!, entry.package);
+      const current = readTarget(entry, sources.get(targetFile(entry))!);
       expect(current, `${entry.app} resolves`).toEqual(expect.any(String));
+    }
+  });
+
+  it("releases every tracked base image with a version it can bump", async () => {
+    const entries = await tracked();
+    for (const entry of entries) {
+      if (!("release" in entry)) continue;
+      const version = await readFile(join(ROOT, entry.release), "utf8");
+      expect(bumpPatch(version), entry.release).toEqual(expect.any(String));
     }
   });
 
@@ -291,6 +300,48 @@ describe("rewriting a package pin", () => {
   it("refuses a key appearing twice rather than guessing which", () => {
     const doubled = `${source}\n  hysteria: "other",`;
     expect(readConst(doubled, "hysteria")).toBeUndefined();
+  });
+});
+
+describe("rewriting a base image", () => {
+  const dockerfile = [
+    "FROM rust:1.90 AS build",
+    "RUN cargo build",
+    "",
+    "FROM nginx:1.31.7-alpine",
+    "COPY nginx.conf /etc/nginx/nginx.conf",
+  ].join("\n");
+
+  it("reads the FROM of the named image only", () => {
+    expect(readBase(dockerfile, "nginx")).toBe("nginx:1.31.7-alpine");
+    expect(readBase(dockerfile, "rust")).toBe("rust:1.90");
+  });
+
+  it("changes exactly that line", () => {
+    const next = writeBase(dockerfile, "nginx", "nginx:1.31.9-alpine")!;
+    const changed = next
+      .split("\n")
+      .filter((line, i) => line !== dockerfile.split("\n")[i]);
+    expect(changed).toEqual(["FROM nginx:1.31.9-alpine"]);
+  });
+
+  it("leaves a comment quoting the same reference alone", () => {
+    const quoted = `# was FROM nginx:1.31.7-alpine\n${dockerfile}`;
+    const next = writeBase(quoted, "nginx", "nginx:1.31.9-alpine")!;
+    expect(next.split("\n")[0]).toBe("# was FROM nginx:1.31.7-alpine");
+    expect(readBase(next, "nginx")).toBe("nginx:1.31.9-alpine");
+  });
+
+  it("refuses an image it cannot find, or finds twice", () => {
+    expect(writeBase(dockerfile, "redis", "redis:8")).toBeUndefined();
+    const twice = `${dockerfile}\nFROM nginx:1.30.0-alpine`;
+    expect(readBase(twice, "nginx")).toBeUndefined();
+  });
+
+  it("bumps a release's patch", () => {
+    expect(bumpPatch("1.0.2\n")).toBe("1.0.3");
+    expect(bumpPatch("1.0.9")).toBe("1.0.10");
+    expect(bumpPatch("1.0")).toBeUndefined();
   });
 });
 

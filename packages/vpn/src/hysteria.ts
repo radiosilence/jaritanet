@@ -211,6 +211,15 @@ ${userpassBlock}
                   // 4500) are above 1024 and bind with no capability at all.
                   ...(port < 1024 ? { add: ["NET_BIND_SERVICE"] } : {}),
                 },
+                // Root only where it binds :443. Kubernetes grants an added
+                // capability to uid 0 alone, and a hostNetwork pod cannot
+                // lower `ip_unprivileged_port_start` for itself, so the
+                // alternates are the containers that can run as nobody.
+                ...(port >= 1024 && {
+                  runAsNonRoot: true,
+                  runAsUser: 65534,
+                  runAsGroup: 65534,
+                }),
               },
             })),
             volumes: [

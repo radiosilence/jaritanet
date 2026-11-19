@@ -167,7 +167,7 @@ describe("service template", () => {
       ).toBe(false);
     });
 
-    it("confines egress only where asked, and never to private space", async () => {
+    it("denies all egress where asked", async () => {
       const { createService } = await import("./service.ts");
       createService(mockProvider, "open", nginxArgs());
       createService(
@@ -184,20 +184,8 @@ describe("service template", () => {
 
       const spec = inputs.spec;
       expect(spec.policyTypes).toEqual(["Egress"]);
-      // The tailnet and the node's own LAN are the addresses that turn an RCE
-      // into host access, so their absence here is the whole point.
-      expect(spec.egress[1].to[0].ipBlock.except).toEqual(
-        expect.arrayContaining([
-          "10.0.0.0/8",
-          "192.168.0.0/16",
-          "100.64.0.0/10",
-        ]),
-      );
-      // DNS has to survive the deny above, or the pod resolves nothing.
-      expect(spec.egress[0].ports).toEqual([
-        { protocol: "UDP", port: 53 },
-        { protocol: "TCP", port: 53 },
-      ]);
+      // No rule at all, so not the resolver either: DNS is a way out too.
+      expect(spec.egress).toEqual([]);
     });
 
     it("admits only Traefik when ingress is restricted", async () => {
