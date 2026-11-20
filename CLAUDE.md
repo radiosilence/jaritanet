@@ -259,7 +259,7 @@ touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 `deploy` (the Pulumi program and everything it imports), `styles` (auth's
 compiled stylesheet: `mise run css` rebuilt and compared with the committed
 `apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
-`koan_demo`). `deploy`, `ts` and `styles` are outputs
+`koan_demo`, `hysteria`). `deploy`, `ts` and `styles` are outputs
 of `changes`, and each job they gate runs under an `if:` on its output. The
 container domains are not outputs: they select which apps enter the `rust`,
 `binaries` and `images` matrices, and those jobs run when their matrix is not
@@ -344,7 +344,7 @@ Actions cache.
 
 The containers are versioned and released from here, so the updater can track
 them like any upstream. The version lives in each app's `Cargo.toml`, or
-`apps/<app>/VERSION` for files and koan-demo; changing it is the release. `changes` decides once whether
+`apps/<app>/VERSION` for files, koan-demo and hysteria; changing it is the release. `changes` decides once whether
 each container releases: a push whose version differs from the last passed
 commit's, when that version is not out yet (runs on `main` never overlap, so a
 release whose run failed or was superseded is picked up by the next); or a
@@ -378,6 +378,7 @@ A base image this repository builds on (nginx under `apps/files`) is a third kin
   profiles, whose paths are secret and whose bodies Pulumi already holds as
   strings — so there is no volume to mount and no file to go stale.
 - `apps/koan-demo/` - The music image koan's public demo mounts; built by `build.py` from `library.json`
+- `apps/hysteria/` - Upstream's Hysteria2 image with `cap_net_bind_service` set on the binary as a file capability and `USER 65534`, so it can bind :443 on the host network without root. Its base is tracked by the version updater as a Dockerfile target
 - `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`.
   Its stylesheet is Tailwind over `@radiosilence/theme`, compiled by
   `mise run css` into the committed `assets/` because the image build has no

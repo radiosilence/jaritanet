@@ -95,7 +95,7 @@ jobs:
         # command rather than an answer, so every question is asked in a
         # condition.
         run: |
-          ts=true deploy=true styles=true auth=true serve_from_env=true files=true koan_demo=true
+          ts=true deploy=true styles=true auth=true serve_from_env=true files=true koan_demo=true hysteria=true
 
           base=HEAD^1
           if [ "$EVENT" = "push" ]; then
@@ -123,7 +123,7 @@ jobs:
           # while it waited, is released by the next run instead of dropped.
           version_of() {
             case $1 in
-              files | koan-demo) git show "$2:apps/$1/VERSION" 2>/dev/null | tr -d '[:space:]' || : ;;
+              files | koan-demo | hysteria) git show "$2:apps/$1/VERSION" 2>/dev/null | tr -d '[:space:]' || : ;;
               *) git show "$2:apps/$1/Cargo.toml" 2>/dev/null | sed -n 's/^version = "\(.*\)"/\1/p' | head -1 || : ;;
             esac
           }
@@ -131,7 +131,8 @@ jobs:
             {"app": "auth", "image": "auth", "rust": true},
             {"app": "serve-from-env", "image": "serve-from-env", "rust": true},
             {"app": "files", "image": "jaritanet-files", "rust": false},
-            {"app": "koan-demo", "image": "koan-demo", "rust": false}
+            {"app": "koan-demo", "image": "koan-demo", "rust": false},
+            {"app": "hysteria", "image": "jaritanet-hysteria", "rust": false}
           ]'
           for app in $(jq -r '.[].app' <<< "$apps"); do
             version=$(version_of "$app" HEAD)
@@ -202,17 +203,19 @@ jobs:
             touches '^apps/serve-from-env/|^\.github/' '^apps/serve-from-env/deploy/|/README\.md$' || [ "$inputs_rust" = true ] || serve_from_env=false
             touches '^apps/files/|^\.github/' '^apps/files/deploy/|/README\.md$' || files=false
             touches '^apps/koan-demo/|^\.github/' '^apps/koan-demo/deploy/|/README\.md$' || koan_demo=false
+            touches '^apps/hysteria/|^\.github/' '/README\.md$' || hysteria=false
           fi
 
           # A release builds what it ships, whatever the diff says.
-          on=$(jq -c --argjson auth "$auth" --argjson sfe "$serve_from_env" --argjson files "$files" --argjson demo "$koan_demo" \
-            'map(.app as $app | select(.release or ({"auth": $auth, "serve-from-env": $sfe, "files": $files, "koan-demo": $demo} | .[$app])))' <<< "$apps")
+          on=$(jq -c --argjson auth "$auth" --argjson sfe "$serve_from_env" --argjson files "$files" --argjson demo "$koan_demo" --argjson hy "$hysteria" \
+            'map(.app as $app | select(.release or ({"auth": $auth, "serve-from-env": $sfe, "files": $files, "koan-demo": $demo, "hysteria": $hy} | .[$app])))' <<< "$apps")
           for app in $(jq -r '.[].app' <<< "$on"); do
             case $app in
               auth) auth=true ;;
               serve-from-env) serve_from_env=true ;;
               files) files=true ;;
               koan-demo) koan_demo=true ;;
+              hysteria) hysteria=true ;;
             esac
           done
           {
