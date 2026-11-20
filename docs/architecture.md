@@ -1117,11 +1117,17 @@ Live tradeoffs worth knowing, not necessarily bugs:
   otherwise.
 
 - **What runs as root is what cannot avoid it.** A container that binds a
-  privileged port on the host network (xray and hysteria on :443, unbound on
-  :53, samba on :445) has to be uid 0: Kubernetes puts an added capability in
-  the effective set only for root, and a `hostNetwork` pod cannot lower
-  `net.ipv4.ip_unprivileged_port_start` because that is the host's own
-  namespace. The same goes for what manages the host itself (the btrfs
+  privileged port on the host network (xray on :443, unbound on :53, samba on
+  :445) has to be uid 0 unless its binary carries the capability itself:
+  Kubernetes puts an added capability in the effective set only for root, and
+  a `hostNetwork` pod cannot lower `net.ipv4.ip_unprivileged_port_start`
+  because that is the host's own namespace. Hysteria is the case that does:
+  `apps/hysteria` is upstream's image with `cap_net_bind_service` set on the
+  binary, exec grants it to uid 65534 because the pod puts it in the bounding
+  set, and containerd keeps it under no_new_privs (checked with a test pod on
+  the cluster: `CapEff` 0x400, `NoNewPrivs` 1). Redirecting 443 to a high port
+  with nftables was the alternative, and was rejected: UDP GRO looks up the
+  socket by the pre-NAT port, so the daily-driver port would lose it. The same goes for what manages the host itself (the btrfs
   maintenance, the tailnet-rule and tailnet-routes DaemonSets, the two chown
   init containers). Everything else runs as a fixed non-root uid with
   `runAsNonRoot`, so an image that switched back to root fails to start instead

@@ -200,13 +200,15 @@
   key: xray
   value: "ghcr.io/xtls/xray-core:{version}"
 
-# Releases are tagged "app/v2.10.0"; everything before the first digit is
-# stripped, so the prefix costs nothing here.
+# The gateway's hysteria is apps/hysteria, released from this repo, so the pin
+# follows those releases; upstream's version reaches it through the base entry
+# below, which bumps apps/hysteria and so releases a new image.
 - app: Hysteria2
-  repo: apernet/hysteria
+  repo: radiosilence/jaritanet
+  tagPrefix: hysteria-v
   file: packages/vpn/src/versions.ts
   key: hysteria
-  value: "docker.io/tobyxdd/hysteria:v{version}"
+  value: "ghcr.io/radiosilence/jaritanet-hysteria:{version}"
 
 # The base of apps/hysteria, the same upstream image with a file capability
 # added. Bumping it bumps apps/hysteria/VERSION, which releases the image.

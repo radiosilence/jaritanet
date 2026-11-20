@@ -202,24 +202,26 @@ ${userpassBlock}
               volumeMounts: [
                 { name: "config", mountPath: "/etc/hysteria", readOnly: true },
               ],
+              // Nobody, for every port. The binary carries
+              // cap_net_bind_service as a file capability (apps/hysteria),
+              // which exec grants only if the capability is in the bounding
+              // set, so the privileged port adds it there and the alternates
+              // (3478, 4500), binding without it, hold none at all. Kubernetes
+              // grants an added capability to uid 0 alone, and a hostNetwork
+              // pod cannot lower `ip_unprivileged_port_start`, which is why
+              // the capability lives on the file. containerd keeps it under
+              // no_new_privs, so privilege escalation stays off.
               securityContext: {
+                runAsNonRoot: true,
+                runAsUser: 65534,
+                runAsGroup: 65534,
                 allowPrivilegeEscalation: false,
+                readOnlyRootFilesystem: true,
                 seccompProfile: { type: "RuntimeDefault" },
                 capabilities: {
                   drop: ["ALL"],
-                  // Only the privileged port needs it; the alternates (3478,
-                  // 4500) are above 1024 and bind with no capability at all.
                   ...(port < 1024 ? { add: ["NET_BIND_SERVICE"] } : {}),
                 },
-                // Root only where it binds :443. Kubernetes grants an added
-                // capability to uid 0 alone, and a hostNetwork pod cannot
-                // lower `ip_unprivileged_port_start` for itself, so the
-                // alternates are the containers that can run as nobody.
-                ...(port >= 1024 && {
-                  runAsNonRoot: true,
-                  runAsUser: 65534,
-                  runAsGroup: 65534,
-                }),
               },
             })),
             volumes: [
