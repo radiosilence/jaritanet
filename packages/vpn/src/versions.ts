@@ -24,6 +24,18 @@ export const VERSIONS = {
 } as const;
 
 /**
+ * Floats on purpose. hysteria's `redirect` sidecar installs nftables and
+ * conntrack from this image's own repository at start; the digest pins the
+ * image, and the branch must stay a supported one (3.24 or later) for those
+ * packages to keep getting fixes. Bumped by hand, as mariastew and slsk-mcp
+ * bump theirs.
+ */
+export const UNTRACKED = {
+  alpine:
+    "alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
+} as const;
+
+/**
  * The bare core version, for the edge path.
  *
  * `xray-systemd` runs upstream's install script, which takes a version rather

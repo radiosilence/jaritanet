@@ -1121,13 +1121,7 @@ Live tradeoffs worth knowing, not necessarily bugs:
   :445) has to be uid 0: Kubernetes puts an added capability in the effective
   set only for root, and a `hostNetwork` pod cannot lower
   `net.ipv4.ip_unprivileged_port_start` because that is the host's own
-  namespace. Hysteria avoids it: it serves UDP 443 on 10443 as nobody, and a
-  dedicated nftables table on the node redirects 443 there
-  (`createPortRedirects`). The redirect rewrites only the destination port, so
-  hysteria still sees the client's address, and it fires because Cilium runs
-  with host legacy routing, sending node-bound traffic through netfilter.
-  xray could follow the same way; it has not because its :443 also carries
-  every website through Traefik. The same goes for what manages the host itself (the btrfs
+  namespace. The same goes for what manages the host itself (the btrfs
   maintenance, the tailnet-rule and tailnet-routes DaemonSets, the two chown
   init containers). Everything else runs as a fixed non-root uid with
   `runAsNonRoot`, so an image that switched back to root fails to start instead
@@ -1136,6 +1130,21 @@ Live tradeoffs worth knowing, not necessarily bugs:
   the public web servers share, so an escape from one of those does not land
   as the owner of the data. The static servers built by `createService` also
   have no egress at all, DNS included: they answer requests and start none.
+
+- **Hysteria serves :443 without root.** Its containers run as nobody, and the
+  :443 one listens on 10443. A `redirect` sidecar in the same pod holds an
+  nftables table on the node (`inet jaritanet_hysteria`, nat `prerouting` at
+  `dstnat`) that redirects UDP 443 to 10443, re-asserts it every minute, and
+  deletes it on SIGTERM. So the rule exists exactly while the pod does, on
+  whichever node runs it. `redirect` rewrites only the destination port, so
+  hysteria still sees client addresses, and conntrack entries for the port are
+  flushed on apply and removal so tracked flows follow the change. The sidecar
+  is root with NET_ADMIN alone and parses no client traffic; an init container
+  installs nftables into a volume with no capabilities. The rule is a table of
+  its own, so it never touches Cilium's or Tailscale's rules, and Ubuntu's
+  `nftables.service`, whose config flushes the whole ruleset, is not involved.
+  xray could follow the same way; it has not, because its :443 also carries
+  every website through Traefik.
 
 - **Cilium's packet marks collide with tailscaled's routing rules, and the
   collision selects victims by identity arithmetic.** Cilium stamps the
