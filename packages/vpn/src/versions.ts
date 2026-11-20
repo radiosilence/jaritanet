@@ -12,11 +12,11 @@
  */
 export const VERSIONS = {
   /**
-   * Not the project's own GHCR org, which publishes nothing: this is the image
-   * hysteria's install docs point at, on a maintainer's Docker Hub account. A
-   * weaker supply-chain position, accepted knowingly.
+   * apps/hysteria: the image hysteria's install docs point at (a maintainer's
+   * Docker Hub account, a weaker supply-chain position accepted knowingly)
+   * plus a file capability that lets it bind :443 as nobody.
    */
-  hysteria: "docker.io/tobyxdd/hysteria:v2.14.0",
+  hysteria: "ghcr.io/radiosilence/jaritanet-hysteria:1.0.0",
   ssRust: "ghcr.io/shadowsocks/ssserver-rust:v1.25.0",
   tailscale: "ghcr.io/tailscale/tailscale:v1.104.7",
   unbound: "docker.io/klutchell/unbound:v1.26.2",

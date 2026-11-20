@@ -31,8 +31,8 @@ import { VERSIONS } from "./versions.ts";
  *
  * On offload and crypto: QUIC's fast paths here are UDP GSO/GRO (`UDP_SEGMENT`
  * / `UDP_GRO` via setsockopt) and `sendmmsg`/`recvmmsg`, all of which the
- * default seccomp profile permits — v2.10.0 starts and serves clean under
- * `RuntimeDefault` with host networking, checked against the image itself.
+ * default seccomp profile permits, and the image starts and serves clean under
+ * `RuntimeDefault` with host networking.
  * AES-NI and AVX2 are CPU instructions chosen by Go at runtime, so seccomp,
  * which filters syscalls, cannot affect them either.
  *
@@ -202,24 +202,23 @@ ${userpassBlock}
               volumeMounts: [
                 { name: "config", mountPath: "/etc/hysteria", readOnly: true },
               ],
+              // Nobody, for every port. The binary carries
+              // cap_net_bind_service as a file capability with the effective
+              // bit (apps/hysteria), and exec refuses such a binary unless the
+              // capability is in the bounding set, so every container adds it,
+              // the alternates included, though only :443 uses it. Kubernetes
+              // grants an added capability to uid 0 alone, and a hostNetwork
+              // pod cannot lower `ip_unprivileged_port_start`, which is why the
+              // capability lives on the file. containerd keeps it under
+              // no_new_privs, so privilege escalation stays off.
               securityContext: {
+                runAsNonRoot: true,
+                runAsUser: 65534,
+                runAsGroup: 65534,
                 allowPrivilegeEscalation: false,
+                readOnlyRootFilesystem: true,
                 seccompProfile: { type: "RuntimeDefault" },
-                capabilities: {
-                  drop: ["ALL"],
-                  // Only the privileged port needs it; the alternates (3478,
-                  // 4500) are above 1024 and bind with no capability at all.
-                  ...(port < 1024 ? { add: ["NET_BIND_SERVICE"] } : {}),
-                },
-                // Root only where it binds :443. Kubernetes grants an added
-                // capability to uid 0 alone, and a hostNetwork pod cannot
-                // lower `ip_unprivileged_port_start` for itself, so the
-                // alternates are the containers that can run as nobody.
-                ...(port >= 1024 && {
-                  runAsNonRoot: true,
-                  runAsUser: 65534,
-                  runAsGroup: 65534,
-                }),
+                capabilities: { drop: ["ALL"], add: ["NET_BIND_SERVICE"] },
               },
             })),
             volumes: [
