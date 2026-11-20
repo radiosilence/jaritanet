@@ -208,6 +208,14 @@
   key: hysteria
   value: "docker.io/tobyxdd/hysteria:v{version}"
 
+# The base of apps/hysteria, the same upstream image with a file capability
+# added. Bumping it bumps apps/hysteria/VERSION, which releases the image.
+- app: Hysteria2 (jaritanet-hysteria base)
+  repo: apernet/hysteria
+  dockerfile: apps/hysteria/Dockerfile
+  release: apps/hysteria/VERSION
+  value: "docker.io/tobyxdd/hysteria:v{version}"
+
 - app: Tailscale
   repo: tailscale/tailscale
   file: packages/vpn/src/versions.ts
