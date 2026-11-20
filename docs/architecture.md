@@ -1117,11 +1117,17 @@ Live tradeoffs worth knowing, not necessarily bugs:
   otherwise.
 
 - **What runs as root is what cannot avoid it.** A container that binds a
-  privileged port on the host network (xray and hysteria on :443, unbound on
-  :53, samba on :445) has to be uid 0: Kubernetes puts an added capability in
-  the effective set only for root, and a `hostNetwork` pod cannot lower
+  privileged port on the host network (xray on :443, unbound on :53, samba on
+  :445) has to be uid 0: Kubernetes puts an added capability in the effective
+  set only for root, and a `hostNetwork` pod cannot lower
   `net.ipv4.ip_unprivileged_port_start` because that is the host's own
-  namespace. The same goes for what manages the host itself (the btrfs
+  namespace. Hysteria avoids it: it serves UDP 443 on 10443 as nobody, and a
+  dedicated nftables table on the node redirects 443 there
+  (`createPortRedirects`). The redirect rewrites only the destination port, so
+  hysteria still sees the client's address, and it fires because Cilium runs
+  with host legacy routing, sending node-bound traffic through netfilter.
+  xray could follow the same way; it has not because its :443 also carries
+  every website through Traefik. The same goes for what manages the host itself (the btrfs
   maintenance, the tailnet-rule and tailnet-routes DaemonSets, the two chown
   init containers). Everything else runs as a fixed non-root uid with
   `runAsNonRoot`, so an image that switched back to root fails to start instead

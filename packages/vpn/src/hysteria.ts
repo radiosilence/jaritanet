@@ -43,6 +43,12 @@ import { VERSIONS } from "./versions.ts";
  * not at start-up, so a healthy-looking daemon can already be dropping
  * datagrams. `hostNetwork` means the node's value is the one in force — see
  * createNetworkTuning, which raises it to hysteria's documented 16MB.
+ *
+ * Every container runs as nobody with no capabilities. A privileged port is
+ * served from `listenPort(port)` instead, and the node redirects the real port
+ * there (createPortRedirects, from the `redirects` this returns): a hostNetwork
+ * pod cannot lower `ip_unprivileged_port_start` for itself, and Kubernetes
+ * grants NET_BIND_SERVICE to uid 0 alone. Clients still dial the real port.
  */
 export function createHysteria(
   provider: k8s.Provider,
@@ -85,6 +91,9 @@ export function createHysteria(
   });
 
   const ports = [hysteria.port, ...hysteria.altPorts];
+  const redirects = ports
+    .filter((port) => listenPort(port) !== port)
+    .map((port) => ({ protocol: "udp" as const, port, to: listenPort(port) }));
 
   // YAML userpass block: "    <name>: <password>" per admin, resolved together.
   const userpassBlock = pulumi
@@ -96,7 +105,7 @@ export function createHysteria(
   const configs = Object.fromEntries(
     ports.map((port) => [
       `config-${port}.yaml`,
-      pulumi.interpolate`listen: :${port}
+      pulumi.interpolate`listen: :${listenPort(port)}
 tls:
   cert: /etc/hysteria/cert.pem
   key: /etc/hysteria/key.pem
@@ -126,7 +135,7 @@ ${userpassBlock}
   );
 
   const app = "hysteria";
-  new k8s.apps.v1.DaemonSet(
+  const daemonSet = new k8s.apps.v1.DaemonSet(
     app,
     {
       metadata: { name: app, namespace },
@@ -202,24 +211,14 @@ ${userpassBlock}
               volumeMounts: [
                 { name: "config", mountPath: "/etc/hysteria", readOnly: true },
               ],
+              // Every port binds unprivileged; see listenPort.
               securityContext: {
+                runAsNonRoot: true,
+                runAsUser: 65534,
+                runAsGroup: 65534,
                 allowPrivilegeEscalation: false,
                 seccompProfile: { type: "RuntimeDefault" },
-                capabilities: {
-                  drop: ["ALL"],
-                  // Only the privileged port needs it; the alternates (3478,
-                  // 4500) are above 1024 and bind with no capability at all.
-                  ...(port < 1024 ? { add: ["NET_BIND_SERVICE"] } : {}),
-                },
-                // Root only where it binds :443. Kubernetes grants an added
-                // capability to uid 0 alone, and a hostNetwork pod cannot
-                // lower `ip_unprivileged_port_start` for itself, so the
-                // alternates are the containers that can run as nobody.
-                ...(port >= 1024 && {
-                  runAsNonRoot: true,
-                  runAsUser: 65534,
-                  runAsGroup: 65534,
-                }),
+                capabilities: { drop: ["ALL"] },
               },
             })),
             volumes: [
@@ -232,5 +231,18 @@ ${userpassBlock}
     { provider, dependsOn },
   );
 
-  return { certificate: cert.certPem, obfsPassword, passwords };
+  return {
+    certificate: cert.certPem,
+    daemonSet,
+    obfsPassword,
+    passwords,
+    redirects,
+  };
 }
+
+/**
+ * Where a container serves a client-facing port: the port itself when it is
+ * unprivileged, else 10000 above it (443 is served on 10443), which the node
+ * redirects to.
+ */
+export const listenPort = (port: number) => (port < 1024 ? port + 10000 : port);

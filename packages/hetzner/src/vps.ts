@@ -270,6 +270,78 @@ test "$(sysctl -n net.core.wmem_max)" = 16777216`,
 }
 
 /**
+ * Redirects a privileged port to an unprivileged one on the node, so a
+ * hostNetwork transport can serve :443 as nobody. Kubernetes grants an added
+ * capability to uid 0 alone, and a hostNetwork pod shares the node's
+ * `ip_unprivileged_port_start`, so without this the process must be root.
+ *
+ * A table of its own, loaded by a unit of its own. Ubuntu's `nftables.service`
+ * would load /etc/nftables.conf, which flushes the whole ruleset, Cilium's and
+ * Tailscale's included. Redirect rewrites only the destination port, so the
+ * transport still sees the client's address; replies are un-NATed by
+ * conntrack. It applies to traffic from outside only (prerouting), which is
+ * all a client is. Cilium runs with host legacy routing, so node-bound
+ * traffic takes the kernel path and reaches this hook.
+ *
+ * `delete` removes the table and the unit, so dropping a redirect from code
+ * takes it off the box.
+ */
+export function createPortRedirects(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+  redirects: { protocol: "tcp" | "udp"; port: number; to: number }[],
+  dependsOn: pulumi.Resource[] = [],
+) {
+  const rules = redirects
+    .map((r) => `    ${r.protocol} dport ${r.port} redirect to :${r.to}`)
+    .join("\n");
+  return new command.remote.Command(
+    `${name}-port-redirects`,
+    {
+      connection,
+      create: `set -euo pipefail
+mkdir -p /etc/jaritanet
+cat > /etc/jaritanet/port-redirects.nft << 'EOF'
+table inet jaritanet_redirects
+delete table inet jaritanet_redirects
+table inet jaritanet_redirects {
+  chain prerouting {
+    type nat hook prerouting priority dstnat; policy accept;
+${rules}
+  }
+}
+EOF
+cat > /etc/systemd/system/jaritanet-port-redirects.service << 'EOF'
+[Unit]
+Description=Redirect privileged transport ports to unprivileged listeners
+After=network-pre.target
+Before=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/jaritanet/port-redirects.nft
+ExecStop=/usr/sbin/nft delete table inet jaritanet_redirects
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable jaritanet-port-redirects.service
+systemctl restart jaritanet-port-redirects.service
+nft list table inet jaritanet_redirects`,
+      delete: `systemctl disable --now jaritanet-port-redirects.service || true
+nft delete table inet jaritanet_redirects 2>/dev/null || true
+rm -f /etc/systemd/system/jaritanet-port-redirects.service /etc/jaritanet/port-redirects.nft
+systemctl daemon-reload`,
+      triggers: serverTriggers(server, "port-redirects-v1", rules),
+    },
+    { dependsOn: [server, ...dependsOn] },
+  );
+}
+
+/**
  * MPTCP off. Go opens every listener as MPTCP by default since 1.24, so k3s,
  * cilium, tailscaled and node_exporter all accept it, and the k3s API is on the
  * public internet. Nothing here uses multipath, and CVE-2026-98432 is remote

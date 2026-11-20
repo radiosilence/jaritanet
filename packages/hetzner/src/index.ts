@@ -11,6 +11,7 @@ export {
   createAutomaticPatching,
   createNetworkHardening,
   createNetworkTuning,
+  createPortRedirects,
   inboundRule,
   type SshConnection,
 } from "./vps.ts";
