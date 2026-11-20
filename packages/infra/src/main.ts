@@ -13,7 +13,6 @@ import {
 import {
   createCilium,
   createK3sUpgrades,
-  createPortRedirects,
   createTailnetRoutes,
   createTailnetRule,
   POD_CIDR,
@@ -398,13 +397,6 @@ export default async function () {
       gatewayConf.credentialRotation,
       transportDeps,
     );
-  // After the DaemonSet, so the redirect points at a listener that exists. The
-  // old pod, still on :443, is replaced first by the rollout.
-  if (hy && hy.redirects.length > 0) {
-    createPortRedirects("gateway", gw.connection, gw.server, hy.redirects, [
-      hy.daemonSet,
-    ]);
-  }
   const hysteria: SingboxNode["hysteria"] | undefined = hysteriaConf &&
     hy && {
       altPorts: hysteriaConf.altPorts,

@@ -170,7 +170,6 @@ export function createGateway(
 
   return {
     apiHost,
-    connection,
     k3s,
     server,
     sshKey,
