@@ -212,6 +212,8 @@
 
 # The base of apps/hysteria, the same upstream image with a file capability
 # added. Bumping it bumps apps/hysteria/VERSION, which releases the image.
+# Upstream tags releases "app/v2.10.0"; everything before the first digit is
+# stripped, so the prefix costs nothing here.
 - app: Hysteria2 (jaritanet-hysteria base)
   repo: apernet/hysteria
   dockerfile: apps/hysteria/Dockerfile

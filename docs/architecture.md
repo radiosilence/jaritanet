@@ -1121,13 +1121,7 @@ Live tradeoffs worth knowing, not necessarily bugs:
   :445) has to be uid 0 unless its binary carries the capability itself:
   Kubernetes puts an added capability in the effective set only for root, and
   a `hostNetwork` pod cannot lower `net.ipv4.ip_unprivileged_port_start`
-  because that is the host's own namespace. Hysteria is the case that does:
-  `apps/hysteria` is upstream's image with `cap_net_bind_service` set on the
-  binary, exec grants it to uid 65534 because the pod puts it in the bounding
-  set, and containerd keeps it under no_new_privs (checked with a test pod on
-  the cluster: `CapEff` 0x400, `NoNewPrivs` 1). Redirecting 443 to a high port
-  with nftables was the alternative, and was rejected: UDP GRO looks up the
-  socket by the pre-NAT port, so the daily-driver port would lose it. The same goes for what manages the host itself (the btrfs
+  because that is the host's own namespace. The same goes for what manages the host itself (the btrfs
   maintenance, the tailnet-rule and tailnet-routes DaemonSets, the two chown
   init containers). Everything else runs as a fixed non-root uid with
   `runAsNonRoot`, so an image that switched back to root fails to start instead
@@ -1136,6 +1130,17 @@ Live tradeoffs worth knowing, not necessarily bugs:
   the public web servers share, so an escape from one of those does not land
   as the owner of the data. The static servers built by `createService` also
   have no egress at all, DNS included: they answer requests and start none.
+
+- **Hysteria carries its capability on the binary.** `apps/hysteria` is
+  upstream's image with `cap_net_bind_service=+ep` set on the binary, so it
+  runs as uid 65534 and still binds :443. Exec refuses a binary whose file
+  capability has the effective bit unless that capability is in the bounding
+  set, so every hysteria container adds `NET_BIND_SERVICE` there, the
+  alternates included. containerd keeps the capability under no_new_privs
+  (checked with a test pod: `CapEff` 0x400, `NoNewPrivs` 1), so privilege
+  escalation stays off. Redirecting 443 to a high port with nftables was the
+  alternative and was rejected: UDP GRO looks up the socket by the pre-NAT
+  port, so the daily-driver port would lose it.
 
 - **Cilium's packet marks collide with tailscaled's routing rules, and the
   collision selects victims by identity arithmetic.** Cilium stamps the
