@@ -6,8 +6,11 @@
 # hostNetwork pod shares the host's ip_unprivileged_port_start. A file
 # capability on the binary is the remaining route: exec grants it to whoever
 # runs the binary, provided NET_BIND_SERVICE is in the container's bounding
-# set, which the pod spec adds and nothing else does. The kernel honours it
-# under no_new_privs, so the pod keeps allowPrivilegeEscalation: false.
+# set, which the pod spec adds and nothing else does. Under no_new_privs
+# (allowPrivilegeEscalation: false) the kernel keeps a file capability only if
+# the runtime already placed it in the process's permitted set before exec, so
+# whether the pod can keep that setting depends on the container runtime and
+# is checked on the cluster rather than assumed.
 #
 # Built FROM upstream rather than from source, so this image is upstream's
 # release plus one extended attribute. The base is tracked by the version

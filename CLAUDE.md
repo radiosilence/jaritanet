@@ -368,7 +368,7 @@ A missing image fails the run only when it is the *pinned* one — that is a liv
 
 Rewrites replace one quoted literal, the pin in a `versions.ts` or the dependency in a `package.json`, and refuse when the key is absent or appears twice, so a bump changes exactly one line and leaves the docblocks around it alone.
 
-A base image this repository builds on (nginx under `apps/files`) is a third kind of target: the `FROM` line in the Dockerfile, rewritten together with a patch bump of the container's `VERSION`. A Dockerfile change alone rebuilds the image under a version that is already released, so nothing would ship; with the bump, CI releases the new image and the container's own entry moves its pin on a later run, once that image exists.
+A base image this repository builds on (nginx under `apps/files`, upstream hysteria under `apps/hysteria`) is a third kind of target: the `FROM` line in the Dockerfile, rewritten together with a patch bump of the container's `VERSION`. A Dockerfile change alone rebuilds the image under a version that is already released, so nothing would ship; with the bump, CI releases the new image and the container's own entry moves its pin on a later run, once that image exists.
 
 ## Container Services
 

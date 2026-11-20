@@ -188,6 +188,7 @@ Published from other repositories and consumed as dependencies: `@radiosilence/m
 
 - **`apps/auth`** — the login and consent provider Hydra delegates to
 - **`apps/files`** — static nginx over a read-only mount
+- **`apps/hysteria`** — upstream Hysteria2 with a file capability, so it binds :443 as nobody
 - **`apps/koan-demo`** — koan's public demo, and the image of freely licensed music it plays
 - **`apps/serve-from-env`** — a Secret of path → body, and a Deployment serving
   exactly those paths
@@ -384,7 +385,7 @@ published, including for entries already current, so a pin that stopped
 resolving is reported rather than discovered at the next pod restart.
 
 The containers built from this repo (`auth`, `serve-from-env`, `files`,
-`koan-demo`) are tracked like any upstream: CI cuts `<app>-v<version>` when an
+`koan-demo`, `hysteria`) are tracked like any upstream: CI cuts `<app>-v<version>` when an
 app's version changes, and the updater moves the pin once the image exists.
 
 ## Tailnet policy as code

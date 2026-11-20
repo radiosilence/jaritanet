@@ -203,7 +203,7 @@ jobs:
             touches '^apps/serve-from-env/|^\.github/' '^apps/serve-from-env/deploy/|/README\.md$' || [ "$inputs_rust" = true ] || serve_from_env=false
             touches '^apps/files/|^\.github/' '^apps/files/deploy/|/README\.md$' || files=false
             touches '^apps/koan-demo/|^\.github/' '^apps/koan-demo/deploy/|/README\.md$' || koan_demo=false
-            touches '^apps/hysteria/|^\.github/' '/README\.md$' || hysteria=false
+            touches '^apps/hysteria/|^\.github/' '^apps/hysteria/deploy/|/README\.md$' || hysteria=false
           fi
 
           # A release builds what it ships, whatever the diff says.

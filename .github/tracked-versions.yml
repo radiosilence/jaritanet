@@ -215,7 +215,6 @@
   dockerfile: apps/hysteria/Dockerfile
   release: apps/hysteria/VERSION
   value: "docker.io/tobyxdd/hysteria:v{version}"
-  image: "docker.io/tobyxdd/hysteria:v{version}"
 
 - app: Tailscale
   repo: tailscale/tailscale
