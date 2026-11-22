@@ -76,6 +76,7 @@ export const ADMIN_SSH_KEY =
 export const hostnames: Record<string, string> = {
   auth: "auth.blit.cc",
   blit: "blit.cc",
+  dither: "dither.radiosilence.dev",
   files: "files.radiosilence.dev",
   groglog: "groglog.io",
   mariastew: "dl.blit.cc",

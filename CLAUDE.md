@@ -93,6 +93,7 @@ Components live in their own packages and know nothing about this deployment;
 - **`@jaritanet/groglog`**, **`@jaritanet/koan-site`**, **`@jaritanet/sbr-site`** — the same shape as blit: static sites behind nano-web, each image built by its app's repository on every commit to main and pinned to that commit
 - **`@jaritanet/home`** — what the node holding the disks runs for the house: anonymous read-only Samba as a DaemonSet on that node, and scheduled btrfs maintenance of its drives
 - **transmet** — `@radiosilence/transmet-pulumi`, published from radiosilence/transmet: a comic reader whose image carries every page, so it needs no volume and runs on the VPS. Its password works without the identity provider, so sign-on is added when there is one rather than being a condition of deploying
+- **dither** — `@radiosilence/dither-pulumi`, published from radiosilence/dither at each release's version, like slsk-mcp: an image host at dither.radiosilence.dev, on the VPS so the images people are sent do not depend on the home uplink. Its images and the copies of its database are on the VPS disk until it has a bucket, and uploads stop while that disk has less than 12 GiB free. It signs in through the estate's provider, exchanging codes with Hydra inside the cluster (so it is one of `hydraCallers`), and Traefik limits each caller address before it
 - **`@jaritanet/dns`** — Cloudflare A records, Fastmail MX/DKIM, Bluesky ATProto
 - **`apps/auth/deploy/pulumi`** (`@jaritanet/auth`) — the login and consent provider Hydra delegates to, and a Redis holding one nonce per login in flight. Shares Hydra's hostname, split by path
 - **`@jaritanet/metrics`** — VictoriaMetrics single-node, node-exporter and `vmagent` as DaemonSets, and Grafana signed in through the estate's own provider. Each agent scrapes its own node and remote-writes, rather than one scraper reaching across the tailnet to a residential uplink where a missed scrape is simply lost. Not kube-prometheus-stack: the operator, Alertmanager, kube-state-metrics and ~30 CRDs are monitoring outweighing the monitored on the box whose scheduler already refused a transport for lack of CPU
@@ -176,7 +177,7 @@ because moving it would move the database holding every registered client.
 A NetworkPolicy limits Hydra's ports to named callers, passed in from
 `services.ts` as `hydraCallers`: the admin API, which can accept a login for any
 subject without authenticating the caller, admits only `auth` and the gateway;
-the public API admits Traefik, transmet and the gateway. A new in-cluster
+the public API admits Traefik, transmet, dither and the gateway. A new in-cluster
 caller of Hydra has to be added there, or its requests are dropped.
 `/register` has an IngressRoute of its own carrying a Traefik rate limit keyed
 on the caller's address (an IPv6 caller's /64): registration is unauthenticated
