@@ -112,6 +112,12 @@
   package: "@radiosilence/tubele-pulumi"
   value: "{version}"
 
+- app: dither
+  repo: radiosilence/dither
+  manifest: packages/infra/package.json
+  package: "@radiosilence/dither-pulumi"
+  value: "{version}"
+
 - app: auth
   repo: radiosilence/jaritanet
   tagPrefix: auth-v

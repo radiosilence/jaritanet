@@ -182,7 +182,7 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 
 **`@jaritanet/home`** — anonymous read-only Samba and btrfs maintenance on the node holding the disks
 
-Published from other repositories and consumed as dependencies: `@radiosilence/mcp-gateway-pulumi`, `@radiosilence/mariastew-pulumi`, `@radiosilence/slsk-mcp-pulumi`, `@radiosilence/koan-pulumi`, `@radiosilence/koan-relay-pulumi` and `@radiosilence/transmet-pulumi`.
+Published from other repositories and consumed as dependencies: `@radiosilence/mcp-gateway-pulumi`, `@radiosilence/mariastew-pulumi`, `@radiosilence/slsk-mcp-pulumi`, `@radiosilence/koan-pulumi`, `@radiosilence/koan-relay-pulumi`, `@radiosilence/transmet-pulumi` and `@radiosilence/dither-pulumi`.
 
 **`apps/<x>/deploy/pulumi`** — an app's own chart, next to the app
 

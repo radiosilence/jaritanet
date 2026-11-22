@@ -18,6 +18,7 @@
  */
 import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
+import { createDither } from "@radiosilence/dither-pulumi";
 import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
@@ -319,6 +320,61 @@ export function createServices(ctx: EstateContext) {
     );
   }
 
+  // An image host: albums uploaded behind sign-in, shared by unlisted links.
+  // On the VPS, so the images people are sent do not depend on the home
+  // uplink. The images are on its disk until there is a bucket for them, and
+  // uploads stop while the disk has less than 12 GiB free: the kubelet starts
+  // evicting at 10% of the 75 GB root, and the rest of the estate lives there.
+  if (hostnames.dither && ctx.authHostname) {
+    const secret = oidcSecret("dither");
+    const dither = createDither(provider, ns, {
+      hostname: hostnames.dither,
+      node: CLOUD_NODE,
+      oidc: {
+        issuer: `https://${ctx.authHostname}`,
+        clientId: "dither",
+        clientSecret: secret,
+        // On the VPS with the ingress, as transmet is: codes are exchanged
+        // with Hydra directly, and `hydraCallers` above admits this pod.
+        backchannel: {
+          url: "http://mcp-gateway-hydra-service",
+          podLabels: { app: "mcp-gateway-hydra" },
+          port: 4444,
+        },
+      },
+      minFreeBytes: 12 * 1024 ** 3,
+      limits: { cpu: CLOUD_CORES, memory: "1536Mi" },
+      requests: { cpu: "10m", memory: "64Mi" },
+    });
+    // A flood from one address stops at Traefik. Generous, since an album
+    // page asks for every image on it at once and an upload is a request
+    // per chunk; it bounds a caller with few addresses, not a crowd.
+    const middleware = (name: string, spec: object) =>
+      new k8s.apiextensions.CustomResource(
+        `dither-${name}`,
+        {
+          apiVersion: "traefik.io/v1alpha1",
+          kind: "Middleware",
+          metadata: { name: `dither-${name}`, namespace: ns },
+          spec,
+        },
+        { provider, dependsOn: ctx.traefik ? [ctx.traefik] : [] },
+      ).metadata.name;
+    const middlewares = [
+      middleware("rate", {
+        rateLimit: { average: 200, period: "1s", burst: 600 },
+      }),
+      middleware("in-flight", { inFlightReq: { amount: 200 } }),
+    ];
+    add(
+      {
+        ...dither,
+        routes: dither.routes.map((route) => ({ ...route, middlewares })),
+      },
+      secret,
+    );
+  }
+
   // The media drive is a btrfs RAID1 pool. Only music is snapshotted: the rest
   // is replaceable, and a snapshot of the download directories would hold on
   // to every finished torrent until it expired.
@@ -405,6 +461,7 @@ export function createServices(ctx: EstateContext) {
               ...(hostnames.transmet && ctx.transmet && ctx.authHostname
                 ? [{ app: "transmet" }]
                 : []),
+              ...(hostnames.dither ? [{ app: "dither" }] : []),
             ],
           },
         },
