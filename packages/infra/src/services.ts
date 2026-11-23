@@ -18,7 +18,7 @@
  */
 import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
-import { createDither } from "@radiosilence/dither-pulumi";
+import { createDither, createDitherWorker } from "@radiosilence/dither-pulumi";
 import { createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
@@ -327,6 +327,10 @@ export function createServices(ctx: EstateContext) {
   // evicting at 10% of the 75 GB root, and the rest of the estate lives there.
   if (hostnames.dither && ctx.authHostname) {
     const secret = oidcSecret("dither");
+    const workerToken = new random.RandomPassword("dither-worker-token", {
+      length: 48,
+      special: false,
+    }).result;
     const dither = createDither(provider, ns, {
       hostname: hostnames.dither,
       node: CLOUD_NODE,
@@ -345,6 +349,19 @@ export function createServices(ctx: EstateContext) {
       minFreeBytes: 12 * 1024 ** 3,
       limits: { cpu: CLOUD_CORES, memory: "1536Mi" },
       requests: { cpu: "10m", memory: "64Mi" },
+      workerToken,
+    });
+    // Processing happens off the VPS, on the media node's otherwise idle
+    // cores, fetching uploads over the cluster network. One worker to start;
+    // more nodes join by adding another. Four of lady's six cores, leaving
+    // the rest to the media services.
+    createDitherWorker(provider, ns, {
+      name: MEDIA_NODE,
+      node: MEDIA_NODE,
+      queue: dither.queue,
+      token: workerToken,
+      limits: { cpu: "4", memory: "4Gi" },
+      videoThreads: 4,
     });
     // A flood from one address stops at Traefik. Generous, since an album
     // page asks for every image on it at once and an upload is a request
