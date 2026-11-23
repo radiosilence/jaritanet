@@ -26,6 +26,7 @@ import {
   bumpPatch,
   chartServes,
   decide,
+  holdsImage,
   normaliseVersion,
   parseImageRef,
   pickLatestTag,
@@ -102,7 +103,7 @@ async function imageExists(ref: string) {
   const manifest = await fetch(endpoints.manifest(repository, tag), {
     headers: { authorization: `Bearer ${token}`, accept: MANIFEST_ACCEPT },
   });
-  return manifest.status === 200;
+  return manifest.status === 200 && holdsImage(await manifest.json());
 }
 
 /** Whether the Helm repository's index lists the chart version. */
