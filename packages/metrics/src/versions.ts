@@ -12,7 +12,7 @@
 export const VERSIONS = {
   grafana: "docker.io/grafana/grafana:13.3.1",
   nodeExporter: "quay.io/prometheus/node-exporter:v1.13.1",
-  victoriaMetrics: "1.156.0",
+  victoriaMetrics: "1.157.0",
 } as const;
 
 /**
