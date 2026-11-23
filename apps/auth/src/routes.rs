@@ -46,6 +46,18 @@ fn redirect(location: &str, cookies: &[String]) -> AppResult<Response> {
     Ok(response)
 }
 
+/// A rendered page, or the render's failure as a 500 that logs its cause.
+///
+/// Every template reaches the browser through here. A fallback to an empty
+/// string would serve a blank page with a success status and log nothing,
+/// and the release profile aborts on panic, so the error type is the only
+/// answer that is both visible to the operator and safe for the process.
+fn page(rendered: askama::Result<String>) -> AppResult<Html<String>> {
+    rendered
+        .map(Html)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("rendering a template failed: {e}")))
+}
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate;
@@ -57,9 +69,9 @@ struct ExpiredTemplate;
 /// The callback when no flow is bound to this browser: it expired, or the
 /// cookie never arrived. There is no challenge to reject at Hydra, so the
 /// person is told to start again rather than shown a bare 401.
-fn expired() -> Response {
-    let html = ExpiredTemplate.render().unwrap_or_default();
-    (StatusCode::UNAUTHORIZED, Html(html)).into_response()
+fn expired() -> AppResult<Response> {
+    let html = page(ExpiredTemplate.render())?;
+    Ok((StatusCode::UNAUTHORIZED, html).into_response())
 }
 
 #[derive(Template)]
@@ -72,10 +84,7 @@ struct ContinueTemplate<'a> {
 /// Where a consent decision sends the browser next. See `continue.html` for
 /// why this is a page and not a redirect.
 fn continue_to(heading: &str, to: &str) -> AppResult<Response> {
-    let html = ContinueTemplate { heading, to }
-        .render()
-        .map_err(|e| AppError::Upstream(e.to_string()))?;
-    Ok(Html(html).into_response())
+    Ok(page(ContinueTemplate { heading, to }.render())?.into_response())
 }
 
 #[derive(Template)]
@@ -91,8 +100,8 @@ struct ConsentTemplate {
 
 /// There is nothing to sign in *to* here. This service authenticates people for
 /// other services and holds no account of its own.
-pub async fn index() -> impl IntoResponse {
-    Html(IndexTemplate.render().unwrap_or_default())
+pub async fn index() -> AppResult<Html<String>> {
+    page(IndexTemplate.render())
 }
 
 #[derive(Deserialize)]
@@ -222,7 +231,7 @@ pub async fn github_callback(
         .and_then(|v| v.to_str().ok())
         .and_then(|c| cookie::read_cookie(c, FLOW_COOKIE))
     else {
-        return Ok(expired());
+        return expired();
     };
 
     // Taken, not read: a replayed callback finds nothing rather than a second
@@ -233,7 +242,7 @@ pub async fn github_callback(
         .await
         .map_err(AppError::Internal)?
     else {
-        return Ok(expired());
+        return expired();
     };
 
     if flow.csrf != q.state {
@@ -343,7 +352,7 @@ pub async fn consent(
         "asking for consent: client is not first-party"
     );
 
-    let page = ConsentTemplate {
+    let consent = ConsentTemplate {
         challenge: q.consent_challenge,
         client: request.client_label().to_string(),
         redirect_hosts: request.redirect_hosts(),
@@ -351,7 +360,7 @@ pub async fn consent(
         scopes: request.requested_scope.clone(),
         audience: request.requested_access_token_audience.clone(),
     };
-    Ok(Html(page.render().map_err(|e| AppError::Internal(e.into()))?).into_response())
+    Ok(page(consent.render())?.into_response())
 }
 
 #[derive(Deserialize)]
@@ -399,12 +408,48 @@ mod tests {
 
     #[tokio::test]
     async fn a_callback_without_a_flow_says_to_start_again() {
-        let response = expired();
+        let response = expired().unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
         assert!(String::from_utf8_lossy(&body).contains("sign in again"));
+    }
+
+    #[tokio::test]
+    async fn a_template_that_fails_to_render_is_a_logged_500_not_an_empty_200() {
+        use std::sync::{Arc, Mutex};
+
+        #[derive(Clone, Default)]
+        struct Captured(Arc<Mutex<Vec<u8>>>);
+        impl std::io::Write for Captured {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(buf);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let log = Captured::default();
+        let writer = log.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || writer.clone())
+            .with_ansi(false)
+            .finish();
+        let response = tracing::subscriber::with_default(subscriber, || {
+            page(Err(askama::Error::Fmt)).into_response()
+        });
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(&body[..], b"internal error");
+        let log = String::from_utf8(log.0.lock().unwrap().clone()).unwrap();
+        assert!(log.contains("ERROR"), "{log}");
+        assert!(log.contains("rendering a template failed"), "{log}");
     }
 
     #[test]
