@@ -241,8 +241,8 @@ importers:
         specifier: 5.6.2
         version: 5.6.2(typescript@7.0.2)
       '@radiosilence/dither-pulumi':
-        specifier: 0.2.0
-        version: 0.2.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
+        specifier: 0.3.0
+        version: 0.3.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
       '@radiosilence/koan-pulumi':
         specifier: 0.73.0
         version: 0.73.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
@@ -1000,8 +1000,8 @@ packages:
   '@pulumi/tls@5.6.2':
     resolution: {integrity: sha512-Id9iwUsVONmXamwrAo1OR+RGjlR1WXqA50v2WQJevZSF+73ZZpZvp5rmd4CinWfvmoYVcBJGNpAzrUjUnUmuZg==}
 
-  '@radiosilence/dither-pulumi@0.2.0':
-    resolution: {gitHosted: true, integrity: sha512-qJwgx4lN+nrpcPbB8B3s21ypgOgl2cSV56kRozFOykzxAYws5SMMYWA3I0Iy0tQ92eqI1W3/u8CSMqV9H/xdBg==, tarball: https://npm.pkg.github.com/download/@radiosilence/dither-pulumi/0.2.0/95103396cba568db59098824874ec254410fdd32}
+  '@radiosilence/dither-pulumi@0.3.0':
+    resolution: {gitHosted: true, integrity: sha512-YMgrhQsrcif3ZgRfgqbKm6ic0mc3e1kzVusIlb3bcAsdajRAeL4FuK4hd16+CwalFDp/S02gdnQ1HOPAOZSN+w==, tarball: https://npm.pkg.github.com/download/@radiosilence/dither-pulumi/0.3.0/cf4680343a0de658f4a99a0c60feec8b95841003}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -3110,7 +3110,7 @@ snapshots:
       - ts-node
       - typescript
 
-  '@radiosilence/dither-pulumi@0.2.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))':
+  '@radiosilence/dither-pulumi@0.3.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
