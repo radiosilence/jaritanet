@@ -330,13 +330,13 @@ export function createServices(ctx: EstateContext) {
     // dither's images live here rather than on the VPS's small disk: an S3
     // store on the media node's RAID1 pool, reached over the cluster
     // network, with recent images cached on the VPS's disk so popular links
-    // cost no round trip and outlast the home connection dropping. The
-    // one-off `dither-copy` pod copied the images across.
+    // cost no round trip and outlast the home connection dropping. Workers
+    // read uploads from it and put what they make into it directly.
     const garage = createGarage(provider, ns, {
       node: MEDIA_NODE,
       path: "/mnt/kontent/garage",
       bucket: "dither",
-      clients: [{ app: "dither" }, { app: "dither-copy" }],
+      clients: [{ app: "dither" }, { app: "dither-worker" }],
     });
     const secret = oidcSecret("dither");
     const workerToken = new random.RandomPassword("dither-worker-token", {
@@ -383,6 +383,9 @@ export function createServices(ctx: EstateContext) {
       token: workerToken,
       limits: { cpu: "4", memory: "4Gi" },
       videoThreads: 4,
+      // Garage is on the same node: uploads and what is made of them stay
+      // there rather than crossing to the VPS and back.
+      store: garage.peer,
     });
     // A flood from one address stops at Traefik. Generous, since an album
     // page asks for every image on it at once and an upload is a request
