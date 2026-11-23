@@ -50,6 +50,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import * as random from "@pulumi/random";
 import type { Zone } from "@jaritanet/dns";
+import { createGarage } from "./garage.ts";
 import { MCPS } from "./mcps.ts";
 import { CLOUD_NODE, MEDIA_NODE } from "./nodes.ts";
 
@@ -326,6 +327,15 @@ export function createServices(ctx: EstateContext) {
   // uploads stop while the disk has less than 12 GiB free: the kubelet starts
   // evicting at 10% of the 75 GB root, and the rest of the estate lives there.
   if (hostnames.dither && ctx.authHostname) {
+    // dither's images move here from the VPS's small disk: an S3 store on
+    // the media node's RAID1 pool, reached over the cluster network. The
+    // one-off `dither-copy` pod copies the images across.
+    createGarage(provider, ns, {
+      node: MEDIA_NODE,
+      path: "/mnt/kontent/garage",
+      bucket: "dither",
+      clients: [{ app: "dither" }, { app: "dither-copy" }],
+    });
     const secret = oidcSecret("dither");
     const workerToken = new random.RandomPassword("dither-worker-token", {
       length: 48,
