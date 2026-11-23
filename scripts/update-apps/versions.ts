@@ -172,6 +172,19 @@ export function parseImageRef(ref: string) {
  * the new value when that is already a full reference, so only entries writing
  * a bare tag need to spell `image` out; a Helm chart has none, and is skipped.
  */
+/**
+ * Whether a registry's manifest for a tag holds an image to run. A tag can be
+ * published as an index listing no images, or only attestations, before its
+ * images arrive (nginx:1.31.10-alpine did): it answers 200, yet nothing can
+ * be pulled or built from it.
+ */
+export function holdsImage(manifest: unknown) {
+  const listed = (manifest as { manifests?: { platform?: { os?: string } }[] })
+    ?.manifests;
+  if (!Array.isArray(listed)) return true;
+  return listed.some((m) => m.platform?.os && m.platform.os !== "unknown");
+}
+
 /** Whether a parsed Helm `index.yaml` lists this version of the chart. */
 export function chartServes(index: unknown, chart: string, version: string) {
   const versions = (

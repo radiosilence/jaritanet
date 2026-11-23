@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import {
+  holdsImage,
   bumpPatch,
   chartServes,
   applyTemplate,
@@ -40,6 +41,34 @@ const targetSources = async (entries: Entries) => {
   );
   return new Map(files.map((f, i) => [f, texts[i]!]));
 };
+
+describe("holdsImage", () => {
+  const image = (os: string, architecture: string) => ({
+    platform: { os, architecture },
+  });
+
+  it("takes a single image's manifest", () => {
+    expect(holdsImage({ schemaVersion: 2, config: {}, layers: [] })).toBe(true);
+  });
+
+  it("takes an index listing images", () => {
+    expect(
+      holdsImage({
+        manifests: [image("linux", "amd64"), image("linux", "arm64")],
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses an index listing nothing, as a tag published ahead of its images is", () => {
+    expect(holdsImage({ manifests: [] })).toBe(false);
+  });
+
+  it("refuses an index listing only attestations", () => {
+    expect(holdsImage({ manifests: [image("unknown", "unknown")] })).toBe(
+      false,
+    );
+  });
+});
 
 describe("normaliseVersion", () => {
   it.each([
