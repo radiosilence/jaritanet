@@ -63,6 +63,16 @@ const CLOUD_CORES = "4";
 const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
 
 /**
+ * What a Traefik limit counts by: the caller's address, which Xray's PROXY
+ * header makes the real client's, and an IPv6 caller's whole /64. Stated on
+ * every limit, because unstated the middlewares disagree: rateLimit counts by
+ * remote address, but inFlightReq by request host, which makes it one cap
+ * shared by every caller of that hostname, so one caller holding slow
+ * downloads open shuts everyone else out.
+ */
+const PER_CALLER = { ipStrategy: { ipv6Subnet: 64 } };
+
+/**
  * What the stack has already built by the time services are created.
  *
  * Wider than most services need, because the VPN profile server needs all of
@@ -243,10 +253,9 @@ export function createServices(ctx: EstateContext) {
       };
       return { props, opts };
     });
-    // Floods stop at Traefik, per caller address, before they reach the
-    // relay: a little above the relay's own per-address allowances, which
-    // still apply behind these. Traefik's default source is the remote
-    // address, which Xray's PROXY header makes the real client.
+    // Floods stop at Traefik, per caller (`PER_CALLER`), before they reach
+    // the relay: a little above the relay's own per-address allowances,
+    // which still apply behind these.
     const relayMiddleware = (name: string, spec: object) =>
       new k8s.apiextensions.CustomResource(
         `koan-push-relay-${name}`,
@@ -260,9 +269,16 @@ export function createServices(ctx: EstateContext) {
       ).metadata.name;
     const middlewares = [
       relayMiddleware("rate", {
-        rateLimit: { average: 150, period: "1s", burst: 300 },
+        rateLimit: {
+          average: 150,
+          period: "1s",
+          burst: 300,
+          sourceCriterion: PER_CALLER,
+        },
       }),
-      relayMiddleware("in-flight", { inFlightReq: { amount: 100 } }),
+      relayMiddleware("in-flight", {
+        inFlightReq: { amount: 100, sourceCriterion: PER_CALLER },
+      }),
     ];
     // The team key the koan server uses, on both gateways: production for
     // TestFlight and App Store builds, sandbox for development builds. A
@@ -362,9 +378,16 @@ export function createServices(ctx: EstateContext) {
       ).metadata.name;
     const middlewares = [
       middleware("rate", {
-        rateLimit: { average: 200, period: "1s", burst: 600 },
+        rateLimit: {
+          average: 200,
+          period: "1s",
+          burst: 600,
+          sourceCriterion: PER_CALLER,
+        },
       }),
-      middleware("in-flight", { inFlightReq: { amount: 200 } }),
+      middleware("in-flight", {
+        inFlightReq: { amount: 200, sourceCriterion: PER_CALLER },
+      }),
     ];
     add(
       {
