@@ -155,7 +155,12 @@ pub async fn exchange_code(
         .await
         .and_then(reqwest::Response::error_for_status)
     {
-        Ok(response) => response.json().await.unwrap_or_default(),
+        // An answer that does not decode takes the same fallback as a refusal,
+        // and says so, rather than reading as an account with no addresses.
+        Ok(response) => response.json().await.unwrap_or_else(|err| {
+            tracing::warn!(%err, "GitHub's address list did not decode; using the no-reply address");
+            Vec::new()
+        }),
         Err(err) => {
             tracing::warn!(%err, "GitHub refused the address list; using the no-reply address");
             Vec::new()
