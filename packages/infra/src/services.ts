@@ -327,10 +327,12 @@ export function createServices(ctx: EstateContext) {
   // uploads stop while the disk has less than 12 GiB free: the kubelet starts
   // evicting at 10% of the 75 GB root, and the rest of the estate lives there.
   if (hostnames.dither && ctx.authHostname) {
-    // dither's images move here from the VPS's small disk: an S3 store on
-    // the media node's RAID1 pool, reached over the cluster network. The
-    // one-off `dither-copy` pod copies the images across.
-    createGarage(provider, ns, {
+    // dither's images live here rather than on the VPS's small disk: an S3
+    // store on the media node's RAID1 pool, reached over the cluster
+    // network, with recent images cached on the VPS's disk so popular links
+    // cost no round trip and outlast the home connection dropping. The
+    // one-off `dither-copy` pod copied the images across.
+    const garage = createGarage(provider, ns, {
       node: MEDIA_NODE,
       path: "/mnt/kontent/garage",
       bucket: "dither",
@@ -357,6 +359,15 @@ export function createServices(ctx: EstateContext) {
         },
       },
       minFreeBytes: 12 * 1024 ** 3,
+      bucket: {
+        url: `s3://${garage.bucket}`,
+        endpoint: garage.endpoint,
+        region: garage.region,
+        accessKeyId: garage.accessKeyId,
+        secretAccessKey: garage.secretAccessKey,
+        peer: garage.peer,
+      },
+      diskCacheBytes: 4 * 1024 ** 3,
       limits: { cpu: CLOUD_CORES, memory: "1536Mi" },
       requests: { cpu: "10m", memory: "64Mi" },
       workerToken,

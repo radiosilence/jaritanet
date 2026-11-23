@@ -223,7 +223,7 @@ export function createGarage(
     { ...options, dependsOn: [secret, config] },
   );
 
-  const service = new k8s.core.v1.Service(
+  new k8s.core.v1.Service(
     NAME,
     {
       metadata: { name: NAME, namespace },
@@ -259,7 +259,9 @@ export function createGarage(
   );
 
   return {
-    endpoint: pulumi.interpolate`http://${service.metadata.name}.${namespace}.svc.cluster.local:${S3_PORT}`,
+    // By the Service's name, which resolves in its own namespace: where its
+    // clients are.
+    endpoint: `http://${NAME}:${S3_PORT}`,
     region: REGION,
     bucket: args.bucket,
     accessKeyId,
