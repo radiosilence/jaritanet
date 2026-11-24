@@ -46,8 +46,8 @@ importers:
   apps/auth:
     devDependencies:
       '@radiosilence/theme':
-        specifier: 0.2.4
-        version: 0.2.4
+        specifier: 0.2.6
+        version: 0.2.6
       '@tailwindcss/cli':
         specifier: 4.3.3
         version: 4.3.3
@@ -1042,8 +1042,8 @@ packages:
       '@pulumi/pulumi': ^3
       zod: ^4
 
-  '@radiosilence/theme@0.2.4':
-    resolution: {gitHosted: true, integrity: sha512-1NyWd4nJ0qiTFizQNG1CXhMk1XJ4cIphAZzpBJT45Mt9FTV2WXMf7LjbFZK/IFHGqc4vvOBqlOpwuGDMhRuYLA==, tarball: https://npm.pkg.github.com/download/@radiosilence/theme/0.2.4/6fdc3b6143ae5fcf7f5c69ca7fc9c99a8d45ebc4}
+  '@radiosilence/theme@0.2.6':
+    resolution: {gitHosted: true, integrity: sha512-rGTBETYn2NPao8/iKY8tcjq5FXCF1+URxDl7IGG8bQ1UpB6WALtE3EBwHd0ld0BYjIZuWOGmSHlpvDZUrIaArA==, tarball: https://npm.pkg.github.com/download/@radiosilence/theme/0.2.6/2b6fca6939cc2ade46553216178175f2b5fa4e2c}
     hasBin: true
 
   '@radiosilence/transmet-pulumi@0.3.4':
@@ -3148,7 +3148,7 @@ snapshots:
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/theme@0.2.4': {}
+  '@radiosilence/theme@0.2.6': {}
 
   '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))':
     dependencies:
