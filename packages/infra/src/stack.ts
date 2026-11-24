@@ -77,6 +77,9 @@ export const hostnames: Record<string, string> = {
   auth: "auth.blit.cc",
   blit: "blit.cc",
   dither: "dither.radiosilence.dev",
+  // Where dither's share links point: public pages and images only, with no
+  // sign-in, so the app's session cookie never reaches it.
+  "dither-public": "dither.win",
   files: "files.radiosilence.dev",
   groglog: "groglog.io",
   mariastew: "dl.blit.cc",
@@ -223,6 +226,11 @@ export const zones = ZonesConfSchema.parse([
     // looked up by name.
     name: "koan.rocks",
     modules: ["fastmail"],
+  },
+  {
+    // dither's share links. Registered through Cloudflare, so looked up by name.
+    name: "dither.win",
+    modules: [],
   },
 ]);
 

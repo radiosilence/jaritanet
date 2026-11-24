@@ -345,6 +345,7 @@ export function createServices(ctx: EstateContext) {
     }).result;
     const dither = createDither(provider, ns, {
       hostname: hostnames.dither,
+      publicHostname: hostnames["dither-public"],
       node: CLOUD_NODE,
       oidc: {
         issuer: `https://${ctx.authHostname}`,
