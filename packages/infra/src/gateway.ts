@@ -2,6 +2,7 @@ import {
   createAdminSshAccess,
   createAppArmorStackingWorkaround,
   createAutomaticPatching,
+  createJournalLimit,
   createK3s,
   createNetworkHardening,
   createNetworkTuning,
@@ -124,6 +125,7 @@ export function createGateway(
   createNetworkTuning("gateway", connection, server);
   createNetworkHardening("gateway", connection, server);
   createAppArmorStackingWorkaround("gateway", connection, server);
+  createJournalLimit("gateway", connection, server);
 
   createAutomaticPatching(
     "gateway",

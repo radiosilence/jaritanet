@@ -9,6 +9,7 @@ export {
   createAdminSshAccess,
   createAppArmorStackingWorkaround,
   createAutomaticPatching,
+  createJournalLimit,
   createNetworkHardening,
   createNetworkTuning,
   inboundRule,
