@@ -10,7 +10,7 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  grafana: "docker.io/grafana/grafana:13.3.1",
+  grafana: "docker.io/grafana/grafana:13.3.2",
   nodeExporter: "quay.io/prometheus/node-exporter:v1.13.1",
   victoriaMetrics: "1.157.0",
 } as const;
