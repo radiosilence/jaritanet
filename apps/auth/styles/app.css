@@ -6,12 +6,15 @@
  * The tokens (palette, type scale, Geist Mono) come from @radiosilence/theme.
  * Its @font-face names geist-mono.woff2 relative to the compiled stylesheet,
  * so `mise run css` copies the font into ../assets beside it.
+ *
+ * The element defaults and controls (buttons, panel, rows) come from the
+ * theme's kit; this file holds only what is particular to these pages.
  */
 @import "tailwindcss" source(none);
 @import "@radiosilence/theme";
 
 /* The accent is cyan, shared with mcp-gateway, whose identity provider these pages front: #4fd6f0 on dark, and
- * #066f82, the same hue darkened, on light. Both are over 4.5:1 on --surface. */
+ * #066f82, the same hue darkened, on light. The pages sit on --bg, where these are 9.7:1 and 5.8:1. */
 :root {
   --brand: #4fd6f0;
 }
@@ -23,33 +26,3 @@
 }
 
 @source "../templates";
-
-@layer base {
-  body {
-    @apply bg-bg text-body text-ink antialiased;
-  }
-
-  a {
-    @apply text-brand underline underline-offset-2 hover:text-strong;
-  }
-
-  strong {
-    @apply font-semibold text-strong;
-  }
-
-  button:not(:disabled) {
-    cursor: pointer;
-  }
-
-  :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand;
-  }
-}
-
-@utility card {
-  @apply rounded-xl bg-surface p-7 ring-1 ring-rule;
-}
-
-@utility muted {
-  @apply text-muted;
-}

@@ -31,7 +31,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run lint:fix` - Lint and auto-fix with oxlint
 - `mise run lint:workflows` - Lint `.github/workflows` with actionlint, which runs shellcheck over the `run` scripts
 - `mise run fmt` - Format code with oxfmt
-- `mise run css` - Rebuild auth's committed stylesheet and font after changing `apps/auth/styles` or a template
+- `mise run css` - Check auth's templates against the koan web kit (kit-check), then rebuild its committed stylesheet and font after changing `apps/auth/styles` or a template
 - `mise run fmt:check` - Check formatting with oxfmt
 - `mise run preview` / `mise run deploy` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, actionlint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
@@ -258,8 +258,8 @@ so CD ships what CI built in the same run.
 **CI runs per domain.** `changes` works out from the diff which domains a change
 touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 `deploy` (the Pulumi program and everything it imports), `styles` (auth's
-compiled stylesheet: `mise run css` rebuilt and compared with the committed
-`apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
+compiled stylesheet: `mise run css` checks the templates with kit-check,
+rebuilds it, and compares the result with the committed `apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
 `koan_demo`, `hysteria`). `deploy`, `ts` and `styles` are outputs
 of `changes`, and each job they gate runs under an `if:` on its output. The
 container domains are not outputs: they select which apps enter the `rust`,

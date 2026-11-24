@@ -148,16 +148,24 @@ callback or consent decision landing on a closed listener in that window is a
 
 ## Styling
 
-The pages use the shared koan theme (`@radiosilence/theme`): its palette, dark
-by default and light when the device asks, its type scale and Geist Mono.
-`styles/app.css` imports Tailwind and the theme, and `mise run css` compiles it
-into `assets/app.css`, scanning `templates/` for the classes they use, and
-copies the theme's `geist-mono.woff2` beside it. Both outputs are committed and
-embedded in the binary: the image build has no GitHub Packages token to fetch
-the theme with, and the pages appear mid-login, where nothing else should have
-to be reachable. CI's `Stylesheet (auth)` job rebuilds them and fails when the
-committed copy differs, so a template edit needs `mise run css` before it is
-pushed.
+The pages are drawn with the koan web kit (`@radiosilence/theme`): its palette,
+dark by default and light when the device asks, its type scale, Geist Mono,
+and its controls. Plain elements come out in the theme, so the templates hold
+only layout and the kit's classes (`panel` and the `primary` button weight);
+`styles/app.css` adds nothing but the cyan accent shared with mcp-gateway. The
+specification behind the look is koan's `docs/design/koan-theme.md`.
+
+`mise run css` runs the theme's kit-check over `templates/`, which fails on
+classes outside the look (rounded corners, shadows, rings, Tailwind's
+palette and type sizes). Those compile to nothing against the theme, so without
+the check a leftover would lose its style without any error. It then compiles
+`styles/app.css` into `assets/app.css`, scanning `templates/` for the classes
+they use, and copies the theme's `geist-mono.woff2` beside it. Both outputs are
+committed and embedded in the binary: the image build has no GitHub Packages
+token to fetch the theme with, and the pages appear mid-login, where nothing
+else should have to be reachable. CI's `Stylesheet (auth)` job runs the same
+task and fails when the check does or when the committed copy differs, so a
+template edit needs `mise run css` before it is pushed.
 
 The font's URL is relative because the theme writes it that way, so the binary
 serves it at `/assets/geist-mono.woff2`, and the CSP names `font-src 'self'`.
