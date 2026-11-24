@@ -9,5 +9,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  files: "1.0.3",
+  files: "1.0.4",
 } as const;
