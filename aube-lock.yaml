@@ -253,8 +253,8 @@ importers:
         specifier: 0.3.4
         version: 0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/mcp-gateway-pulumi':
-        specifier: 0.14.0
-        version: 0.14.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.14.1
+        version: 0.14.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/slsk-mcp-pulumi':
         specifier: 0.18.7
         version: 0.18.7(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
@@ -1027,8 +1027,8 @@ packages:
       '@pulumi/pulumi': ^3
       zod: ^4
 
-  '@radiosilence/mcp-gateway-pulumi@0.14.0':
-    resolution: {gitHosted: true, integrity: sha512-yVbe5mmcLm3eX77TYlDmk00fQhgxpwzENpCN/tLyvWahPbxCLyFZAO58vzYahB3xBKFfcTu1I/50Vo8HoDcH7g==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.14.0/1a7d7c34de663efc08ff3f162fa4dfbf61c5f4cf}
+  '@radiosilence/mcp-gateway-pulumi@0.14.1':
+    resolution: {gitHosted: true, integrity: sha512-t+Qy/BJOwBMldp7ehCzjVJFiHtULeEvagiu3ItxeTUd4NOsnEsZGGqXR6a4+j/RiuWKVB2duBuqfJzrzKUcPxg==, tarball: https://npm.pkg.github.com/download/@radiosilence/mcp-gateway-pulumi/0.14.1/f20dc5302527c96d13bb12d62ebb8417f05a2433}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -3133,7 +3133,7 @@ snapshots:
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/mcp-gateway-pulumi@0.14.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/mcp-gateway-pulumi@0.14.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
