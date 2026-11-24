@@ -9,6 +9,19 @@
  */
 @import "tailwindcss" source(none);
 @import "@radiosilence/theme";
+
+/* The accent is cyan, shared with mcp-gateway, whose identity provider these pages front: #4fd6f0 on dark, and
+ * #066f82, the same hue darkened, on light. Both are over 4.5:1 on --surface. */
+:root {
+  --brand: #4fd6f0;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --brand: #066f82;
+  }
+}
+
 @source "../templates";
 
 @layer base {
