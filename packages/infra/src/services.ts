@@ -757,6 +757,11 @@ export function createServices(ctx: EstateContext) {
  * Hydra's, split by path — and an A record is per hostname where an
  * IngressRoute is per route. Two calls made the record twice, and Pulumi
  * refused the duplicate URN.
+ *
+ * A service published at a second hostname (dither's share-link domain) gets
+ * a route named after that hostname; its first keeps the service's name, so
+ * adding a hostname never renames a route already deployed. The service is
+ * reported at its first hostname.
  */
 export function publishRoutes(ctx: EstateContext, routes: Route[]) {
   const published: Record<string, { hostname: string; service: string }> = {};
@@ -768,6 +773,7 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
       recorded.add(route.hostname);
       createServiceRecord(ctx.dnsTarget, zone, route.hostname);
     }
+    const again = route.service in published;
     createIngressRoute(
       ctx.provider,
       route.service,
@@ -779,9 +785,12 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
         priority: route.priority,
         middlewares: route.middlewares,
         dependsOn: route.dependsOn,
+        ...(again && {
+          name: `${route.service}-${route.hostname.replaceAll(".", "-")}`,
+        }),
       },
     );
-    published[route.service] = {
+    published[route.service] ??= {
       hostname: route.hostname,
       service: `${route.service}-service`,
     };
