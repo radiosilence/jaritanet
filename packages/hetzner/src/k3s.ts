@@ -63,10 +63,13 @@ export function createK3s(
   // passes it as `--config-dir`, after k3s's own `00-k3s-defaults.conf`. Left at
   // the defaults it removes nothing until the disk is 85% full, and every
   // release of every app leaves its old image behind: the gateway reached 82%
-  // with 279 of its 316 images unused. Images unused for a week now go whatever
-  // the disk, and below that the kubelet starts collecting at 70%, down to 50%.
-  // An image removed and wanted again is pulled again. Agents carry the same
-  // file (make-seed-drive).
+  // with 279 of its 316 images unused. The kubelet now collects from 70% down to
+  // 50%, and removes images unused for three days whatever the disk. The age
+  // rule only applies once the kubelet itself has run that long, and every k3s
+  // restart or reboot resets it, so it is kept short enough to fire between the
+  // reboot window's reboots; the thresholds are the guarantee. An image removed
+  // and wanted again is pulled again. Agents carry the same file
+  // (make-seed-drive).
   const nodeConfig = new command.remote.Command(
     "k3s-node-config",
     {
@@ -91,7 +94,7 @@ mkdir -p /var/lib/rancher/k3s
 cat > /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/50-image-gc.conf << 'EOF'
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-imageMaximumGCAge: 168h
+imageMaximumGCAge: 72h
 imageGCHighThresholdPercent: 70
 imageGCLowThresholdPercent: 50
 EOF
@@ -102,13 +105,15 @@ if systemctl is-active --quiet k3s; then
   # Written is not applied: ask the kubelet for the configuration it loaded.
   # Polling it also waits out the restart, so nothing after this meets an API
   # server that is still coming up.
+  # k3s names the node after the hostname, lowercased.
+  node=$(hostname | tr '[:upper:]' '[:lower:]')
   configz=""
   for i in $(seq 1 60); do
-    configz=$(k3s kubectl get --raw "/api/v1/nodes/$(hostname)/proxy/configz" 2>/dev/null) && break
+    configz=$(k3s kubectl get --raw "/api/v1/nodes/$node/proxy/configz" 2>/dev/null) && break
     sleep 5
   done
   case "$configz" in
-    *'"imageMaximumGCAge":"168h0m0s"'*) ;;
+    *'"imageMaximumGCAge":"72h0m0s"'*) ;;
     *) echo "the kubelet did not load the image GC drop-in" >&2; exit 1 ;;
   esac
 fi`,
