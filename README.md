@@ -150,9 +150,9 @@ imports `infra`, and the only sideways imports are `@jaritanet/k8s` and
 
 **`@jaritanet/hetzner`** — the machine
 
-- **`k3s.ts`** — installs k3s over SSH, and reads the kubeconfig back as a separate command keyed on the server rather than on the installer, so editing the install command does not churn the credentials the Kubernetes provider is built from
+- **`k3s.ts`** — installs k3s over SSH, and reads the kubeconfig back as a separate command keyed on the server rather than on the installer, so editing the install command does not churn the credentials the Kubernetes provider is built from; sets the kubelet's image garbage collection, so old releases' images do not fill the disk
 - **`cilium.ts`** — the CNI, with `kubeProxyReplacement` (which is what makes `hostPort` work at all)
-- **`vps.ts`** — firewall rules and the sysctls the transports need (BBR, UDP buffers)
+- **`vps.ts`** — firewall rules, the sysctls the transports need (BBR, UDP buffers), automatic patching and the journal cap
 - **`upgrades.ts`** — system-upgrade-controller Plans that carry `k3s.version` to nodes Pulumi cannot reach
 - **`tailnet-rule.ts`** — the DaemonSet that keeps Cilium's identity marks from tripping tailscaled's bypass routing
 
@@ -342,6 +342,8 @@ well as the key, so a rebuild cannot leave the new box without a way in.
 Cloud images install security updates on their own and then leave them there:
 `Automatic-Reboot` ships false, so a new kernel is downloaded and never booted.
 Every box gets a 04:00 reboot window so the patches it installs take effect.
+Stable-release updates (`-updates`) are installed the same way; by default they
+are left for someone to run apt by hand, and accumulate.
 
 The token is from https://ubuntu.com/pro/dashboard.
 

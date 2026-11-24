@@ -58,6 +58,15 @@ export function createK3s(
   //
   // The public address stays in `tls-san` so the API is still reachable there
   // for CI and for a human whose tailnet is the thing that broke.
+  //
+  // Image garbage collection is the kubelet's, in a drop-in in the directory k3s
+  // passes it as `--config-dir`, after k3s's own `00-k3s-defaults.conf`. Left at
+  // the defaults it removes nothing until the disk is 85% full, and every
+  // release of every app leaves its old image behind: the gateway reached 82%
+  // with 279 of its 316 images unused. Images unused for a week now go whatever
+  // the disk, and below that the kubelet starts collecting at 70%, down to 50%.
+  // An image removed and wanted again is pulled again. Agents carry the same
+  // file (make-seed-drive).
   const nodeConfig = new command.remote.Command(
     "k3s-node-config",
     {
@@ -75,12 +84,40 @@ tls-san:
   - "${apiHost}"
   - "${server.ipv4Address}"
 EOF
+# k3s keeps its agent directory owner-only, so whatever is created under it
+# ahead of the installer is too.
+mkdir -p /var/lib/rancher/k3s
+(umask 077 && mkdir -p /var/lib/rancher/k3s/agent/etc/kubelet.conf.d)
+cat > /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/50-image-gc.conf << 'EOF'
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+imageMaximumGCAge: 168h
+imageGCHighThresholdPercent: 70
+imageGCLowThresholdPercent: 50
+EOF
 # Only meaningful where k3s is already running; on a fresh box the installer
-# below reads the file at first start and this is a no-op.
+# below reads the files at first start and this is a no-op.
 if systemctl is-active --quiet k3s; then
   systemctl restart k3s
+  # Written is not applied: ask the kubelet for the configuration it loaded.
+  # Polling it also waits out the restart, so nothing after this meets an API
+  # server that is still coming up.
+  configz=""
+  for i in $(seq 1 60); do
+    configz=$(k3s kubectl get --raw "/api/v1/nodes/$(hostname)/proxy/configz" 2>/dev/null) && break
+    sleep 5
+  done
+  case "$configz" in
+    *'"imageMaximumGCAge":"168h0m0s"'*) ;;
+    *) echo "the kubelet did not load the image GC drop-in" >&2; exit 1 ;;
+  esac
 fi`,
-      triggers: [pulumi.output(apiHost), server.ipv4Address, "node-ip-v1"],
+      triggers: [
+        pulumi.output(apiHost),
+        server.ipv4Address,
+        "node-ip-v1",
+        "image-gc-v1",
+      ],
     },
     // replaceWith re-runs this on a rebuilt box. A new box usually has a new
     // address, but nothing guarantees it, and the install below has no trigger

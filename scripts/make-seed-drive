@@ -168,13 +168,16 @@ packages:
 
 # Cloud images enable unattended-upgrades for the security pocket already, so
 # patches land on their own. What is missing is the reboot: without one the node
-# runs a patched kernel it never loaded, indefinitely.
+# runs a patched kernel it never loaded, indefinitely. The -updates pocket is
+# allowed too, for the reason createAutomaticPatching in
+# packages/hetzner/src/vps.ts gives. Keep the two in step.
 write_files:
   - path: /etc/apt/apt.conf.d/51unattended-upgrades-local
     content: |
       Unattended-Upgrade::Automatic-Reboot "true";
       Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
       Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+      Unattended-Upgrade::Allowed-Origins { "\${distro_id}:\${distro_codename}-updates"; };
   # The failure a headless box actually suffers is not being off, which AC
   # recovery handles, but being on and wedged — drawing power, answering
   # nothing, and needing someone to reach the button. systemd pets the
@@ -230,6 +233,20 @@ write_files:
   - path: /etc/sysctl.d/99-apparmor-unconfined.conf
     content: |
       kernel.apparmor_restrict_unprivileged_unconfined = 0
+  # Journal cap: createJournalLimit in packages/hetzner/src/vps.ts explains it.
+  - path: /etc/systemd/journald.conf.d/50-size.conf
+    content: |
+      [Journal]
+      SystemMaxUse=1G
+  # Image garbage collection: createK3s in packages/hetzner/src/k3s.ts explains
+  # it. Written ahead of the k3s install, which reads it at first start.
+  - path: /var/lib/rancher/k3s/agent/etc/kubelet.conf.d/50-image-gc.conf
+    content: |
+      apiVersion: kubelet.config.k8s.io/v1beta1
+      kind: KubeletConfiguration
+      imageMaximumGCAge: 168h
+      imageGCHighThresholdPercent: 70
+      imageGCLowThresholdPercent: 50
 YAML
 
   # A media drive, identified by UUID (or label) rather than device path: USB
@@ -375,6 +392,12 @@ runcmd:
       # systemd-sysctl has also already run, and k3s starts below: applying the
       # MPTCP sysctl now keeps its listeners from opening as MPTCP.
       sysctl --system >/dev/null
+      # journald too started before its drop-in was written.
+      systemctl restart systemd-journald
+      # write_files creates missing parents world-readable; k3s keeps its agent
+      # directory owner-only.
+      chmod 700 /var/lib/rancher/k3s/agent /var/lib/rancher/k3s/agent/etc \\
+        /var/lib/rancher/k3s/agent/etc/kubelet.conf.d
       # btrfs detects bitrot on read and can repair it from a good copy, but
       # only for blocks something actually reads — a scrub is what walks the
       # whole filesystem. Media is written once and read rarely, which is

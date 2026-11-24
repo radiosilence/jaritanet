@@ -143,6 +143,12 @@ ${reload}`,
  * is the default configuration working exactly as documented and achieving
  * nothing. A window is the half that was missing.
  *
+ * The `-updates` pocket is allowed alongside security. Left to the default it is
+ * never installed at all: the gateway was found with 55 packages from it
+ * pending, among them a kernel, systemd and AppArmor, waiting for someone to run
+ * apt by hand. Taking them as they are published, inside the same window, is the
+ * safer of the two ways they would otherwise arrive.
+ *
  * Livepatch is the other half, and they are not substitutes. A window still
  * leaves the interval between a CVE landing and 04:00, which is where local
  * privilege escalation lives; livepatch closes that to hours by patching the
@@ -186,10 +192,22 @@ cat > /etc/apt/apt.conf.d/51unattended-upgrades-local << 'EOF'
 Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
 Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+Unattended-Upgrade::Allowed-Origins { "\${distro_id}:\${distro_codename}-updates"; };
 EOF
 # Written is not applied: apt merges apt.conf.d in lexical order, so assert the
-# value that actually resolves rather than the file that was just written.
-apt-config dump | grep -q 'Unattended-Upgrade::Automatic-Reboot "true"'
+# values that actually resolve rather than the file that was just written. A
+# list is appended to across files, so the origin joins the defaults rather than
+# replacing them. Read into a variable, since \`grep -q\` exiting early would
+# fail the pipeline under pipefail.
+resolved=$(apt-config dump)
+case "$resolved" in
+  *'Unattended-Upgrade::Automatic-Reboot "true"'*) ;;
+  *) echo "Automatic-Reboot did not resolve to true" >&2; exit 1 ;;
+esac
+case "$resolved" in
+  *'Allowed-Origins:: "\${distro_id}:\${distro_codename}-updates"'*) ;;
+  *) echo "the -updates origin did not resolve" >&2; exit 1 ;;
+esac
 
 UBUNTU_PRO_TOKEN='${pulumi.output(proToken ?? "")}'
 if [ -n "$UBUNTU_PRO_TOKEN" ]; then
@@ -220,7 +238,7 @@ fi`),
       triggers: serverTriggers(
         server,
         pulumi.output(proToken ?? ""),
-        "patching-v1",
+        "patching-v2",
       ),
     },
     { dependsOn: [server] },
@@ -332,6 +350,39 @@ EOF
 sysctl --system >/dev/null
 test "$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined)" = 0`,
       triggers: serverTriggers(server, "apparmor-unconfined-v1"),
+    },
+    { dependsOn: [server] },
+  );
+}
+
+/**
+ * Caps the systemd journal at 1G.
+ *
+ * journald's default is a tenth of the filesystem up to 4G, and the gateway
+ * holds it at the 4G: on a 75G disk shared with container images and dither's
+ * cache, that is space the logs, which mostly repeat k3s's, have no use for.
+ * The restart is what makes journald read the drop-in; the vacuum trims what is
+ * already there instead of waiting for journald to rotate down to the cap.
+ * `scripts/make-seed-drive` carries the same file for home nodes.
+ */
+export function createJournalLimit(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+) {
+  return new command.remote.Command(
+    `${name}-journal-limit`,
+    {
+      connection,
+      create: `set -euo pipefail
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/50-size.conf << 'EOF'
+[Journal]
+SystemMaxUse=1G
+EOF
+systemctl restart systemd-journald
+journalctl --vacuum-size=1G >/dev/null`,
+      triggers: serverTriggers(server, "journal-1g-v1"),
     },
     { dependsOn: [server] },
   );
