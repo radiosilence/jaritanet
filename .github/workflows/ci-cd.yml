@@ -193,9 +193,8 @@ jobs:
             touches '^packages/|^apps/[^/]+/deploy/|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' '\.test\.ts$|\.md$' \
               || [ "$inputs_deploy" = true ] || deploy=false
             # auth's compiled stylesheet: its source, the templates it scans,
-            # the Rust kit-check reads for markup, the committed output, and the
-            # manifest naming the theme.
-            touches '^apps/auth/(styles|templates|assets|src)/|^apps/auth/package\.json$|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' \
+            # the committed output, and the manifest naming the theme.
+            touches '^apps/auth/(styles|templates|assets)/|^apps/auth/package\.json$|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' \
               || [ "$inputs_styles" = true ] || styles=false
             # A container is its app's directory, less the chart beside it (a
             # pin bump there is a deploy, not a new image) and its README,
@@ -299,7 +298,7 @@ jobs:
   # differs, so a template change cannot ship with classes nothing defines.
   # `mise run css` runs the theme's kit-check first, which fails on classes
   # outside the kit's look (rounded corners, shadows, Tailwind's palette and
-  # type sizes) in the templates and in the Rust that writes markup.
+  # type sizes) in the templates.
   styles:
     name: Stylesheet (auth)
     runs-on: ubuntu-24.04

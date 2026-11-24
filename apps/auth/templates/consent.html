@@ -16,11 +16,11 @@
   <p class="mb-5">Signed in as <strong>{{ login }}</strong></p>
 
   <p class="mb-2 text-muted">Access will be sent to:</p>
-  <ul class="rows mb-5">
+  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
     {% for host in redirect_hosts %}
     <li class="wrap-anywhere"><strong>{{ host }}</strong></li>
     {% else %}
-    <li class="text-muted">no redirect URI</li>
+    <li class="-ml-5 list-none text-muted">no redirect URI</li>
     {% endfor %}
   </ul>
 
@@ -30,17 +30,17 @@
     for:
   </p>
 
-  <ul class="rows mb-5">
+  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
     {% for scope in scopes %}
     <li class="wrap-anywhere">{{ scope }}</li>
     {% else %}
-    <li class="text-muted">no scopes</li>
+    <li class="-ml-5 list-none text-muted">no scopes</li>
     {% endfor %}
   </ul>
 
   {% if !audience.is_empty() %}
   <p class="mb-2 text-muted">On behalf of:</p>
-  <ul class="rows mb-5">
+  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
     {% for aud in audience %}
     <li class="wrap-anywhere">{{ aud }}</li>
     {% endfor %}
@@ -50,7 +50,7 @@
   <form method="post" action="/auth/consent">
     <input type="hidden" name="challenge" value="{{ challenge }}" />
     <div class="mt-6 flex items-center justify-end gap-3">
-      <button type="submit" class="quiet">Deny</button>
+      <button type="submit">Deny</button>
       <button type="submit" name="approve" value="1" class="primary">Allow</button>
     </div>
   </form>

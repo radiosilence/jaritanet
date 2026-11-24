@@ -151,13 +151,12 @@ callback or consent decision landing on a closed listener in that window is a
 The pages are drawn with the koan web kit (`@radiosilence/theme`): its palette,
 dark by default and light when the device asks, its type scale, Geist Mono,
 and its controls. Plain elements come out in the theme, so the templates hold
-only layout and the kit's classes (`panel`, `rows`, the `primary` and `quiet`
-button weights); `styles/app.css` adds nothing but the cyan accent shared with
-mcp-gateway. The specification behind the look is koan's
-`docs/design/koan-theme.md`.
+only layout and the kit's classes (`panel` and the `primary` button weight);
+`styles/app.css` adds nothing but the cyan accent shared with mcp-gateway. The
+specification behind the look is koan's `docs/design/koan-theme.md`.
 
-`mise run css` runs the theme's kit-check over `templates/` and `src/`, which
-fails on classes outside the look (rounded corners, shadows, rings, Tailwind's
+`mise run css` runs the theme's kit-check over `templates/`, which fails on
+classes outside the look (rounded corners, shadows, rings, Tailwind's
 palette and type sizes). Those compile to nothing against the theme, so without
 the check a leftover would lose its style without any error. It then compiles
 `styles/app.css` into `assets/app.css`, scanning `templates/` for the classes

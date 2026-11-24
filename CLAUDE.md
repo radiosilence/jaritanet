@@ -258,8 +258,8 @@ so CD ships what CI built in the same run.
 **CI runs per domain.** `changes` works out from the diff which domains a change
 touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 `deploy` (the Pulumi program and everything it imports), `styles` (auth's
-compiled stylesheet: `mise run css`, kit-check then the build, rebuilt and compared with the committed
-`apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
+compiled stylesheet: `mise run css` checks the templates with kit-check,
+rebuilds it, and compares the result with the committed `apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
 `koan_demo`, `hysteria`). `deploy`, `ts` and `styles` are outputs
 of `changes`, and each job they gate runs under an `if:` on its output. The
 container domains are not outputs: they select which apps enter the `rust`,

@@ -14,7 +14,7 @@
 @import "@radiosilence/theme";
 
 /* The accent is cyan, shared with mcp-gateway, whose identity provider these pages front: #4fd6f0 on dark, and
- * #066f82, the same hue darkened, on light. Both are over 4.5:1 on --surface. */
+ * #066f82, the same hue darkened, on light. The pages sit on --bg, where these are 9.7:1 and 5.8:1. */
 :root {
   --brand: #4fd6f0;
 }
