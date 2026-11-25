@@ -256,8 +256,8 @@ importers:
         specifier: 0.18.0
         version: 0.18.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(@pulumi/random@4.21.4(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/slsk-mcp-pulumi':
-        specifier: 0.24.0
-        version: 0.24.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.25.0
+        version: 0.25.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/transmet-pulumi':
         specifier: 0.3.4
         version: 0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
@@ -1035,8 +1035,8 @@ packages:
       '@pulumi/random': ^4
       zod: ^4
 
-  '@radiosilence/slsk-mcp-pulumi@0.24.0':
-    resolution: {gitHosted: true, integrity: sha512-bT8hJfg3oRI3msNZHRinF9WDnMAxzU84UPLpK43iEtcWBlm0L0xxypIBqN0Wq5eYFANYYycoInGFqlwEszmQxw==, tarball: https://npm.pkg.github.com/download/@radiosilence/slsk-mcp-pulumi/0.24.0/d71b98d38cda5e0c3d70025333f347781f9309a6}
+  '@radiosilence/slsk-mcp-pulumi@0.25.0':
+    resolution: {gitHosted: true, integrity: sha512-nvX+t6LgQYeYQjeIrGbyPqraty3yLnwZYdV04gf579MhcnTwwa7exymJEqrYZ/YGULEZwApf7zlxG9aKEQwW5g==, tarball: https://npm.pkg.github.com/download/@radiosilence/slsk-mcp-pulumi/0.25.0/882d87eb39ece28a657e91e75d36130a0f6658c0}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -3142,7 +3142,7 @@ snapshots:
       yaml: 2.9.1
       zod: 4.6.7
 
-  '@radiosilence/slsk-mcp-pulumi@0.24.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/slsk-mcp-pulumi@0.25.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
