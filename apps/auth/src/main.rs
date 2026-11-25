@@ -44,7 +44,7 @@ use crate::store::Store;
 /// mid-authentication, so the deployment is one artefact with nothing else to
 /// mount and nothing to go stale against the templates they style. The
 /// stylesheet is compiled from `styles/` by `mise run css`; the font comes from
-/// @radiosilence/theme, whose `@font-face` names it relative to the stylesheet.
+/// @radiosilence/koan-kit-web, whose `@font-face` names it relative to the stylesheet.
 const APP_CSS: &str = include_str!("../assets/app.css");
 const GEIST_MONO: &[u8] = include_bytes!("../assets/geist-mono.woff2");
 

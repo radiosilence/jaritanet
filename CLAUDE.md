@@ -381,7 +381,7 @@ A base image this repository builds on (nginx under `apps/files`, upstream hyste
 - `apps/koan-demo/` - The music image koan's public demo mounts; built by `build.py` from `library.json`
 - `apps/hysteria/` - Upstream's Hysteria2 image with `cap_net_bind_service` set on the binary as a file capability and `USER 65534`, so it can bind :443 on the host network without root. Its base is tracked by the version updater as a Dockerfile target
 - `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`.
-  Its stylesheet is Tailwind over `@radiosilence/theme`, compiled by
+  Its stylesheet is Tailwind over `@radiosilence/koan-kit-web`, compiled by
   `mise run css` into the committed `assets/` because the image build has no
   registry token; `apps/auth` is a workspace member for that build alone
 

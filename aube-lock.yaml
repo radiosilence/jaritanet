@@ -45,9 +45,9 @@ importers:
 
   apps/auth:
     devDependencies:
-      '@radiosilence/theme':
-        specifier: 0.2.8
-        version: 0.2.8
+      '@radiosilence/koan-kit-web':
+        specifier: 0.3.0
+        version: 0.3.0
       '@tailwindcss/cli':
         specifier: 4.3.3
         version: 4.3.3
@@ -1006,6 +1006,10 @@ packages:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
 
+  '@radiosilence/koan-kit-web@0.3.0':
+    resolution: {gitHosted: true, integrity: sha512-rR/TayBRR/YE/n02qOkS2rWmAIdxqdnSvHRDwck68jF/7vOLiMzpiPN5mRaytCQqc+BjcSszAk8pTDGCUOZbKw==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-kit-web/0.3.0/fb72b5ed519fdeeda4351d766d008ed6f9c7cf09}
+    hasBin: true
+
   '@radiosilence/koan-pulumi@0.75.2':
     resolution: {gitHosted: true, integrity: sha512-4d6mRi3PI+7cSMNuLQls22XnujbBTXZdF+3EbJ6TP4Z6xS6lRlHY7wEFXLLsxoAaTB2SsvN6uz12ijBzp9CuZQ==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.75.2/136aa888f4d2a351f062fcaa725694698a24f77f}
     peerDependencies:
@@ -1041,10 +1045,6 @@ packages:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
       zod: ^4
-
-  '@radiosilence/theme@0.2.8':
-    resolution: {gitHosted: true, integrity: sha512-Eb5KmAlONc4zjkXX1uc0yFo6yKRAlqfG99F+6Fx16u8UjsIy07VLFnTCQXnsQckf3PHFm2BMrWx6bHvEyO0BNw==, tarball: https://npm.pkg.github.com/download/@radiosilence/theme/0.2.8/4605cd140e05f52b2b252071a31c2fcad8941b45}
-    hasBin: true
 
   '@radiosilence/transmet-pulumi@0.3.4':
     resolution: {gitHosted: true, integrity: sha512-AidwCkyc1fpjGZ0byb9h1mAb8dRcb7KcQIVsr0rzNVChxpbnroMrOMtZRmzRl2WqTwSu3ihIOKfsTIEOEproqg==, tarball: https://npm.pkg.github.com/download/@radiosilence/transmet-pulumi/0.3.4/46f0ce813b9e8c31af3e5b7a67a546456bb893b2}
@@ -3116,6 +3116,8 @@ snapshots:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
 
+  '@radiosilence/koan-kit-web@0.3.0': {}
+
   '@radiosilence/koan-pulumi@0.75.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
@@ -3147,8 +3149,6 @@ snapshots:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
       zod: 4.6.7
-
-  '@radiosilence/theme@0.2.8': {}
 
   '@radiosilence/transmet-pulumi@0.3.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))':
     dependencies:

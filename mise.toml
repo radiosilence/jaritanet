@@ -48,7 +48,7 @@ description = "Check auth's markup against the kit and rebuild apps/auth/assets 
 # kit-check fails first on any class outside the theme's look, which would
 # otherwise compile to nothing and lose its style silently.
 dir = "apps/auth"
-run = "node_modules/.bin/kit-check templates && node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --minify && cp node_modules/@radiosilence/theme/geist-mono.woff2 assets/"
+run = "node_modules/.bin/kit-check templates && node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --minify && cp node_modules/@radiosilence/koan-kit-web/geist-mono.woff2 assets/"
 
 [tasks.lint]
 description = "Lint with oxlint"

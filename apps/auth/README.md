@@ -148,7 +148,7 @@ callback or consent decision landing on a closed listener in that window is a
 
 ## Styling
 
-The pages are drawn with the koan web kit (`@radiosilence/theme`): its palette,
+The pages are drawn with the koan web kit (`@radiosilence/koan-kit-web`): its palette,
 dark by default and light when the device asks, its type scale, Geist Mono,
 and its controls. Plain elements come out in the theme, so the templates hold
 only layout and the kit's classes (`panel` and the `primary` button weight);
