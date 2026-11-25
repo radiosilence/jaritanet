@@ -3,7 +3,7 @@
  * the binary embeds it, and the image build has no registry token to fetch the
  * theme with. CI fails when the committed file is stale.
  *
- * The tokens (palette, type scale, Geist Mono) come from @radiosilence/theme.
+ * The tokens (palette, type scale, Geist Mono) come from @radiosilence/koan-kit-web.
  * Its @font-face names geist-mono.woff2 relative to the compiled stylesheet,
  * so `mise run css` copies the font into ../assets beside it.
  *
@@ -11,7 +11,7 @@
  * theme's kit; this file holds only what is particular to these pages.
  */
 @import "tailwindcss" source(none);
-@import "@radiosilence/theme";
+@import "@radiosilence/koan-kit-web";
 
 /* The accent is cyan, shared with mcp-gateway, whose identity provider these pages front: #4fd6f0 on dark, and
  * #066f82, the same hue darkened, on light. The pages sit on --bg, where these are 9.7:1 and 5.8:1. */

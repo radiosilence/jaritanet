@@ -307,7 +307,7 @@ jobs:
     if: needs.changes.outputs.styles == 'true'
     permissions:
       contents: read
-      # @radiosilence/theme comes from GitHub Packages.
+      # @radiosilence/koan-kit-web comes from GitHub Packages.
       packages: read
     steps:
       - name: Checkout
