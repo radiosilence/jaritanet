@@ -78,6 +78,10 @@ export function cloudflareRanges() {
  * the origin's certificate (Traefik's, from Let's Encrypt) rather than
  * Cloudflare's default of accepting any, or none.
  *
+ * Smart Tiered Cache sends an edge's miss to an upper-tier location rather
+ * than the origin, so a link fetched worldwide costs the origin a few
+ * requests instead of one per location.
+ *
  * Cache rules are one ruleset per zone, so this owns the zone's.
  */
 export function createCdnCache(zone: Zone, hostname: string) {
@@ -85,6 +89,10 @@ export function createCdnCache(zone: Zone, hostname: string) {
     zoneId: zone.zoneId,
     settingId: "ssl",
     value: "strict",
+  });
+  new cloudflare.TieredCache(`${zone.name}-tiered-cache`, {
+    zoneId: zone.zoneId,
+    value: "on",
   });
   new cloudflare.Ruleset(`${zone.name}-cache`, {
     zoneId: zone.zoneId,

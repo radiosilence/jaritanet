@@ -401,8 +401,9 @@ than a daily driver.
 
 dither's share links are what get posted somewhere busy, and a burst on one
 image is a burst on one file. Its domain is a proxied record, so the burst is
-answered from Cloudflare's cache and the origin sees one request per edge
-location per expiry. dither decides what is cached through `Cache-Control`
+answered from Cloudflare's cache. Smart Tiered Cache sends each edge's miss to
+an upper-tier location, so the origin sees a few requests per expiry rather
+than one per edge location. dither decides what is cached through `Cache-Control`
 (public pages for a minute, public files for ten minutes, anything signed in
 or private never), and the zone's one cache rule (`createCdnCache` in
 @jaritanet/dns) follows those headers and passes through anything without
