@@ -244,8 +244,8 @@ importers:
         specifier: 0.15.1
         version: 0.15.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
       '@radiosilence/koan-pulumi':
-        specifier: 0.75.2
-        version: 0.75.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.76.0
+        version: 0.76.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/koan-relay-pulumi':
         specifier: 0.1.4
         version: 0.1.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
@@ -1010,8 +1010,8 @@ packages:
     resolution: {gitHosted: true, integrity: sha512-rR/TayBRR/YE/n02qOkS2rWmAIdxqdnSvHRDwck68jF/7vOLiMzpiPN5mRaytCQqc+BjcSszAk8pTDGCUOZbKw==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-kit-web/0.3.0/fb72b5ed519fdeeda4351d766d008ed6f9c7cf09}
     hasBin: true
 
-  '@radiosilence/koan-pulumi@0.75.2':
-    resolution: {gitHosted: true, integrity: sha512-4d6mRi3PI+7cSMNuLQls22XnujbBTXZdF+3EbJ6TP4Z6xS6lRlHY7wEFXLLsxoAaTB2SsvN6uz12ijBzp9CuZQ==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.75.2/136aa888f4d2a351f062fcaa725694698a24f77f}
+  '@radiosilence/koan-pulumi@0.76.0':
+    resolution: {gitHosted: true, integrity: sha512-OiyKpV1dkLnD9Y5h1hFXIzG09ojRFVFFabRHBPrakKxvG9bp7JtiiYkMlL/0qbxIU34sRiX65/FfaSB1oSQmbQ==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.76.0/5188b7283d319ea8e48af3d49f462368460dab27}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -3118,7 +3118,7 @@ snapshots:
 
   '@radiosilence/koan-kit-web@0.3.0': {}
 
-  '@radiosilence/koan-pulumi@0.75.2(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/koan-pulumi@0.76.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
