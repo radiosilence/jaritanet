@@ -84,6 +84,7 @@ export const hostnames: Record<string, string> = {
   "koan-site": "koan.rocks",
   "koan-push-relay": "push.koan.rocks",
   "koan-demo": "demo.koan.rocks",
+  "koan-ui": "ui.koan.rocks",
   "mcp-gateway": "mcp.blit.cc",
   metrics: "dash.blit.cc",
   "sbr-site": "sbr.blit.cc",
