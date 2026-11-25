@@ -16,6 +16,7 @@ export function createIngress(
   namespace: pulumi.Input<string>,
   traefik: z.infer<typeof TraefikConfSchema>,
   cloudflareApiToken: string,
+  trustedForwarders: pulumi.Input<string[]>,
 ) {
   // Cloudflare API token for Traefik's DNS-01 ACME solver
   const cfSecret = new k8s.core.v1.Secret(
@@ -70,6 +71,12 @@ export function createIngress(
             // which Cilium picks at random from the node's podCIDR.
             proxyProtocol: {
               trustedIPs: ["10.42.0.0/16"],
+            },
+            // A CDN in front: its `X-Forwarded-For` names the client, where
+            // anyone else's is dropped, so a limit counting by it cannot be
+            // dodged by sending one.
+            forwardedHeaders: {
+              trustedIPs: trustedForwarders,
             },
           },
         },

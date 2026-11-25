@@ -358,7 +358,7 @@ What that deploys: a second VLESS inbound in the Xray pod, with XHTTP in
 `packet-up` mode on a random path held in Pulumi state, listening on the node
 (the Hetzner firewall keeps the port off the internet); a Service and an
 IngressRoute sending that hostname and path to it; and a **proxied** Cloudflare
-record for the hostname, the only proxied record in the stack. Users and guest
+record for the hostname. Users and guest
 rules are those of the REALITY inbound, since it is the same Xray.
 
 The client side is not sing-box. `xhttp` is an sbr transport that sing-box
@@ -396,6 +396,25 @@ cache or plain HTTP, is readable by Cloudflare. Cloudflare's addresses are not
 blocked in China, but on some Chinese ISPs connections to them are throttled
 or degraded, so expect this entry to be slow there and to be a fallback rather
 than a daily driver.
+
+## dither behind Cloudflare's cache
+
+dither's share links are what get posted somewhere busy, and a burst on one
+image is a burst on one file. Its domain is a proxied record, so the burst is
+answered from Cloudflare's cache and the origin sees one request per edge
+location per expiry. dither decides what is cached through `Cache-Control`
+(public pages for a minute, public files for ten minutes, anything signed in
+or private never), and the zone's one cache rule (`createCdnCache` in
+@jaritanet/dns) follows those headers and passes through anything without
+one. The zone verifies the origin's Let's Encrypt certificate (`ssl: strict`).
+Cloudflare reaches the origin the same way as for the XHTTP entry, through
+REALITY's fallback.
+
+Behind the CDN every connection comes from a Cloudflare address, so Traefik's
+`websecure` entrypoint trusts `X-Forwarded-For` from Cloudflare's published
+ranges only, and dither's rate and in-flight limits count by that header's
+last entry (`BEHIND_CDN` in `packages/infra/src/services.ts`) rather than the
+connection's address.
 
 ## Transport protocols
 

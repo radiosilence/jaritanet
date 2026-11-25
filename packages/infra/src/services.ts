@@ -19,7 +19,7 @@
 import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
 import { createDither, createDitherWorker } from "@radiosilence/dither-pulumi";
-import { createServiceRecord } from "@jaritanet/dns";
+import { createCdnCache, createServiceRecord } from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
@@ -72,6 +72,15 @@ const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
  * downloads open shuts everyone else out.
  */
 const PER_CALLER = { ipStrategy: { ipv6Subnet: 64 } };
+
+/**
+ * `PER_CALLER` for a hostname behind Cloudflare, where every caller's address
+ * is a Cloudflare edge's: the last `X-Forwarded-For` entry, which Traefik
+ * keeps only from Cloudflare's ranges (`trustedForwarders` in
+ * @jaritanet/ingress). A request that skips the CDN has none, and shares one
+ * allowance with every other such request.
+ */
+const BEHIND_CDN = { ipStrategy: { depth: 1, ipv6Subnet: 64 } };
 
 /**
  * What the stack has already built by the time services are created.
@@ -423,20 +432,32 @@ export function createServices(ctx: EstateContext) {
           average: 200,
           period: "1s",
           burst: 600,
-          sourceCriterion: PER_CALLER,
+          sourceCriterion: BEHIND_CDN,
         },
       }),
       middleware("in-flight", {
-        inFlightReq: { amount: 200, sourceCriterion: PER_CALLER },
+        inFlightReq: { amount: 200, sourceCriterion: BEHIND_CDN },
       }),
     ];
+    // Through Cloudflare, so a link posted somewhere busy is answered from
+    // its cache: dither marks public pages and files as cacheable, and
+    // everything signed in as not.
     add(
       {
         ...dither,
-        routes: dither.routes.map((route) => ({ ...route, middlewares })),
+        routes: dither.routes.map((route) => ({
+          ...route,
+          middlewares,
+          proxied: true,
+        })),
       },
       secret,
     );
+    const zone = zoneFor(ctx.zones, hostnames.dither);
+    if (!zone) {
+      throw new Error(`${hostnames.dither} is in no configured zone`);
+    }
+    createCdnCache(zone, hostnames.dither);
   }
 
   // The media drive is a btrfs RAID1 pool. Only music is snapshotted: the rest
@@ -793,7 +814,7 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
     const zone = zoneFor(ctx.zones, route.hostname);
     if (zone && !recorded.has(route.hostname)) {
       recorded.add(route.hostname);
-      createServiceRecord(ctx.dnsTarget, zone, route.hostname);
+      createServiceRecord(ctx.dnsTarget, zone, route.hostname, route.proxied);
     }
     const again = route.service in published;
     createIngressRoute(

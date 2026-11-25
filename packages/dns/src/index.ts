@@ -1,5 +1,7 @@
 export {
+  cloudflareRanges,
   createBlueskyRecords,
+  createCdnCache,
   createFastmailRecords,
   createServiceRecord,
   resolveZones,
