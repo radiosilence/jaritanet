@@ -31,7 +31,7 @@
     "@radiosilence/dither-pulumi": "0.13.0",
     "@radiosilence/koan-pulumi": "0.75.0",
     "@radiosilence/koan-relay-pulumi": "0.1.4",
-    "@radiosilence/mariastew-pulumi": "0.6.1",
+    "@radiosilence/mariastew-pulumi": "0.7.0",
     "@radiosilence/mcp-gateway-pulumi": "0.17.0",
     "@radiosilence/slsk-mcp-pulumi": "0.23.0",
     "@radiosilence/transmet-pulumi": "0.3.4",
