@@ -19,7 +19,11 @@
 import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
 import { createDither, createDitherWorker } from "@radiosilence/dither-pulumi";
-import { createServiceRecord } from "@jaritanet/dns";
+import {
+  cloudflareRanges,
+  createCdnCache,
+  createServiceRecord,
+} from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
@@ -384,6 +388,10 @@ export function createServices(ctx: EstateContext) {
         peer: garage.peer,
       },
       diskCacheBytes: 4 * 1024 ** 3,
+      // Behind Cloudflare (`createCdnCache` below), the visitor its view
+      // counts go by is the one Cloudflare names.
+      trustedProxies: cloudflareRanges(),
+      addressHeader: "CF-Connecting-IP",
       limits: { cpu: CLOUD_CORES, memory: "1536Mi" },
       requests: { cpu: "10m", memory: "64Mi" },
       workerToken,
@@ -403,7 +411,9 @@ export function createServices(ctx: EstateContext) {
       // there rather than crossing to the VPS and back.
       store: garage.peer,
     });
-    // A flood from one address stops at Traefik. Generous, since an album
+    // A flood from one address stops at Traefik. Behind Cloudflare that
+    // address is an edge's, shared by everyone it serves, but only cache
+    // misses and the signed-in app reach the origin. Generous, since an album
     // page asks for every image on it at once and an upload is a request
     // per chunk; it bounds a caller with few addresses, not a crowd.
     const middleware = (name: string, spec: object) =>
@@ -430,13 +440,25 @@ export function createServices(ctx: EstateContext) {
         inFlightReq: { amount: 200, sourceCriterion: PER_CALLER },
       }),
     ];
+    // Through Cloudflare, so a link posted somewhere busy is answered from
+    // its cache: dither marks public pages and files as cacheable, and
+    // everything signed in as not.
     add(
       {
         ...dither,
-        routes: dither.routes.map((route) => ({ ...route, middlewares })),
+        routes: dither.routes.map((route) => ({
+          ...route,
+          middlewares,
+          proxied: true,
+        })),
       },
       secret,
     );
+    const zone = zoneFor(ctx.zones, hostnames.dither);
+    if (!zone) {
+      throw new Error(`${hostnames.dither} is in no configured zone`);
+    }
+    createCdnCache(zone, hostnames.dither);
   }
 
   // The media drive is a btrfs RAID1 pool. Only music is snapshotted: the rest
@@ -793,7 +815,7 @@ export function publishRoutes(ctx: EstateContext, routes: Route[]) {
     const zone = zoneFor(ctx.zones, route.hostname);
     if (zone && !recorded.has(route.hostname)) {
       recorded.add(route.hostname);
-      createServiceRecord(ctx.dnsTarget, zone, route.hostname);
+      createServiceRecord(ctx.dnsTarget, zone, route.hostname, route.proxied);
     }
     const again = route.service in published;
     createIngressRoute(

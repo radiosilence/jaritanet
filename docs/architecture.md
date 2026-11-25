@@ -358,7 +358,7 @@ What that deploys: a second VLESS inbound in the Xray pod, with XHTTP in
 `packet-up` mode on a random path held in Pulumi state, listening on the node
 (the Hetzner firewall keeps the port off the internet); a Service and an
 IngressRoute sending that hostname and path to it; and a **proxied** Cloudflare
-record for the hostname, the only proxied record in the stack. Users and guest
+record for the hostname. Users and guest
 rules are those of the REALITY inbound, since it is the same Xray.
 
 The client side is not sing-box. `xhttp` is an sbr transport that sing-box
@@ -396,6 +396,32 @@ cache or plain HTTP, is readable by Cloudflare. Cloudflare's addresses are not
 blocked in China, but on some Chinese ISPs connections to them are throttled
 or degraded, so expect this entry to be slow there and to be a fallback rather
 than a daily driver.
+
+## dither behind Cloudflare's cache
+
+dither's share links are what get posted somewhere busy, and a burst on one
+image is a burst on one file. Its domain is a proxied record, so the burst is
+answered from Cloudflare's cache. Smart Tiered Cache sends each edge's miss to
+an upper-tier location, so the origin sees a few requests per expiry rather
+than one per edge location. dither decides what is cached through `Cache-Control`
+(public pages for a minute, public files for ten minutes, anything signed in
+or private never), and the zone's one cache rule (`createCdnCache` in
+@jaritanet/dns) follows those headers and passes through anything without
+one. The zone verifies the origin's Let's Encrypt certificate (`ssl: strict`).
+Cloudflare reaches the origin the same way as for the XHTTP entry, through
+REALITY's fallback.
+
+Video files are left out of the cache rule and always come from the origin,
+since Cloudflare's terms reserve caching video for its paid products.
+
+Behind the CDN every connection comes from a Cloudflare address. Traefik does
+not trust `X-Forwarded-For` from Cloudflare's ranges: the entrypoint is
+shared, and any Cloudflare customer's Worker connects from those ranges with
+whatever headers it likes, which would let it claim any client address to
+every service. So dither's rate and in-flight limits count by the edge's
+address, which is enough since only cache misses and the signed-in app reach
+the origin, and dither finds the visitor in `CF-Connecting-IP`, which it reads
+only when the connection came from Cloudflare's ranges.
 
 ## Transport protocols
 

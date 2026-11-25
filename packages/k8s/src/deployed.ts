@@ -31,6 +31,8 @@ export type Route = {
   middlewares?: pulumi.Input<string>[];
   /** Resources the IngressRoute must wait for, such as a route taking over some of its paths. */
   dependsOn?: pulumi.Resource[];
+  /** Served through Cloudflare's proxy rather than straight to the origin. */
+  proxied?: boolean;
 };
 
 /**

@@ -62,6 +62,62 @@ export function createServiceRecord(
 }
 
 /**
+ * Cloudflare's edge addresses, from which a request's `CF-Connecting-IP`
+ * names the client it came from.
+ */
+export function cloudflareRanges() {
+  return cloudflare
+    .getIpRangesOutput()
+    .apply((r) => [...r.ipv4Cidrs, ...r.ipv6Cidrs]);
+}
+
+/**
+ * Caches a proxied hostname at Cloudflare's edge for as long as the origin's
+ * `Cache-Control` allows a shared cache to, and passes through anything
+ * without one, so the origin alone decides what is cached. The zone verifies
+ * the origin's certificate (Traefik's, from Let's Encrypt) rather than
+ * Cloudflare's default of accepting any, or none.
+ *
+ * Smart Tiered Cache sends an edge's miss to an upper-tier location rather
+ * than the origin, so a link fetched worldwide costs the origin a few
+ * requests instead of one per location.
+ *
+ * Video is left to the origin: Cloudflare's terms reserve serving it from
+ * the cache to its paid products.
+ *
+ * Cache rules are one ruleset per zone, so this owns the zone's.
+ */
+export function createCdnCache(zone: Zone, hostname: string) {
+  new cloudflare.ZoneSetting(`${zone.name}-ssl`, {
+    zoneId: zone.zoneId,
+    settingId: "ssl",
+    value: "strict",
+  });
+  new cloudflare.TieredCache(`${zone.name}-tiered-cache`, {
+    zoneId: zone.zoneId,
+    value: "on",
+  });
+  new cloudflare.Ruleset(`${zone.name}-cache`, {
+    zoneId: zone.zoneId,
+    name: "cache",
+    kind: "zone",
+    phase: "http_request_cache_settings",
+    rules: [
+      {
+        description: `${hostname}: cache as the origin says`,
+        expression: `(http.host eq "${hostname}" and not http.request.uri.path.extension in {"mp4" "mov" "m4v" "webm"})`,
+        action: "set_cache_settings",
+        actionParameters: {
+          cache: true,
+          edgeTtl: { mode: "bypass_by_default" },
+          browserTtl: { mode: "respect_origin" },
+        },
+      },
+    ],
+  });
+}
+
+/**
  * Fastmail DNS records — MX, DKIM, SPF, DMARC.
  */
 export function createFastmailRecords(
