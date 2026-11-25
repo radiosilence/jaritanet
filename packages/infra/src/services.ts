@@ -326,6 +326,30 @@ export function createServices(ctx: EstateContext) {
   add(
     createKoanSite(provider, "koan-site", { hostname: hostnames["koan-site"] }),
   );
+  // The kōan web kit's storybook, which the koan.rocks image carries under
+  // /ui: a host of its own on the same workload, the prefix added on the way
+  // in, so the page and its relative assets resolve as they do at /ui/.
+  if (hostnames["koan-ui"]) {
+    const prefix = new k8s.apiextensions.CustomResource(
+      "koan-ui-prefix",
+      {
+        apiVersion: "traefik.io/v1alpha1",
+        kind: "Middleware",
+        metadata: { name: "koan-ui-prefix", namespace: ns },
+        spec: { addPrefix: { prefix: "/ui" } },
+      },
+      { provider, dependsOn: ctx.traefik ? [ctx.traefik] : [] },
+    ).metadata.name;
+    add({
+      routes: [
+        {
+          service: "koan-site",
+          hostname: hostnames["koan-ui"],
+          middlewares: [prefix],
+        },
+      ],
+    });
+  }
   add(createSbrSite(provider, "sbr-site", { hostname: hostnames["sbr-site"] }));
 
   // A daily London station game. Its boards and players' records are one
