@@ -19,7 +19,11 @@
 import type { RelyingParty } from "@jaritanet/auth";
 import { createBlit } from "@jaritanet/blit";
 import { createDither, createDitherWorker } from "@radiosilence/dither-pulumi";
-import { createCdnCache, createServiceRecord } from "@jaritanet/dns";
+import {
+  cloudflareRanges,
+  createCdnCache,
+  createServiceRecord,
+} from "@jaritanet/dns";
 import { createFiles } from "@jaritanet/files";
 import { createBtrfsMaintenance, createSamba } from "@jaritanet/home";
 import { createIngressRoute, createPathAlias } from "@jaritanet/ingress";
@@ -384,6 +388,10 @@ export function createServices(ctx: EstateContext) {
         peer: garage.peer,
       },
       diskCacheBytes: 4 * 1024 ** 3,
+      // Behind Cloudflare (`createCdnCache` below), the visitor its view
+      // counts go by is the one Cloudflare names.
+      trustedProxies: cloudflareRanges(),
+      addressHeader: "CF-Connecting-IP",
       limits: { cpu: CLOUD_CORES, memory: "1536Mi" },
       requests: { cpu: "10m", memory: "64Mi" },
       workerToken,
