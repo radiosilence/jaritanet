@@ -342,11 +342,13 @@ export function createServices(ctx: EstateContext) {
   }
 
   // An image host: albums uploaded behind sign-in, shared by unlisted links.
+  // Accounts are its own, by invite; the first admin is made on /setup with
+  // the code its log shows while it has no account.
   // On the VPS, so the images people are sent do not depend on the home
   // uplink. The images are on its disk until there is a bucket for them, and
   // uploads stop while the disk has less than 12 GiB free: the kubelet starts
   // evicting at 10% of the 75 GB root, and the rest of the estate lives there.
-  if (hostnames.dither && ctx.authHostname) {
+  if (hostnames.dither) {
     // dither's images live here rather than on the VPS's small disk: an S3
     // store on the media node's RAID1 pool, reached over the cluster
     // network, with recent images cached on the VPS's disk so popular links
@@ -358,7 +360,12 @@ export function createServices(ctx: EstateContext) {
       bucket: "dither",
       clients: [{ app: "dither" }, { app: "dither-worker" }],
     });
-    const secret = oidcSecret("dither");
+    // What its invites are signed with: kept in its Secret, never with the
+    // copies of its database in the bucket, so the bucket alone forges none.
+    // Replacing it withdraws every invite already sent.
+    const signingKey = new random.RandomBytes("dither-signing-key", {
+      length: 32,
+    }).base64;
     const workerToken = new random.RandomPassword("dither-worker-token", {
       length: 48,
       special: false,
@@ -366,18 +373,7 @@ export function createServices(ctx: EstateContext) {
     const dither = createDither(provider, ns, {
       hostname: hostnames.dither,
       node: CLOUD_NODE,
-      oidc: {
-        issuer: `https://${ctx.authHostname}`,
-        clientId: "dither",
-        clientSecret: secret,
-        // On the VPS with the ingress, as transmet is: codes are exchanged
-        // with Hydra directly, and `hydraCallers` above admits this pod.
-        backchannel: {
-          url: "http://mcp-gateway-hydra-service",
-          podLabels: { app: "mcp-gateway-hydra" },
-          port: 4444,
-        },
-      },
+      signingKey,
       minFreeBytes: 12 * 1024 ** 3,
       bucket: {
         url: `s3://${garage.bucket}`,
@@ -443,17 +439,14 @@ export function createServices(ctx: EstateContext) {
     // Through Cloudflare, so a link posted somewhere busy is answered from
     // its cache: dither marks public pages and files as cacheable, and
     // everything signed in as not.
-    add(
-      {
-        ...dither,
-        routes: dither.routes.map((route) => ({
-          ...route,
-          middlewares,
-          proxied: true,
-        })),
-      },
-      secret,
-    );
+    add({
+      ...dither,
+      routes: dither.routes.map((route) => ({
+        ...route,
+        middlewares,
+        proxied: true,
+      })),
+    });
     const zone = zoneFor(ctx.zones, hostnames.dither);
     if (!zone) {
       throw new Error(`${hostnames.dither} is in no configured zone`);
@@ -547,7 +540,6 @@ export function createServices(ctx: EstateContext) {
               ...(hostnames.transmet && ctx.transmet && ctx.authHostname
                 ? [{ app: "transmet" }]
                 : []),
-              ...(hostnames.dither ? [{ app: "dither" }] : []),
             ],
           },
         },
