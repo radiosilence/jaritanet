@@ -2,6 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import type * as z from "zod";
 import type { TraefikConfSchema } from "./ingress.schemas.ts";
+import { sha256hex } from "@jaritanet/k8s";
 import { VERSIONS } from "./versions.ts";
 
 /**
@@ -122,6 +123,18 @@ export function createIngress(
             },
           },
         ],
+        // The token reaches Traefik as an environment variable, read once at
+        // start, so a rotated token in the Secret is not seen until the pod is
+        // replaced. Its hash on the pod template replaces the pod when the
+        // token changes; without it, a rotation left Traefik on the revoked
+        // token and every new certificate failed with 403s.
+        deployment: {
+          podAnnotations: {
+            "jaritanet.radiosilence.dev/cloudflare-token": sha256hex(
+              pulumi.output(cloudflareApiToken),
+            ),
+          },
+        },
         persistence: {
           enabled: true,
           size: "128Mi",
