@@ -411,11 +411,17 @@ one. The zone verifies the origin's Let's Encrypt certificate (`ssl: strict`).
 Cloudflare reaches the origin the same way as for the XHTTP entry, through
 REALITY's fallback.
 
-Behind the CDN every connection comes from a Cloudflare address, so Traefik's
-`websecure` entrypoint trusts `X-Forwarded-For` from Cloudflare's published
-ranges only, and dither's rate and in-flight limits count by that header's
-last entry (`BEHIND_CDN` in `packages/infra/src/services.ts`) rather than the
-connection's address.
+Video files are left out of the cache rule and always come from the origin,
+since Cloudflare's terms reserve caching video for its paid products.
+
+Behind the CDN every connection comes from a Cloudflare address. Traefik does
+not trust `X-Forwarded-For` from Cloudflare's ranges: the entrypoint is
+shared, and any Cloudflare customer's Worker connects from those ranges with
+whatever headers it likes, which would let it claim any client address to
+every service. So dither's rate and in-flight limits count by the edge's
+address, which is enough since only cache misses and the signed-in app reach
+the origin, and dither finds the visitor in `CF-Connecting-IP`, which it reads
+only when the connection came from Cloudflare's ranges.
 
 ## Transport protocols
 

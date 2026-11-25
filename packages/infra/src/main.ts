@@ -5,7 +5,6 @@ import {
   registrationRoute,
 } from "@jaritanet/auth";
 import {
-  cloudflareRanges,
   createBlueskyRecords,
   createFastmailRecords,
   createServiceRecord,
@@ -315,7 +314,6 @@ export default async function () {
     nsName,
     traefik,
     cloudflare.apiToken,
-    cloudflareRanges(),
   );
 
   createRedirectMiddleware(provider, nsName, traefikRelease);

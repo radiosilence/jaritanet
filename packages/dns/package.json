@@ -2,7 +2,7 @@
   "name": "@jaritanet/dns",
   "version": "0.0.0",
   "private": true,
-  "description": "Cloudflare DNS records: service A records, Fastmail MX/DKIM, Bluesky ATProto",
+  "description": "Cloudflare DNS records: service A records, Fastmail MX/DKIM, Bluesky ATProto; cache settings for a proxied name",
   "license": "ISC",
   "author": "James Cleveland <jc@blit.cc>",
   "files": [

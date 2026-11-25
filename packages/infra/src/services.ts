@@ -74,15 +74,6 @@ const FILE_NODE_LABEL = "jaritanet.radiosilence.dev/file-node";
 const PER_CALLER = { ipStrategy: { ipv6Subnet: 64 } };
 
 /**
- * `PER_CALLER` for a hostname behind Cloudflare, where every caller's address
- * is a Cloudflare edge's: the last `X-Forwarded-For` entry, which Traefik
- * keeps only from Cloudflare's ranges (`trustedForwarders` in
- * @jaritanet/ingress). A request that skips the CDN has none, and shares one
- * allowance with every other such request.
- */
-const BEHIND_CDN = { ipStrategy: { depth: 1, ipv6Subnet: 64 } };
-
-/**
  * What the stack has already built by the time services are created.
  *
  * Wider than most services need, because the VPN profile server needs all of
@@ -412,7 +403,9 @@ export function createServices(ctx: EstateContext) {
       // there rather than crossing to the VPS and back.
       store: garage.peer,
     });
-    // A flood from one address stops at Traefik. Generous, since an album
+    // A flood from one address stops at Traefik. Behind Cloudflare that
+    // address is an edge's, shared by everyone it serves, but only cache
+    // misses and the signed-in app reach the origin. Generous, since an album
     // page asks for every image on it at once and an upload is a request
     // per chunk; it bounds a caller with few addresses, not a crowd.
     const middleware = (name: string, spec: object) =>
@@ -432,11 +425,11 @@ export function createServices(ctx: EstateContext) {
           average: 200,
           period: "1s",
           burst: 600,
-          sourceCriterion: BEHIND_CDN,
+          sourceCriterion: PER_CALLER,
         },
       }),
       middleware("in-flight", {
-        inFlightReq: { amount: 200, sourceCriterion: BEHIND_CDN },
+        inFlightReq: { amount: 200, sourceCriterion: PER_CALLER },
       }),
     ];
     // Through Cloudflare, so a link posted somewhere busy is answered from

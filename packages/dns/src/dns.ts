@@ -62,8 +62,8 @@ export function createServiceRecord(
 }
 
 /**
- * Cloudflare's edge addresses. A request from one of them came through the
- * CDN, so the `X-Forwarded-For` it carries names the real client.
+ * Cloudflare's edge addresses, from which a request's `CF-Connecting-IP`
+ * names the client it came from.
  */
 export function cloudflareRanges() {
   return cloudflare
@@ -81,6 +81,9 @@ export function cloudflareRanges() {
  * Smart Tiered Cache sends an edge's miss to an upper-tier location rather
  * than the origin, so a link fetched worldwide costs the origin a few
  * requests instead of one per location.
+ *
+ * Video is left to the origin: Cloudflare's terms reserve serving it from
+ * the cache to its paid products.
  *
  * Cache rules are one ruleset per zone, so this owns the zone's.
  */
@@ -102,7 +105,7 @@ export function createCdnCache(zone: Zone, hostname: string) {
     rules: [
       {
         description: `${hostname}: cache as the origin says`,
-        expression: `(http.host eq "${hostname}")`,
+        expression: `(http.host eq "${hostname}" and not http.request.uri.path.extension in {"mp4" "mov" "m4v" "webm"})`,
         action: "set_cache_settings",
         actionParameters: {
           cache: true,
