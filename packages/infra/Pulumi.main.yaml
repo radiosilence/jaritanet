@@ -22,13 +22,13 @@
 config:
   # Configures the provider; nothing can read this copy back out.
   cloudflare:apiToken:
-    secure: AAABAAyTRwr6D9teTdgbWk2MOdcUtBUT/zaZgs+cbWPCz/IM9cFaXfhfhiHZi7RsdeujvCnJ46u9elLdSxd7pbYBfN+K1rReI1xJqHFP2cXRO4+pMA==
+    secure: AAABANBVLlF+4BZc8TTIp+L1/dg08h1kNuKk+VRUm/292g6Xwd2hZbkZ8RJN1urnl7+byorbjV8fDFhe1SIpStMJozvmL2SErMrs6iHQbzflxpz1Ow==
   # Configures the provider; nothing can read this copy back out.
   hcloud:token:
     secure: AAABAB/Sd+JBJZj9q8Nlyg3W7fxEu0oqGLCh69UDpYhJvPOuqQIzPQvA9IDnRG8R0YCk/DRuElxSIxQL/6aFiRPTDowNG9w/2l/SoWboJZHrL9dP/cf+SlQ1dYhBw1Zy
   jaritanet:secrets:
     cloudflareApiToken:
-      secure: AAABAJX8cafbz/aUgmLbmT8KblMp3cbVu78cRvOC7JmXtIXI/WMVheCHJvsojIG+k22JfcCFaty4nNxeqRqF5C+dWg0GTAHQarqZhWlgF5toq3RGeA==
+      secure: AAABAKHtxtNeRhKQhRHp8li7dBG+1l+RPBG4tvXTmlcZmArZVEfia6aFfQkhIxsehLoqdV9ZrnRxPRhavVufCqbEVZYS2rujUlb1YrwQ3AEHIrGGRg==
     githubClientSecret:
       secure: AAABABWd9lK1EzC9LTNd3OqfDX/PUpWiqVa93X0ewLzYDOOonK03zaoZd0hwsakNVSV389w9gxRtCz4MPyq/quOWLObM3sIn
     tailnetAuthKey:
