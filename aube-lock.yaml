@@ -244,8 +244,8 @@ importers:
         specifier: 0.14.0
         version: 0.14.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))
       '@radiosilence/koan-pulumi':
-        specifier: 0.75.0
-        version: 0.75.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.75.1
+        version: 0.75.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/koan-relay-pulumi':
         specifier: 0.1.4
         version: 0.1.4(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)
@@ -1006,8 +1006,8 @@ packages:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
 
-  '@radiosilence/koan-pulumi@0.75.0':
-    resolution: {gitHosted: true, integrity: sha512-Vw1DcLkXyHN0MIKEOcB+Oeg/BcR7YySS0h155lQdR1AR2wsN5UE5Q+nK9Yra43R1FJWALiPPUrzhcZT/8NNqTA==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.75.0/00c1425c78ce840790df969d4409ee6181110549}
+  '@radiosilence/koan-pulumi@0.75.1':
+    resolution: {gitHosted: true, integrity: sha512-3Tn9NgHIvtl+pFEpquZuyV2ymy8Qp15FJPLFpts4XNjiUeXZAEguWIWNNQupW8pVSEgUFy+2KwFvb4K6Q2DEOg==, tarball: https://npm.pkg.github.com/download/@radiosilence/koan-pulumi/0.75.1/479d85ee2debafe7611c235235f9efce3ce1205c}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -3116,7 +3116,7 @@ snapshots:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
 
-  '@radiosilence/koan-pulumi@0.75.0(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/koan-pulumi@0.75.1(@pulumi/kubernetes@4.34.2(typescript@7.0.2))(@pulumi/pulumi@3.272.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.34.2(typescript@7.0.2)
       '@pulumi/pulumi': 3.272.0(typescript@7.0.2)
