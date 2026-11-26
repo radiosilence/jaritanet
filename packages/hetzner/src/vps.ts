@@ -456,9 +456,13 @@ EOF
 cat > /usr/local/sbin/kernel-trial << 'EOF'
 #!/bin/bash
 set -uo pipefail
-state=/var/lib/kernel-trial/pending
+dir=/var/lib/kernel-trial
+state=$dir/pending
+refused=$dir/refused
 metrics='${metricsDir}/kernel_trial.prom'
 health='${healthUrl}'
+mkdir -p "$dir"
+exec 9>"$dir/lock"
 
 entry_for() {
   local submenu entry
@@ -467,11 +471,25 @@ entry_for() {
   [ -n "$submenu" ] && [ -n "$entry" ] && echo "$submenu>$entry"
 }
 
+# A refused build is remembered, so it is not tried again; the next build is.
 record() {
   mkdir -p "$(dirname "$metrics")"
   printf 'jaritanet_kernel_trial_failed{version="%s"} %s\\n' "$1" "$2" > "$metrics.tmp"
   mv "$metrics.tmp" "$metrics"
+  [ "$2" = 1 ] && echo "$1" >> "$refused"
   logger -t kernel-trial "$1: $3"
+}
+
+healthy() {
+  curl -sf -m 5 -o /dev/null "$health"
+}
+
+wait_healthy() {
+  local deadline=$(($(date +%s) + 900))
+  until healthy; do
+    [ "$(date +%s)" -lt "$deadline" ] || return 1
+    sleep 10
+  done
 }
 
 # Clears this trial's state, and only this trial's: a newer build armed while
@@ -486,24 +504,63 @@ finish() {
   fi
 }
 
+# Arms a build for the next boot, but only while the node is healthy on the
+# kernel it runs now: a trial judges the kernel, so it must start from a node
+# whose only change will be the kernel. Otherwise the next boot's check arms it
+# once the node is healthy. The reboot is requested so unattended-upgrades
+# makes it, at the box's own minute.
+arm() {
+  local entry
+  grep -qxF "$1" "$refused" 2>/dev/null && return 0
+  if ! healthy; then
+    logger -t kernel-trial "$1: node not healthy now; a later boot arms it"
+    return 0
+  fi
+  if ! entry=$(entry_for "$1"); then
+    record "$1" 1 "no GRUB entry"
+  elif grub-reboot "$entry"; then
+    echo "$1 0" > "$state"
+    touch /run/reboot-required
+    logger -t kernel-trial "$1: armed for the next boot"
+  else
+    record "$1" 1 "grub-reboot failed"
+  fi
+}
+
+newest() {
+  ls /boot/vmlinuz-*-zabbly+ 2>/dev/null | sed 's|^/boot/vmlinuz-||' | sort -V | tail -1
+}
+
 case "$1" in
   start)
+    flock 9
     case "$2" in
       *zabbly*) ;;
-      *) grub-editenv list | grep -q '^saved_entry=.*zabbly' && exit 0 ;;
+      *)
+        grub-editenv list | grep -q '^saved_entry=.*zabbly' && exit 0
+        read -r current _ < "$state" 2>/dev/null || current=
+        case "$current" in *zabbly*) exit 0 ;; esac
+        ;;
     esac
-    if ! entry=$(entry_for "$2"); then
-      logger -t kernel-trial "$2: no GRUB entry"
-    elif grub-reboot "$entry"; then
-      mkdir -p "$(dirname "$state")"
-      echo "$2 0" > "$state"
-    else
-      logger -t kernel-trial "$2: grub-reboot failed"
-    fi
+    arm "$2"
     exit 0
     ;;
   check)
-    [ -f "$state" ] || exit 0
+    flock 9
+    if [ ! -f "$state" ]; then
+      # Nothing on trial. Arm the newest build if it is neither running nor
+      # the default: one that installed while the node was unhealthy, or
+      # before it had a cluster at all.
+      flock -u 9
+      wait_healthy || exit 0
+      version=$(newest)
+      [ -n "$version" ] && [ "$version" != "$(uname -r)" ] || exit 0
+      entry=$(entry_for "$version") || exit 0
+      grub-editenv list | grep -qxF "saved_entry=$entry" && exit 0
+      flock 9
+      [ -f "$state" ] || arm "$version"
+      exit 0
+    fi
     read -r version boots < "$state"
     entry=$(entry_for "$version") || entry=
     if [ "$(uname -r)" != "$version" ]; then
@@ -519,24 +576,28 @@ case "$1" in
       exit 0
     fi
     [ "$boots" -lt 3 ] && grub-reboot "$entry"
+    flock -u 9
     # From early boot rather than from k3s, which may never report ready on a
     # bad kernel; the agent normally answers within a few minutes of boot.
-    deadline=$(($(date +%s) + 900))
-    while [ "$(date +%s)" -lt "$deadline" ]; do
-      if curl -sf -m 5 -o /dev/null "$health"; then
-        if grub-set-default "$entry"; then
-          finish "$version" "$entry"
-          record "$version" 0 "healthy; now the default"
-        else
-          finish "$version" "$entry"
-          record "$version" 1 "healthy, but grub-set-default failed"
-        fi
-        exit 0
+    if wait_healthy; then
+      flock 9
+      if grub-set-default "$entry"; then
+        finish "$version" "$entry"
+        record "$version" 0 "healthy; now the default"
+      else
+        finish "$version" "$entry"
+        record "$version" 1 "healthy, but grub-set-default failed"
       fi
-      sleep 10
-    done
+      exit 0
+    fi
+    flock 9
     finish "$version" "$entry"
     record "$version" 1 "not healthy after fifteen minutes; rebooting to the previous kernel"
+    flock -u 9
+    # Not in the middle of a package install.
+    while systemctl is-active --quiet apt-daily-upgrade.service || pgrep -x dpkg >/dev/null; do
+      sleep 10
+    done
     systemctl reboot
     ;;
   adopt)
@@ -575,7 +636,7 @@ systemctl enable kernel-trial.service`;
 
 /**
  * Takes the trial off a box that no longer has one, back to GRUB's default,
- * including any trial in flight and the series it exported.
+ * including any trial in flight.
  */
 const trialRemoval = `rm -f /etc/default/grub.d/61-trial.cfg /etc/kernel/postinst.d/zzz-kernel-trial
 if [ -f /etc/systemd/system/kernel-trial.service ]; then
@@ -584,7 +645,6 @@ if [ -f /etc/systemd/system/kernel-trial.service ]; then
   systemctl daemon-reload
 fi
 rm -rf /var/lib/kernel-trial
-rm -f /var/lib/node-exporter/textfile/kernel_trial.prom
 grub-editenv - unset next_entry saved_entry 2>/dev/null || true`;
 
 /**
@@ -622,14 +682,19 @@ grub-editenv - unset next_entry saved_entry 2>/dev/null || true`;
  * as GRUB does by default.
  *
  * A kernel hook `grub-reboot`s the new build for the next boot only, leaving
- * GRUB's saved default on the kernel that last passed. `kernel-trial check`
+ * GRUB's saved default on the kernel that last passed, and only while the URL
+ * answers on the current kernel: a trial judges the kernel, so the node must
+ * be healthy before it, or a cluster fault would refuse a good build. A build
+ * that installs while the node is unhealthy, or before it has a cluster at
+ * all, is armed by the first boot that finds the node healthy. A refused build
+ * is remembered and not tried again; the next one is. `kernel-trial check`
  * runs on every boot, from early boot rather than after k3s, which may never
  * report ready on a bad kernel. On the trial kernel it re-arms the one-shot
  * entry, so an unrelated reboot during the check returns to the trial rather
  * than counting as a failure (three boots at most), then waits fifteen
  * minutes for the URL.
- * Healthy, the build is saved as the default; not, the box reboots and GRUB
- * returns to the previous kernel. A build that panics comes back the same
+ * Healthy, the build is saved as the default; not, the box reboots, once no
+ * package install is running, and GRUB returns to the previous kernel. A build that panics comes back the same
  * way, because `panic=10` is on the command line and so covers panics before
  * userspace too. Ubuntu's initrd-less first boot (`GRUB_FORCE_PARTUUID`) is
  * turned off, since its retry with an initrd would land on the saved kernel
