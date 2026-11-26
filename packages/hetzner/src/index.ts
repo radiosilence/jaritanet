@@ -14,5 +14,6 @@ export {
   createNetworkHardening,
   createNetworkTuning,
   inboundRule,
+  type KernelTrial,
   type SshConnection,
 } from "./vps.ts";
