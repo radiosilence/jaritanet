@@ -21,7 +21,7 @@ export const VERSIONS = {
  * the updater to follow.
  */
 export const UNTRACKED = {
-  busybox: "docker.io/library/busybox:1.37",
+  busybox: "docker.io/library/busybox:1.38",
 } as const;
 
 export const VM_SINGLE_IMAGE = `docker.io/victoriametrics/victoria-metrics:v${VERSIONS.victoriaMetrics}`;

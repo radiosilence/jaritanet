@@ -42,7 +42,7 @@ export const SambaShareSchema = z.object({
 export const SambaConfSchema = z.object({
   image: z
     .string()
-    .default("ghcr.io/servercontainers/samba:a3.24.1-s4.23.8-r0"),
+    .default("ghcr.io/servercontainers/samba:a3.24.4-s4.23.8-r0"),
   /**
    * The node interface avahi answers mDNS on.
    *

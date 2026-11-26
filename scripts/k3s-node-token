@@ -31,7 +31,7 @@ OUT="$(kubectl --context "$CONTEXT" run "k3s-token-$RANDOM" \
   "nodeName":"$NODE",
   "tolerations":[{"operator":"Exists"}],
   "containers":[{
-    "name":"reader","image":"busybox:1.36",
+    "name":"reader","image":"busybox:1.38",
     "command":["cat","/host/server/token"],
     "securityContext":{"privileged":true},
     "volumeMounts":[{"name":"h","mountPath":"/host","readOnly":true}]

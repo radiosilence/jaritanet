@@ -28,5 +28,5 @@ export const BtrfsMaintenanceConfSchema = z.object({
    */
   metricsDir: AbsolutePath.optional(),
   /** Only used to run `nsenter`; everything else is the host's own binaries. */
-  image: z.string().default("busybox:1.37.0"),
+  image: z.string().default("busybox:1.38.0"),
 });

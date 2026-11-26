@@ -30,6 +30,7 @@ import {
 } from "./schemas.ts";
 import { CLOUD_NODE } from "./nodes.ts";
 import { secrets } from "./secrets.ts";
+import { VERSIONS } from "./versions.ts";
 
 /** Namespace, and the annotation saying what put things in it. */
 export const NAMESPACE = "jaritanet";
@@ -121,8 +122,9 @@ export const gateway = GatewayConfSchema.parse({
   // relying on Kubernetes' backward compatibility rather than on anything
   // tested, and the failure is a cluster that comes up healthy and moves no
   // packets. Both values reach the fleet from here: version via an upgrade
-  // Plan, ciliumVersion via Helm.
-  k3s: { version: "v1.36.3+k3s1", ciliumVersion: "1.20.0" },
+  // Plan, ciliumVersion via Helm. The pins are in `versions.ts`, where the
+  // version updater moves their patches.
+  k3s: { version: VERSIONS.k3s, ciliumVersion: VERSIONS.cilium },
   // xray shares :443; traffic that doesn't match a client falls back to `dest`
   // (Traefik's local https port), so real visitors still get the site.
   //

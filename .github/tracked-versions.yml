@@ -328,8 +328,28 @@
 # the same way inside `@radiosilence/mcp-gateway-pulumi`, which this follows as
 # a whole.
 #
-# Also deliberately absent: k3s and Cilium. Cilium's version has to match the
-# cluster's k8s minor, and k3s is the cluster — bumping either unattended
-# changes the thing every other entry is deployed onto. They move by hand,
-# together, with the compatibility matrix open — and CILIUM_K8S_SUPPORT fails
-# the parse if a bump only moves one of them.
+# k3s and Cilium are followed within one minor each. Their minors must pair
+# (CILIUM_K8S_SUPPORT fails the parse otherwise) and move by hand, together,
+# with the compatibility matrix open: that is a change to `tagPrefix` here and
+# to the pins in `stack.ts`. Patches within a minor carry fixes and nothing that
+# changes the pairing, and staying on an old one is how Cilium 1.20.0 met a
+# kernel whose verifier its feature probe failed, which a later patch fixed.
+#
+# The k3s entry has no image check: the upgrade Plan pulls `rancher/k3s-upgrade`
+# tagged with `+` written as `-`, which a `{version}` template cannot express.
+# k3s publishes the GitHub release once its artifacts are built.
+- app: k3s
+  repo: k3s-io/k3s
+  tagPrefix: "v1.36."
+  file: packages/infra/src/versions.ts
+  key: k3s
+  value: "v{version}"
+
+- app: Cilium
+  repo: cilium/cilium
+  tagPrefix: "v1.20."
+  file: packages/infra/src/versions.ts
+  key: cilium
+  value: "{version}"
+  helmIndex: https://helm.cilium.io/index.yaml
+  chart: cilium
