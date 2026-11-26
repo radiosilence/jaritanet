@@ -262,7 +262,7 @@ deployment *is* lives in `packages/infra/src/stack.ts` as TypeScript, and
 | `hcloud:token` | Yes | Hetzner API token, read by the provider. The cluster runs on the VPS it provisions, so this is not optional |
 | `secrets.cloudflareApiToken` | Yes | Handed to Traefik for the ACME DNS-01 challenge (DNS:Edit, Zone:Read) |
 | `secrets.githubClientSecret` | Yes | The OAuth app the identity provider authenticates people against |
-| `secrets.ubuntuProToken` | No | Ubuntu Pro, for kernel livepatch. Unset = the reboot window is still set and only livepatch is skipped |
+| `secrets.ubuntuProToken` | No | Ubuntu Pro, for kernel livepatch. Unset = patching and reboots still happen and only livepatch is skipped |
 | `secrets.vpnUsers` | No | Per-user VPN roster (RBAC). Comma-separated; trailing `+` = admin, e.g. `jc+,guest1`. Unset → single implicit owner-admin. Admin = hy2 + reality, all exits, tailnet; guest = reality-only, direct egress, no tailnet |
 | `secrets.tailnetAuthKey` | No | Joins the gateway and edges to the tailnet — enables the relay |
 | `secrets.tailnetOauthClientSecret` | No | Manages the tailnet policy file as code. Unset = policy stays hand-managed |
@@ -341,9 +341,23 @@ well as the key, so a rebuild cannot leave the new box without a way in.
 
 Cloud images install security updates on their own and then leave them there:
 `Automatic-Reboot` ships false, so a new kernel is downloaded and never booted.
-Every box gets a 04:00 reboot window so the patches it installs take effect.
-Stable-release updates (`-updates`) are installed the same way; by default they
-are left for someone to run apt by hand, and accumulate.
+Cloud boxes check for updates every two hours and reboot as soon as one needs
+it, because a fixed nightly window plus apt's once-a-day schedule could leave a
+published fix two days from running. Home nodes, which nothing on the internet
+reaches, keep a 04:00 window. Stable-release updates (`-updates`) are installed
+the same way; by default they are left for someone to run apt by hand, and
+accumulate.
+
+Cloud boxes boot upstream's stable kernel as built by
+[Zabbly](https://github.com/zabbly/linux) rather than Canonical's. Ubuntu
+26.04 shipped 7.0, a kernel upstream stopped maintaining within months, so its
+fixes wait on Canonical's own backports; Zabbly builds each upstream stable
+release within hours. The trade is trusting Zabbly's build machines and signing
+key, whose fingerprint is pinned in `createMainlineKernel`; an apt pin admits
+only the kernel images from that repository. Canonical's kernel stays installed
+as the fallback, and the GRUB menu waits five seconds so it can be chosen from
+Hetzner's console if a build fails to boot. Moving to Debian 13 instead is planned in
+#1768.
 
 The token is from https://ubuntu.com/pro/dashboard.
 
@@ -353,10 +367,13 @@ pulumi config set --path --secret secrets.ubuntuProToken
 
 Adds livepatch on top, which applies high and critical kernel CVE fixes to the
 *running* kernel — closing the interval between a fix landing and the next
-window, which is where local privilege escalation lives. The two are not
+reboot, which is where local privilege escalation lives. The two are not
 substitutes: livepatch covers neither userspace nor fixes that restructure
-kernel data, and stops supporting a kernel that drifts too far behind, so the
-window is what keeps livepatch working. Free for personal use on five machines.
+kernel data, and stops supporting a kernel that drifts too far behind, so
+rebooting is what keeps livepatch working. Free for personal use on five
+machines. Livepatch covers only Canonical's kernels, so on the cloud boxes,
+which boot the mainline kernel, it applies to the fallback alone; it matters
+for home nodes.
 
 Rotating the token is not enough on its own — an attached box is never offered a
 new one. Run `pro detach --assume-yes` on it first.

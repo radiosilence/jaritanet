@@ -2,6 +2,7 @@ import { remotePreamble } from "@jaritanet/remote";
 import * as command from "@pulumi/command";
 import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
+import { createHash } from "node:crypto";
 
 /** SSH connection to a provisioned Hetzner VPS. */
 export type SshConnection = {
@@ -141,26 +142,39 @@ ${reload}`,
  * a new kernel is downloaded, installed, and never booted. The gateway was found
  * running 6.8.0-117 with 6.8.0-136 on disk and `/run/reboot-required` set, which
  * is the default configuration working exactly as documented and achieving
- * nothing. A window is the half that was missing.
+ * nothing. Rebooting is the half that was missing.
  *
  * The `-updates` pocket is allowed alongside security. Left to the default it is
  * never installed at all: the gateway was found with 55 packages from it
  * pending, among them a kernel, systemd and AppArmor, waiting for someone to run
- * apt by hand. Taking them as they are published, inside the same window, is the
+ * apt by hand. Taking them as they are published, with the same reboot, is the
  * safer of the two ways they would otherwise arrive.
  *
- * Livepatch is the other half, and they are not substitutes. A window still
- * leaves the interval between a CVE landing and 04:00, which is where local
+ * Livepatch is the other half, and they are not substitutes. Rebooting still
+ * leaves the interval between a CVE landing and the next reboot, which is where local
  * privilege escalation lives; livepatch closes that to hours by patching the
  * running kernel. It in turn does not cover userspace, or fixes that restructure
  * kernel data, and it only supports a kernel for so long before demanding a
- * reboot — so the window is also what keeps livepatch able to keep working.
+ * reboot — so rebooting is also what keeps livepatch able to keep working.
  *
- * Every box takes the same 04:00 window, which is deliberate while the fleet is
- * a gateway and a home node: they serve different things, so one shared outage
- * minute beats two staggered ones. It stops being right once edges exist —
- * every VPN entry rebooting together is an outage rather than a blip, and the
- * time wants to vary per box at that point.
+ * The box checks every two hours and reboots as soon as an install needs it,
+ * rather than at a fixed time. Stock apt refreshes its lists at a random point
+ * in a twelve-hour window and upgrades once a day, and a nightly window adds up
+ * to another day on top, so a fix published in the morning could take two days
+ * to be running. The `APT::Periodic` values are `always` because they are
+ * intervals in days, checked against stamp files: a timer firing more often
+ * than they allow does nothing. The cost is a reboot of a minute or two at an
+ * unpredictable hour, a few times a week, which a VPN client rides out by
+ * reconnecting. Home nodes keep the 04:00 window `scripts/make-seed-drive`
+ * gives them, since nothing reaches them from the internet.
+ *
+ * Each box upgrades at its own minute past every second hour, derived from its
+ * name, so the gateway and the edges do not all reboot into the same release
+ * together and leave a client no entry to fail over to. The timers are not
+ * `Persistent`: stock apt's are, and restarting one on a new schedule would
+ * run the missed slot at once, rebooting the box in the middle of the deploy
+ * that changed it. A deploy that still overlaps a run which installs a kernel
+ * loses the API server for a minute or two and is re-run.
  *
  * The token is interpolated into the script and the whole command marked
  * secret. Passing it as `environment` is the tidier shape and does not work:
@@ -176,6 +190,13 @@ export function createAutomaticPatching(
   server: hcloud.Server,
   proToken?: pulumi.Input<string>,
 ) {
+  const upgradeMinute =
+    10 +
+    (Number.parseInt(
+      createHash("sha256").update(name).digest("hex").slice(0, 8),
+      16,
+    ) %
+      50);
   return new command.remote.Command(
     `${name}-automatic-patching`,
     {
@@ -189,11 +210,33 @@ export function createAutomaticPatching(
       create: pulumi.secret(pulumi.interpolate`${remotePreamble}
 
 cat > /etc/apt/apt.conf.d/51unattended-upgrades-local << 'EOF'
+APT::Periodic::Update-Package-Lists "always";
+APT::Periodic::Download-Upgradeable-Packages "always";
+APT::Periodic::Unattended-Upgrade "always";
 Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
-Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+Unattended-Upgrade::Automatic-Reboot-Time "now";
 Unattended-Upgrade::Allowed-Origins { "\${distro_id}:\${distro_codename}-updates"; };
 EOF
+# Upgrade at least ten minutes after the lists refresh, so each run sees fresh
+# lists.
+mkdir -p /etc/systemd/system/apt-daily.timer.d /etc/systemd/system/apt-daily-upgrade.timer.d
+cat > /etc/systemd/system/apt-daily.timer.d/50-often.conf << 'EOF'
+[Timer]
+OnCalendar=
+OnCalendar=*-*-* 00/2:00
+RandomizedDelaySec=5m
+Persistent=false
+EOF
+cat > /etc/systemd/system/apt-daily-upgrade.timer.d/50-often.conf << 'EOF'
+[Timer]
+OnCalendar=
+OnCalendar=*-*-* 00/2:${String(upgradeMinute).padStart(2, "0")}
+RandomizedDelaySec=0
+Persistent=false
+EOF
+systemctl daemon-reload
+systemctl restart apt-daily.timer apt-daily-upgrade.timer
 # Written is not applied: apt merges apt.conf.d in lexical order, so assert the
 # values that actually resolve rather than the file that was just written. A
 # list is appended to across files, so the origin joins the defaults rather than
@@ -203,6 +246,14 @@ resolved=$(apt-config dump)
 case "$resolved" in
   *'Unattended-Upgrade::Automatic-Reboot "true"'*) ;;
   *) echo "Automatic-Reboot did not resolve to true" >&2; exit 1 ;;
+esac
+case "$resolved" in
+  *'Unattended-Upgrade::Automatic-Reboot-Time "now"'*) ;;
+  *) echo "Automatic-Reboot-Time did not resolve to now" >&2; exit 1 ;;
+esac
+case "$resolved" in
+  *'APT::Periodic::Unattended-Upgrade "always"'*) ;;
+  *) echo "APT::Periodic::Unattended-Upgrade did not resolve to always" >&2; exit 1 ;;
 esac
 case "$resolved" in
   *'Allowed-Origins:: "\${distro_id}:\${distro_codename}-updates"'*) ;;
@@ -228,17 +279,22 @@ if [ -n "$UBUNTU_PRO_TOKEN" ]; then
   pro enable esm-infra esm-apps --assume-yes || true
   # Same reasoning as the sysctls: enable can report success on a kernel
   # livepatch does not cover, and a security control believed to be on is worse
-  # than one known to be off.
-  pro status --format=json | python3 -c "
+  # than one known to be off. Livepatch patches only Canonical's kernels, so on
+  # the mainline kernel (createMainlineKernel) it stays enabled for the
+  # fallback kernel and is not asserted.
+  case "$(uname -r)" in
+    *zabbly*) ;;
+    *) pro status --format=json | python3 -c "
 import json, sys
 services = {s['name']: s['status'] for s in json.load(sys.stdin).get('services', [])}
 sys.exit(0 if services.get('livepatch') == 'enabled' else 1)
-"
+" ;;
+  esac
 fi`),
       triggers: serverTriggers(
         server,
         pulumi.output(proToken ?? ""),
-        "patching-v2",
+        "patching-v3",
       ),
     },
     { dependsOn: [server] },
@@ -333,6 +389,12 @@ test "$(sysctl -n net.mptcp.enabled)" = 0`,
  * containerd/containerd#14487 matches the stacked peer; once a k3s release
  * carries it, this goes. The label is fixed when a process starts, so a
  * container started before this applied keeps the stack until it restarts.
+ *
+ * The sysctl is Ubuntu's own patch, absent from the mainline kernel
+ * (createMainlineKernel), which does not stack; there it is skipped, and the
+ * file stays for the Ubuntu kernel kept as a fallback. The leading `-` makes
+ * `sysctl --system` ignore the missing key rather than fail, which matters to
+ * every other command here that runs it.
  */
 export function createAppArmorStackingWorkaround(
   name: string,
@@ -345,11 +407,133 @@ export function createAppArmorStackingWorkaround(
       connection,
       create: `set -euo pipefail
 cat > /etc/sysctl.d/99-apparmor-unconfined.conf << 'EOF'
-kernel.apparmor_restrict_unprivileged_unconfined = 0
+-kernel.apparmor_restrict_unprivileged_unconfined = 0
 EOF
-sysctl --system >/dev/null
-test "$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined)" = 0`,
-      triggers: serverTriggers(server, "apparmor-unconfined-v1"),
+if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined ]; then
+  sysctl --system >/dev/null
+  test "$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined)" = 0
+fi`,
+      triggers: serverTriggers(server, "apparmor-unconfined-v2"),
+    },
+    { dependsOn: [server] },
+  );
+}
+
+/**
+ * Zabbly's signing key, compared before the key is trusted. It is the root of
+ * trust for the kernel every box boots, so the fingerprint is pinned here
+ * rather than taken from whatever the server returns. Expires 2030-08-17;
+ * when Zabbly extends or rotates it, changing this re-runs the install, which
+ * fetches and checks the new key.
+ */
+const ZABBLY_KEY_FINGERPRINT = "4EFC590696CB15B87C73A3AD82CC8797C838DCFD";
+
+/**
+ * Boots upstream's current stable kernel, built by Zabbly, instead of
+ * Canonical's.
+ *
+ * Ubuntu ships whichever kernel is newest at its release freeze, LTS or not,
+ * and then backports fixes into it by hand for the life of the release. 26.04
+ * took 7.0, which upstream stopped maintaining within months, so every fix
+ * since has waited on Canonical's own backport and release cycle. Zabbly
+ * builds each upstream stable release, usually within hours of it, and waits
+ * for a new major's first bugfix release before moving to it.
+ *
+ * What this trusts is one company's build machines and one signing key: the
+ * kernel config is public, but the builds are not reproducible from it. That
+ * was judged a better trade for an internet-facing box than Canonical's
+ * latency. Debian 13, which follows the 6.12 LTS upstream, is the alternative
+ * that trusts a distribution instead (radiosilence/jaritanet#1768).
+ *
+ * Unattended-upgrades takes the repository as one more origin, so new builds
+ * install and reboot exactly as security updates do (createAutomaticPatching).
+ * `linux-image-zabbly` is a metapackage depending on the current build, which
+ * apt installs as a new dependency. The repository also publishes other
+ * packages, `linux-libc-dev` among them, at versions that outrank Ubuntu's; an
+ * apt pin refuses everything from it but the kernel images, so the trust
+ * extends to the kernel and nothing else.
+ *
+ * GRUB boots the highest version, so the mainline kernel is the default without
+ * configuration, and Canonical's stays installed as the fallback. Cloud images
+ * hide the menu with a zero timeout; it is shown for five seconds instead, so a
+ * build that fails to boot can be passed over from Hetzner's console under
+ * "Advanced options". Installing does not reboot: the switch happens at the
+ * next reboot unattended-upgrades makes.
+ */
+export function createMainlineKernel(
+  name: string,
+  connection: SshConnection,
+  server: hcloud.Server,
+) {
+  return new command.remote.Command(
+    `${name}-mainline-kernel`,
+    {
+      connection,
+      create: `${remotePreamble}
+
+command -v gpg >/dev/null || {
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gpg
+}
+key=$(curl -fsSL https://pkgs.zabbly.com/key.asc)
+fingerprint=$(printf '%s\\n' "$key" | gpg --show-keys --with-colons 2>/dev/null \\
+  | awk -F: '$1 == "fpr" && !seen++ { print $10 }')
+if [ "$fingerprint" != "${ZABBLY_KEY_FINGERPRINT}" ]; then
+  echo "Zabbly key fingerprint is $fingerprint, expected ${ZABBLY_KEY_FINGERPRINT}" >&2
+  exit 1
+fi
+install -d -m 0755 /etc/apt/keyrings
+printf '%s\\n' "$key" > /etc/apt/keyrings/zabbly.asc
+
+cat > /etc/apt/sources.list.d/zabbly-kernel-stable.sources << EOF
+Enabled: yes
+Types: deb
+URIs: https://pkgs.zabbly.com/kernel/stable
+Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
+Components: main
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/zabbly.asc
+EOF
+
+cat > /etc/apt/preferences.d/zabbly-kernel << 'EOF'
+Package: linux-image-zabbly /^linux-image-[0-9.]+-zabbly\\+$/
+Pin: release o=pkgs.zabbly.com,l=kernel-stable
+Pin-Priority: 500
+
+Package: *
+Pin: release o=pkgs.zabbly.com,l=kernel-stable
+Pin-Priority: -1
+EOF
+
+mkdir -p /etc/default/grub.d
+cat > /etc/default/grub.d/60-fallback-menu.cfg << 'EOF'
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TIMEOUT=5
+EOF
+
+cat > /etc/apt/apt.conf.d/52unattended-upgrades-zabbly << 'EOF'
+Unattended-Upgrade::Origins-Pattern { "origin=pkgs.zabbly.com,label=kernel-stable"; };
+EOF
+case "$(apt-config dump)" in
+  *'Origins-Pattern:: "origin=pkgs.zabbly.com,label=kernel-stable"'*) ;;
+  *) echo "the Zabbly origin did not resolve" >&2; exit 1 ;;
+esac
+
+# apt-daily runs every two hours and holds the lists lock while it does, which
+# DPkg::Lock::Timeout does not cover.
+for attempt in $(seq 30); do
+  apt-get update -qq && break
+  [ "$attempt" = 30 ] && exit 1
+  sleep 20
+done
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq linux-image-zabbly
+ls /boot/vmlinuz-*-zabbly+ >/dev/null
+update-grub`,
+      triggers: serverTriggers(
+        server,
+        ZABBLY_KEY_FINGERPRINT,
+        "mainline-kernel-v1",
+      ),
     },
     { dependsOn: [server] },
   );

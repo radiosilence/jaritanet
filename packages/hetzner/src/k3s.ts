@@ -66,8 +66,9 @@ export function createK3s(
   // with 279 of its 316 images unused. The kubelet now collects from 70% down to
   // 50%, and removes images unused for three days whatever the disk. The age
   // rule only applies once the kubelet itself has run that long, and every k3s
-  // restart or reboot resets it, so it is kept short enough to fire between the
-  // reboot window's reboots; the thresholds are the guarantee. An image removed
+  // restart or reboot resets it, and patching reboots a cloud box within hours
+  // of any update that needs it, so the age rule fires only in quiet weeks; the
+  // thresholds are the guarantee. An image removed
   // and wanted again is pulled again. Agents carry the same file
   // (make-seed-drive).
   const nodeConfig = new command.remote.Command(

@@ -10,6 +10,7 @@ export {
   createAppArmorStackingWorkaround,
   createAutomaticPatching,
   createJournalLimit,
+  createMainlineKernel,
   createNetworkHardening,
   createNetworkTuning,
   inboundRule,
