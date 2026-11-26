@@ -532,7 +532,7 @@ update-grub`,
       triggers: serverTriggers(
         server,
         ZABBLY_KEY_FINGERPRINT,
-        "mainline-kernel-v1",
+        "mainline-kernel-v2",
       ),
     },
     { dependsOn: [server] },
