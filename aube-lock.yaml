@@ -38,10 +38,10 @@ importers:
         version: 7.0.2
       vite:
         specifier: 8.3.5
-        version: 8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+        version: 8.3.5(@types/node@24.19.2)
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
+        version: 5.0.5(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2))
 
   apps/auth:
     devDependencies:
@@ -59,7 +59,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -77,7 +77,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -95,7 +95,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../../../../packages/k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -107,7 +107,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -116,7 +116,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/cloudflare':
         specifier: 6.23.1
         version: 6.23.1(typescript@7.0.2)
@@ -131,7 +131,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -140,7 +140,7 @@ importers:
     dependencies:
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: link:packages/remote
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@7.0.2)
@@ -161,7 +161,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -176,49 +176,49 @@ importers:
     dependencies:
       '@jaritanet/auth':
         specifier: workspace:*
-        version: link:../../apps/auth/deploy/pulumi
+        version: link:apps/auth/deploy/pulumi
       '@jaritanet/blit':
         specifier: workspace:*
-        version: link:../blit
+        version: link:packages/blit
       '@jaritanet/dns':
         specifier: workspace:*
-        version: link:../dns
+        version: link:packages/dns
       '@jaritanet/files':
         specifier: workspace:*
-        version: link:../../apps/files/deploy/pulumi
+        version: link:apps/files/deploy/pulumi
       '@jaritanet/groglog':
         specifier: workspace:*
-        version: link:../groglog
+        version: link:packages/groglog
       '@jaritanet/hetzner':
         specifier: workspace:*
-        version: link:../hetzner
+        version: link:packages/hetzner
       '@jaritanet/home':
         specifier: workspace:*
-        version: link:../home
+        version: link:packages/home
       '@jaritanet/ingress':
         specifier: workspace:*
-        version: link:../ingress
+        version: link:packages/ingress
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@jaritanet/koan-demo':
         specifier: workspace:*
-        version: link:../../apps/koan-demo/deploy/pulumi
+        version: link:apps/koan-demo/deploy/pulumi
       '@jaritanet/koan-site':
         specifier: workspace:*
-        version: link:../koan-site
+        version: link:packages/koan-site
       '@jaritanet/metrics':
         specifier: workspace:*
-        version: link:../metrics
+        version: link:packages/metrics
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: link:packages/remote
       '@jaritanet/sbr-site':
         specifier: workspace:*
-        version: link:../sbr-site
+        version: link:packages/sbr-site
       '@jaritanet/vpn':
         specifier: workspace:*
-        version: link:../vpn
+        version: link:packages/vpn
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@7.0.2)
@@ -275,7 +275,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -302,7 +302,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -311,7 +311,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -334,7 +334,7 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@pulumi/kubernetes':
         specifier: 4.34.2
         version: 4.34.2(typescript@7.0.2)
@@ -343,13 +343,13 @@ importers:
     dependencies:
       '@jaritanet/k8s':
         specifier: workspace:*
-        version: link:../k8s
+        version: link:packages/k8s
       '@jaritanet/remote':
         specifier: workspace:*
-        version: link:../remote
+        version: link:packages/remote
       '@jaritanet/serve-from-env':
         specifier: workspace:*
-        version: link:../../apps/serve-from-env/deploy/pulumi
+        version: link:apps/serve-from-env/deploy/pulumi
       '@pulumi/command':
         specifier: 1.2.1
         version: 1.2.1(typescript@7.0.2)
@@ -377,7 +377,7 @@ importers:
     dependencies:
       '@jaritanet/vpn':
         specifier: workspace:*
-        version: link:../packages/vpn
+        version: link:packages/vpn
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -3405,13 +3405,13 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))':
+  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@24.19.2))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.5
       estree-walker: 3.0.3
       magic-string: 1.4.5
-      vite: 8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.5(@types/node@24.19.2)
 
   '@vitest/pretty-format@5.0.5':
     dependencies:
@@ -3427,7 +3427,7 @@ snapshots:
       pathe: 2.0.3
       sirv: 3.0.2
       tinyrainbow: 3.2.0
-      vitest: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
+      vitest: 5.0.5(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2))
 
   '@vitest/utils@5.0.5':
     dependencies:
@@ -4350,25 +4350,21 @@ snapshots:
 
   validate-npm-package-name@7.0.2: {}
 
-  vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1):
+  vite@8.3.5(@types/node@24.19.2):
     dependencies:
-      '@types/node': 24.19.2
       lightningcss: 1.33.0
       picomatch: 4.0.7
       postcss: 8.5.32
       rolldown: 1.2.16
       tinyglobby: 0.2.17
     optionalDependencies:
+      '@types/node': 24.19.2
       fsevents: 2.3.3
-      jiti: 2.7.0
-      yaml: 2.9.1
 
-  vitest@5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)):
+  vitest@5.0.5(@types/node@24.19.2)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@24.19.2)):
     dependencies:
       '@types/chai': 5.2.3
-      '@types/node': 24.19.2
-      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1))
-      '@vitest/ui': 5.0.5(vitest@5.0.5)
+      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@24.19.2))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -4379,10 +4375,11 @@ snapshots:
       tinybench: 6.2.2
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 8.3.5(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.5(@types/node@24.19.2)
       why-is-node-running: 3.2.1
     optionalDependencies:
-      '@opentelemetry/api': 1.10.0
+      '@types/node': 24.19.2
+      '@vitest/ui': 5.0.5(vitest@5.0.5)
     transitivePeerDependencies:
       - msw
 
