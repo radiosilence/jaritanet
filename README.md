@@ -360,7 +360,7 @@ Hetzner's console. A new build is booted once on trial and kept as the default
 only if the node's Cilium agent reports healthy on it within ten minutes;
 otherwise the box reboots onto the previous kernel and
 `jaritanet_kernel_trial_failed` records the refusal. That is the failure a
-kernel upgrade has actually caused here: 7.3 booted, and Cilium 1.20.0 could
+kernel upgrade has caused here: 7.3 booted, and Cilium 1.20.0 could
 not load on it. Moving to Debian 13 instead is planned in
 #1768.
 

@@ -134,7 +134,13 @@ export function createGateway(
     server,
     proToken ? pulumi.secret(proToken) : undefined,
   );
-  createMainlineKernel("gateway", connection, server);
+  // Cilium agent health, on the node itself; see createMainlineKernel.
+  createMainlineKernel(
+    "gateway",
+    connection,
+    server,
+    "http://127.0.0.1:9879/healthz",
+  );
 
   if (adminSshKey) {
     createAdminSshAccess("gateway", connection, server, adminSshKey);
