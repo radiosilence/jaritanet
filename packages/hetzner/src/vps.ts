@@ -2,6 +2,7 @@ import { remotePreamble } from "@jaritanet/remote";
 import * as command from "@pulumi/command";
 import type * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
+import { createHash } from "node:crypto";
 
 /** SSH connection to a provisioned Hetzner VPS. */
 export type SshConnection = {
@@ -167,6 +168,14 @@ ${reload}`,
  * reconnecting. Home nodes keep the 04:00 window `scripts/make-seed-drive`
  * gives them, since nothing reaches them from the internet.
  *
+ * Each box upgrades at its own minute past every second hour, derived from its
+ * name, so the gateway and the edges do not all reboot into the same release
+ * together and leave a client no entry to fail over to. The timers are not
+ * `Persistent`: stock apt's are, and restarting one on a new schedule would
+ * run the missed slot at once, rebooting the box in the middle of the deploy
+ * that changed it. A deploy that still overlaps a run which installs a kernel
+ * loses the API server for a minute or two and is re-run.
+ *
  * The token is interpolated into the script and the whole command marked
  * secret. Passing it as `environment` is the tidier shape and does not work:
  * that uses SSH's `setenv`, which sshd refuses unless the server lists the
@@ -181,6 +190,13 @@ export function createAutomaticPatching(
   server: hcloud.Server,
   proToken?: pulumi.Input<string>,
 ) {
+  const upgradeMinute =
+    10 +
+    (Number.parseInt(
+      createHash("sha256").update(name).digest("hex").slice(0, 8),
+      16,
+    ) %
+      50);
   return new command.remote.Command(
     `${name}-automatic-patching`,
     {
@@ -202,19 +218,22 @@ Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
 Unattended-Upgrade::Automatic-Reboot-Time "now";
 Unattended-Upgrade::Allowed-Origins { "\${distro_id}:\${distro_codename}-updates"; };
 EOF
-# Upgrade twenty minutes after the lists refresh, so each run sees fresh lists.
+# Upgrade at least ten minutes after the lists refresh, so each run sees fresh
+# lists.
 mkdir -p /etc/systemd/system/apt-daily.timer.d /etc/systemd/system/apt-daily-upgrade.timer.d
 cat > /etc/systemd/system/apt-daily.timer.d/50-often.conf << 'EOF'
 [Timer]
 OnCalendar=
 OnCalendar=*-*-* 00/2:00
-RandomizedDelaySec=10m
+RandomizedDelaySec=5m
+Persistent=false
 EOF
 cat > /etc/systemd/system/apt-daily-upgrade.timer.d/50-often.conf << 'EOF'
 [Timer]
 OnCalendar=
-OnCalendar=*-*-* 00/2:20
-RandomizedDelaySec=10m
+OnCalendar=*-*-* 00/2:${String(upgradeMinute).padStart(2, "0")}
+RandomizedDelaySec=0
+Persistent=false
 EOF
 systemctl daemon-reload
 systemctl restart apt-daily.timer apt-daily-upgrade.timer
@@ -373,7 +392,9 @@ test "$(sysctl -n net.mptcp.enabled)" = 0`,
  *
  * The sysctl is Ubuntu's own patch, absent from the mainline kernel
  * (createMainlineKernel), which does not stack; there it is skipped, and the
- * file stays for the Ubuntu kernel kept as a fallback.
+ * file stays for the Ubuntu kernel kept as a fallback. The leading `-` makes
+ * `sysctl --system` ignore the missing key rather than fail, which matters to
+ * every other command here that runs it.
  */
 export function createAppArmorStackingWorkaround(
   name: string,
@@ -386,13 +407,13 @@ export function createAppArmorStackingWorkaround(
       connection,
       create: `set -euo pipefail
 cat > /etc/sysctl.d/99-apparmor-unconfined.conf << 'EOF'
-kernel.apparmor_restrict_unprivileged_unconfined = 0
+-kernel.apparmor_restrict_unprivileged_unconfined = 0
 EOF
 if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined ]; then
   sysctl --system >/dev/null
   test "$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined)" = 0
 fi`,
-      triggers: serverTriggers(server, "apparmor-unconfined-v1"),
+      triggers: serverTriggers(server, "apparmor-unconfined-v2"),
     },
     { dependsOn: [server] },
   );
@@ -401,7 +422,9 @@ fi`,
 /**
  * Zabbly's signing key, compared before the key is trusted. It is the root of
  * trust for the kernel every box boots, so the fingerprint is pinned here
- * rather than taken from whatever the server returns. Expires 2030-08-17.
+ * rather than taken from whatever the server returns. Expires 2030-08-17;
+ * when Zabbly extends or rotates it, changing this re-runs the install, which
+ * fetches and checks the new key.
  */
 const ZABBLY_KEY_FINGERPRINT = "4EFC590696CB15B87C73A3AD82CC8797C838DCFD";
 
@@ -424,12 +447,18 @@ const ZABBLY_KEY_FINGERPRINT = "4EFC590696CB15B87C73A3AD82CC8797C838DCFD";
  *
  * Unattended-upgrades takes the repository as one more origin, so new builds
  * install and reboot exactly as security updates do (createAutomaticPatching).
- * The package is a metapackage depending on the current build, which apt
- * installs as a new dependency. GRUB boots the highest version, so the
- * mainline kernel is the default without configuration, and Canonical's stays
- * installed as the fallback to pick from the console if a build fails to boot.
- * Installing does not reboot: the switch happens at the next reboot
- * unattended-upgrades makes, which the kernel's own install requests.
+ * `linux-image-zabbly` is a metapackage depending on the current build, which
+ * apt installs as a new dependency. The repository also publishes other
+ * packages, `linux-libc-dev` among them, at versions that outrank Ubuntu's; an
+ * apt pin refuses everything from it but the kernel images, so the trust
+ * extends to the kernel and nothing else.
+ *
+ * GRUB boots the highest version, so the mainline kernel is the default without
+ * configuration, and Canonical's stays installed as the fallback. Cloud images
+ * hide the menu with a zero timeout; it is shown for five seconds instead, so a
+ * build that fails to boot can be passed over from Hetzner's console under
+ * "Advanced options". Installing does not reboot: the switch happens at the
+ * next reboot unattended-upgrades makes.
  */
 export function createMainlineKernel(
   name: string,
@@ -466,6 +495,22 @@ Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/zabbly.asc
 EOF
 
+cat > /etc/apt/preferences.d/zabbly-kernel << 'EOF'
+Package: linux-image-zabbly /^linux-image-[0-9.]+-zabbly\\+$/
+Pin: release o=pkgs.zabbly.com,l=kernel-stable
+Pin-Priority: 500
+
+Package: *
+Pin: release o=pkgs.zabbly.com,l=kernel-stable
+Pin-Priority: -1
+EOF
+
+mkdir -p /etc/default/grub.d
+cat > /etc/default/grub.d/60-fallback-menu.cfg << 'EOF'
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TIMEOUT=5
+EOF
+
 cat > /etc/apt/apt.conf.d/52unattended-upgrades-zabbly << 'EOF'
 Unattended-Upgrade::Origins-Pattern { "origin=pkgs.zabbly.com,label=kernel-stable"; };
 EOF
@@ -474,10 +519,21 @@ case "$(apt-config dump)" in
   *) echo "the Zabbly origin did not resolve" >&2; exit 1 ;;
 esac
 
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq linux-zabbly
-ls /boot/vmlinuz-*-zabbly+ >/dev/null`,
-      triggers: serverTriggers(server, "mainline-kernel-v1"),
+# apt-daily runs every two hours and holds the lists lock while it does, which
+# DPkg::Lock::Timeout does not cover.
+for attempt in $(seq 30); do
+  apt-get update -qq && break
+  [ "$attempt" = 30 ] && exit 1
+  sleep 20
+done
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq linux-image-zabbly
+ls /boot/vmlinuz-*-zabbly+ >/dev/null
+update-grub`,
+      triggers: serverTriggers(
+        server,
+        ZABBLY_KEY_FINGERPRINT,
+        "mainline-kernel-v1",
+      ),
     },
     { dependsOn: [server] },
   );
