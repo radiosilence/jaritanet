@@ -102,11 +102,12 @@ export const normaliseVersion = (tag: string) => tag.replace(/^\D*/, "");
 
 /**
  * Numeric segment by segment, so `0.1.19` sorts above `0.1.9` — comparing the
- * whole string the ordinary way puts it below, because `1` < `9`.
+ * whole string the ordinary way puts it below, because `1` < `9`. `+` splits
+ * too, so k3s's `1.36.10+k3s1` compares its patch as the number 10.
  */
 function compareVersions(a: string, b: string) {
-  const partsA = normaliseVersion(a).split(/[.-]/);
-  const partsB = normaliseVersion(b).split(/[.-]/);
+  const partsA = normaliseVersion(a).split(/[.+-]/);
+  const partsB = normaliseVersion(b).split(/[.+-]/);
   for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
     const partA = partsA[i] ?? "";
     const partB = partsB[i] ?? "";

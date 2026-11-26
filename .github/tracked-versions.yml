@@ -334,18 +334,22 @@
 # to the pins in `stack.ts`. Patches within a minor carry fixes and nothing that
 # changes the pairing, and staying on an old one is how Cilium 1.20.0 met a
 # kernel whose verifier its feature probe failed, which a later patch fixed.
+#
+# The k3s entry has no image check: the upgrade Plan pulls `rancher/k3s-upgrade`
+# tagged with `+` written as `-`, which a `{version}` template cannot express.
+# k3s publishes the GitHub release once its artifacts are built.
 - app: k3s
   repo: k3s-io/k3s
   tagPrefix: "v1.36."
-  file: packages/infra/src/stack.ts
-  key: version
+  file: packages/infra/src/versions.ts
+  key: k3s
   value: "v{version}"
 
 - app: Cilium
   repo: cilium/cilium
   tagPrefix: "v1.20."
-  file: packages/infra/src/stack.ts
-  key: ciliumVersion
+  file: packages/infra/src/versions.ts
+  key: cilium
   value: "{version}"
   helmIndex: https://helm.cilium.io/index.yaml
   chart: cilium

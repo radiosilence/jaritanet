@@ -4,7 +4,7 @@
  * `k3s.version` and `k3s.ciliumVersion` are not here: they are the cluster
  * rather than something deployed onto it, their minors must move together, and
  * parsing cross-checks them against `CILIUM_K8S_SUPPORT`. They live in
- * `infra/src/stack.ts`, where the updater moves their patches.
+ * `infra/src/versions.ts`, where the updater moves their patches.
  *
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */

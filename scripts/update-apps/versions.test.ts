@@ -99,6 +99,15 @@ describe("pickLatestTag", () => {
     expect(pickLatestTag(tags, "files-v")).toBe("files-v1.0.1");
   });
 
+  it("compares a patch carrying build metadata as a number", () => {
+    expect(
+      pickLatestTag(
+        ["v1.36.9+k3s1", "v1.36.10+k3s1", "v1.37.0+k3s1"],
+        "v1.36.",
+      ),
+    ).toBe("v1.36.10+k3s1");
+  });
+
   it("takes the newest of any component without a prefix", () => {
     expect(pickLatestTag(tags)).toBe("files-v1.0.1");
   });

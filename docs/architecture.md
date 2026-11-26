@@ -251,9 +251,13 @@ DaemonSet pods, which neither cordon nor drain evicts, and Traefik holds its
 `hostPort` throughout — so the window costs a deploy that happens to overlap it,
 not traffic.
 
-The version is not automated and should not be: `.github/tracked-versions.yml`
-excludes k3s and Cilium because bumping either changes the thing every other
-entry is deployed onto. What is automated is *arrival*. `k3s.version` stays one
+Patches are automated and minors are not. `.github/tracked-versions.yml`
+follows k3s and Cilium within their current minors (`tagPrefix`), because a
+patch carries fixes and nothing that changes the pairing, and a patch left
+behind is how Cilium 1.20.0 met a kernel whose verifier rejected its feature
+probe. A minor changes the thing every other entry is deployed onto and must
+pair with the other's, so it moves by hand: the pin in `infra/src/versions.ts`
+and the entry's `tagPrefix` together. What is also automated is *arrival*. `k3s.version` stays one
 value driving both a fresh install and the rolling upgrade of everything already
 running, so a bump is a deliberate PR that reaches the whole fleet rather than
 only the node Pulumi happened to install.
