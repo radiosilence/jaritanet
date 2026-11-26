@@ -429,6 +429,225 @@ fi`,
 const ZABBLY_KEY_FINGERPRINT = "4EFC590696CB15B87C73A3AD82CC8797C838DCFD";
 
 /**
+ * Where a node's kernel is judged before it is kept: `healthUrl` must answer
+ * on it, and the outcome is written to node-exporter's textfile directory,
+ * `metricsDir`, which the caller passes so the path has one definition.
+ */
+export interface KernelTrial {
+  healthUrl: string;
+  metricsDir: string;
+}
+
+/**
+ * The trial machinery `createMainlineKernel` describes, as the shell that
+ * installs it. The running kernel is saved as the default before the hook
+ * exists, so the first trial on a fresh box already has somewhere to fall
+ * back to.
+ */
+const trialSetup = ({
+  healthUrl,
+  metricsDir,
+}: KernelTrial) => `cat > /etc/default/grub.d/61-trial.cfg << 'EOF'
+GRUB_DEFAULT=saved
+GRUB_FORCE_PARTUUID=
+GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT panic=10"
+EOF
+
+cat > /usr/local/sbin/kernel-trial << 'EOF'
+#!/bin/bash
+set -uo pipefail
+dir=/var/lib/kernel-trial
+state=$dir/pending
+refused=$dir/refused
+metrics='${metricsDir}/kernel_trial.prom'
+health='${healthUrl}'
+mkdir -p "$dir"
+exec 9>"$dir/lock"
+
+entry_for() {
+  local submenu entry
+  submenu=$(grep -o "gnulinux-advanced-[0-9a-f-]*" /boot/grub/grub.cfg | head -1)
+  entry=$(grep -o "gnulinux-$1-advanced-[0-9a-f-]*" /boot/grub/grub.cfg | head -1)
+  [ -n "$submenu" ] && [ -n "$entry" ] && echo "$submenu>$entry"
+}
+
+# A refused build is remembered, so it is not tried again; the next build is.
+record() {
+  mkdir -p "$(dirname "$metrics")"
+  printf 'jaritanet_kernel_trial_failed{version="%s"} %s\\n' "$1" "$2" > "$metrics.tmp"
+  mv "$metrics.tmp" "$metrics"
+  [ "$2" = 1 ] && echo "$1" >> "$refused"
+  logger -t kernel-trial "$1: $3"
+}
+
+healthy() {
+  curl -sf -m 5 -o /dev/null "$health"
+}
+
+wait_healthy() {
+  local deadline=$(($(date +%s) + 900))
+  until healthy; do
+    [ "$(date +%s)" -lt "$deadline" ] || return 1
+    sleep 10
+  done
+}
+
+# Clears this trial's state, and only this trial's: a newer build armed while
+# it ran keeps its own.
+finish() {
+  local current
+  read -r current _ < "$state" 2>/dev/null || current=
+  [ "$current" = "$1" ] || return 0
+  rm -f "$state"
+  if grub-editenv list | grep -qxF "next_entry=$2"; then
+    grub-editenv - unset next_entry
+  fi
+}
+
+# Arms a build for the next boot, but only while the node is healthy on the
+# kernel it runs now: a trial judges the kernel, so it must start from a node
+# whose only change will be the kernel. Otherwise the next boot's check arms it
+# once the node is healthy. The reboot is requested so unattended-upgrades
+# makes it, at the box's own minute.
+arm() {
+  local entry
+  grep -qxF "$1" "$refused" 2>/dev/null && return 0
+  if ! healthy; then
+    logger -t kernel-trial "$1: node not healthy now; a later boot arms it"
+    return 0
+  fi
+  if ! entry=$(entry_for "$1"); then
+    record "$1" 1 "no GRUB entry"
+  elif grub-reboot "$entry"; then
+    echo "$1 0" > "$state"
+    touch /run/reboot-required
+    logger -t kernel-trial "$1: armed for the next boot"
+  else
+    record "$1" 1 "grub-reboot failed"
+  fi
+}
+
+newest() {
+  ls /boot/vmlinuz-*-zabbly+ 2>/dev/null | sed 's|^/boot/vmlinuz-||' | sort -V | tail -1
+}
+
+case "$1" in
+  start)
+    flock 9
+    case "$2" in
+      *zabbly*) ;;
+      *)
+        grub-editenv list | grep -q '^saved_entry=.*zabbly' && exit 0
+        read -r current _ < "$state" 2>/dev/null || current=
+        case "$current" in *zabbly*) exit 0 ;; esac
+        ;;
+    esac
+    arm "$2"
+    exit 0
+    ;;
+  check)
+    flock 9
+    if [ ! -f "$state" ]; then
+      # Nothing on trial. Arm the newest build if it is neither running nor
+      # the default: one that installed while the node was unhealthy, or
+      # before it had a cluster at all.
+      flock -u 9
+      wait_healthy || exit 0
+      version=$(newest)
+      [ -n "$version" ] && [ "$version" != "$(uname -r)" ] || exit 0
+      entry=$(entry_for "$version") || exit 0
+      grub-editenv list | grep -qxF "saved_entry=$entry" && exit 0
+      flock 9
+      [ -f "$state" ] || arm "$version"
+      exit 0
+    fi
+    read -r version boots < "$state"
+    entry=$(entry_for "$version") || entry=
+    if [ "$(uname -r)" != "$version" ]; then
+      finish "$version" "$entry"
+      record "$version" 1 "trial kernel not running after $boots boot(s); on $(uname -r)"
+      exit 0
+    fi
+    boots=$((boots + 1))
+    echo "$version $boots" > "$state"
+    if [ -z "$entry" ]; then
+      finish "$version" "$entry"
+      record "$version" 1 "no GRUB entry; left as it is"
+      exit 0
+    fi
+    [ "$boots" -lt 3 ] && grub-reboot "$entry"
+    flock -u 9
+    # From early boot rather than from k3s, which may never report ready on a
+    # bad kernel; the agent normally answers within a few minutes of boot.
+    if wait_healthy; then
+      flock 9
+      if grub-set-default "$entry"; then
+        finish "$version" "$entry"
+        record "$version" 0 "healthy; now the default"
+      else
+        finish "$version" "$entry"
+        record "$version" 1 "healthy, but grub-set-default failed"
+      fi
+      exit 0
+    fi
+    flock 9
+    finish "$version" "$entry"
+    record "$version" 1 "not healthy after fifteen minutes; rebooting to the previous kernel"
+    flock -u 9
+    # Not in the middle of a package install.
+    while systemctl is-active --quiet apt-daily-upgrade.service || pgrep -x dpkg >/dev/null; do
+      sleep 10
+    done
+    systemctl reboot
+    ;;
+  adopt)
+    entry=$(entry_for "$(uname -r)") || exit 1
+    grub-set-default "$entry"
+    ;;
+esac
+EOF
+chmod 0755 /usr/local/sbin/kernel-trial
+
+update-grub
+[ -f /var/lib/kernel-trial/pending ] || /usr/local/sbin/kernel-trial adopt
+grub-editenv list | grep -q '^saved_entry='
+
+cat > /etc/kernel/postinst.d/zzz-kernel-trial << 'EOF'
+#!/bin/sh
+/usr/local/sbin/kernel-trial start "$1" || true
+EOF
+chmod 0755 /etc/kernel/postinst.d/zzz-kernel-trial
+
+cat > /etc/systemd/system/kernel-trial.service << 'EOF'
+[Unit]
+Description=Keep a trial kernel only if the node comes up healthy on it
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/kernel-trial check
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable kernel-trial.service`;
+
+/**
+ * Takes the trial off a box that no longer has one, back to GRUB's default,
+ * including any trial in flight.
+ */
+const trialRemoval = `rm -f /etc/default/grub.d/61-trial.cfg /etc/kernel/postinst.d/zzz-kernel-trial
+if [ -f /etc/systemd/system/kernel-trial.service ]; then
+  systemctl disable kernel-trial.service
+  rm -f /etc/systemd/system/kernel-trial.service /usr/local/sbin/kernel-trial
+  systemctl daemon-reload
+fi
+rm -rf /var/lib/kernel-trial
+grub-editenv - unset next_entry saved_entry 2>/dev/null || true`;
+
+/**
  * Boots upstream's current stable kernel, built by Zabbly, instead of
  * Canonical's.
  *
@@ -453,17 +672,54 @@ const ZABBLY_KEY_FINGERPRINT = "4EFC590696CB15B87C73A3AD82CC8797C838DCFD";
  * apt pin refuses everything from it but the kernel images, so the trust
  * extends to the kernel and nothing else.
  *
- * GRUB boots the highest version, so the mainline kernel is the default without
- * configuration, and Canonical's stays installed as the fallback. Cloud images
- * hide the menu with a zero timeout; it is shown for five seconds instead, so a
- * build that fails to boot can be passed over from Hetzner's console under
- * "Advanced options". Installing does not reboot: the switch happens at the
- * next reboot unattended-upgrades makes.
+ * With `trial`, a new build is booted on trial and becomes the default only
+ * if `trial.healthUrl` answers on it. That is the failure that took the
+ * estate down once: 7.3 booted cleanly and Cilium 1.20.0's feature probe was
+ * rejected by its verifier, so the box ran and moved no packets. The gateway
+ * passes the Cilium agent's own health endpoint, which answers only for the
+ * agent running now, unlike pod status the API may still hold from before the
+ * reboot. Edges run no Cilium and pass nothing: they boot the newest kernel,
+ * as GRUB does by default.
+ *
+ * A kernel hook `grub-reboot`s the new build for the next boot only, leaving
+ * GRUB's saved default on the kernel that last passed, and only while the URL
+ * answers on the current kernel: a trial judges the kernel, so the node must
+ * be healthy before it, or a cluster fault would refuse a good build. A build
+ * that installs while the node is unhealthy, or before it has a cluster at
+ * all, is armed by the first boot that finds the node healthy. A refused build
+ * is remembered and not tried again; the next one is. `kernel-trial check`
+ * runs on every boot, from early boot rather than after k3s, which may never
+ * report ready on a bad kernel. On the trial kernel it re-arms the one-shot
+ * entry, so an unrelated reboot during the check returns to the trial rather
+ * than counting as a failure (three boots at most), then waits fifteen
+ * minutes for the URL.
+ * Healthy, the build is saved as the default; not, the box reboots, once no
+ * package install is running, and GRUB returns to the previous kernel. A build that panics comes back the same
+ * way, because `panic=10` is on the command line and so covers panics before
+ * userspace too. Ubuntu's initrd-less first boot (`GRUB_FORCE_PARTUUID`) is
+ * turned off, since its retry with an initrd would land on the saved kernel
+ * rather than the trial. One that hangs without panicking does not: a Hetzner VPS has
+ * no watchdog to reset it, which leaves the console. Each outcome is written
+ * to node-exporter's textfile directory as `jaritanet_kernel_trial_failed`,
+ * because a refused build otherwise leaves the box quietly on an older kernel,
+ * without the fixes it was meant to bring.
+ *
+ * Canonical's kernels are trialled only while the saved default is one of
+ * theirs, so on a mainline box an update to the fallback never takes over, and
+ * on a box whose builds keep failing Canonical's own security updates still
+ * reach the default. Whenever this command runs without a trial in flight it
+ * adopts the running kernel as the default, before installing anything, since
+ * the box it runs on is the one being deployed to.
+ *
+ * Canonical's kernel stays installed beneath the mainline one. The GRUB menu
+ * is shown for five seconds rather than the cloud image's zero, so a kernel
+ * can still be chosen by hand from Hetzner's console.
  */
 export function createMainlineKernel(
   name: string,
   connection: SshConnection,
   server: hcloud.Server,
+  trial?: KernelTrial,
 ) {
   return new command.remote.Command(
     `${name}-mainline-kernel`,
@@ -510,6 +766,7 @@ cat > /etc/default/grub.d/60-fallback-menu.cfg << 'EOF'
 GRUB_TIMEOUT_STYLE=menu
 GRUB_TIMEOUT=5
 EOF
+${trial ? trialSetup(trial) : trialRemoval}
 
 cat > /etc/apt/apt.conf.d/52unattended-upgrades-zabbly << 'EOF'
 Unattended-Upgrade::Origins-Pattern { "origin=pkgs.zabbly.com,label=kernel-stable"; };
@@ -528,11 +785,12 @@ for attempt in $(seq 30); do
 done
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq linux-image-zabbly
 ls /boot/vmlinuz-*-zabbly+ >/dev/null
-update-grub`,
+update-grub
+${trial ? "[ -f /var/lib/kernel-trial/pending ] || /usr/local/sbin/kernel-trial adopt" : "true"}`,
       triggers: serverTriggers(
         server,
         ZABBLY_KEY_FINGERPRINT,
-        "mainline-kernel-v2",
+        "mainline-kernel-v5",
       ),
     },
     { dependsOn: [server] },

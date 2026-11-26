@@ -9,6 +9,7 @@ import {
   createNetworkTuning,
   inboundRule,
 } from "@jaritanet/hetzner";
+import { TEXTFILE_DIR } from "@jaritanet/metrics";
 import { createTailscaleSystemd } from "@jaritanet/vpn";
 import * as hcloud from "@pulumi/hcloud";
 import * as pulumi from "@pulumi/pulumi";
@@ -134,7 +135,11 @@ export function createGateway(
     server,
     proToken ? pulumi.secret(proToken) : undefined,
   );
-  createMainlineKernel("gateway", connection, server);
+  // Cilium agent health, on the node itself; see createMainlineKernel.
+  createMainlineKernel("gateway", connection, server, {
+    healthUrl: "http://127.0.0.1:9879/healthz",
+    metricsDir: TEXTFILE_DIR,
+  });
 
   if (adminSshKey) {
     createAdminSshAccess("gateway", connection, server, adminSshKey);

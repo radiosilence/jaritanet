@@ -616,6 +616,13 @@ const overview = dashboard(
       ],
       thresholds: [0.1, 1],
     },
+    {
+      title: "Kernels refused",
+      description:
+        "Mainline kernel builds the gateway booted on trial and went back from, because Cilium did not come up on them. Anything but zero means the box is on an older kernel than Zabbly has published, without the fixes in the newer one, until a build passes; `journalctl -t kernel-trial` on the box says why.",
+      target: ["sum(jaritanet_kernel_trial_failed) or vector(0)", "refused"],
+      thresholds: [1, 2],
+    },
   ],
 );
 

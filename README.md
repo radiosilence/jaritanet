@@ -356,7 +356,12 @@ release within hours. The trade is trusting Zabbly's build machines and signing
 key, whose fingerprint is pinned in `createMainlineKernel`; an apt pin admits
 only the kernel images from that repository. Canonical's kernel stays installed
 as the fallback, and the GRUB menu waits five seconds so it can be chosen from
-Hetzner's console if a build fails to boot. Moving to Debian 13 instead is planned in
+Hetzner's console. A new build is booted once on trial and kept as the default
+only if the node's Cilium agent reports healthy on it within fifteen minutes;
+otherwise the box reboots onto the previous kernel and
+`jaritanet_kernel_trial_failed` records the refusal. That is the failure a
+kernel upgrade has caused here: 7.3 booted, and Cilium 1.20.0 could
+not load on it. Moving to Debian 13 instead is planned in
 #1768.
 
 The token is from https://ubuntu.com/pro/dashboard.
