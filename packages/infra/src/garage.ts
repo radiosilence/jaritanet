@@ -8,7 +8,7 @@ import * as random from "@pulumi/random";
  */
 const IMAGE = "docker.io/dxflrs/garage:v2.5.0";
 /** Floats, as the metrics package's init containers do: one `chown`. */
-const BUSYBOX = "docker.io/library/busybox:1.37";
+const BUSYBOX = "docker.io/library/busybox:1.38";
 
 const NAME = "garage";
 const S3_PORT = 3900;

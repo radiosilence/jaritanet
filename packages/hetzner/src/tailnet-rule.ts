@@ -55,7 +55,7 @@ export function createTailnetRule(
             containers: [
               {
                 name: app,
-                image: "busybox:1.37",
+                image: "busybox:1.38",
                 command: [
                   "sh",
                   "-c",

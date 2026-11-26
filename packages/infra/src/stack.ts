@@ -122,7 +122,16 @@ export const gateway = GatewayConfSchema.parse({
   // tested, and the failure is a cluster that comes up healthy and moves no
   // packets. Both values reach the fleet from here: version via an upgrade
   // Plan, ciliumVersion via Helm.
-  k3s: { version: "v1.36.3+k3s1", ciliumVersion: "1.20.0" },
+  //
+  // The version updater moves each to the newest patch of its current minor
+  // (`.github/tracked-versions.yml`). A minor is moved by hand, here and in
+  // that file's `tagPrefix`, with the compatibility row in place. Patches are
+  // not optional: Cilium 1.20.0 crash-looped on kernel 7.2+, whose verifier
+  // rejects a feature probe that 1.20.2 fixed (cilium/cilium#48016).
+  k3s: {
+    version: "v1.36.6+k3s1",
+    ciliumVersion: "1.20.5",
+  },
   // xray shares :443; traffic that doesn't match a client falls back to `dest`
   // (Traefik's local https port), so real visitors still get the site.
   //
