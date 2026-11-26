@@ -453,12 +453,26 @@ const ZABBLY_KEY_FINGERPRINT = "4EFC590696CB15B87C73A3AD82CC8797C838DCFD";
  * apt pin refuses everything from it but the kernel images, so the trust
  * extends to the kernel and nothing else.
  *
- * GRUB boots the highest version, so the mainline kernel is the default without
- * configuration, and Canonical's stays installed as the fallback. Cloud images
- * hide the menu with a zero timeout; it is shown for five seconds instead, so a
- * build that fails to boot can be passed over from Hetzner's console under
- * "Advanced options". Installing does not reboot: the switch happens at the
- * next reboot unattended-upgrades makes.
+ * A new build is booted once on trial and becomes the default only if the
+ * node's Cilium agent comes up healthy on it. That is the failure that took the
+ * estate down once: 7.3 booted cleanly and Cilium 1.20.0's feature probe was
+ * rejected by its verifier, so the box ran and moved no packets. A kernel hook
+ * `grub-reboot`s the new build for the next boot only, leaving GRUB's saved
+ * default on the kernel that last passed. After that boot `kernel-trial check`
+ * waits up to ten minutes for the agent's own health endpoint, which answers
+ * only for the agent running now, unlike pod status the API may still hold
+ * from before the reboot. Healthy, it saves the new build as the default;
+ * not, it reboots, and GRUB returns to the previous kernel. A build that
+ * panics comes back the same way, since the cloud image reboots on panic
+ * (`kernel.panic` = 10). One that hangs without panicking does not: a Hetzner
+ * VPS has no watchdog to reset it, which leaves the console. Each outcome is
+ * written to node-exporter's textfile directory as
+ * `jaritanet_kernel_trial_failed`, because a refused build otherwise leaves
+ * the box quietly on an older kernel, without the fixes it was meant to bring.
+ *
+ * Canonical's kernel stays installed beneath the mainline one. The GRUB menu
+ * is shown for five seconds rather than the cloud image's zero, so a kernel
+ * can still be chosen by hand from Hetzner's console.
  */
 export function createMainlineKernel(
   name: string,
@@ -510,6 +524,88 @@ cat > /etc/default/grub.d/60-fallback-menu.cfg << 'EOF'
 GRUB_TIMEOUT_STYLE=menu
 GRUB_TIMEOUT=5
 EOF
+cat > /etc/default/grub.d/61-saved-default.cfg << 'EOF'
+GRUB_DEFAULT=saved
+EOF
+
+cat > /usr/local/sbin/kernel-trial << 'EOF'
+#!/bin/bash
+set -uo pipefail
+state=/var/lib/kernel-trial/pending
+metrics=/var/lib/node-exporter/textfile/kernel_trial.prom
+
+entry_for() {
+  local submenu entry
+  submenu=$(grep -o "gnulinux-advanced-[0-9a-f-]*" /boot/grub/grub.cfg | head -1)
+  entry=$(grep -o "gnulinux-$1-advanced-[0-9a-f-]*" /boot/grub/grub.cfg | head -1)
+  [ -n "$submenu" ] && [ -n "$entry" ] && echo "$submenu>$entry"
+}
+
+record() {
+  mkdir -p "$(dirname "$metrics")"
+  printf 'jaritanet_kernel_trial_failed{version="%s"} %s\\n' "$1" "$2" > "$metrics.tmp"
+  mv "$metrics.tmp" "$metrics"
+  logger -t kernel-trial "$1: $3"
+}
+
+case "$1" in
+  start)
+    case "$2" in *zabbly*) ;; *) exit 0 ;; esac
+    entry=$(entry_for "$2") || { logger -t kernel-trial "$2: no GRUB entry"; exit 0; }
+    mkdir -p "$(dirname "$state")"
+    echo "$2" > "$state"
+    grub-reboot "$entry"
+    ;;
+  check)
+    [ -f "$state" ] || exit 0
+    version=$(cat "$state")
+    if [ "$(uname -r)" != "$version" ]; then
+      rm -f "$state"
+      record "$version" 1 "trial boot did not come up; on $(uname -r)"
+      exit 0
+    fi
+    for attempt in $(seq 60); do
+      if curl -sf -m 5 -o /dev/null http://127.0.0.1:9879/healthz \\
+        && entry=$(entry_for "$version"); then
+        grub-set-default "$entry"
+        rm -f "$state"
+        record "$version" 0 "Cilium healthy; now the default"
+        exit 0
+      fi
+      sleep 10
+    done
+    rm -f "$state"
+    record "$version" 1 "Cilium not healthy after ten minutes; rebooting to the previous kernel"
+    systemctl reboot
+    ;;
+  adopt)
+    entry=$(entry_for "$(uname -r)") || exit 1
+    grub-set-default "$entry"
+    ;;
+esac
+EOF
+chmod 0755 /usr/local/sbin/kernel-trial
+
+cat > /etc/kernel/postinst.d/zzz-kernel-trial << 'EOF'
+#!/bin/sh
+exec /usr/local/sbin/kernel-trial start "$1"
+EOF
+chmod 0755 /etc/kernel/postinst.d/zzz-kernel-trial
+
+cat > /etc/systemd/system/kernel-trial.service << 'EOF'
+[Unit]
+Description=Keep a trial kernel only if Cilium comes up on it
+After=k3s.service
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/kernel-trial check
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable kernel-trial.service
 
 cat > /etc/apt/apt.conf.d/52unattended-upgrades-zabbly << 'EOF'
 Unattended-Upgrade::Origins-Pattern { "origin=pkgs.zabbly.com,label=kernel-stable"; };
@@ -528,11 +624,16 @@ for attempt in $(seq 30); do
 done
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq linux-image-zabbly
 ls /boot/vmlinuz-*-zabbly+ >/dev/null
-update-grub`,
+update-grub
+# The running kernel is the last known good one, so it is the saved default
+# until a trial replaces it. Not overwritten on a re-run, which would discard
+# a default a trial set since.
+grub-editenv list | grep -q '^saved_entry=' || /usr/local/sbin/kernel-trial adopt
+grub-editenv list | grep -q '^saved_entry='`,
       triggers: serverTriggers(
         server,
         ZABBLY_KEY_FINGERPRINT,
-        "mainline-kernel-v2",
+        "mainline-kernel-v3",
       ),
     },
     { dependsOn: [server] },
