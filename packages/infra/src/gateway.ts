@@ -4,6 +4,7 @@ import {
   createAutomaticPatching,
   createJournalLimit,
   createK3s,
+  createMainlineKernel,
   createNetworkHardening,
   createNetworkTuning,
   inboundRule,
@@ -133,6 +134,7 @@ export function createGateway(
     server,
     proToken ? pulumi.secret(proToken) : undefined,
   );
+  createMainlineKernel("gateway", connection, server);
 
   if (adminSshKey) {
     createAdminSshAccess("gateway", connection, server, adminSshKey);

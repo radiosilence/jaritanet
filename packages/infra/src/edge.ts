@@ -1,6 +1,7 @@
 import {
   createAdminSshAccess,
   createAutomaticPatching,
+  createMainlineKernel,
   createNetworkHardening,
   createNetworkTuning,
   inboundRule,
@@ -91,6 +92,7 @@ export function createEdge(
     server,
     proToken ? pulumi.secret(proToken) : undefined,
   );
+  createMainlineKernel(name, connection, server);
 
   if (adminSshKey) {
     createAdminSshAccess(name, connection, server, adminSshKey);

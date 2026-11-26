@@ -341,9 +341,21 @@ well as the key, so a rebuild cannot leave the new box without a way in.
 
 Cloud images install security updates on their own and then leave them there:
 `Automatic-Reboot` ships false, so a new kernel is downloaded and never booted.
-Every box gets a 04:00 reboot window so the patches it installs take effect.
-Stable-release updates (`-updates`) are installed the same way; by default they
-are left for someone to run apt by hand, and accumulate.
+Cloud boxes check for updates every two hours and reboot as soon as one needs
+it, because a fixed nightly window plus apt's once-a-day schedule could leave a
+published fix two days from running. Home nodes, which nothing on the internet
+reaches, keep a 04:00 window. Stable-release updates (`-updates`) are installed
+the same way; by default they are left for someone to run apt by hand, and
+accumulate.
+
+Cloud boxes boot upstream's stable kernel as built by
+[Zabbly](https://github.com/zabbly/linux) rather than Canonical's. Ubuntu
+26.04 shipped 7.0, a kernel upstream stopped maintaining within months, so its
+fixes wait on Canonical's own backports; Zabbly builds each upstream stable
+release within hours. The trade is trusting Zabbly's build machines and signing
+key, whose fingerprint is pinned in `createMainlineKernel`. Canonical's kernel
+stays installed as the GRUB fallback. Moving to Debian 13 instead is planned in
+#1768.
 
 The token is from https://ubuntu.com/pro/dashboard.
 
@@ -357,6 +369,8 @@ window, which is where local privilege escalation lives. The two are not
 substitutes: livepatch covers neither userspace nor fixes that restructure
 kernel data, and stops supporting a kernel that drifts too far behind, so the
 window is what keeps livepatch working. Free for personal use on five machines.
+Livepatch covers only Canonical's kernels, so on the mainline kernel it applies
+to the fallback alone.
 
 Rotating the token is not enough on its own — an attached box is never offered a
 new one. Run `pro detach --assume-yes` on it first.
