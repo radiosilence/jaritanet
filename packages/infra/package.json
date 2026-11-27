@@ -28,7 +28,7 @@
     "@pulumi/random": "4.21.6",
     "@pulumi/tailscale": "0.30.0",
     "@pulumi/tls": "5.6.3",
-    "@radiosilence/dither-pulumi": "0.16.0",
+    "@radiosilence/dither-pulumi": "0.17.0",
     "@radiosilence/koan-pulumi": "0.77.0",
     "@radiosilence/koan-relay-pulumi": "0.1.4",
     "@radiosilence/mariastew-pulumi": "0.9.0",
