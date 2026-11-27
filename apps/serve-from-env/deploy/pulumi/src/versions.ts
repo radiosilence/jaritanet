@@ -9,5 +9,5 @@
  * Rewritten in place by that updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  serveFromEnv: "ghcr.io/radiosilence/serve-from-env:0.1.2",
+  serveFromEnv: "ghcr.io/radiosilence/serve-from-env:0.1.3",
 } as const;
