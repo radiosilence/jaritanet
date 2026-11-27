@@ -10,6 +10,10 @@ shellcheck = "0.11.0"
 # rustfmt and clippy are not in the minimal profile mise installs by default,
 # and the container workflows' check jobs need both.
 rust = { version = "stable", components = "rustfmt,clippy" }
+# Formats auth's askama templates (`mise run fmt:templates`) and checks them in CI,
+# as the editor does. Our own tool, so mise's wait before installing a new release
+# is off: CI runs the release the editor runs.
+"github:radiosilence/askama-analyzer" = { version = "latest", minimum_release_age = "0" }
 
 [env]
 # oxlint, oxfmt, tsc and vitest are workspace binaries. On PATH, a task can name
@@ -65,6 +69,10 @@ run = "oxlint --fix"
 [tasks.fmt]
 description = "Format with oxfmt"
 run = "oxfmt --write"
+
+[tasks."fmt:templates"]
+description = "Format auth's askama templates with askama-analyzer"
+run = "askama-analyzer fmt apps/auth"
 
 [tasks."fmt:check"]
 description = "Check formatting"
