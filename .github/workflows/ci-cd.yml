@@ -257,7 +257,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Environment
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           # What these jobs run on. Naming them is also what lets
           # shared_inputs.py tell a Rust or Pulumi bump in mise.toml from one
@@ -272,7 +272,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
-        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
+        uses: endevco/aube-action@c0d7e61d732be4362538a371e6d9a910d2cb5be8 # v1.1.2
         with:
           version: 2.11.0
           node-version: auto
@@ -314,7 +314,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Environment
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           install_args: node aube
 
@@ -324,7 +324,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
-        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
+        uses: endevco/aube-action@c0d7e61d732be4362538a371e6d9a910d2cb5be8 # v1.1.2
         with:
           version: 2.11.0
           node-version: auto
@@ -378,7 +378,7 @@ jobs:
 
       - name: Setup Environment
         if: steps.token.outputs.ready == 'true'
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           install_args: node aube pulumi
 
@@ -390,7 +390,7 @@ jobs:
 
       - name: Install Dependencies
         if: steps.token.outputs.ready == 'true'
-        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
+        uses: endevco/aube-action@c0d7e61d732be4362538a371e6d9a910d2cb5be8 # v1.1.2
         with:
           version: 2.11.0
           node-version: auto
@@ -423,7 +423,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Environment
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           install_args: rust
 
@@ -547,7 +547,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         if: env.PUSH == 'true'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -656,7 +656,7 @@ jobs:
 
       - name: Setup Environment
         if: steps.current.outputs.deploy == 'true'
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           install_args: node aube pulumi
 
@@ -668,7 +668,7 @@ jobs:
 
       - name: Install Dependencies
         if: steps.current.outputs.deploy == 'true'
-        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
+        uses: endevco/aube-action@c0d7e61d732be4362538a371e6d9a910d2cb5be8 # v1.1.2
         with:
           version: 2.11.0
           node-version: auto
@@ -720,7 +720,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

@@ -41,7 +41,7 @@ jobs:
     steps:
       - name: Generate App Token
         id: app-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           # The action sends this as the JWT issuer, which GitHub accepts as
           # either the app's client ID or its numeric app ID.
@@ -60,7 +60,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Environment
-        uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           # mise.toml also carries Rust and Pulumi for other jobs; this one only
           # runs a Node script and, for dependency bumps, aube.
@@ -74,7 +74,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
-        uses: endevco/aube-action@395f4e7195b55541a2e67be6e66ac5884f844a9f # v1.1.1
+        uses: endevco/aube-action@c0d7e61d732be4362538a371e6d9a910d2cb5be8 # v1.1.2
         with:
           version: 2.11.0
           node-version: auto
