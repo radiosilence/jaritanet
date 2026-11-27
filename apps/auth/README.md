@@ -150,8 +150,9 @@ callback or consent decision landing on a closed listener in that window is a
 ## Styling
 
 The pages are drawn with the kōan web kit, taken as the `koan-kit-web` crate:
-the head, the consent form, its buttons and the continue link are its
-components, and the templates add layout utilities only. Its palette is dark by
+the head, the consent form, its buttons, the continue link and the placeholder
+for an empty consent list are its components, and the templates add layout
+utilities only. Its palette is dark by
 default and light when the device asks; `styles/app.css` adds nothing but the
 cyan accent shared with mcp-gateway. The glue (the security headers, the
 fingerprinted stylesheet and the escaping guard) is `askama_datastar`'s, as in
