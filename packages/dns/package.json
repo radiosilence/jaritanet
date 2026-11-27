@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@jaritanet/k8s": "workspace:*",
-    "@pulumi/cloudflare": "6.23.1",
-    "@pulumi/pulumi": "3.272.0",
+    "@pulumi/cloudflare": "6.24.0",
+    "@pulumi/pulumi": "3.278.0",
     "zod": "4.6.7"
   }
 }
