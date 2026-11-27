@@ -250,8 +250,8 @@ importers:
         specifier: 0.1.4
         version: 0.1.4(@pulumi/kubernetes@4.35.0(typescript@7.0.2))(@pulumi/pulumi@3.278.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/mariastew-pulumi':
-        specifier: 0.8.0
-        version: 0.8.0(@pulumi/kubernetes@4.35.0(typescript@7.0.2))(@pulumi/pulumi@3.278.0(typescript@7.0.2))(zod@4.6.7)
+        specifier: 0.9.0
+        version: 0.9.0(@pulumi/kubernetes@4.35.0(typescript@7.0.2))(@pulumi/pulumi@3.278.0(typescript@7.0.2))(zod@4.6.7)
       '@radiosilence/mcp-gateway-pulumi':
         specifier: 0.19.0
         version: 0.19.0(@pulumi/kubernetes@4.35.0(typescript@7.0.2))(@pulumi/pulumi@3.278.0(typescript@7.0.2))(@pulumi/random@4.21.6(typescript@7.0.2))(zod@4.6.7)
@@ -995,8 +995,8 @@ packages:
       '@pulumi/pulumi': ^3
       zod: ^4
 
-  '@radiosilence/mariastew-pulumi@0.8.0':
-    resolution: {integrity: sha512-TKmwF8uIn9O3N3ylw88T+0l71sXEJGRFWxzcJhnI6f+xmYoebn68PMqeG/gc5Z8k/PKxQyh62BTBS2Lcun/jjg==, tarball: https://npm.pkg.github.com/download/@radiosilence/mariastew-pulumi/0.8.0/0641b2e55126e6a3747145a7fc9ae756f09608f5}
+  '@radiosilence/mariastew-pulumi@0.9.0':
+    resolution: {integrity: sha512-4Pbm0SbGwbZbVNRbVs5Bw1iAziMnq+ANjzvDkjDh+hZYSDAJE639xKfCXzODMUiG6Ftl6RzusxGqIjbFpSYn3g==, tarball: https://npm.pkg.github.com/download/@radiosilence/mariastew-pulumi/0.9.0/fed05bcf6793e3bcdad12d4613e5250fa97bb137}
     peerDependencies:
       '@pulumi/kubernetes': ^4
       '@pulumi/pulumi': ^3
@@ -2609,7 +2609,7 @@ snapshots:
       '@pulumi/pulumi': 3.278.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@radiosilence/mariastew-pulumi@0.8.0(@pulumi/kubernetes@4.35.0(typescript@7.0.2))(@pulumi/pulumi@3.278.0(typescript@7.0.2))(zod@4.6.7)':
+  '@radiosilence/mariastew-pulumi@0.9.0(@pulumi/kubernetes@4.35.0(typescript@7.0.2))(@pulumi/pulumi@3.278.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
       '@pulumi/kubernetes': 4.35.0(typescript@7.0.2)
       '@pulumi/pulumi': 3.278.0(typescript@7.0.2)
