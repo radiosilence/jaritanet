@@ -7,7 +7,7 @@
   "type": "module",
   "devDependencies": {
     "@radiosilence/koan-kit-web": "0.3.0",
-    "@tailwindcss/cli": "4.3.3",
-    "tailwindcss": "4.3.3"
+    "@tailwindcss/cli": "4.3.5",
+    "tailwindcss": "4.3.5"
   }
 }
