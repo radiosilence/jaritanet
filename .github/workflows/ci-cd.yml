@@ -443,6 +443,18 @@ jobs:
         working-directory: apps/${{ matrix.app }}
         run: cargo fmt --check && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked
 
+      - name: Install askama-analyzer
+        if: matrix.app == 'auth'
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          install_args: github:radiosilence/askama-analyzer
+
+      # Advisory until the templates are formatted; it becomes blocking then.
+      - name: Template formatting
+        if: matrix.app == 'auth'
+        continue-on-error: true
+        run: askama-analyzer fmt --check apps/auth
+
   # Each Rust app in release, once per architecture, on a runner of that
   # architecture: musl is the host's own target rather than a cross, and
   # nothing is emulated. On the runner rather than in `docker build`, because
