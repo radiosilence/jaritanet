@@ -19,6 +19,8 @@ use crate::{register, routes};
 mod escaping;
 
 const CSS_PATH: &str = "/assets/app.css";
+/// Beside the stylesheet, where its relative `url()` resolves.
+const FONT_PATH: &str = "/assets/geist-mono.woff2";
 
 /// Baked into the binary rather than served from a volume: it is fetched
 /// mid-authentication, so the deployment is one artefact with nothing else to
@@ -50,7 +52,7 @@ pub fn router(state: AppState) -> Router {
         .route("/", get(routes::index))
         .route("/healthz", get(|| async { "ok" }))
         .route(CSS_PATH, get(CSS.serve()))
-        .route("/assets/geist-mono.woff2", get(kit::font::serve))
+        .route(FONT_PATH, get(kit::font::serve))
         .route("/auth/login", get(routes::login))
         .route("/auth/github/callback", get(routes::github_callback))
         .route(
@@ -104,10 +106,13 @@ mod tests {
     #[test]
     fn the_stylesheet_names_the_font_it_is_served_beside() {
         let css = std::str::from_utf8(CSS_SOURCE).unwrap();
+        // The committed stylesheet asks for this release's font, by the hash
+        // the head preloads and the route answers as immutable.
         assert!(
-            css.contains("url(geist-mono.woff2?v="),
-            "the kit is missing"
+            css.contains(&format!("url({})", kit::font::url("app.css"))),
+            "the stylesheet names another kit release's font: run `mise run css`"
         );
+        assert!(kit::font::url(&css_url()).starts_with(&format!("{FONT_PATH}?")));
         assert!(css.contains("box-sizing:border-box"), "no preflight");
         assert!(css.contains(".max-w-form"), "utilities missing");
     }
