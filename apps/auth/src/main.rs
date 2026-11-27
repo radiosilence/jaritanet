@@ -20,73 +20,20 @@ mod register;
 mod routes;
 mod state;
 mod store;
+mod web;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use axum::Router;
-use axum::http::{HeaderValue, header};
-use axum::middleware;
-use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
 use serde_json::json;
-use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
 use crate::hydra::HydraAdmin;
 use crate::state::AppState;
 use crate::store::Store;
-
-/// Baked into the binary rather than served from a volume: these are fetched
-/// mid-authentication, so the deployment is one artefact with nothing else to
-/// mount and nothing to go stale against the templates they style. The
-/// stylesheet is compiled from `styles/` by `mise run css`; the font comes from
-/// @radiosilence/koan-kit-web, whose `@font-face` names it relative to the stylesheet.
-const APP_CSS: &str = include_str!("../assets/app.css");
-const GEIST_MONO: &[u8] = include_bytes!("../assets/geist-mono.woff2");
-
-/// No script anywhere. A login provider is the last page that should be
-/// executing anything it did not have to, and the consent screen is a form.
-const CSP: &str = "default-src 'self'; \
-     script-src 'none'; \
-     style-src 'self'; \
-     font-src 'self'; \
-     img-src 'self' data:; \
-     connect-src 'self'; \
-     form-action 'self'; \
-     frame-ancestors 'none'; \
-     base-uri 'none'; \
-     object-src 'none'";
-
-async fn security_headers(request: axum::extract::Request, next: middleware::Next) -> Response {
-    let mut response = next.run(request).await;
-    let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_SECURITY_POLICY,
-        HeaderValue::from_static(CSP),
-    );
-    headers.insert(
-        header::X_CONTENT_TYPE_OPTIONS,
-        HeaderValue::from_static("nosniff"),
-    );
-    headers.insert(
-        header::REFERRER_POLICY,
-        HeaderValue::from_static("no-referrer"),
-    );
-    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
-    response
-}
-
-async fn app_css() -> impl IntoResponse {
-    ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], APP_CSS)
-}
-
-async fn geist_mono() -> impl IntoResponse {
-    ([(header::CONTENT_TYPE, "font/woff2")], GEIST_MONO)
-}
 
 /// Register every client this deployment owns, so a relying party's
 /// registration is part of the deploy rather than an admin call somebody has to
@@ -176,21 +123,7 @@ async fn main() -> Result<()> {
         hydra,
     };
 
-    let app = Router::new()
-        .route("/", get(routes::index))
-        .route("/healthz", get(|| async { "ok" }))
-        .route("/assets/app.css", get(app_css))
-        .route("/assets/geist-mono.woff2", get(geist_mono))
-        .route("/auth/login", get(routes::login))
-        .route("/auth/github/callback", get(routes::github_callback))
-        .route(
-            "/auth/consent",
-            get(routes::consent).post(routes::consent_decision),
-        )
-        .route("/register", post(register::register))
-        .layer(middleware::from_fn(security_headers))
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
+    let app = web::router(state);
 
     let term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
         .context("installing a SIGTERM handler")?;
@@ -206,49 +139,4 @@ async fn main() -> Result<()> {
     .await
     .context("serving")?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::body::Body;
-    use axum::http::Request;
-    use axum::routing::get;
-    use tower::ServiceExt as _;
-
-    #[tokio::test]
-    async fn every_response_carries_the_security_headers() {
-        let app = Router::new()
-            .route("/", get(|| async { "hi" }))
-            .layer(middleware::from_fn(security_headers));
-
-        let response = app
-            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
-            .await
-            .unwrap();
-
-        let headers = response.headers();
-        let csp = headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
-        assert!(csp.contains("default-src 'self'"));
-        assert!(csp.contains("frame-ancestors 'none'"));
-        assert!(csp.contains("font-src 'self'"));
-        // A login provider executing script it did not need is the whole class
-        // of bug this closes, and no page here wants any.
-        assert!(csp.contains("script-src 'none'"));
-        assert!(
-            !csp.contains("unsafe-inline"),
-            "the CSP has an inline hatch"
-        );
-        assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
-        assert_eq!(headers[header::X_FRAME_OPTIONS], "DENY");
-        assert_eq!(headers[header::REFERRER_POLICY], "no-referrer");
-    }
-
-    /// The theme's `@font-face` names the font relative to the stylesheet, so
-    /// the route that serves it has to sit beside `/assets/app.css`.
-    #[test]
-    fn the_stylesheet_names_the_font_it_is_served_beside() {
-        assert!(APP_CSS.contains("url(geist-mono.woff2)"));
-        assert_eq!(&GEIST_MONO[..4], b"wOF2");
-    }
 }

@@ -14,6 +14,9 @@ rust = { version = "stable", components = "rustfmt,clippy" }
 # as the editor does. Our own tool, so mise's wait before installing a new release
 # is off: CI runs the release the editor runs.
 "github:radiosilence/askama-analyzer" = { version = "latest", minimum_release_age = "0" }
+# Compiles auth's stylesheet (`mise run css`). Exact, because CI checks the
+# committed stylesheet against a rebuild.
+"github:tailwindlabs/tailwindcss" = "4.3.5"
 
 [env]
 # oxlint, oxfmt, tsc and vitest are workspace binaries. On PATH, a task can name
@@ -45,14 +48,21 @@ description = "Toolchain, dependencies and git hooks, from a fresh clone"
 run = "aube install"
 
 [tasks.css]
-description = "Check auth's markup against the kit and rebuild apps/auth/assets after changing apps/auth/styles or a template"
-# The output is committed: the binary embeds it, and the image build has no
-# GitHub Packages token to fetch the theme with. The font is copied beside the
-# stylesheet because the theme's @font-face names it by a relative URL.
-# kit-check fails first on any class outside the theme's look, which would
-# otherwise compile to nothing and lose its style silently.
+description = "Check auth's markup against the kit and rebuild apps/auth/assets/app.css after changing apps/auth/styles or a template"
+# The output is committed: the binary embeds it, and building auth must not
+# need the Tailwind CLI. The kit's stylesheet is compiled from the source of the
+# koan-kit-web crate that Cargo.lock names, through the gitignored link
+# `styles/kit`, so the markup the components write and the rules that draw it
+# come from one release. kit-check fails first on any class outside the kit's
+# look, which would otherwise compile to nothing and lose its style silently.
 dir = "apps/auth"
-run = "node_modules/.bin/kit-check templates && node_modules/.bin/tailwindcss -i styles/app.css -o assets/app.css --minify && cp node_modules/@radiosilence/koan-kit-web/geist-mono.woff2 assets/"
+run = """
+set -eu
+manifest=$(cargo metadata --format-version 1 --locked | python3 -c 'import json, sys; print(next(p["manifest_path"] for p in json.load(sys.stdin)["packages"] if p["name"] == "koan-kit-web"))')
+ln -sfn "$(dirname "$manifest")" styles/kit
+node styles/kit/kit-check.mjs templates src
+tailwindcss --input styles/app.css --output assets/app.css --minify
+"""
 
 [tasks.lint]
 description = "Lint with oxlint"

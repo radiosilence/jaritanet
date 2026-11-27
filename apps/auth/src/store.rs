@@ -57,6 +57,16 @@ impl Store {
         Ok(Self { conn })
     }
 
+    /// A store that connects on its first command, for tests that drive pages
+    /// which never reach it.
+    #[cfg(test)]
+    pub fn lazy(redis_url: &str) -> Self {
+        let client = redis::Client::open(redis_url).expect("a Redis URL");
+        let conn = ConnectionManager::new_lazy_with_config(client, Default::default())
+            .expect("a lazy connection manager");
+        Self { conn }
+    }
+
     pub async fn create_flow(&self, flow: &Flow) -> Result<String> {
         let id = new_id();
         let body = serde_json::to_string(flow)?;

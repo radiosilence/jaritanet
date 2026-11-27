@@ -1,20 +1,18 @@
 /*
  * Compiled into ../assets/app.css by `mise run css`, and the result committed:
- * the binary embeds it, and the image build has no registry token to fetch the
- * theme with. CI fails when the committed file is stale.
+ * the binary embeds it, and building auth must not need the Tailwind CLI.
  *
- * The tokens (palette, type scale, Geist Mono) come from @radiosilence/koan-kit-web.
- * Its @font-face names geist-mono.woff2 relative to the compiled stylesheet,
- * so `mise run css` copies the font into ../assets beside it.
- *
- * The element defaults and controls (buttons, panel, rows) come from the
- * theme's kit; this file holds only what is particular to these pages.
+ * The controls come from the kōan web kit: koan-kit-web's components write the
+ * markup, and its stylesheet, imported from the crate's source through the
+ * `kit` link `mise run css` makes, draws it. The templates carry their layout
+ * as utilities.
  */
 @import "tailwindcss" source(none);
-@import "@radiosilence/koan-kit-web";
+@source "../templates";
+@import "./kit/theme.css";
 
 /* The accent is cyan, shared with mcp-gateway, whose identity provider these pages front: #4fd6f0 on dark, and
- * #066f82, the same hue darkened, on light. The pages sit on --bg, where these are 9.7:1 and 5.8:1. */
+ * #066f82, the same hue darkened, on light. Both are over 4.5:1 on --surface. */
 :root {
   --brand: #4fd6f0;
 }
@@ -24,5 +22,3 @@
     --brand: #066f82;
   }
 }
-
-@source "../templates";

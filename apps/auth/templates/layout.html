@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    {#- A login page has no business being indexed, and less being archived. -#}
+    {{ kit::Head::new(crate::web::css_url()).noindex() }}
+    <title>{% block title %}auth{% endblock %}</title>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    {{ kit::SkipLink::new("Skip to content", "main") }}
+    <main id="main" class="flex min-h-dvh items-center justify-center p-6">
+      <div class="w-full max-w-form">{% block content %}{% endblock %}</div>
+    </main>
+  </body>
+</html>

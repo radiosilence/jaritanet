@@ -31,7 +31,7 @@ The same gateway also fronts a censorship-resistant VPN/proxy layer: Xray VLESS-
 - `mise run lint:fix` - Lint and auto-fix with oxlint
 - `mise run lint:workflows` - Lint `.github/workflows` with actionlint, which runs shellcheck over the `run` scripts
 - `mise run fmt` - Format code with oxfmt
-- `mise run css` - Check auth's templates against the koan web kit (kit-check), then rebuild its committed stylesheet and font after changing `apps/auth/styles` or a template
+- `mise run css` - Check auth's templates against the koan web kit (kit-check), then rebuild its committed stylesheet from the `koan-kit-web` crate's source after changing `apps/auth/styles` or a template
 - `mise run fmt:check` - Check formatting with oxfmt
 - `mise run preview` / `mise run deploy` - Wrap the Pulumi CLI. The credentials come from the stack, so both need a Pulumi login and nothing else. CI runs the same CLI directly.
 - `mise run check` - Lint, actionlint, format, typecheck and test. They are independent, so mise runs them in parallel and a failure stops only its dependents.
@@ -259,7 +259,7 @@ so CD ships what CI built in the same run.
 touches: `ts` (lint, format, typecheck, tests and the sing-box profile check),
 `deploy` (the Pulumi program and everything it imports), `styles` (auth's
 compiled stylesheet: `mise run css` checks the templates with kit-check,
-rebuilds it, and compares the result with the committed `apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
+rebuilds it from the kit crate's source, and compares the result with the committed `apps/auth/assets`), and one per container (`auth`, `serve_from_env`, `files`,
 `koan_demo`, `hysteria`). `deploy`, `ts` and `styles` are outputs
 of `changes`, and each job they gate runs under an `if:` on its output. The
 container domains are not outputs: they select which apps enter the `rust`,
@@ -381,9 +381,11 @@ A base image this repository builds on (nginx under `apps/files`, upstream hyste
 - `apps/koan-demo/` - The music image koan's public demo mounts; built by `build.py` from `library.json`
 - `apps/hysteria/` - Upstream's Hysteria2 image with `cap_net_bind_service` set on the binary as a file capability and `USER 65534`, so it can bind :443 on the host network without root. Its base is tracked by the version updater as a Dockerfile target
 - `apps/auth/` - Hydra's login and consent provider; see `apps/auth/README.md`.
-  Its stylesheet is Tailwind over `@radiosilence/koan-kit-web`, compiled by
-  `mise run css` into the committed `assets/` because the image build has no
-  registry token; `apps/auth` is a workspace member for that build alone
+  Its pages are drawn with the `koan-kit-web` crate's components, with
+  `askama_datastar` for the security headers, the fingerprinted stylesheet and
+  the escaping guard. The stylesheet is Tailwind over the kit crate's source,
+  compiled by `mise run css` into the committed `assets/app.css`, so building
+  the binary needs neither Node nor Tailwind
 
 ## Utility Scripts
 
