@@ -125,7 +125,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "auth"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "anyhow",
  "askama",
@@ -856,9 +856,9 @@ dependencies = [
 
 [[package]]
 name = "koan-kit-web"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22892d0b5ee83f4846bf822d05898e914190f7fe4f5d2e61030ab62ae87ef32c"
+checksum = "03b70919c8d90f67f3d50f0dcea4b776ea3fb5841970ce8400e5ae048b26efe2"
 dependencies = [
  "askama",
  "askama_datastar",

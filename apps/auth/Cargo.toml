@@ -1,6 +1,6 @@
 [package]
 name = "auth"
-version = "0.2.15"
+version = "0.2.16"
 edition = "2024"
 
 [dependencies]
@@ -9,7 +9,7 @@ askama = "0.16.1"
 askama_datastar = "0.3.2"
 axum = "0.8"
 base64 = "0.23.1"
-koan-kit-web = "0.8.1"
+koan-kit-web = "0.9.0"
 rand = "0.10.2"
 redis = { version = "1.5", default-features = false, features = [
   "tokio-comp",

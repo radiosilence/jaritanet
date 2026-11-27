@@ -1,5 +1,4 @@
 {% extends "layout.html" %}
-{% import "consent/list.html" as consent %}
 
 {% block title %}Authorise an application{% endblock %}
 
@@ -17,18 +16,18 @@
     <p class="mb-5">Signed in as <strong>{{ login }}</strong></p>
 
     <p class="mb-2 text-muted">Access will be sent to:</p>
-    {% call consent::list(redirect_hosts, "no redirect URI", true) %}{% endcall %}
+    {{ kit::List::new(redirect_hosts.iter()).strong().empty("no redirect URI").class("mb-5") }}
 
     <p class="mb-2 text-muted">
       It calls itself <strong>{{ client }}</strong>. That name is self-reported:
       this application registered itself, so it is not one of ours. It is asking
       for:
     </p>
-    {% call consent::list(scopes, "no scopes", false) %}{% endcall %}
+    {{ kit::List::new(scopes.iter()).empty("no scopes").class("mb-5") }}
 
     {% if !audience.is_empty() %}
       <p class="mb-2 text-muted">On behalf of:</p>
-      {% call consent::list(audience, "", false) %}{% endcall %}
+      {{ kit::List::new(audience.iter()).class("mb-5") }}
     {% endif %}
 
     {#- A plain form: it must work with no script, and the challenge it carries
