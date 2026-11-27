@@ -6,8 +6,7 @@ This prints `ts=`, `deploy=`, `rust=` and `styles=` (each `true` or `false`)
 for the change between two commits:
 
 - aube-lock.yaml: any change reaches `ts`, whose jobs install and check the
-  whole workspace, and `styles`, whose job installs it to compile auth's
-  stylesheet. It reaches `deploy` when an entry in the runtime dependency
+  whole workspace. It reaches `deploy` when an entry in the runtime dependency
   closure of `packages/infra` (the Pulumi program) was added, removed or
   changed, following workspace members, plus the root's runtime `dependencies`,
   which Node's resolution can reach from any package. A workspace member is
@@ -17,7 +16,7 @@ for the change between two commits:
   they reach `ts` alone. A change to the lockfile's settings or format reaches
   both.
 - mise.toml: a tool a domain's jobs install (node and aube for `ts`; those and
-  pulumi for `deploy`; rust for `rust`; node and aube for `styles`), a task they run or one those tasks
+  pulumi for `deploy`; rust for `rust`; node, rust and Tailwind for `styles`), a task they run or one those tasks
   depend on, or anything outside [tools] and [tasks], such as [env], which
   every job reads.
 
@@ -34,9 +33,10 @@ import tomllib
 TS_TOOLS = {"node", "aube"}
 DEPLOY_TOOLS = {"node", "aube", "pulumi"}
 RUST_TOOLS = {"rust"}
+STYLES_TOOLS = {"node", "rust", "github:tailwindlabs/tailwindcss"}
 TS_TASKS = {"auth", "lint", "fmt:check", "typecheck", "test", "check:profiles"}
 DEPLOY_TASKS = {"auth"}
-STYLES_TASKS = {"auth", "css"}
+STYLES_TASKS = {"css"}
 
 ENTRY_SECTIONS = {"importers", "packages", "snapshots"}
 DEP_SECTIONS = {"dependencies", "optionalDependencies"}
@@ -190,7 +190,7 @@ def mise_reaches(old, new):
         bool(tools & TS_TOOLS) or reached(TS_TASKS),
         bool(tools & DEPLOY_TOOLS) or reached(DEPLOY_TASKS),
         bool(tools & RUST_TOOLS),
-        bool(tools & TS_TOOLS) or reached(STYLES_TASKS),
+        bool(tools & STYLES_TOOLS) or reached(STYLES_TASKS),
     )
 
 
@@ -218,7 +218,7 @@ def main():
     print(f"ts={str(lock_ts or mise_ts).lower()}")
     print(f"deploy={str(lock_deploy or mise_deploy).lower()}")
     print(f"rust={str(mise_rust).lower()}")
-    print(f"styles={str(lock_ts or mise_styles).lower()}")
+    print(f"styles={str(mise_styles).lower()}")
 
 
 main()

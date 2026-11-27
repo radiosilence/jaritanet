@@ -193,8 +193,9 @@ jobs:
             touches '^packages/|^apps/[^/]+/deploy/|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' '\.test\.ts$|\.md$' \
               || [ "$inputs_deploy" = true ] || deploy=false
             # auth's compiled stylesheet: its source, the templates it scans,
-            # the committed output, and the manifest naming the theme.
-            touches '^apps/auth/(styles|templates|assets)/|^apps/auth/package\.json$|^(\.npmrc|aube-workspace\.yaml)$|^\.github/' \
+            # the code kit-check reads, the committed output, and the lockfile
+            # naming the kit release it is compiled from.
+            touches '^apps/auth/(styles|templates|src|assets)/|^apps/auth/Cargo\.lock$|^\.github/' \
               || [ "$inputs_styles" = true ] || styles=false
             # A container is its app's directory, less the chart beside it (a
             # pin bump there is a deploy, not a new image) and its README,
@@ -292,13 +293,14 @@ jobs:
         if: matrix.task == 'test'
         run: mise run check:profiles
 
-  # auth's stylesheet is compiled from apps/auth/styles and the templates, and
-  # the output committed, because the image build has no GitHub Packages token
-  # to fetch the theme with. This rebuilds it and fails when the committed copy
-  # differs, so a template change cannot ship with classes nothing defines.
-  # `mise run css` runs the theme's kit-check first, which fails on classes
-  # outside the kit's look (rounded corners, shadows, Tailwind's palette and
-  # type sizes) in the templates.
+  # auth's stylesheet is compiled from apps/auth/styles, the templates and the
+  # koan-kit-web crate's source, and the output committed, because building
+  # auth must not need the Tailwind CLI. This rebuilds it and fails when the
+  # committed copy differs, so a template change cannot ship with classes
+  # nothing defines. `mise run css` runs the kit's kit-check first, which fails
+  # on classes outside the kit's look (rounded corners, shadows, Tailwind's
+  # palette and type sizes) in the templates. Cargo resolves which kit release
+  # Cargo.lock names, so it needs rust as well as node and Tailwind.
   styles:
     name: Stylesheet (auth)
     runs-on: ubuntu-24.04
@@ -307,8 +309,6 @@ jobs:
     if: needs.changes.outputs.styles == 'true'
     permissions:
       contents: read
-      # @radiosilence/koan-kit-web comes from GitHub Packages.
-      packages: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -316,20 +316,7 @@ jobs:
       - name: Setup Environment
         uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
-          install_args: node aube
-
-      - name: Authenticate to GitHub Packages
-        run: mise run auth
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Dependencies
-        uses: endevco/aube-action@c0d7e61d732be4362538a371e6d9a910d2cb5be8 # v1.1.2
-        with:
-          version: 2.11.0
-          node-version: auto
-          run-install: true
-          install-args: --frozen-lockfile
+          install_args: node rust github:tailwindlabs/tailwindcss
 
       - name: Compile
         run: mise run css
@@ -449,10 +436,8 @@ jobs:
         with:
           install_args: github:radiosilence/askama-analyzer
 
-      # Advisory until the templates are formatted; it becomes blocking then.
       - name: Template formatting
         if: matrix.app == 'auth'
-        continue-on-error: true
         run: askama-analyzer fmt --check apps/auth
 
   # Each Rust app in release, once per architecture, on a runner of that

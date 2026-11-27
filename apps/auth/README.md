@@ -108,8 +108,9 @@ exactly, so there is no schema, no migration at boot, and no sweeper for the
 rows an abandoned login leaves behind. Losing the whole store costs the logins
 in flight at that instant.
 
-**No script on any page.** The CSP is `script-src 'none'` and the consent screen
-is a form. A self-registered client picks its own `client_name`, which is
+**No script on any page.** The CSP is askama_datastar's shared policy with
+`script-src 'none'`, and the consent screen is a plain form, so Datastar's
+script is not served. A self-registered client picks its own `client_name`, which is
 rendered on that screen, so everything interpolated there is attacker-chosen and
 goes through the template's escaping.
 
@@ -148,27 +149,38 @@ callback or consent decision landing on a closed listener in that window is a
 
 ## Styling
 
-The pages are drawn with the koan web kit (`@radiosilence/koan-kit-web`): its palette,
-dark by default and light when the device asks, its type scale, Geist Mono,
-and its controls. Plain elements come out in the theme, so the templates hold
-only layout and the kit's classes (`panel` and the `primary` button weight);
-`styles/app.css` adds nothing but the cyan accent shared with mcp-gateway. The
-specification behind the look is koan's `docs/design/koan-theme.md`.
+The pages are drawn with the kōan web kit, taken as the `koan-kit-web` crate:
+the head, the consent form, its buttons and the continue link are its
+components, and the templates add layout utilities only. Its palette is dark by
+default and light when the device asks; `styles/app.css` adds nothing but the
+cyan accent shared with mcp-gateway. The glue (the security headers, the
+fingerprinted stylesheet and the escaping guard) is `askama_datastar`'s, as in
+radiosilence's other server-rendered apps. The specification behind the look is
+koan's `docs/design/koan-theme.md`.
 
-`mise run css` runs the theme's kit-check over `templates/`, which fails on
-classes outside the look (rounded corners, shadows, rings, Tailwind's
-palette and type sizes). Those compile to nothing against the theme, so without
-the check a leftover would lose its style without any error. It then compiles
-`styles/app.css` into `assets/app.css`, scanning `templates/` for the classes
-they use, and copies the theme's `geist-mono.woff2` beside it. Both outputs are
-committed and embedded in the binary: the image build has no GitHub Packages
-token to fetch the theme with, and the pages appear mid-login, where nothing
-else should have to be reachable. CI's `Stylesheet (auth)` job runs the same
-task and fails when the check does or when the committed copy differs, so a
-template edit needs `mise run css` before it is pushed.
+`mise run css` links `styles/kit` to the source of the `koan-kit-web` release
+`Cargo.lock` names, runs the kit's kit-check over `templates/` and `src/`, which
+fails on classes outside the look (rounded corners, shadows, rings, Tailwind's
+palette and type sizes), and compiles `styles/app.css` into `assets/app.css`.
+Compiling from the crate's source means the markup the components write and the
+rules that draw it come from one release, and nothing needs an npm registry.
+The output is committed and embedded in the binary, so building auth needs
+neither Node nor Tailwind, and the pages appear mid-login, where nothing else
+should have to be reachable. CI's `Stylesheet (auth)` job runs the same task and
+fails when the check does or when the committed copy differs, so a template
+edit needs `mise run css` before it is pushed.
 
-The font's URL is relative because the theme writes it that way, so the binary
-serves it at `/assets/geist-mono.woff2`, and the CSP names `font-src 'self'`.
+The stylesheet is served at a fingerprinted address (`/assets/app.css?v=<hash>`)
+and cached as immutable there. The font is the kit's, served from the crate at
+`/assets/geist-mono.woff2`, beside the stylesheet that names it.
+
+`src/web/escaping.rs` is the escaping guard: it serves a stub Hydra whose consent
+request carries markup-shaped text in every field an outside party controls (the
+client's name, the redirect URI, the scopes and audience, the login in the
+session context, the challenge, the `redirect_to` a decision is answered with),
+requests every page through the router, and checks each answer with
+`askama_datastar::escaping::Guard`. The GitHub profile name is not drawn on any
+page. A new page or a new field drawn from outside belongs in it.
 
 ## Configuration
 
@@ -195,7 +207,7 @@ once at boot.
 | `GET`/`POST /auth/consent` | Hydra's consent challenge, and the decision from the screen. |
 | `POST /register` | Dynamic client registration (RFC 7591), proxied to Hydra. Public by design. |
 | `GET /healthz` | |
-| `GET /`, `GET /assets/app.css`, `GET /assets/geist-mono.woff2` | |
+| `GET /`, `GET /assets/app.css`, `GET /assets/geist-mono.woff2` | The stylesheet is asked for with its `?v=` fingerprint. |
 
 `auth.<domain>` is shared with Hydra and split by path: Hydra keeps `/oauth2/*`,
 `/.well-known/*` and `/userinfo`, so the issuer relying parties discover does not

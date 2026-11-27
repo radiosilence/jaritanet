@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
 {#- A page rather than a 302 after the consent form: form-action applies to
     every redirect that follows a form submission, and the last hop leaves for
@@ -10,8 +10,8 @@
 {% block title %}Continuing{% endblock %}
 
 {% block content %}
-<section class="panel">
-  <h1>{{ heading }}</h1>
-  <p class="text-muted"><a href="{{ to }}" class="underline">Continue</a> if nothing happens.</p>
-</section>
+  <section class="panel">
+    <h1>{{ heading }}</h1>
+    <p class="text-muted">{{ kit::Link::new("Continue", to) }} if nothing happens.</p>
+  </section>
 {% endblock %}

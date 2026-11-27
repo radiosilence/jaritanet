@@ -14,6 +14,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use koan_kit_web as kit;
 use rand::Rng as _;
 use serde::Deserialize;
 
@@ -59,11 +60,11 @@ fn page(rendered: askama::Result<String>) -> AppResult<Html<String>> {
 }
 
 #[derive(Template)]
-#[template(path = "index.html")]
+#[template(path = "index/page.html")]
 struct IndexTemplate;
 
 #[derive(Template)]
-#[template(path = "expired.html")]
+#[template(path = "expired/page.html")]
 struct ExpiredTemplate;
 
 /// The callback when no flow is bound to this browser: it expired, or the
@@ -75,20 +76,20 @@ fn expired() -> AppResult<Response> {
 }
 
 #[derive(Template)]
-#[template(path = "continue.html")]
+#[template(path = "continue/page.html")]
 struct ContinueTemplate<'a> {
     heading: &'a str,
     to: &'a str,
 }
 
-/// Where a consent decision sends the browser next. See `continue.html` for
+/// Where a consent decision sends the browser next. See `continue/page.html` for
 /// why this is a page and not a redirect.
 fn continue_to(heading: &str, to: &str) -> AppResult<Response> {
     Ok(page(ContinueTemplate { heading, to }.render())?.into_response())
 }
 
 #[derive(Template)]
-#[template(path = "consent.html")]
+#[template(path = "consent/page.html")]
 struct ConsentTemplate {
     challenge: String,
     client: String,

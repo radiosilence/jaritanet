@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% import "consent/list.html" as consent %}
+
+{% block title %}Authorise an application{% endblock %}
+
+{% block content %}
+  {#- Everything interpolated here except `login` is chosen by whoever registered
+      the client, which anyone may do. Askama escapes by default; nothing on this
+      page opts out of it.
+  
+      The redirect host leads because it is the one thing here the registrant
+      cannot misrepresent: Hydra delivers the code only to the registered redirect
+      URI the request names, so that host is who receives access. The name is a
+      free-text field. -#}
+  <section class="panel">
+    <h1>Authorise an application</h1>
+    <p class="mb-5">Signed in as <strong>{{ login }}</strong></p>
+
+    <p class="mb-2 text-muted">Access will be sent to:</p>
+    {% call consent::list(redirect_hosts, "no redirect URI", true) %}{% endcall %}
+
+    <p class="mb-2 text-muted">
+      It calls itself <strong>{{ client }}</strong>. That name is self-reported:
+      this application registered itself, so it is not one of ours. It is asking
+      for:
+    </p>
+    {% call consent::list(scopes, "no scopes", false) %}{% endcall %}
+
+    {% if !audience.is_empty() %}
+      <p class="mb-2 text-muted">On behalf of:</p>
+      {% call consent::list(audience, "", false) %}{% endcall %}
+    {% endif %}
+
+    {#- A plain form: it must work with no script, and the challenge it carries
+        is Hydra's one-shot value, which a forged post cannot name. -#}
+    {% let form = kit::Form::plain("/auth/consent") %}
+    <form {{ form.attrs() }} class="mt-6 grid gap-3.5">
+      <input type="hidden" name="challenge" value="{{ challenge }}" />
+      {{ form.submit(kit::Button::primary("Allow").named("approve", "1")) }}
+      {{ form.submit(kit::Button::quiet("Deny")) }}
+    </form>
+  </section>
+{% endblock %}
