@@ -1,11 +1,13 @@
 {#- One of the consent screen's lists: where access goes, what is asked for,
     on whose behalf. Every item is attacker-chosen and escaped. -#}
 {% macro list(items, empty, strong) %}
-  <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
-    {%- for item in items %}
-      <li class="wrap-anywhere">{% if strong %}<strong>{{ item }}</strong>{% else %}{{ item }}{% endif %}</li>
-    {%- else %}
-      <li class="-ml-5 list-none text-muted">{{ empty }}</li>
-    {%- endfor %}
-  </ul>
+  {%- if items.is_empty() %}
+    {{ kit::Empty::new(empty).compact().class("mb-5") }}
+  {%- else %}
+    <ul class="mb-5 list-disc space-y-1 pl-5 marker:text-muted">
+      {%- for item in items %}
+        <li class="wrap-anywhere">{% if strong %}<strong>{{ item }}</strong>{% else %}{{ item }}{% endif %}</li>
+      {%- endfor %}
+    </ul>
+  {%- endif %}
 {% endmacro %}
