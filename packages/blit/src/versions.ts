@@ -10,5 +10,5 @@
  * Rewritten in place by the version updater; see `.github/tracked-versions.yml`.
  */
 export const VERSIONS = {
-  blit: "sha-5f9db19",
+  blit: "sha-66c9548",
 } as const;
