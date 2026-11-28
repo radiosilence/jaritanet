@@ -32,7 +32,7 @@
     "@radiosilence/koan-pulumi": "0.77.2",
     "@radiosilence/koan-relay-pulumi": "0.1.4",
     "@radiosilence/mariastew-pulumi": "0.10.1",
-    "@radiosilence/mcp-gateway-pulumi": "0.20.0",
+    "@radiosilence/mcp-gateway-pulumi": "0.20.1",
     "@radiosilence/slsk-mcp-pulumi": "0.30.4",
     "@radiosilence/transmet-pulumi": "0.3.4",
     "@radiosilence/tubele-pulumi": "0.1.3",
